@@ -27,12 +27,17 @@ src/
 │   └── jwt.ts                 # signToken / verifyToken
 ├── types/
 │   └── express.d.ts           # Express Request augmentation (req.admin)
-├── modules/
-│   └── auth/
-│       ├── auth.routes.ts     # POST /auth/login
-│       ├── auth.controller.ts # Request validation, response formatting
-│       ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
-│       └── auth.repository.ts # Prisma queries for Admin model
+  ├── modules/
+  │   ├── auth/
+  │   │   ├── auth.routes.ts     # POST /auth/login
+  │   │   ├── auth.controller.ts # Request validation, response formatting
+  │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
+  │   │   └── auth.repository.ts # Prisma queries for Admin model
+  │   └── locations/
+  │       ├── locations.routes.ts     # 6 endpoints under /locations
+  │       ├── locations.controller.ts # Request validation, response formatting
+  │       ├── locations.service.ts    # Geo hierarchy business logic
+  │       └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
 ├── routes/                    # (placeholder for future shared routes)
 ├── controllers/               # (placeholder for future shared controllers)
 ├── services/                  # (placeholder for future shared services)
@@ -57,6 +62,17 @@ src/
 |-----------------|--------|--------------------------------------|----------------|
 | `/health`        | GET    | Health check (sin auth)              | No             |
 | `/auth/login`    | POST   | Login de admin (email + password)    | No             |
+
+### Locations
+
+| Endpoint                       | Método | Descripción                                  | Rol mínimo |
+|-------------------------------|--------|----------------------------------------------|-----------|
+| `/locations/countries`        | GET    | Lista países disponibles                     | OPERATOR  |
+| `/locations/tree/:countryId`  | GET    | Árbol completo de nodos de un país           | OPERATOR  |
+| `/locations/leaf-nodes`       | GET    | Solo nodos hoja activos (para matching)      | OPERATOR  |
+| `/locations/countries`        | POST   | Crear país + definir niveles                 | SUPERADMIN|
+| `/locations/nodes`            | POST   | Crear nodo en cualquier nivel                | SUPERADMIN|
+| `/locations/nodes/:id/toggle` | PATCH  | Habilitar / deshabilitar nodo                | SUPERADMIN|
 
 #### Roles
 - `SUPERADMIN`: acceso total
@@ -84,6 +100,32 @@ src/
 | createdAt   | DateTime | Autogenerado                   |
 | updatedAt   | DateTime | Autogenerado (on update)       |
 
+### GeoLevel
+| Columna   | Tipo     | Descripción                                    |
+|----------|----------|------------------------------------------------|
+| id       | CUID     | PK, autogenerado                               |
+| countryId| CUID     | FK a GeoNode (nodo raíz del país)              |
+| level    | Int      | Número de nivel dentro del país (1, 2, ...)    |
+| name     | String   | Nombre del nivel ("Provincia", "Departamento") |
+| createdAt| DateTime | Autogenerado                                   |
+| updatedAt| DateTime | Autogenerado (on update)                       |
+
+- Unique constraint: `(countryId, level)`
+
+### GeoNode
+| Columna   | Tipo     | Descripción                                     |
+|----------|----------|-------------------------------------------------|
+| id       | CUID     | PK, autogenerado                                |
+| name     | String   | Nombre del nodo ("Mendoza", "Maipú")            |
+| levelId  | CUID?    | FK a GeoLevel (null para países)                |
+| parentId | CUID?    | FK a GeoNode padre (null para países)           |
+| isActive | Boolean  | Habilitado para matching (default: true)        |
+| createdAt| DateTime | Autogenerado                                    |
+| updatedAt| DateTime | Autogenerado (on update)                        |
+
+- Self-referencing relation: `parent` / `children` (GeoTree)
+- Países son nodos raíz: `parentId = null`, `levelId = null`
+
 ## Environment Variables
 
 | Variable            | Requerida | Descripción                              |
@@ -101,7 +143,14 @@ src/
 - Solo usuarios con rol `SUPERADMIN` pueden acceder a rutas protegidas con `requireSuperAdmin`
 - Errores de autenticación retornan 401 (credenciales inválidas o token inválido/expirado)
 - Errores de autorización retornan 403 (rol insuficiente)
-- El seed solo crea el superadmin si no existe previamente
+- El seed solo crea el superadmin y la jerarquía geográfica si no existen previamente
+- Jerarquía geográfica:
+  - Países son nodos raíz (`parentId = null`, `levelId = null`)
+  - Cada país define N niveles con nombres configurables (GeoLevel)
+  - La unidad mínima para matching es siempre el nodo hoja (sin hijos), sin importar en qué nivel esté
+  - Un nodo no puede activarse si su padre está inactivo
+  - Desactivar un nodo padre desactiva en cascada todos sus hijos
+  - No se puede hacer toggle de un país directamente (422)
 
 ## Scripts
 
@@ -114,4 +163,4 @@ src/
 | `npm run format`    | Formatea código con Prettier         |
 | `npm run prisma:generate` | Genera Prisma Client           |
 | `npm run prisma:migrate`  | Ejecuta migraciones de Prisma  |
-| `npm run prisma:seed`     | Ejecuta seed de superadmin     |
+| `npm run prisma:seed`     | Ejecuta seed (superadmin + Argentina)  |
