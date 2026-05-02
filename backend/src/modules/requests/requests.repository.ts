@@ -1,6 +1,8 @@
 import prisma from '../../lib/prisma';
 import { Request, RequestEvent, Feedback, Prisma } from '@prisma/client';
 
+type Tx = Prisma.TransactionClient | typeof prisma;
+
 export type CreateRequestInput = {
   userId: string;
   categoryId: string;
@@ -56,12 +58,14 @@ export class RequestsRepository {
     return { requests, total };
   }
 
-  async update(id: string, data: Prisma.RequestUncheckedUpdateInput): Promise<Request> {
-    return prisma.request.update({ where: { id }, data });
+  async update(id: string, data: Prisma.RequestUncheckedUpdateInput, tx?: Tx): Promise<Request> {
+    const client = tx ?? prisma;
+    return client.request.update({ where: { id }, data });
   }
 
-  async createEvent(data: CreateEventInput): Promise<RequestEvent> {
-    return prisma.requestEvent.create({ data });
+  async createEvent(data: CreateEventInput, tx?: Tx): Promise<RequestEvent> {
+    const client = tx ?? prisma;
+    return client.requestEvent.create({ data });
   }
 
   async findRejectorIds(requestId: string): Promise<string[]> {

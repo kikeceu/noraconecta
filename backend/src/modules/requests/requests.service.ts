@@ -3,7 +3,12 @@ import { MatchingService } from '../matching/matching.service';
 import { MatchingRepository } from '../matching/matching.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { UsersRepository } from '../users/users.repository';
+import { ReputationService } from '../reputation/reputation.service';
+import { ReputationRepository } from '../reputation/reputation.repository';
+import { EscalationsService } from '../escalations/escalations.service';
+import { EscalationsRepository } from '../escalations/escalations.repository';
 import { AppError } from '../../middleware/error-handler';
+import prisma from '../../lib/prisma';
 import { Request, Feedback } from '@prisma/client';
 
 const DEFAULT_RESPONSE_TIMEOUT_HOURS = 2;
@@ -30,6 +35,8 @@ export interface PaginatedRequestsResponse {
 
 const matchingRepository = new MatchingRepository();
 const configRepository = new ConfigRepository();
+const reputationRepository = new ReputationRepository();
+const escalationsRepository = new EscalationsRepository();
 
 export class RequestsService {
   private readonly matchingService: MatchingService;
@@ -37,6 +44,8 @@ export class RequestsService {
   constructor(
     private readonly requestsRepository: RequestsRepository,
     private readonly usersRepository: UsersRepository,
+    private readonly reputationService = new ReputationService(reputationRepository),
+    private readonly escalationsService = new EscalationsService(escalationsRepository),
   ) {
     this.matchingService = new MatchingService(matchingRepository, configRepository);
   }
@@ -302,17 +311,40 @@ export class RequestsService {
         type: 'COMPLETED',
       });
 
+      await this.reputationService.evaluateBadge(
+        request.assignedProfessionalId,
+      );
+
       return updated;
     }
 
-    const updated = await this.requestsRepository.update(requestId, {
-      status: 'NOT_FULFILLED',
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await this.requestsRepository.update(
+        requestId,
+        { status: 'NOT_FULFILLED' },
+        tx,
+      );
 
-    await this.requestsRepository.createEvent({
-      requestId,
-      professionalId: request.assignedProfessionalId,
-      type: 'NOT_FULFILLED',
+      await this.requestsRepository.createEvent(
+        {
+          requestId,
+          professionalId: request.assignedProfessionalId,
+          type: 'NOT_FULFILLED',
+        },
+        tx,
+      );
+
+      await this.reputationService.applyPenalization(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      await this.reputationService.removeBadgeIfActive(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      return result;
     });
 
     return updated;
@@ -336,14 +368,40 @@ export class RequestsService {
       throw new AppError('Request has no assigned professional', 400);
     }
 
-    const updated = await this.requestsRepository.update(requestId, {
-      status: 'NOT_FULFILLED',
-    });
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await this.requestsRepository.update(
+        requestId,
+        { status: 'NOT_FULFILLED' },
+        tx,
+      );
 
-    await this.requestsRepository.createEvent({
-      requestId,
-      professionalId: request.assignedProfessionalId,
-      type: 'NOT_FULFILLED',
+      await this.requestsRepository.createEvent(
+        {
+          requestId,
+          professionalId: request.assignedProfessionalId,
+          type: 'NOT_FULFILLED',
+        },
+        tx,
+      );
+
+      await this.escalationsService.create(
+        requestId,
+        request.userId,
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      await this.reputationService.applyPenalization(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      await this.reputationService.removeBadgeIfActive(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      return result;
     });
 
     return updated;
@@ -498,6 +556,12 @@ export class RequestsService {
           professionalId: request.assignedProfessionalId,
           type: 'COMPLETED',
         });
+
+        if (request.assignedProfessionalId) {
+          await this.reputationService.evaluateBadge(
+            request.assignedProfessionalId,
+          );
+        }
 
         processed++;
       } catch {
