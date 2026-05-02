@@ -1,0 +1,9 @@
+{
+  "name": "@noraconecta/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NORA - Frontend application",
+  "scripts": {},
+  "dependencies": {},
+  "devDependencies": {}
+}
