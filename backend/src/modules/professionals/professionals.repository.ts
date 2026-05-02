@@ -1,0 +1,173 @@
+import prisma from '../../lib/prisma';
+import { Professional, ProfessionalStatus, ProfessionalZone, Prisma } from '@prisma/client';
+
+export interface CreateProfessionalInput {
+  phone: string;
+  name: string;
+  categoryId: string;
+  verificationToken: string;
+  verificationTokenExp: Date;
+}
+
+export interface UpdateProfessionalInput {
+  name?: string;
+  categoryId?: string;
+  availability?: string;
+  dniNumber?: string;
+  dniFrontUrl?: string;
+  dniBackUrl?: string;
+  cuil?: string;
+  criminalRecordUrl?: string;
+  references?: string;
+  presentationVideoUrl?: string;
+  status?: ProfessionalStatus;
+  verificationTokenUsed?: boolean;
+  hasBadge?: boolean;
+  sessionToken?: string | null;
+  sessionTokenExp?: Date | null;
+  trialRequestsUsed?: number;
+  lastAssignedAt?: Date | null;
+}
+
+export interface ProfessionalFilters {
+  status?: ProfessionalStatus;
+  categoryId?: string;
+}
+
+export interface ProfessionalsResult {
+  professionals: Professional[];
+  total: number;
+}
+
+const MAX_TRIAL_REQUESTS = 5;
+
+export class ProfessionalsRepository {
+  async create(data: CreateProfessionalInput): Promise<Professional> {
+    return prisma.professional.create({ data });
+  }
+
+  async findById(id: string): Promise<Professional | null> {
+    return prisma.professional.findUnique({
+      where: { id },
+      include: { zones: true },
+    });
+  }
+
+  async findByPhone(phone: string): Promise<Professional | null> {
+    return prisma.professional.findUnique({ where: { phone } });
+  }
+
+  async findByVerificationToken(token: string): Promise<Professional | null> {
+    return prisma.professional.findUnique({ where: { verificationToken: token } });
+  }
+
+  async findBySessionToken(token: string): Promise<Professional | null> {
+    return prisma.professional.findUnique({
+      where: { sessionToken: token },
+      include: { zones: true, category: true },
+    });
+  }
+
+  async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
+    return prisma.professional.update({ where: { id }, data });
+  }
+
+  async updateStatus(id: string, status: ProfessionalStatus): Promise<Professional> {
+    return prisma.professional.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async markTokenUsed(id: string): Promise<Professional> {
+    return prisma.professional.update({
+      where: { id },
+      data: { verificationTokenUsed: true },
+    });
+  }
+
+  async setBadge(id: string, hasBadge: boolean): Promise<Professional> {
+    return prisma.professional.update({
+      where: { id },
+      data: { hasBadge },
+    });
+  }
+
+  async setSessionToken(
+    id: string,
+    sessionToken: string,
+    sessionTokenExp: Date,
+  ): Promise<Professional> {
+    return prisma.professional.update({
+      where: { id },
+      data: { sessionToken, sessionTokenExp },
+    });
+  }
+
+  async findAll(
+    skip: number,
+    limit: number,
+    filters?: ProfessionalFilters,
+  ): Promise<ProfessionalsResult> {
+    const where: Record<string, unknown> = {};
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+
+    if (filters?.categoryId) {
+      where.categoryId = filters.categoryId;
+    }
+
+    const [professionals, total] = await Promise.all([
+      prisma.professional.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          zones: { include: { geoNode: true } },
+        },
+      }),
+      prisma.professional.count({ where }),
+    ]);
+
+    return { professionals, total };
+  }
+
+  async findActiveCandidates(
+    categoryId: string,
+    geoNodeId: string,
+  ): Promise<Professional[]> {
+    return prisma.professional.findMany({
+      where: {
+        status: 'ACTIVE',
+        categoryId,
+        zones: { some: { geoNodeId } },
+        trialRequestsUsed: { lt: MAX_TRIAL_REQUESTS },
+      },
+      orderBy: { lastAssignedAt: { sort: 'asc', nulls: 'first' } },
+      take: 10,
+    });
+  }
+
+  async findZones(professionalId: string): Promise<ProfessionalZone[]> {
+    return prisma.professionalZone.findMany({
+      where: { professionalId },
+      include: { geoNode: true },
+    });
+  }
+
+  async addZone(professionalId: string, geoNodeId: string): Promise<ProfessionalZone> {
+    return prisma.professionalZone.create({
+      data: { professionalId, geoNodeId },
+    });
+  }
+
+  async removeZone(professionalId: string, geoNodeId: string): Promise<Prisma.BatchPayload> {
+    return prisma.professionalZone.deleteMany({
+      where: { professionalId, geoNodeId },
+    });
+  }
+}
