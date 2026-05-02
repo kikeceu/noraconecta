@@ -78,6 +78,14 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
 │   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback
+│   │   │   ├── reputation/
+│   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
+│   │   │   │   └── reputation.repository.ts # NOT_FULFILLED counting, status/badge updates
+│   │   │   └── escalations/
+│   │   │       ├── escalations.routes.ts     # 4 endpoints under /escalations
+│   │   │       ├── escalations.controller.ts # Request validation, response formatting
+│   │   │       ├── escalations.service.ts    # Escalation lifecycle, status transitions
+│   │   │       └── escalations.repository.ts # Prisma queries for Escalation model
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -230,7 +238,56 @@ src/
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
 
-### Config
+### Reputation
+
+Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matching.
+
+| Método                  | Descripción                                         |
+|-------------------------|-----------------------------------------------------|
+| `applyPenalization()`   | Cuenta NOT_FULFILLED, aplica OBSERVATION o SUSPENDED |
+| `evaluateBadge()`       | Otorga badge si cumplimiento 100% y completados ≥ umbral |
+| `removeBadgeIfActive()` | Remueve badge al recibir NOT_FULFILLED              |
+
+**Lógica de penalizaciones:**
+- 1er NOT_FULFILLED → status OBSERVATION (sigue en pool de matching)
+- 2do+ NOT_FULFILLED → status SUSPENDED (sale del pool) + alerta `PROFESSIONAL_AUTO_SUSPENDED`
+- Ejecutado en la misma transacción que el evento NOT_FULFILLED
+- El historial de eventos nunca se borra
+
+**Badge automático:**
+- Otorgar: count(NOT_FULFILLED) = 0 AND count(COMPLETED) ≥ `BADGE_MIN_COMPLETED_REQUESTS` (default: 10)
+- Quitar: al recibir NOT_FULFILLED con badge activo → `hasBadge = false`
+- Evaluado en cada COMPLETED (confirmación y auto-complete)
+
+**Matching (actualizado):**
+- `findEligibleProfessionals` ahora incluye status ACTIVE y OBSERVATION
+- SUSPENDED queda fuera del pool
+
+### Escalations
+
+| Endpoint                   | Método | Descripción                          | Rol mínimo |
+|---------------------------|--------|--------------------------------------|-----------|
+| `/escalations`            | GET    | Lista paginada (filtros: status, professionalId) | OPERATOR  |
+| `/escalations/:id`        | GET    | Detalle con request y usuario        | OPERATOR  |
+| `/escalations/:id/status` | PATCH  | Cambiar status (OPEN→IN_REVIEW→RESOLVED) | OPERATOR  |
+| `/escalations/:id/resolve`| PATCH  | Cerrar con resolución                | OPERATOR  |
+
+**Transiciones de estado válidas:**
+- OPEN → IN_REVIEW, RESOLVED
+- IN_REVIEW → RESOLVED
+- RESOLVED → (ninguna)
+
+**Lógica de negocio:**
+- Creada automáticamente al reportar incumplimiento (`reportNoncompliance`) en la misma transacción
+- Dispara alerta `ESCALATION_CREATED`
+- `resolve` requiere texto de resolución no vacío
+- `resolvedBy` registra el adminId del operador que resuelve
+
+### Config (actualizado)
+
+| Key                            | Default | Descripción                              |
+|-------------------------------|---------|------------------------------------------|
+| `BADGE_MIN_COMPLETED_REQUESTS` | 10     | Mínimo de pedidos completados para badge |
 
 | Endpoint         | Método | Descripción                      | Rol mínimo |
 |-----------------|--------|----------------------------------|-----------|
@@ -613,8 +670,17 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
   - Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
   - Auto-complete job: busca ACCEPTED con `completedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED
-  - Los jobs `processTimeouts()` y `processAutoCompletes()` son métodos públicos sin endpoints, para ser invocados por cron externo
-  - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
+- Los jobs `processTimeouts()` y `processAutoCompletes()` son métodos públicos sin endpoints, para ser invocados por cron externo
+- Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
+- Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
+- Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos
+- Badge se otorga automáticamente cuando cumplimiento = 100% y pedidos completados ≥ `BADGE_MIN_COMPLETED_REQUESTS`
+- Badge se remueve automáticamente al recibir un NOT_FULFILLED con badge activo
+- Los profesionales con status OBSERVATION siguen en el pool de matching (se consideran elegibles junto con ACTIVE)
+- Los profesionales con status SUSPENDED quedan fuera del pool
+- Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
+- Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
+- `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
 
 ## Scripts
 

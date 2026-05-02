@@ -18,7 +18,7 @@ export class MatchingRepository {
     excludedProfessionalIds: string[],
   ): Promise<Professional[]> {
     const where: Record<string, unknown> = {
-      status: 'ACTIVE',
+      status: { in: ['ACTIVE', 'OBSERVATION'] },
       categoryId,
       zones: { some: { geoNodeId } },
     };
