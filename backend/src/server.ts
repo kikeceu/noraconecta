@@ -16,6 +16,7 @@ import configRoutes from './modules/config/config.routes';
 import requestsRoutes from './modules/requests/requests.routes';
 import escalationsRoutes from './modules/escalations/escalations.routes';
 import storageRoutes from './modules/storage/storage.routes';
+import botRoutes from './modules/bot/bot.routes';
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/config', configRoutes);
 app.use('/requests', requestsRoutes);
 app.use('/escalations', escalationsRoutes);
 app.use('/storage', storageRoutes);
+app.use('/bot', botRoutes);
 
 app.use(errorHandler);
 

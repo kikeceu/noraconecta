@@ -5,6 +5,8 @@
   "scripts": {
     "dev:backend": "npm run dev --workspace=@noraconecta/backend",
     "build:backend": "npm run build --workspace=@noraconecta/backend",
+    "dev:frontend": "npm run dev --workspace=@noraconecta/frontend",
+    "build:frontend": "npm run build --workspace=@noraconecta/frontend",
     "migrate": "npm run prisma:migrate --workspace=@noraconecta/backend",
     "seed": "npm run prisma:seed --workspace=@noraconecta/backend"
   }

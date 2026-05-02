@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bedrock: #09090b;
+  --color-surface: #141416;
+  --color-elevated: #1c1c1f;
+  --color-hover: #252529;
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-steel: #ecedee;
+  --color-zinc-muted: #a1a1aa;
+  --color-iron: #71717a;
+  --color-emerald: #10b981;
+  --color-emerald-depth: #059669;
+}
+
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
