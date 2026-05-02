@@ -73,6 +73,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── matching/
 │   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
 │   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching
+│   │   │   ├── requests/
+│   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
+│   │   │   │   ├── requests.controller.ts # Request validation, response formatting
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts
+│   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -244,6 +249,48 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 **Filtros duros**: status ACTIVE, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo 2 pedidos activos, no rechazó el pedido actual.
 
 **Scoring** (calculado en tiempo real, no almacenado): Cumplimiento (50%) + TasaRespuesta (30%) + Recomendación (10%) + Distribución (10%). Parámetros configurables vía `SystemConfig` con defaults.
+
+### Requests
+
+| Endpoint                               | Método | Descripción                                    | Auth      |
+|----------------------------------------|--------|------------------------------------------------|-----------|
+| `/requests`                            | POST   | Crear pedido (bot: phone + category + zone)    | Sin auth  |
+| `/requests/:id/accept`                 | POST   | Profesional acepta pedido asignado             | Sin auth  |
+| `/requests/:id/reject`                 | POST   | Profesional rechaza pedido → reasigna          | Sin auth  |
+| `/requests/:id/cancel`                 | POST   | Usuario cancela pedido                         | Sin auth  |
+| `/requests/:id/mark-completed`         | POST   | Profesional marca trabajo como completado      | Sin auth  |
+| `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo            | Sin auth  |
+| `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
+| `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
+| `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
+| `/requests/:id`                        | GET    | Detalle de pedido con eventos y feedback       | OPERATOR  |
+
+**Flujo de estados:**
+```
+CREATED → [matching] → ASSIGNED → [acepta] → ACCEPTED
+                                → [rechaza/timeout] → [reasigna] → ASSIGNED (loop)
+                                                    → [sin candidatos] → NO_RESPONSE
+CREATED/ASSIGNED → [usuario cancela] → CANCELLED
+ACCEPTED → [profesional marca completo] → [usuario confirma Sí] → COMPLETED → [feedback]
+                                        → [usuario confirma No] → NOT_FULFILLED
+         → [usuario reporta incumplimiento] → NOT_FULFILLED
+ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
+```
+
+**Lógica de negocio:**
+- Crear: validar usuario sin pedido activo (409 si ya tiene) → matching → asignar con `assignmentTimeoutAt`
+- Aceptar: incrementar `trialRequestsUsed` si no tiene membresía activa
+- Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
+- Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar
+- Cancelación: solo permitida en CREATED o ASSIGNED
+- Finalización: profesional marca `completedAt` → usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
+- Auto-complete: 24h después de `completedAt` sin confirmación → COMPLETED automático
+- Todos los cambios de estado registran su `RequestEvent`
+- Jobs (sin endpoints): `processTimeouts()`, `processAutoCompletes()` para ser invocados por cron
+
+**Config keys usadas:**
+- `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2)
+- `AUTO_COMPLETE_HOURS` (default: 24)
 
 #### Roles
 - `SUPERADMIN`: acceso total
@@ -537,6 +584,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
   - La lógica de activación no conoce el origen del pago (preparada para integración con MercadoPago)
 - Configuración del sistema:
   - `TRIAL_REQUESTS_LIMIT` define el máximo de pedidos de prueba por profesional (default: 3)
+  - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` define el timeout de respuesta del profesional asignado (default: 2)
+  - `AUTO_COMPLETE_HOURS` define las horas sin confirmación para auto-completar un pedido (default: 24)
   - Las claves de configuración se crean/actualizan vía upsert
 - Motor de matching:
   - Scoring en tiempo real, no persistido en DB
@@ -547,8 +596,25 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
   - Recomendación: % feedbacks con `wouldRecommend = true`. Sin feedbacks → 50.
   - Distribución: `min(100, días × 10)`. Sin pedidos previos → 100.
   - Todos los pesos, penalizaciones y límites son configurables vía `SystemConfig` con defaults en `MATCHING_*` keys.
-  - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
-  - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
+   - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
+   - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
+- Pedidos:
+  - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED) no puede crear otro → 409
+  - Usuario bloqueado no puede crear pedidos → 403
+  - Creación dispara matching automáticamente vía `findBestCandidate()`; si no hay candidatos → NO_RESPONSE
+  - `assignmentTimeoutAt` se setea al asignar: `now() + PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2h)
+  - Aceptar: incrementa `trialRequestsUsed` si el profesional no tiene membresía ACTIVA vigente. Limpia `assignmentTimeoutAt`
+  - Rechazar: registra evento REJECTED, recolecta todos los rejectores anteriores (incluyendo al actual) y reasigna excluyéndolos
+  - Sin candidatos tras reasignación → NO_RESPONSE
+  - Cancelación: solo permitida en CREATED o ASSIGNED → CANCELLED
+  - `markCompleted`: profesional setea `completedAt`, el status sigue ACCEPTED
+  - `confirmCompletion`: usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
+  - `reportNoncompliance`: usuario reporta incumplimiento → NOT_FULFILLED
+  - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
+  - Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
+  - Auto-complete job: busca ACCEPTED con `completedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED
+  - Los jobs `processTimeouts()` y `processAutoCompletes()` son métodos públicos sin endpoints, para ser invocados por cron externo
+  - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 
 ## Scripts
 

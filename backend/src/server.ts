@@ -13,6 +13,7 @@ import professionalsRoutes from './modules/professionals/professionals.routes';
 import plansRoutes from './modules/plans/plans.routes';
 import membershipsRoutes from './modules/memberships/memberships.routes';
 import configRoutes from './modules/config/config.routes';
+import requestsRoutes from './modules/requests/requests.routes';
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use('/professionals', professionalsRoutes);
 app.use('/plans', plansRoutes);
 app.use('/professionals', membershipsRoutes);
 app.use('/config', configRoutes);
+app.use('/requests', requestsRoutes);
 
 app.use(errorHandler);
 
