@@ -15,6 +15,64 @@
 ## Architecture
 
 ```
+noraconecta/                   # Monorepo root (npm workspaces)
+├── backend/
+│   ├── src/
+│   │   ├── server.ts                  # Entry point: Express app bootstrap
+│   │   ├── lib/
+│   │   │   └── prisma.ts              # Prisma client singleton
+│   │   ├── middleware/
+│   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
+│   │   │   ├── require-auth.ts        # JWT validation middleware
+│   │   │   └── require-super-admin.ts # SUPERADMIN role guard
+│   │   ├── utils/
+│   │   │   └── jwt.ts                 # signToken / verifyToken
+│   │   ├── types/
+│   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
+│   │   ├── modules/
+│   │   │   ├── auth/
+│   │   │   │   ├── auth.routes.ts     # POST /auth/login
+│   │   │   │   ├── auth.controller.ts # Request validation, response formatting
+│   │   │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
+│   │   │   │   └── auth.repository.ts # Prisma queries for Admin model
+│   │   │   ├── categories/
+│   │   │   │   ├── categories.routes.ts     # 6 endpoints under /categories
+│   │   │   │   ├── categories.controller.ts # Request validation, response formatting
+│   │   │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching
+│   │   │   │   └── categories.repository.ts # Prisma queries for Category model
+│   │   │   ├── locations/
+│   │   │   │   ├── locations.routes.ts     # 6 endpoints under /locations
+│   │   │   │   ├── locations.controller.ts # Request validation, response formatting
+│   │   │   │   ├── locations.service.ts    # Geo hierarchy business logic
+│   │   │   │   └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
+│   │   │   └── users/
+│   │   │       ├── users.routes.ts         # 4 endpoints under /users
+│   │   │       ├── users.controller.ts     # Request validation, response formatting
+│   │   │       ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
+│   │   │       └── users.repository.ts     # Prisma queries for User model
+│   │   ├── routes/                    # (placeholder for future shared routes)
+│   │   ├── controllers/               # (placeholder for future shared controllers)
+│   │   ├── services/                  # (placeholder for future shared services)
+│   │   └── repositories/              # (placeholder for future shared repositories)
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   ├── migrations/
+│   │   └── seed.ts
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── .eslintrc
+│   ├── .prettierrc
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   └── .gitkeep             # Placeholder (frontend modules TBD)
+│   ├── package.json             # @noraconecta/frontend
+│   └── tsconfig.json            # React + TypeScript base config
+├── package.json                 # Root workspace config
+├── .gitignore
+├── PROJECT.md
+└── README.md
+```
 src/
 ├── server.ts                  # Entry point: Express app bootstrap
 ├── lib/
