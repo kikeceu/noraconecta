@@ -125,6 +125,184 @@ src/
 
 - Self-referencing relation: `parent` / `children` (GeoTree)
 - Países son nodos raíz: `parentId = null`, `levelId = null`
+- Relaciones: `professionalZones` → ProfessionalZone[], `requests` → Request[]
+
+### Category
+| Columna    | Tipo     | Descripción                     |
+|-----------|----------|---------------------------------|
+| id        | CUID     | PK, autogenerado                |
+| name      | String   | Único, nombre de la categoría   |
+| slug      | String   | Único, slug para URLs           |
+| description| String? | Descripción opcional            |
+| isActive  | Boolean  | Habilitado (default: true)      |
+| createdAt | DateTime | Autogenerado                    |
+| updatedAt | DateTime | Autogenerado (on update)        |
+
+- Relaciones: `professionals` → Professional[], `requests` → Request[]
+
+### User
+| Columna   | Tipo     | Descripción                     |
+|----------|----------|---------------------------------|
+| id       | CUID     | PK, autogenerado                |
+| phone    | String   | Único, identificador del usuario|
+| name     | String   | Nombre del usuario              |
+| status   | Enum     | ACTIVE \| BLOCKED               |
+| createdAt| DateTime | Autogenerado                    |
+| updatedAt| DateTime | Autogenerado (on update)        |
+
+- Relaciones: `requests` → Request[], `escalations` → Escalation[]
+
+### Professional
+| Columna               | Tipo     | Descripción                             |
+|----------------------|----------|-----------------------------------------|
+| id                   | CUID     | PK, autogenerado                        |
+| phone                | String   | Único                                   |
+| name                 | String   | Nombre visible                          |
+| status               | Enum     | PENDING \| UNDER_REVIEW \| ACTIVE \| OBSERVATION \| SUSPENDED \| PAUSED \| REJECTED |
+| categoryId           | CUID     | FK a Category                           |
+| availability         | String?  | Disponibilidad (texto libre)            |
+| verificationToken    | String   | Único, token de verificación WhatsApp   |
+| verificationTokenExp | DateTime | Expiración del token                    |
+| verificationTokenUsed| Boolean  | Token ya usado (default: false)         |
+| sessionToken         | String?  | Único, token de sesión activa           |
+| sessionTokenExp      | DateTime?| Expiración del token de sesión          |
+| dniNumber            | String?  | Número de DNI                           |
+| dniFrontUrl          | String?  | URL Cloudflare R2: frente DNI           |
+| dniBackUrl           | String?  | URL Cloudflare R2: dorso DNI            |
+| cuil                 | String?  | CUIL del profesional                    |
+| criminalRecordUrl    | String?  | URL Cloudflare R2: antecedentes penales |
+| references           | String?  | Referencias laborales                   |
+| presentationVideoUrl | String?  | URL Cloudflare R2: video presentación   |
+| hasBadge             | Boolean  | Insignia de reputación (default: false) |
+| trialRequestsUsed    | Int      | Pedidos de prueba usados (default: 0)   |
+| lastAssignedAt       | DateTime?| Última asignación de pedido             |
+| createdAt            | DateTime | Autogenerado                            |
+| updatedAt            | DateTime | Autogenerado (on update)                |
+
+- Relaciones: `zones` → ProfessionalZone[], `memberships` → Membership[], `requests` → Request[] (@relation "AssignedProfessional"), `events` → RequestEvent[]
+
+### ProfessionalZone
+| Columna        | Tipo     | Descripción                     |
+|---------------|----------|---------------------------------|
+| id            | CUID     | PK, autogenerado                |
+| professionalId| CUID     | FK a Professional               |
+| geoNodeId     | CUID     | FK a GeoNode                    |
+| createdAt     | DateTime | Autogenerado                    |
+
+- Unique constraint: `(professionalId, geoNodeId)`
+
+### Plan
+| Columna           | Tipo     | Descripción                          |
+|------------------|----------|--------------------------------------|
+| id               | CUID     | PK, autogenerado                     |
+| name             | String   | Único, nombre del plan               |
+| monthlyPrice     | Float    | Precio mensual                       |
+| annualDiscountPct| Float    | % descuento plan anual               |
+| isActive         | Boolean  | Plan activo (default: true)          |
+| createdAt        | DateTime | Autogenerado                         |
+| updatedAt        | DateTime | Autogenerado (on update)             |
+
+- Relaciones: `memberships` → Membership[]
+
+### Membership
+| Columna        | Tipo     | Descripción                                |
+|---------------|----------|--------------------------------------------|
+| id            | CUID     | PK, autogenerado                           |
+| professionalId| CUID     | FK a Professional                          |
+| planId        | CUID     | FK a Plan                                  |
+| type          | Enum     | MONTHLY \| ANNUAL                          |
+| status        | Enum     | ACTIVE \| INACTIVE \| EXPIRED              |
+| startDate     | DateTime | Fecha de inicio                            |
+| endDate       | DateTime | Fecha de fin                               |
+| paymentRef    | String?  | Referencia de pago                         |
+| activatedBy   | String?  | Admin que activó la membresía              |
+| createdAt     | DateTime | Autogenerado                               |
+| updatedAt     | DateTime | Autogenerado (on update)                   |
+
+### SystemConfig
+| Columna   | Tipo     | Descripción                     |
+|----------|----------|---------------------------------|
+| key      | String   | PK, clave de configuración      |
+| value    | String   | Valor (string)                  |
+| updatedAt| DateTime | Autogenerado (on update)        |
+
+### Request
+| Columna                | Tipo       | Descripción                                  |
+|-----------------------|-----------|----------------------------------------------|
+| id                    | CUID      | PK, autogenerado                             |
+| userId                | CUID      | FK a User                                    |
+| categoryId            | CUID      | FK a Category                                |
+| geoNodeId             | CUID      | FK a GeoNode (ubicación del pedido)          |
+| description           | String    | Descripción del pedido                       |
+| photoUrls             | String[]  | URLs de fotos (Cloudflare R2)                |
+| audioUrl              | String?   | URL de audio                                 |
+| status                | Enum      | CREATED \| ASSIGNED \| ACCEPTED \| CANCELLED \| NO_RESPONSE \| COMPLETED \| NOT_FULFILLED |
+| assignedProfessionalId| CUID?     | FK a Professional (relación "AssignedProfessional") |
+| assignedAt            | DateTime? | Timestamp de asignación                      |
+| acceptedAt            | DateTime? | Timestamp de aceptación                      |
+| completedAt           | DateTime? | Timestamp de finalización                    |
+| assignmentTimeoutAt   | DateTime? | Timeout de respuesta del profesional         |
+| createdAt             | DateTime  | Autogenerado                                 |
+| updatedAt             | DateTime  | Autogenerado (on update)                     |
+
+- Relaciones: `events` → RequestEvent[], `feedback` → Feedback?, `escalation` → Escalation?
+
+### RequestEvent
+| Columna        | Tipo     | Descripción                           |
+|---------------|----------|---------------------------------------|
+| id            | CUID     | PK, autogenerado                      |
+| requestId     | CUID     | FK a Request                          |
+| professionalId| CUID?    | FK a Professional                     |
+| type          | Enum     | ASSIGNED \| ACCEPTED \| REJECTED \| NO_RESPONSE \| COMPLETED \| NOT_FULFILLED \| CANCELLED |
+| metadata      | Json?    | Datos adicionales del evento          |
+| createdAt     | DateTime | Autogenerado                          |
+
+### Feedback
+| Columna        | Tipo     | Descripción                     |
+|---------------|----------|---------------------------------|
+| id            | CUID     | PK, autogenerado                |
+| requestId     | CUID     | Único, FK a Request             |
+| workCompleted | Boolean  | ¿El trabajo se completó?        |
+| wouldRecommend| Boolean  | ¿Recomendaría al profesional?   |
+| comment       | String?  | Comentario opcional             |
+| createdAt     | DateTime | Autogenerado                    |
+
+### Escalation
+| Columna        | Tipo     | Descripción                              |
+|---------------|----------|------------------------------------------|
+| id            | CUID     | PK, autogenerado                         |
+| requestId     | CUID     | Único, FK a Request                      |
+| reportedBy    | CUID     | FK a User (quien reporta)                |
+| professionalId| CUID     | FK a Professional (reportado)            |
+| status        | Enum     | OPEN \| IN_REVIEW \| RESOLVED            |
+| resolution    | String?  | Texto de resolución                      |
+| resolvedBy    | String?  | Admin que resolvió                       |
+| createdAt     | DateTime | Autogenerado                             |
+| updatedAt     | DateTime | Autogenerado (on update)                 |
+
+### BotSession
+| Columna     | Tipo     | Descripción                           |
+|------------|----------|---------------------------------------|
+| id         | CUID     | PK, autogenerado                      |
+| phone      | String   | Único, teléfono del usuario           |
+| role       | Enum?    | USER \| PROFESSIONAL                  |
+| currentFlow| String?  | Flujo actual del bot                  |
+| currentStep| String?  | Paso actual dentro del flujo          |
+| tempData   | Json?    | Datos temporales de la conversación   |
+| createdAt  | DateTime | Autogenerado                          |
+| updatedAt  | DateTime | Autogenerado (on update)              |
+
+### Enums
+
+- **AdminRole**: SUPERADMIN, OPERATOR
+- **UserStatus**: ACTIVE, BLOCKED
+- **ProfessionalStatus**: PENDING, UNDER_REVIEW, ACTIVE, OBSERVATION, SUSPENDED, PAUSED, REJECTED
+- **MembershipStatus**: ACTIVE, INACTIVE, EXPIRED
+- **MembershipType**: MONTHLY, ANNUAL
+- **RequestStatus**: CREATED, ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, COMPLETED, NOT_FULFILLED
+- **RequestEventType**: ASSIGNED, ACCEPTED, REJECTED, NO_RESPONSE, COMPLETED, NOT_FULFILLED, CANCELLED
+- **EscalationStatus**: OPEN, IN_REVIEW, RESOLVED
+- **BotRole**: USER, PROFESSIONAL
 
 ## Environment Variables
 
@@ -135,6 +313,8 @@ src/
 | `PORT`             | No (3000) | Puerto del servidor HTTP                 |
 | `SEED_ADMIN_EMAIL` | No        | Email del superadmin inicial (seed)      |
 | `SEED_ADMIN_PASSWORD`| No      | Password del superadmin inicial (seed)   |
+| `PLAN_MONTHLY_PRICE`| No      | Precio mensual del plan (seed)           |
+| `PLAN_ANNUAL_DISCOUNT_PCT`| No | % descuento plan anual (seed)           |
 
 ## Business Rules
 

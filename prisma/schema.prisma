@@ -48,8 +48,245 @@ model GeoNode {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  geoLevels GeoLevel[] @relation("GeoCountry")
+  geoLevels          GeoLevel[]          @relation("GeoCountry")
+  professionalZones  ProfessionalZone[]
+  requests           Request[]
 
   @@index([parentId])
   @@index([levelId])
+}
+
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum ProfessionalStatus {
+  PENDING
+  UNDER_REVIEW
+  ACTIVE
+  OBSERVATION
+  SUSPENDED
+  PAUSED
+  REJECTED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+enum MembershipType {
+  MONTHLY
+  ANNUAL
+}
+
+enum RequestStatus {
+  CREATED
+  ASSIGNED
+  ACCEPTED
+  CANCELLED
+  NO_RESPONSE
+  COMPLETED
+  NOT_FULFILLED
+}
+
+enum RequestEventType {
+  ASSIGNED
+  ACCEPTED
+  REJECTED
+  NO_RESPONSE
+  COMPLETED
+  NOT_FULFILLED
+  CANCELLED
+}
+
+enum EscalationStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
+enum BotRole {
+  USER
+  PROFESSIONAL
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  professionals Professional[]
+  requests      Request[]
+}
+
+model User {
+  id        String     @id @default(cuid())
+  phone     String     @unique
+  name      String
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  requests    Request[]
+  escalations Escalation[]
+}
+
+model Professional {
+  id                    String             @id @default(cuid())
+  phone                 String             @unique
+  name                  String
+  status                ProfessionalStatus @default(PENDING)
+  categoryId            String
+  category              Category           @relation(fields: [categoryId], references: [id])
+  availability          String?
+  verificationToken     String             @unique
+  verificationTokenExp  DateTime
+  verificationTokenUsed Boolean            @default(false)
+  sessionToken          String?            @unique
+  sessionTokenExp       DateTime?
+  dniNumber             String?
+  dniFrontUrl           String?
+  dniBackUrl            String?
+  cuil                  String?
+  criminalRecordUrl     String?
+  references            String?
+  presentationVideoUrl  String?
+  hasBadge              Boolean            @default(false)
+  trialRequestsUsed     Int                @default(0)
+  lastAssignedAt        DateTime?
+
+  zones       ProfessionalZone[]
+  memberships Membership[]
+  requests    Request[]          @relation("AssignedProfessional")
+  events      RequestEvent[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProfessionalZone {
+  id             String       @id @default(cuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  geoNodeId      String
+  geoNode        GeoNode      @relation(fields: [geoNodeId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([professionalId, geoNodeId])
+}
+
+model Plan {
+  id                String  @id @default(cuid())
+  name              String  @unique
+  monthlyPrice      Float
+  annualDiscountPct Float
+  isActive          Boolean @default(true)
+
+  memberships Membership[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  professionalId String
+  professional   Professional     @relation(fields: [professionalId], references: [id])
+  planId         String
+  plan           Plan             @relation(fields: [planId], references: [id])
+  type           MembershipType
+  status         MembershipStatus @default(ACTIVE)
+  startDate      DateTime
+  endDate        DateTime
+  paymentRef     String?
+  activatedBy    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SystemConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Request {
+  id                     String        @id @default(cuid())
+  userId                 String
+  user                   User          @relation(fields: [userId], references: [id])
+  categoryId             String
+  category               Category      @relation(fields: [categoryId], references: [id])
+  geoNodeId              String
+  geoNode                GeoNode       @relation(fields: [geoNodeId], references: [id])
+  description            String
+  photoUrls              String[]
+  audioUrl               String?
+  status                 RequestStatus @default(CREATED)
+  assignedProfessionalId String?
+  assignedProfessional   Professional? @relation("AssignedProfessional", fields: [assignedProfessionalId], references: [id])
+  assignedAt             DateTime?
+  acceptedAt             DateTime?
+  completedAt            DateTime?
+  assignmentTimeoutAt    DateTime?
+
+  events     RequestEvent[]
+  feedback   Feedback?
+  escalation Escalation?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RequestEvent {
+  id             String           @id @default(cuid())
+  requestId      String
+  request        Request          @relation(fields: [requestId], references: [id])
+  professionalId String?
+  professional   Professional?    @relation(fields: [professionalId], references: [id])
+  type           RequestEventType
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+}
+
+model Feedback {
+  id             String   @id @default(cuid())
+  requestId      String   @unique
+  request        Request  @relation(fields: [requestId], references: [id])
+  workCompleted  Boolean
+  wouldRecommend Boolean
+  comment        String?
+  createdAt      DateTime @default(now())
+}
+
+model Escalation {
+  id             String           @id @default(cuid())
+  requestId      String           @unique
+  request        Request          @relation(fields: [requestId], references: [id])
+  reportedBy     String
+  user           User             @relation(fields: [reportedBy], references: [id])
+  professionalId String
+  status         EscalationStatus @default(OPEN)
+  resolution     String?
+  resolvedBy     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model BotSession {
+  id          String   @id @default(cuid())
+  phone       String   @unique
+  role        BotRole?
+  currentFlow String?
+  currentStep String?
+  tempData    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
