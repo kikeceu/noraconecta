@@ -45,11 +45,31 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── locations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── locations.service.ts    # Geo hierarchy business logic
 │   │   │   │   └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
-│   │   │   └── users/
-│   │   │       ├── users.routes.ts         # 4 endpoints under /users
-│   │   │       ├── users.controller.ts     # Request validation, response formatting
-│   │   │       ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
-│   │   │       └── users.repository.ts     # Prisma queries for User model
+│   │   │   ├── users/
+│   │   │   │   ├── users.routes.ts         # 4 endpoints under /users
+│   │   │   │   ├── users.controller.ts     # Request validation, response formatting
+│   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
+│   │   │   │   └── users.repository.ts     # Prisma queries for User model
+│   │   │   └── professionals/
+│   │   │       ├── professionals.routes.ts     # 11 endpoints under /professionals
+│   │   │       ├── professionals.controller.ts # Request validation, response formatting
+│   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
+│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
+│   │   │   ├── plans/
+│   │   │   │   ├── plans.routes.ts     # 3 endpoints under /plans
+│   │   │   │   ├── plans.controller.ts # Request validation, response formatting
+│   │   │   │   ├── plans.service.ts    # Plan CRUD, price validation
+│   │   │   │   └── plans.repository.ts # Prisma queries for Plan model
+│   │   │   ├── memberships/
+│   │   │   │   ├── memberships.routes.ts     # 2 endpoints under /professionals
+│   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
+│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus
+│   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models
+│   │   │   ├── config/
+│   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
+│   │   │   │   ├── config.controller.ts # Request validation, response formatting
+│   │   │   │   ├── config.service.ts    # Key-value config get/update
+│   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -101,11 +121,16 @@ src/
 │       ├── locations.controller.ts # Request validation, response formatting
 │       ├── locations.service.ts    # Geo hierarchy business logic
 │       └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
-│   └── users/
-│       ├── users.routes.ts         # 4 endpoints under /users
-│       ├── users.controller.ts     # Request validation, response formatting
-│       ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
-│       └── users.repository.ts     # Prisma queries for User model
+│   ├── users/
+│   │   ├── users.routes.ts         # 4 endpoints under /users
+│   │   ├── users.controller.ts     # Request validation, response formatting
+│   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
+│   │   └── users.repository.ts     # Prisma queries for User model
+│   └── professionals/
+│       ├── professionals.routes.ts     # 11 endpoints under /professionals
+│       ├── professionals.controller.ts # Request validation, response formatting
+│       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
+│       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
 ├── routes/                    # (placeholder for future shared routes)
 ├── controllers/               # (placeholder for future shared controllers)
 ├── services/                  # (placeholder for future shared services)
@@ -161,6 +186,45 @@ src/
 | `/users/:id`           | GET    | Detalle de usuario                   | OPERATOR  |
 | `/users/:id/block`     | PATCH  | Bloquear usuario                     | SUPERADMIN|
 | `/users/:id/unblock`   | PATCH  | Desbloquear usuario                  | SUPERADMIN|
+
+### Professionals
+
+| Endpoint                               | Método | Descripción                                    | Rol mínimo |
+|----------------------------------------|--------|-------------------------------------------------|-----------|
+| `/professionals/register`             | POST   | Etapa 1: crear profesional desde bot            | Sin auth  |
+| `/professionals/verify/:token`         | GET    | Verificar validez del token de verificación      | Sin auth  |
+| `/professionals/verify/:token`         | POST   | Etapa 2: subir documentación                    | Sin auth  |
+| `/professionals/session/:token`        | GET    | Recuperar sesión de profesional por token       | Sin auth  |
+| `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
+| `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
+| `/professionals/:id/approve`           | POST   | Aprobar profesional (UNDER_REVIEW → ACTIVE)     | SUPERADMIN|
+| `/professionals/:id/reject`            | POST   | Rechazar profesional (UNDER_REVIEW → REJECTED)  | SUPERADMIN|
+| `/professionals/:id/suspend`           | POST   | Suspender profesional                           | SUPERADMIN|
+| `/professionals/:id/reactivate`        | POST   | Reactivar profesional (SUSPENDED → ACTIVE)      | SUPERADMIN|
+| `/professionals/:id/badge`             | PATCH  | Asignar o remover insignia de reputación        | SUPERADMIN|
+| `/professionals/:id/generate-session`  | POST   | Generar token de sesión para portal profesional | SUPERADMIN|
+
+### Plans
+
+| Endpoint         | Método | Descripción                      | Rol mínimo |
+|-----------------|--------|----------------------------------|-----------|
+| `/plans`        | GET    | Lista todos los planes           | OPERATOR  |
+| `/plans`        | POST   | Crear plan (nombre + precio)     | SUPERADMIN|
+| `/plans/:id`    | PATCH  | Editar precio o % descuento anual| SUPERADMIN|
+
+### Memberships
+
+| Endpoint                                  | Método | Descripción                          | Rol mínimo |
+|------------------------------------------|--------|--------------------------------------|-----------|
+| `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
+| `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
+
+### Config
+
+| Endpoint         | Método | Descripción                      | Rol mínimo |
+|-----------------|--------|----------------------------------|-----------|
+| `/config`       | GET    | Ver toda la configuración        | SUPERADMIN|
+| `/config/:key`  | PATCH  | Actualizar un parámetro          | SUPERADMIN|
 
 #### Roles
 - `SUPERADMIN`: acceso total
@@ -399,6 +463,7 @@ src/
 | `DATABASE_URL`     | Sí        | Connection string de PostgreSQL          |
 | `JWT_SECRET`       | Sí        | Secreto para firmar/verificar JWT        |
 | `PORT`             | No (3000) | Puerto del servidor HTTP                 |
+| `PUBLIC_URL`       | No (http://localhost:3000) | URL pública para links de verificación   |
 | `SEED_ADMIN_EMAIL` | No        | Email del superadmin inicial (seed)      |
 | `SEED_ADMIN_PASSWORD`| No      | Password del superadmin inicial (seed)   |
 | `PLAN_MONTHLY_PRICE`| No      | Precio mensual del plan (seed)           |
@@ -430,6 +495,30 @@ src/
   - `isBlocked(phone)`: retorna `true` si el status es BLOCKED; si el usuario no existe, retorna `false`
   - No existe endpoint de creación manual ni de eliminación de usuarios
   - Bloquear un usuario ya bloqueado retorna 409; desbloquear uno activo retorna 409
+- Profesionales:
+  - El registro es en dos etapas: etapa 1 (bot WhatsApp) crea en PENDING con token de verificación, etapa 2 (web) sube documentación y pasa a UNDER_REVIEW
+  - Token de verificación: UUID v4, expira en 72h, un solo uso (segundo intento retorna 400)
+  - El sistema nunca aprueba profesionales automáticamente — siempre requiere revisión manual de un SUPERADMIN
+  - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE
+  - Rechazo: solo permite transición UNDER_REVIEW → REJECTED. El motivo se registra en logs (no hay campo en DB para rejectionReason en MVP)
+  - Suspensión: cualquier estado → SUSPENDED (excepto si ya está suspendido → 409)
+  - Reactivación: solo permite transición SUSPENDED → ACTIVE
+  - Badge: se puede asignar y remover; asignar un valor ya existente retorna 409
+  - Token de sesión: UUID v4, expira en 30 días, solo generable para profesionales ACTIVE
+  - `getActiveCandidates(categoryId, geoNodeId)`: retorna profesionales ACTIVE con zona y rubro coincidentes, con trialRequestsUsed < 5 y `canReceiveRequests() = true`
+  - En MVP: un solo rubro por profesional
+- Planes:
+  - `monthlyPrice` debe ser un número no negativo
+  - `annualDiscountPct` debe estar entre 0 y 100
+  - No se permite crear planes con nombre duplicado → 409
+- Membresías:
+  - `canReceiveRequests(professionalId)`: retorna `true` si hay membresía ACTIVE con `endDate > now()`, o si `trialRequestsUsed < TRIAL_REQUESTS_LIMIT`; en cualquier otro caso retorna `false`
+  - Activación manual: MONTHLY → `endDate = startDate + 30 días`; ANNUAL → `endDate = startDate + 365 días`
+  - Expiración lazy: si al consultar estado se detecta `endDate <= now()` → se marca la membresía como EXPIRED
+  - La lógica de activación no conoce el origen del pago (preparada para integración con MercadoPago)
+- Configuración del sistema:
+  - `TRIAL_REQUESTS_LIMIT` define el máximo de pedidos de prueba por profesional (default: 3)
+  - Las claves de configuración se crean/actualizan vía upsert
 
 ## Scripts
 
