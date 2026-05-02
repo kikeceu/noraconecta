@@ -10,6 +10,7 @@
 | ORM           | Prisma               |
 | Base de datos | PostgreSQL           |
 | Auth          | JWT                  |
+| Frontend      | Vite + React 19 + Tailwind CSS 4 |
 | Linter        | ESLint + Prettier    |
 
 ## Architecture
@@ -91,6 +92,17 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
 │   │   │       └── storage.service.ts    # Folder/contentType validation, R2 delegation
+│   │   │   ├── bot/
+│   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
+│   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management
+│   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
+│   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein
+│   │   │   │   ├── flows/
+│   │   │   │   │   ├── types.ts          # Type definitions for flows
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
+│   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
+│   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -106,9 +118,34 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   └── .gitkeep             # Placeholder (frontend modules TBD)
-│   ├── package.json             # @noraconecta/frontend
-│   └── tsconfig.json            # React + TypeScript base config
+│   │   ├── main.tsx                    # Entry point: React 19 root
+│   │   ├── App.tsx                     # Root component
+│   │   ├── index.css                   # Tailwind CSS directives + design tokens
+│   │   ├── vite-env.d.ts               # Vite client type reference
+│   │   ├── components/
+│   │   │   └── chat/
+│   │   │       ├── ChatHeader.tsx      # Header with title, phone selector, session status, reset
+│   │   │       ├── ChatInput.tsx       # Message input bar with image/audio icons and send button
+│   │   │       ├── MessageBubble.tsx   # Individual message bubble (user: emerald right, NORA: slate left)
+│   │   │       ├── MessageList.tsx     # Scrollable message list with auto-scroll
+│   │   │       ├── PhoneSelector.tsx   # Dropdown to switch between test phones/roles
+│   │   │       ├── SessionStatus.tsx   # Pill badge showing active flow and step
+│   │   │       ├── EmptyState.tsx      # Centered empty state with icon and instructions
+│   │   │       └── TypingIndicator.tsx # Animated typing dots with "Procesando..." label
+│   │   ├── hooks/
+│   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls
+│   │   ├── lib/
+│   │   │   └── api.ts                 # REST client for /bot/message and /bot/session/reset
+│   │   ├── types/
+│   │   │   └── chat.ts                # TypeScript interfaces for messages, phones, responses
+│   │   ├── data/
+│   │   │   └── mockData.ts            # Simulated phone numbers for the selector
+│   │   └── pages/
+│   │       └── SimulatorPage.tsx       # Main simulator page: composes all chat components
+│   ├── index.html                      # Vite entry HTML
+│   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
+│   ├── tsconfig.json                   # React + TypeScript strict config
+│   └── vite.config.ts                  # Vite + React + Tailwind + API proxy
 ├── package.json                 # Root workspace config
 ├── .gitignore
 ├── PROJECT.md
@@ -301,6 +338,48 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matchi
 - Dispara alerta `ESCALATION_CREATED`
 - `resolve` requiere texto de resolución no vacío
 - `resolvedBy` registra el adminId del operador que resuelve
+
+### Bot
+
+Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web o WhatsApp). Recibe mensajes de texto, imagen y audio con un `phone` y un `role`, y retorna la respuesta que debe enviarse. El estado persiste en `BotSession`.
+
+| Endpoint               | Método | Descripción                                          | Auth      |
+|-----------------------|--------|------------------------------------------------------|-----------|
+| `/bot/message`         | POST   | Procesa un mensaje entrante y retorna la respuesta    | Sin auth  |
+| `/bot/session/reset`   | POST   | Resetea la sesión de un teléfono (para testing)       | Sin auth  |
+
+**Arquitectura interna:**
+```
+POST /bot/message
+  → BotController
+  → BotService.processMessage(phone, message)
+    → BotRepository.findOrCreate(phone)
+    → determinar rol (USER / PROFESSIONAL)
+    → despachar al FlowHandler correspondiente
+    → FlowHandler ejecuta el paso actual
+    → actualiza sesión
+    → retorna { text, mediaUrls?, options?, flow?, step? }
+```
+
+**Flujos implementados:**
+
+| Flow                    | Estados                                                                 |
+|------------------------|-------------------------------------------------------------------------|
+| `USER_REQUEST`         | INIT → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
+| `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
+
+**NLP (nlp.service.ts):**
+- `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
+- `resolveZone(text)`: ídem para GeoNode
+- Retorna `{ match, confidence: 'exact' | 'fuzzy' | 'none' }`
+
+**Simulador web (frontend):**
+- Interfaz React + Tailwind en `frontend/src/pages/SimulatorPage.tsx`
+- Selector de teléfonos para simular distintos usuarios/profesionales
+- Burbujas de chat diferenciadas: usuario (emerald, derecha), NORA (slate, izquierda)
+- Indicador de estado de sesión (flujo + paso actual)
+- Estados: vacío, carga (typing indicator con dots animados), conversación activa
+- Diseño responsive: single-column centrado, 720px max-width en desktop, full-width en mobile
 
 ### Config (actualizado)
 
@@ -714,9 +793,10 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 
 | Comando              | Descripción                          |
 |---------------------|--------------------------------------|
-| `npm run dev`       | Inicia servidor en modo desarrollo   |
-| `npm run build`     | Compila TypeScript a `dist/`         |
-| `npm start`         | Ejecuta build de producción          |
+| `npm run dev:backend`  | Inicia servidor backend en modo desarrollo   |
+| `npm run dev:frontend` | Inicia servidor frontend (Vite dev server)   |
+| `npm run build:backend`| Compila TypeScript del backend a `dist/`     |
+| `npm run build:frontend`| Compila y empaqueta frontend con Vite        |
 | `npm run lint`      | Ejecuta ESLint                       |
 | `npm run format`    | Formatea código con Prettier         |
 | `npm run prisma:generate` | Genera Prisma Client           |
