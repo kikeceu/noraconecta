@@ -38,11 +38,16 @@ src/
   │   │   ├── categories.controller.ts # Request validation, response formatting
   │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching
   │   │   └── categories.repository.ts # Prisma queries for Category model
-  │   └── locations/
-  │       ├── locations.routes.ts     # 6 endpoints under /locations
-  │       ├── locations.controller.ts # Request validation, response formatting
-  │       ├── locations.service.ts    # Geo hierarchy business logic
-  │       └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
+│   └── locations/
+│       ├── locations.routes.ts     # 6 endpoints under /locations
+│       ├── locations.controller.ts # Request validation, response formatting
+│       ├── locations.service.ts    # Geo hierarchy business logic
+│       └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
+│   └── users/
+│       ├── users.routes.ts         # 4 endpoints under /users
+│       ├── users.controller.ts     # Request validation, response formatting
+│       ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
+│       └── users.repository.ts     # Prisma queries for User model
 ├── routes/                    # (placeholder for future shared routes)
 ├── controllers/               # (placeholder for future shared controllers)
 ├── services/                  # (placeholder for future shared services)
@@ -89,6 +94,15 @@ src/
 | `/locations/countries`        | POST   | Crear país + definir niveles                 | SUPERADMIN|
 | `/locations/nodes`            | POST   | Crear nodo en cualquier nivel                | SUPERADMIN|
 | `/locations/nodes/:id/toggle` | PATCH  | Habilitar / deshabilitar nodo                | SUPERADMIN|
+
+### Users
+
+| Endpoint               | Método | Descripción                          | Rol mínimo |
+|------------------------|--------|--------------------------------------|-----------|
+| `/users`               | GET    | Lista paginada de usuarios           | OPERATOR  |
+| `/users/:id`           | GET    | Detalle de usuario                   | OPERATOR  |
+| `/users/:id/block`     | PATCH  | Bloquear usuario                     | SUPERADMIN|
+| `/users/:id/unblock`   | PATCH  | Desbloquear usuario                  | SUPERADMIN|
 
 #### Roles
 - `SUPERADMIN`: acceso total
@@ -352,6 +366,12 @@ src/
   - El slug es inmutable una vez creado (no se puede editar)
   - No se permite crear categorías con name o slug duplicado → 409
   - `findBySlugOrName(query)`: búsqueda exacta por slug o name, luego Levenshtein con threshold configurable (max distance: 3) como fallback; retorna `null` si no hay match
+- Usuarios:
+  - El usuario no se registra explícitamente; el bot lo crea automáticamente al detectar un número nuevo
+  - `findOrCreateByPhone(phone, name?)`: busca por teléfono; si no existe, crea uno nuevo con `name` (default: phone)
+  - `isBlocked(phone)`: retorna `true` si el status es BLOCKED; si el usuario no existe, retorna `false`
+  - No existe endpoint de creación manual ni de eliminación de usuarios
+  - Bloquear un usuario ya bloqueado retorna 409; desbloquear uno activo retorna 409
 
 ## Scripts
 
