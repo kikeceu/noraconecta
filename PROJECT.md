@@ -26,13 +26,18 @@ src/
 ├── utils/
 │   └── jwt.ts                 # signToken / verifyToken
 ├── types/
-│   └── express.d.ts           # Express Request augmentation (req.admin)
+  │   └── express.d.ts           # Express Request augmentation (req.admin)
   ├── modules/
   │   ├── auth/
   │   │   ├── auth.routes.ts     # POST /auth/login
   │   │   ├── auth.controller.ts # Request validation, response formatting
   │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
   │   │   └── auth.repository.ts # Prisma queries for Admin model
+  │   ├── categories/
+  │   │   ├── categories.routes.ts     # 6 endpoints under /categories
+  │   │   ├── categories.controller.ts # Request validation, response formatting
+  │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching
+  │   │   └── categories.repository.ts # Prisma queries for Category model
   │   └── locations/
   │       ├── locations.routes.ts     # 6 endpoints under /locations
   │       ├── locations.controller.ts # Request validation, response formatting
@@ -62,6 +67,17 @@ src/
 |-----------------|--------|--------------------------------------|----------------|
 | `/health`        | GET    | Health check (sin auth)              | No             |
 | `/auth/login`    | POST   | Login de admin (email + password)    | No             |
+
+### Categories
+
+| Endpoint                   | Método | Descripción                          | Rol mínimo |
+|---------------------------|--------|--------------------------------------|-----------|
+| `/categories`             | GET    | Lista todas las categorías           | OPERATOR  |
+| `/categories/active`      | GET    | Solo categorías activas              | OPERATOR  |
+| `/categories/:id`         | GET    | Detalle de categoría                 | OPERATOR  |
+| `/categories`             | POST   | Crear categoría (slug autogenerado)  | SUPERADMIN|
+| `/categories/:id`         | PATCH  | Editar nombre o descripción          | SUPERADMIN|
+| `/categories/:id/toggle`  | PATCH  | Habilitar / deshabilitar categoría   | SUPERADMIN|
 
 ### Locations
 
@@ -331,6 +347,11 @@ src/
   - Un nodo no puede activarse si su padre está inactivo
   - Desactivar un nodo padre desactiva en cascada todos sus hijos
   - No se puede hacer toggle de un país directamente (422)
+- Categorías:
+  - El slug se genera automáticamente desde el name (lowercase, sin acentos, espacios → guiones)
+  - El slug es inmutable una vez creado (no se puede editar)
+  - No se permite crear categorías con name o slug duplicado → 409
+  - `findBySlugOrName(query)`: búsqueda exacta por slug o name, luego Levenshtein con threshold configurable (max distance: 3) como fallback; retorna `null` si no hay match
 
 ## Scripts
 
