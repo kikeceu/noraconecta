@@ -70,6 +70,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── config.controller.ts # Request validation, response formatting
 │   │   │   │   ├── config.service.ts    # Key-value config get/update
 │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
+│   │   │   ├── matching/
+│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
+│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -126,11 +129,14 @@ src/
 │   │   ├── users.controller.ts     # Request validation, response formatting
 │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
 │   │   └── users.repository.ts     # Prisma queries for User model
-│   └── professionals/
+│   ├── professionals/
 │       ├── professionals.routes.ts     # 11 endpoints under /professionals
 │       ├── professionals.controller.ts # Request validation, response formatting
 │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
 │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
+│   └── matching/
+│       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
+│       └── matching.repository.ts # Prisma queries para motor de matching
 ├── routes/                    # (placeholder for future shared routes)
 ├── controllers/               # (placeholder for future shared controllers)
 ├── services/                  # (placeholder for future shared services)
@@ -225,6 +231,19 @@ src/
 |-----------------|--------|----------------------------------|-----------|
 | `/config`       | GET    | Ver toda la configuración        | SUPERADMIN|
 | `/config/:key`  | PATCH  | Actualizar un parámetro          | SUPERADMIN|
+
+### Matching
+
+Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
+
+| Método                  | Descripción                                         |
+|-------------------------|-----------------------------------------------------|
+| `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona |
+| `calculateScore()`      | Calcula el score individual de un profesional       |
+
+**Filtros duros**: status ACTIVE, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo 2 pedidos activos, no rechazó el pedido actual.
+
+**Scoring** (calculado en tiempo real, no almacenado): Cumplimiento (50%) + TasaRespuesta (30%) + Recomendación (10%) + Distribución (10%). Parámetros configurables vía `SystemConfig` con defaults.
 
 #### Roles
 - `SUPERADMIN`: acceso total
@@ -519,6 +538,17 @@ src/
 - Configuración del sistema:
   - `TRIAL_REQUESTS_LIMIT` define el máximo de pedidos de prueba por profesional (default: 3)
   - Las claves de configuración se crean/actualizan vía upsert
+- Motor de matching:
+  - Scoring en tiempo real, no persistido en DB
+  - Filtros duros: status ACTIVE, zona, categoría, canReceiveRequests, máximo 2 activos, no rechazó el pedido
+  - Score = Cumplimiento × 0.50 + TasaRespuesta × 0.30 + Recomendación × 0.10 + Distribución × 0.10
+  - Cumplimiento: base 100, -50 por NOT_FULFILLED atenuado linealmente hasta `REPUTATION_DECAY_DAYS` (default: 90). Mín 0.
+  - TasaRespuesta: base 100, -25 por NO_RESPONSE. Mín 0.
+  - Recomendación: % feedbacks con `wouldRecommend = true`. Sin feedbacks → 50.
+  - Distribución: `min(100, días × 10)`. Sin pedidos previos → 100.
+  - Todos los pesos, penalizaciones y límites son configurables vía `SystemConfig` con defaults en `MATCHING_*` keys.
+  - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
+  - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
 
 ## Scripts
 
