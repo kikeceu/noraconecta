@@ -21,3 +21,35 @@ model Admin {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
+
+model GeoLevel {
+  id        String   @id @default(cuid())
+  countryId String
+  country   GeoNode  @relation("GeoCountry", fields: [countryId], references: [id])
+  level     Int
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  nodes GeoNode[]
+
+  @@unique([countryId, level])
+}
+
+model GeoNode {
+  id        String   @id @default(cuid())
+  name      String
+  levelId   String?
+  level     GeoLevel? @relation(fields: [levelId], references: [id])
+  parentId  String?
+  parent    GeoNode?  @relation("GeoTree", fields: [parentId], references: [id])
+  children  GeoNode[] @relation("GeoTree")
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  geoLevels GeoLevel[] @relation("GeoCountry")
+
+  @@index([parentId])
+  @@index([levelId])
+}
