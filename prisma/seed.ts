@@ -112,9 +112,84 @@ async function seedArgentinaGeoHierarchy(): Promise<void> {
   console.log('Argentina geo hierarchy seeded successfully.');
 }
 
+async function seedSystemConfig(): Promise<void> {
+  const configs = [
+    { key: 'TRIAL_REQUESTS_LIMIT', value: '5' },
+    { key: 'PROFESSIONAL_RESPONSE_TIMEOUT_HOURS', value: '3' },
+    { key: 'REPUTATION_PENALTY_DECAY_DAYS', value: '90' },
+    { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '5' },
+  ];
+
+  for (const cfg of configs) {
+    await prisma.systemConfig.upsert({
+      where: { key: cfg.key },
+      update: { value: cfg.value },
+      create: cfg,
+    });
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('System config seeded successfully.');
+}
+
+async function seedPlans(): Promise<void> {
+  const monthlyPrice = process.env.PLAN_MONTHLY_PRICE;
+  const annualDiscountPct = process.env.PLAN_ANNUAL_DISCOUNT_PCT;
+
+  if (!monthlyPrice || !annualDiscountPct) {
+    // eslint-disable-next-line no-console
+    console.log('PLAN_MONTHLY_PRICE and PLAN_ANNUAL_DISCOUNT_PCT not set. Skipping plan seed.');
+    return;
+  }
+
+  const planName = 'Profesional NORA';
+
+  await prisma.plan.upsert({
+    where: { name: planName },
+    update: {
+      monthlyPrice: parseFloat(monthlyPrice),
+      annualDiscountPct: parseFloat(annualDiscountPct),
+    },
+    create: {
+      name: planName,
+      monthlyPrice: parseFloat(monthlyPrice),
+      annualDiscountPct: parseFloat(annualDiscountPct),
+    },
+  });
+
+  // eslint-disable-next-line no-console
+  console.log(`Plan "${planName}" seeded successfully.`);
+}
+
+async function seedCategories(): Promise<void> {
+  const categories = [
+    { name: 'Plomero', slug: 'plomero', description: 'Servicios de plomería general' },
+    { name: 'Electricista', slug: 'electricista', description: 'Servicios de electricidad' },
+    { name: 'Gasista matriculado', slug: 'gasista-matriculado', description: 'Servicios de gas certificados' },
+    { name: 'Pintor', slug: 'pintor', description: 'Servicios de pintura' },
+    { name: 'Albañil', slug: 'albanil', description: 'Servicios de albañilería y construcción' },
+    { name: 'Cerrajero', slug: 'cerrajero', description: 'Servicios de cerrajería' },
+    { name: 'Aire acondicionado', slug: 'aire-acondicionado', description: 'Instalación y reparación de aires acondicionados' },
+  ];
+
+  for (const cat of categories) {
+    await prisma.category.upsert({
+      where: { slug: cat.slug },
+      update: { name: cat.name, description: cat.description },
+      create: cat,
+    });
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('Categories seeded successfully.');
+}
+
 async function main(): Promise<void> {
   await seedAdmin();
   await seedArgentinaGeoHierarchy();
+  await seedSystemConfig();
+  await seedPlans();
+  await seedCategories();
 }
 
 main()
