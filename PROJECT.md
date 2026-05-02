@@ -20,7 +20,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   ├── src/
 │   │   ├── server.ts                  # Entry point: Express app bootstrap
 │   │   ├── lib/
-│   │   │   └── prisma.ts              # Prisma client singleton
+│   │   │   ├── prisma.ts              # Prisma client singleton
+│   │   │   └── r2-client.ts           # Cloudflare R2 client (presigned URLs)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -81,11 +82,15 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
 │   │   │   │   └── reputation.repository.ts # NOT_FULFILLED counting, status/badge updates
-│   │   │   └── escalations/
-│   │   │       ├── escalations.routes.ts     # 4 endpoints under /escalations
-│   │   │       ├── escalations.controller.ts # Request validation, response formatting
-│   │   │       ├── escalations.service.ts    # Escalation lifecycle, status transitions
-│   │   │       └── escalations.repository.ts # Prisma queries for Escalation model
+│   │   │   ├── escalations/
+│   │   │   │   ├── escalations.routes.ts     # 4 endpoints under /escalations
+│   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
+│   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
+│   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
+│   │   │   └── storage/
+│   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
+│   │   │       ├── storage.controller.ts # Request validation, response formatting
+│   │   │       └── storage.service.ts    # Folder/contentType validation, R2 delegation
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
@@ -262,6 +267,20 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matchi
 **Matching (actualizado):**
 - `findEligibleProfessionals` ahora incluye status ACTIVE y OBSERVATION
 - SUSPENDED queda fuera del pool
+
+### Storage
+
+| Endpoint                      | Método | Descripción                                                    | Auth      |
+|------------------------------|--------|-----------------------------------------------------------------|-----------|
+| `/storage/presign-upload`    | POST   | Genera URL pre-firmada para upload directo a Cloudflare R2      | Sin auth  |
+
+**Validaciones de contentType por folder:**
+- `request-photos`: `image/jpeg`, `image/png`, `image/webp`
+
+**Lógica de negocio:**
+- El backend nunca recibe el contenido binario de los archivos
+- El filename original se reemplaza por UUID internamente preservando la extensión
+- La URL pre-firmada permite subir directo a R2 con PUT por el tiempo configurado (default: 3600s)
 
 ### Escalations
 
@@ -591,6 +610,11 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 | `SEED_ADMIN_PASSWORD`| No      | Password del superadmin inicial (seed)   |
 | `PLAN_MONTHLY_PRICE`| No      | Precio mensual del plan (seed)           |
 | `PLAN_ANNUAL_DISCOUNT_PCT`| No | % descuento plan anual (seed)           |
+| `R2_ACCOUNT_ID`     | Sí        | Cloudflare R2 account ID                |
+| `R2_ACCESS_KEY_ID`  | Sí        | Cloudflare R2 access key ID             |
+| `R2_SECRET_ACCESS_KEY`| Sí      | Cloudflare R2 secret access key         |
+| `R2_BUCKET_NAME`    | Sí        | Cloudflare R2 bucket name               |
+| `R2_PUBLIC_URL`     | Sí        | URL pública base del bucket R2          |
 
 ## Business Rules
 
@@ -678,6 +702,10 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Badge se remueve automáticamente al recibir un NOT_FULFILLED con badge activo
 - Los profesionales con status OBSERVATION siguen en el pool de matching (se consideran elegibles junto con ACTIVE)
 - Los profesionales con status SUSPENDED quedan fuera del pool
+- Storage: el backend nunca recibe el contenido binario de archivos; los clientes suben directo a R2 usando URLs pre-firmadas
+- El filename en R2 se reemplaza por UUID preservando la extensión original
+- Cada folder (`request-photos`, etc.) tiene su propia lista blanca de contentTypes
+- La URL pre-firmada expira después de un tiempo configurable (default: 3600 segundos)
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
 - `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
