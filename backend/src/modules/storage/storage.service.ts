@@ -11,6 +11,14 @@ const VALID_CONTENT_TYPES: Record<string, string[]> = {
     'audio/wav',
     'audio/webm;codecs=opus',
   ],
+  verification: [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'application/pdf',
+    'video/mp4',
+    'video/quicktime',
+  ],
 };
 
 export class StorageService {

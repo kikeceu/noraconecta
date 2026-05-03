@@ -10,7 +10,7 @@
 | ORM           | Prisma               |
 | Base de datos | PostgreSQL           |
 | Auth          | JWT                  |
-| Frontend      | Vite + React 19 + Tailwind CSS 4 |
+| Frontend      | Vite + React 19 + Tailwind CSS 4 + react-router-dom |
 | Linter        | ESLint + Prettier    |
 
 ## Architecture
@@ -119,7 +119,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 ├── frontend/
 │   ├── src/
 │   │   ├── main.tsx                    # Entry point: React 19 root
-│   │   ├── App.tsx                     # Root component
+│   │   ├── App.tsx                     # Root component with react-router-dom: /simulator, /verify/:token
 │   │   ├── index.css                   # Tailwind CSS directives + design tokens
 │   │   ├── vite-env.d.ts               # Vite client type reference
 │   │   ├── components/
@@ -137,9 +137,29 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── lib/
 │   │   │   └── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   ├── types/
-│   │   │   └── chat.ts                # TypeScript interfaces for messages, responses
+│   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
+│   │   │   └── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
 │   │   ├── pages/
-│   │   │   └── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
+│   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
+│   │   │   └── onboarding/
+│   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook
+│   │   │       ├── DESIGN.md           # Design system document (source of truth for visual design)
+│   │   │       ├── hooks/
+│   │   │       │   └── useOnboarding.ts    # State machine: multi-step form, file uploads, token validation
+│   │   │       └── components/
+│   │   │           ├── ProgressBar.tsx      # Fixed top progress bar (4px, NORA Green fill)
+│   │   │           ├── BottomBar.tsx        # Fixed bottom CTA bar (Volver + Continuar/Enviar)
+│   │   │           ├── FileUploadZone.tsx   # Upload zone: empty (dashed) → uploading (spinner) → loaded (green + preview/PDF icon)
+│   │   │           ├── WelcomeScreen.tsx    # "Hola, {name}" + Comenzar CTA
+│   │   │           ├── ErrorScreen.tsx      # 3 variants: expired (amber), used (red), invalid (red)
+│   │   │           ├── PersonalDataStep.tsx # DNI (7-8 digits) + CUIL (XX-XXXXXXXX-X) with inline validation
+│   │   │           ├── DniPhotoStep.tsx     # Front + back DNI photo uploads
+│   │   │           ├── CriminalRecordStep.tsx # Criminal record certificate upload (PDF allowed)
+│   │   │           ├── ReferencesStep.tsx   # Optional textarea with "Opcional" badge
+│   │   │           ├── VideoStep.tsx        # Optional video upload (MP4/MOV)
+│   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones
+│   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
+│   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
 │   ├── index.html                      # Vite entry HTML
 │   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
 │   ├── tsconfig.json                   # React + TypeScript strict config
@@ -251,7 +271,7 @@ src/
 | Endpoint                               | Método | Descripción                                    | Rol mínimo |
 |----------------------------------------|--------|-------------------------------------------------|-----------|
 | `/professionals/register`             | POST   | Etapa 1: crear profesional desde bot            | Sin auth  |
-| `/professionals/verify/:token`         | GET    | Verificar validez del token de verificación      | Sin auth  |
+| `/professionals/verify/:token`         | GET    | Verificar validez del token y obtener nombre + zonas del profesional | Sin auth  |
 | `/professionals/verify/:token`         | POST   | Etapa 2: subir documentación                    | Sin auth  |
 | `/professionals/session/:token`        | GET    | Recuperar sesión de profesional por token       | Sin auth  |
 | `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
@@ -312,6 +332,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matchi
 **Validaciones de contentType por folder:**
 - `request-photos`: `image/jpeg`, `image/png`, `image/webp`
 - `request-audio`: `audio/webm`, `audio/mp4`, `audio/mpeg`, `audio/ogg`, `audio/wav`, `audio/webm;codecs=opus`
+- `verification`: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`, `video/mp4`, `video/quicktime`
 
 **Lógica de negocio:**
 - El backend nunca recibe el contenido binario de los archivos
@@ -739,6 +760,9 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Profesionales:
   - El registro es en dos etapas: etapa 1 (bot WhatsApp) crea en PENDING con token de verificación, etapa 2 (web) sube documentación y pasa a UNDER_REVIEW
   - Token de verificación: UUID v4, expira en 72h, un solo uso (segundo intento retorna 400)
+  - `GET /professionals/verify/:token` retorna `{ valid, professionalName, zones: [{ id, name }] }` — las zonas provienen de la tabla ProfessionalZone con include de GeoNode
+  - `POST /professionals/verify/:token` acepta `{ dniNumber, cuil, dniFrontUrl, dniBackUrl, criminalRecordUrl?, references?, presentationVideoUrl? }` — todos los campos son opcionales en backend; el frontend valida obligatoriedad de DNI, CUIL, dniFrontUrl y dniBackUrl
+  - El frontend de onboarding (`/verify/:token`) es standalone (sin header ni nav), mobile-first (375px), con barra de progreso de 8 pasos y upload de archivos a R2 vía presigned URLs
   - El sistema nunca aprueba profesionales automáticamente — siempre requiere revisión manual de un SUPERADMIN
   - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE
   - Rechazo: solo permite transición UNDER_REVIEW → REJECTED. El motivo se registra en logs (no hay campo en DB para rejectionReason en MVP)
