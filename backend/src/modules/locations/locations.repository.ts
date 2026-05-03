@@ -139,6 +139,13 @@ export class LocationsRepository {
     });
   }
 
+  async updateNodeName(id: string, name: string): Promise<GeoNode> {
+    return prisma.geoNode.update({
+      where: { id },
+      data: { name },
+    });
+  }
+
   async toggleNodeActive(id: string, isActive: boolean): Promise<GeoNode> {
     return prisma.geoNode.update({
       where: { id },

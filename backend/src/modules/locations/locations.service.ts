@@ -178,6 +178,20 @@ export class LocationsService {
     return { id: updated.id, isActive: updated.isActive };
   }
 
+  async updateNode(id: string, name: string): Promise<GeoNode> {
+    if (!name || name.trim().length === 0) {
+      throw new AppError('Node name is required', 400);
+    }
+
+    const node = await this.locationsRepository.findNodeById(id);
+
+    if (!node) {
+      throw new AppError('Node not found', 404);
+    }
+
+    return this.locationsRepository.updateNodeName(id, name.trim());
+  }
+
   private toCountryResponse(country: CountryNode): CountryResponse {
     return {
       id: country.id,

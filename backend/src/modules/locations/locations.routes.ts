@@ -29,4 +29,8 @@ router.patch('/nodes/:id/toggle', requireSuperAdmin, (req, res, next) => {
   void locationsController.toggleNode(req, res, next);
 });
 
+router.patch('/nodes/:id', requireSuperAdmin, (req, res, next) => {
+  void locationsController.updateNode(req, res, next);
+});
+
 export default router;

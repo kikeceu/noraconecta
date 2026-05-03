@@ -37,7 +37,7 @@ export class EscalationsController {
         professionalId,
       );
 
-      res.status(200).json({ data: result });
+      res.status(200).json(result);
     } catch (err) {
       next(err);
     }
