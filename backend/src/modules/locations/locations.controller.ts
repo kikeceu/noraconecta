@@ -124,6 +124,32 @@ export class LocationsController {
       next(err);
     }
   }
+
+  async updateNode(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { name } = req.body as { name: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Node id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!name) {
+        res.status(400).json({ error: 'Node name is required', statusCode: 400 });
+        return;
+      }
+
+      const node = await locationsService.updateNode(id, name);
+      res.status(200).json({ data: node });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const locationsController = new LocationsController();

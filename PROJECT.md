@@ -43,7 +43,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching
 │   │   │   │   └── categories.repository.ts # Prisma queries for Category model
 │   │   │   ├── locations/
-│   │   │   │   ├── locations.routes.ts     # 6 endpoints under /locations
+│   │   │   │   ├── locations.routes.ts     # 7 endpoints under /locations
 │   │   │   │   ├── locations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── locations.service.ts    # Geo hierarchy business logic
 │   │   │   │   └── locations.repository.ts # Prisma queries for GeoLevel/GeoNode
@@ -57,6 +57,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
 │   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
 │   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
+│   │   │   ├── admin/
+│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
+│   │   │   │   ├── admin.controller.ts # Request handling
+│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities
+│   │   │   │   └── admin.repository.ts # Prisma aggregate queries
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 3 endpoints under /plans
 │   │   │   │   ├── plans.controller.ts # Request validation, response formatting
@@ -135,12 +140,34 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── hooks/
 │   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls
 │   │   ├── lib/
-│   │   │   └── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
+│   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
+│   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
+│   │   │   └── onboarding-api.ts      # API client for professional onboarding (NEW)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
-│   │   │   └── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
+│   │   │   ├── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
+│   │   │   └── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) (NEW)
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
+│   │   ├── components/
+│   │   │       ├── admin/
+│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper (NEW)
+│   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard (NEW)
+│   │   │       │   └── ConfirmDialog.tsx   # Reusable confirm modal for destructive actions (NEW)
 │   │   ├── pages/
 │   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
+│   │   │   ├── admin/                  # Admin panel pages (NEW)
+│   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
+│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + professional status bars
+│   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend
+│   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
+│   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots
+│   │   │   │   ├── EscalationsPage.tsx          # Table with urgency summary, status change + resolve modal
+│   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
+│   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal
+│   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
+│   │   │   │   └── SettingsPage.tsx             # Config form (matching, limits, integrations, notification toggles)
 │   │   │   └── onboarding/
 │   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook
 │   │   │       ├── DESIGN.md           # Design system document (source of truth for visual design)
@@ -235,6 +262,29 @@ src/
 | `/health`        | GET    | Health check (sin auth)              | No             |
 | `/auth/login`    | POST   | Login de admin (email + password)    | No             |
 
+### Admin Dashboard (NEW)
+
+Agrega métricas del panel de administración agregadas desde múltiples entidades.
+
+| Endpoint         | Método | Descripción                          | Auth requerida |
+|-----------------|--------|--------------------------------------|----------------|
+| `/admin/metrics` | GET    | Dashboard KPIs (orders, professionals, escalations, feedback) | OPERATOR |
+
+Response shape:
+```json
+{
+  "data": {
+    "orders": { "active": 15, "last24h": 3, "last7d": 42, "total": 520 },
+    "acceptanceRate": 72,
+    "coverageRate": 85,
+    "avgAcceptanceTimeMinutes": 12,
+    "professionals": { "active": 89, "pending": 18, "suspended": 4, "total": 120 },
+    "escalations": { "open": 5, "total": 23 },
+    "wouldRecommendPct": 94
+  }
+}
+```
+
 ### Categories
 
 | Endpoint                   | Método | Descripción                          | Rol mínimo |
@@ -256,6 +306,7 @@ src/
 | `/locations/countries`        | POST   | Crear país + definir niveles                 | SUPERADMIN|
 | `/locations/nodes`            | POST   | Crear nodo en cualquier nivel                | SUPERADMIN|
 | `/locations/nodes/:id/toggle` | PATCH  | Habilitar / deshabilitar nodo                | SUPERADMIN|
+| `/locations/nodes/:id`       | PATCH  | Actualizar nombre del nodo                   | SUPERADMIN|
 
 ### Users
 
@@ -827,6 +878,46 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
 - `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
+
+## Frontend: Admin Panel (NEW — AUT-132)
+
+Panel de administración completo con 11 pantallas. Autenticación JWT en memoria (no localStorage), layout con sidebar colapsable en mobile, y guardas de ruta por rol (SUPERADMIN / OPERATOR).
+
+### Tech Stack
+- React 19 + TypeScript
+- Tailwind CSS 4 (tokens del DESIGN.md)
+- lucide-react (íconos)
+- react-router-dom v7 (rutas protegidas)
+
+### Design System
+- Stitch project: `projects/1505486100227666482`
+- Design asset: `assets/9140616588152080241`
+- DESIGN.md: `.stitch/admin/DESIGN.md`
+- Modo claro, DM Sans + JetBrains Mono, NORA Green (#0B6E4F) como acento
+
+### Pages
+
+| Ruta | Pantalla | Rol mínimo | Funcionalidad |
+|------|----------|-----------|--------------|
+| `/admin/login` | Login | Ninguno | Formulario email + contraseña → JWT en memoria |
+| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado |
+| `/admin/professionals` | Lista Profesionales | OPERATOR | Tabla con filtros, badges, paginación |
+| `/admin/professionals/:id` | Detalle Profesional | OPERATOR | Info, docs R2, historial, acciones SUPERADMIN |
+| `/admin/users` | Usuarios | OPERATOR | Tabla, footer métricas, bloquear/desbloquear |
+| `/admin/orders` | Pedidos | OPERATOR | Tabla con timeline de 3 dots, filtros |
+| `/admin/escalations` | Escaladas | OPERATOR | Summary críticas, cambiar estado, modal resolver |
+| `/admin/zones` | Zonas | OPERATOR | Árbol con acordeón, toggles, agregar/editar nodos |
+| `/admin/categories` | Categorías | OPERATOR | Tabla con toggle inline, modal crear/editar |
+| `/admin/plans` | Planes | OPERATOR | Cards de planes + edición de precio |
+| `/admin/settings` | Configuración | SUPERADMIN | Parámetros matching, límites, integraciones, toggles |
+
+### Auth Flow
+1. Login → `POST /auth/login` → JWT almacenado en variable en memoria
+2. Cada request incluye `Authorization: Bearer <token>`
+3. Logout → se limpia el token de memoria → redirect a `/admin/login`
+4. `ProtectedRoute` verifica autenticación y opcionalmente rol requerido
+5. OPERATOR no ve Configuración; botones SUPERADMIN ocultos para OPERATOR
+6. Todas las acciones destructivas (aprobar, rechazar, suspender, reactivar, bloquear, desbloquear, cambiar estado de escalada, resolver) tienen un `ConfirmDialog` que muestra el nombre del afectado antes de ejecutar el request
 
 ## Scripts
 

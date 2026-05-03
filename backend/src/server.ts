@@ -15,6 +15,7 @@ import membershipsRoutes from './modules/memberships/memberships.routes';
 import configRoutes from './modules/config/config.routes';
 import requestsRoutes from './modules/requests/requests.routes';
 import escalationsRoutes from './modules/escalations/escalations.routes';
+import adminRoutes from './modules/admin/admin.routes';
 import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
 
@@ -39,6 +40,7 @@ app.use('/professionals', membershipsRoutes);
 app.use('/config', configRoutes);
 app.use('/requests', requestsRoutes);
 app.use('/escalations', escalationsRoutes);
+app.use('/admin', adminRoutes);
 app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
 
