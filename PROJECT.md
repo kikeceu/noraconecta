@@ -200,10 +200,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing
 │   │   │       └── components/
-│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 4 tabs
+│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 5 tabs
 │   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
-│   │   │           ├── ProfessionalMembership.tsx # Active plan, trial progress bar, expired state with payment alias
+│   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
 │   │   │           ├── ProfessionalOrders.tsx     # Stats cards, filters, search, table, pagination (no client data)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart, compliance metrics, recommendation %, tips
 │   ├── index.html                      # Vite entry HTML (dev mode)
@@ -435,6 +435,7 @@ Response shape:
 | `/professionals/session/:token`        | GET    | Recuperar sesión de profesional por token       | Sin auth  |
 | `/professionals/session/:token/panel`  | GET    | Datos consolidados del panel (perfil + membresía + reputación) | Sin auth |
 | `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, sin datos del usuario) | Sin auth |
+| `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante | Sin auth |
 | `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
 | `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
 | `/professionals/:id/approve`           | POST   | Aprobar profesional (UNDER_REVIEW → ACTIVE)     | SUPERADMIN|
@@ -656,8 +657,8 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`app.noraconecta.com.ar/panel/:sessionToken`), sin login con credenciales. El sessionToken (UUID, 30 días de validez) se genera desde el panel admin.
 
 **Arquitectura frontend:**
-- Desktop: sidebar fijo 240px con 4 tabs (Perfil, Membresía, Pedidos, Reputación)
-- Mobile: bottom navigation bar con los mismos 4 tabs
+- Desktop: sidebar fijo 240px con 5 tabs (Perfil, Pedidos pendientes, Historial, Membresía, Reputación)
+- Mobile: bottom navigation bar con los mismos 5 tabs
 - Sin header; diseño light mode con NORA Green #0B6E4F, DM Sans, JetBrains Mono para números
 - Mismo design system que AUT-131/132 (assets/9140616588152080241)
 
@@ -666,8 +667,9 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | Tab | Componente | Descripción |
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
+| Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
+| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Sin datos del cliente (privacidad). Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
-| Pedidos | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Sin datos del cliente (privacidad). Paginación + empty state |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
 
 **Endpoints del panel (sin auth, protegidos por sessionToken):**
@@ -676,6 +678,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | `/professionals/session/:token/panel` | GET | Datos consolidados: perfil, membresía, reputación |
 | `/professionals/session/:token/orders` | GET | Historial de pedidos paginado (sin datos del usuario) |
+| `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante |
 
 **Response shape `GET /session/:token/panel`:**
 ```json
@@ -696,6 +699,22 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 }
 ```
 
+**Response shape `GET /session/:token/pending-requests`:**
+```json
+{
+  "data": [
+    {
+      "id": "cuid",
+      "category": { "id": "cuid", "name": "Plomería" },
+      "geoNode": { "id": "cuid", "name": "Maipú" },
+      "description": "Se rompió un caño en el baño",
+      "createdAt": "2026-05-03T12:00:00.000Z",
+      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z"
+    }
+  ]
+}
+```
+
 **generateSession response (ACTUALIZADO):**
 ```json
 {
@@ -708,6 +727,32 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 ```
 
 `panelUrl` usa la variable de entorno `APP_URL` (default: `http://app.noraconecta.local`). En producción: `https://app.noraconecta.com.ar/panel/:sessionToken`.
+
+### Pedidos pendientes del profesional (AUT-140)
+
+Sección temporal para testing del flujo de asignación. El profesional ve los pedidos en estado `ASSIGNED` donde figura como `assignedProfessionalId`, con indicador del tiempo restante antes del timeout (configurable vía `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS`).
+
+- **Aceptar** (POST `/requests/:id/accept`): cambia estado a `ACCEPTED`, incrementa `trialRequestsUsed` si no tiene membresía ACTIVA
+- **Rechazar** (POST `/requests/:id/reject`): registra evento REJECTED, el motor reasigna excluyendo al rejector
+- **Modal de confirmación**: antes de aceptar o rechazar, muestra confirmación con datos del pedido
+- **Empty state**: "No tenés pedidos pendientes por responder" cuando no hay pedidos ASSIGNED
+- Esta sección se reemplazará por notificaciones WhatsApp en AUT-134
+
+**Response shape `GET /session/:token/pending-requests`:**
+```json
+{
+  "data": [
+    {
+      "id": "cuid",
+      "category": { "id": "cuid", "name": "Plomería" },
+      "geoNode": { "id": "cuid", "name": "Maipú" },
+      "description": "Se rompió un caño en el baño",
+      "createdAt": "2026-05-03T12:00:00.000Z",
+      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z"
+    }
+  ]
+}
+```
 
 **Flujo de acceso:**
 1. Admin genera sesión desde `ProfessionalDetailPage` → botón "Generar enlace de acceso"

@@ -379,6 +379,38 @@ export class ProfessionalsService {
     };
   }
 
+  async getPendingRequests(token: string): Promise<{
+    data: {
+      id: string;
+      category: { id: string; name: string } | null;
+      geoNode: { id: string; name: string } | null;
+      description: string;
+      createdAt: Date;
+      assignmentTimeoutAt: Date | null;
+    }[];
+  }> {
+    const professional = await this.getSessionByToken(token);
+
+    const pendingRequests = await this.professionalsRepository.findPendingRequestsByProfessionalId(
+      professional.id,
+    );
+
+    return {
+      data: pendingRequests.map((request) => ({
+        id: request.id,
+        category: request.category
+          ? { id: request.category.id, name: request.category.name }
+          : null,
+        geoNode: request.geoNode
+          ? { id: request.geoNode.id, name: request.geoNode.name }
+          : null,
+        description: request.description,
+        createdAt: request.createdAt,
+        assignmentTimeoutAt: request.assignmentTimeoutAt,
+      })),
+    };
+  }
+
   async getById(id: string): Promise<Professional> {
     const professional = await this.professionalsRepository.findById(id);
 

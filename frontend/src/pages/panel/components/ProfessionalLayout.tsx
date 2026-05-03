@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { User, CreditCard, ClipboardList, Star } from 'lucide-react';
+import { User, CreditCard, ClipboardList, Star, Clock } from 'lucide-react';
 import type { PanelTab, ProfessionalStatus } from '../../../types/panel';
 
 interface ProfessionalLayoutProps {
@@ -12,8 +12,9 @@ interface ProfessionalLayoutProps {
 
 const tabs: { key: PanelTab; label: string; icon: typeof User }[] = [
   { key: 'profile', label: 'Perfil', icon: User },
+  { key: 'pending', label: 'Pedidos pendientes', icon: Clock },
+  { key: 'orders', label: 'Historial', icon: ClipboardList },
   { key: 'membership', label: 'Membresía', icon: CreditCard },
-  { key: 'orders', label: 'Pedidos', icon: ClipboardList },
   { key: 'reputation', label: 'Reputación', icon: Star },
 ];
 
