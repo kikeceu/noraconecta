@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma';
-import { Professional, ProfessionalStatus, ProfessionalZone, Prisma } from '@prisma/client';
+import { Professional, ProfessionalStatus, ProfessionalZone, Prisma, Request } from '@prisma/client';
 
 export interface CreateProfessionalInput {
   phone: string;
@@ -215,6 +215,27 @@ export class ProfessionalsRepository {
       },
       orderBy: { lastAssignedAt: { sort: 'asc', nulls: 'first' } },
       take: 10,
+    });
+  }
+
+  async findPendingRequestsByProfessionalId(
+    professionalId: string,
+  ): Promise<
+    (Request & {
+      category: { id: string; name: string } | null;
+      geoNode: { id: string; name: string } | null;
+    })[]
+  > {
+    return prisma.request.findMany({
+      where: {
+        assignedProfessionalId: professionalId,
+        status: 'ASSIGNED',
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        category: true,
+        geoNode: true,
+      },
     });
   }
 

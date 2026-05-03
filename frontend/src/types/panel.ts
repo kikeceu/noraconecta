@@ -86,4 +86,17 @@ export interface PanelOrdersResponse {
   };
 }
 
-export type PanelTab = 'profile' | 'membership' | 'orders' | 'reputation';
+export type PanelTab = 'profile' | 'membership' | 'orders' | 'reputation' | 'pending';
+
+export interface PendingRequest {
+  id: string;
+  category: { id: string; name: string } | null;
+  geoNode: { id: string; name: string } | null;
+  description: string;
+  createdAt: string;
+  assignmentTimeoutAt: string | null;
+}
+
+export interface PendingRequestsResponse {
+  data: PendingRequest[];
+}
