@@ -1,6 +1,7 @@
 import { BotRepository } from './bot.repository';
 import { resolveFlowHandler, getFlowHandlerByName } from './flows/flow-handler.factory';
 import { FlowContext, BotResponse } from './flows/types';
+import { UsersService } from '../users/users.service';
 import { Prisma } from '@prisma/client';
 
 export type ProcessMessageInput = {
@@ -12,12 +13,23 @@ export type ProcessMessageInput = {
 };
 
 export class BotService {
-  constructor(private readonly botRepository: BotRepository) {}
+  constructor(
+    private readonly botRepository: BotRepository,
+    private readonly usersService: UsersService,
+  ) {}
 
   async processMessage(input: ProcessMessageInput): Promise<BotResponse & { flow?: string; step?: string }> {
+    const user = await this.usersService.findOrCreateByPhone(input.phone);
+
     let session = await this.botRepository.findByPhone(input.phone);
 
     const role = input.role || (session?.role as 'USER' | 'PROFESSIONAL') || 'USER';
+
+    const userIdentity = {
+      userId: user.id,
+      name: user.name,
+      phone: user.phone,
+    };
 
     if (!session) {
       const handler = resolveFlowHandler(role);
@@ -26,8 +38,23 @@ export class BotService {
         role,
         currentFlow: handler.flowName,
         currentStep: handler.getInitialStep(),
-        tempData: {} as Prisma.InputJsonValue,
+        tempData: userIdentity as Prisma.InputJsonValue,
       });
+    } else {
+      const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+
+      if (!sessionTempData.userId) {
+        sessionTempData.userId = user.id;
+        sessionTempData.name = user.name;
+        sessionTempData.phone = user.phone;
+
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: session.currentFlow,
+          currentStep: session.currentStep,
+          tempData: sessionTempData as Prisma.InputJsonValue,
+        });
+      }
     }
 
     if (!session.currentFlow) {
@@ -45,24 +72,33 @@ export class BotService {
       };
     }
 
+    const step = session.currentStep || flowHandler.getInitialStep();
+
+    const imageUrls = step === 'ASK_PHOTOS' ? input.imageUrls : undefined;
+    const audioUrl = step === 'ASK_AUDIO' ? input.audioUrl : undefined;
+
     const context: FlowContext = {
       session,
       message: {
         phone: input.phone,
         text: input.text,
-        imageUrls: input.imageUrls,
-        audioUrl: input.audioUrl,
+        imageUrls,
+        audioUrl,
       },
     };
 
-    const step = session.currentStep || flowHandler.getInitialStep();
     const result = await flowHandler.handleStep(step, context);
+
+    const finalTempData = (result.tempData as Record<string, unknown>) || {};
+    if (!finalTempData.userId) finalTempData.userId = user.id;
+    if (!finalTempData.name) finalTempData.name = user.name;
+    if (!finalTempData.phone) finalTempData.phone = user.phone;
 
     const updatedSession = await this.botRepository.upsert(input.phone, {
       role,
       currentFlow: result.nextStep ? session.currentFlow : undefined,
       currentStep: result.nextStep || undefined,
-      tempData: result.nextStep ? (result.tempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
+      tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
     });
 
     return {

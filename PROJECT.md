@@ -135,13 +135,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── hooks/
 │   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls
 │   │   ├── lib/
-│   │   │   └── api.ts                 # REST client for /bot/message and /bot/session/reset
+│   │   │   └── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   ├── types/
-│   │   │   └── chat.ts                # TypeScript interfaces for messages, phones, responses
-│   │   ├── data/
-│   │   │   └── mockData.ts            # Simulated phone numbers for the selector
-│   │   └── pages/
-│   │       └── SimulatorPage.tsx       # Main simulator page: composes all chat components
+│   │   │   └── chat.ts                # TypeScript interfaces for messages, responses
+│   │   ├── pages/
+│   │   │   └── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
 │   ├── index.html                      # Vite entry HTML
 │   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
 │   ├── tsconfig.json                   # React + TypeScript strict config
@@ -313,6 +311,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matchi
 
 **Validaciones de contentType por folder:**
 - `request-photos`: `image/jpeg`, `image/png`, `image/webp`
+- `request-audio`: `audio/webm`, `audio/mp4`, `audio/mpeg`, `audio/ogg`, `audio/wav`, `audio/webm;codecs=opus`
 
 **Lógica de negocio:**
 - El backend nunca recibe el contenido binario de los archivos
@@ -353,6 +352,7 @@ Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web
 POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
+    → UsersService.findOrCreateByPhone(phone)  // garantiza User en DB
     → BotRepository.findOrCreate(phone)
     → determinar rol (USER / PROFESSIONAL)
     → despachar al FlowHandler correspondiente
@@ -361,12 +361,24 @@ POST /bot/message
     → retorna { text, mediaUrls?, options?, flow?, step? }
 ```
 
+**Lógica de negocio:**
+- Cada mensaje entrante dispara `UsersService.findOrCreateByPhone(phone)`: si el usuario no existe se crea con `name = phone`, si existe se recupera. La identidad (`userId`, `name`, `phone`) se almacena en `BotSession.tempData` y se propaga a cada paso del flujo.
+- El paso INIT del flujo `USER_REQUEST` usa `tempData` para identificar al usuario en vez de consultar la DB por teléfono. Si el `name` coincide con el `phone` (usuario nuevo), pide el nombre y transiciona a ASK_NAME. Si ya tiene nombre real, saluda directamente.
+- El paso ASK_NAME guarda el nombre provisto en `User.name` vía `prisma.user.update` y también en `tempData`, luego transiciona a ASK_SERVICE.
+- El paso CONFIRM, al recibir "si", llama a `RequestsService.create()` con los datos acumulados en `tempData` (`phone`, `categoryId`, `geoNodeId`, `description`, `photoUrls`, `audioUrl`), lo que persiste el pedido en DB, ejecuta el matching y asigna profesional si hay candidato. Si `create` falla, devuelve el error al usuario.
+
 **Flujos implementados:**
 
 | Flow                    | Estados                                                                 |
 |------------------------|-------------------------------------------------------------------------|
-| `USER_REQUEST`         | INIT → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
+| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
+
+**Lógica de flujo PROFESSIONAL_REGISTER:**
+- `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó.
+- `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein).
+- `ASK_ZONES`: divide el input por coma, "y" y "e", resuelve cada zona por separado, registra múltiples zoneIds en tempData.
+- `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
 **NLP (nlp.service.ts):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
@@ -375,11 +387,14 @@ POST /bot/message
 
 **Simulador web (frontend):**
 - Interfaz React + Tailwind en `frontend/src/pages/SimulatorPage.tsx`
-- Selector de teléfonos para simular distintos usuarios/profesionales
+- Input de texto libre para ingresar cualquier numero de telefono + toggle de rol (Usuario / Profesional)
 - Burbujas de chat diferenciadas: usuario (emerald, derecha), NORA (slate, izquierda)
 - Indicador de estado de sesión (flujo + paso actual)
 - Estados: vacío, carga (typing indicator con dots animados), conversación activa
 - Diseño responsive: single-column centrado, 720px max-width en desktop, full-width en mobile
+- Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
+- Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
+- Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
 
 ### Config (actualizado)
 

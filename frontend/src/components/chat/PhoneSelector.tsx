@@ -1,38 +1,49 @@
-import { SimulatedPhone } from '../../types/chat';
-
 interface PhoneSelectorProps {
-  readonly phones: readonly SimulatedPhone[];
-  readonly selected: SimulatedPhone;
-  readonly onSelect: (phone: SimulatedPhone) => void;
+  readonly phone: string;
+  readonly role: 'USER' | 'PROFESSIONAL';
+  readonly onPhoneChange: (phone: string) => void;
+  readonly onRoleChange: (role: 'USER' | 'PROFESSIONAL') => void;
 }
 
-export function PhoneSelector({ phones, selected, onSelect }: PhoneSelectorProps) {
+export function PhoneSelector({
+  phone,
+  role,
+  onPhoneChange,
+  onRoleChange,
+}: PhoneSelectorProps) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <label className="font-mono text-[0.6875rem] uppercase tracking-wider text-iron">
-        SIMULAR COMO
-      </label>
-      <select
-        value={`${selected.phone}|${selected.role}`}
-        onChange={(e) => {
-          const [phone, role] = e.target.value.split('|');
-          const match = phones.find(
-            (p) => p.phone === phone && p.role === role,
-          );
-          if (match) onSelect(match);
-        }}
-        className="cursor-pointer appearance-none rounded-lg border border-border bg-elevated px-3 py-1.5 text-sm text-steel outline-none transition-colors hover:border-zinc-muted focus:border-emerald/50"
-      >
-        {phones.map((p) => (
-          <option
-            key={p.phone}
-            value={`${p.phone}|${p.role}`}
-            className="bg-elevated text-steel"
-          >
-            {p.label}
-          </option>
-        ))}
-      </select>
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={phone}
+        onChange={(e) => onPhoneChange(e.target.value)}
+        placeholder="+54 261 123-4567"
+        className="h-8 min-w-0 rounded-lg border border-border bg-elevated px-2.5 text-sm text-steel outline-none transition-colors placeholder:text-iron hover:border-zinc-muted focus:border-emerald/50"
+      />
+      <div className="flex rounded-lg border border-border bg-elevated p-0.5">
+        <button
+          type="button"
+          onClick={() => onRoleChange('USER')}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            role === 'USER'
+              ? 'bg-emerald text-[#09090b]'
+              : 'text-iron hover:text-steel'
+          }`}
+        >
+          Usuario
+        </button>
+        <button
+          type="button"
+          onClick={() => onRoleChange('PROFESSIONAL')}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            role === 'PROFESSIONAL'
+              ? 'bg-emerald text-[#09090b]'
+              : 'text-iron hover:text-steel'
+          }`}
+        >
+          Profesional
+        </button>
+      </div>
     </div>
   );
 }

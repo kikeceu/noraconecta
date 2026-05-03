@@ -4,12 +4,8 @@ export interface Message {
   text: string;
   timestamp: string;
   options?: string[];
-}
-
-export interface SimulatedPhone {
-  phone: string;
-  label: string;
-  role: 'USER' | 'PROFESSIONAL';
+  imageUrls?: string[];
+  audioUrl?: string;
 }
 
 export interface BotResponse {

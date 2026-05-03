@@ -3,6 +3,14 @@ import { AppError } from '../../middleware/error-handler';
 
 const VALID_CONTENT_TYPES: Record<string, string[]> = {
   'request-photos': ['image/jpeg', 'image/png', 'image/webp'],
+  'request-audio': [
+    'audio/webm',
+    'audio/mp4',
+    'audio/mpeg',
+    'audio/ogg',
+    'audio/wav',
+    'audio/webm;codecs=opus',
+  ],
 };
 
 export class StorageService {
