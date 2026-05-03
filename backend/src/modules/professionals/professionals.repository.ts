@@ -57,8 +57,13 @@ export class ProfessionalsRepository {
     return prisma.professional.findUnique({ where: { phone } });
   }
 
-  async findByVerificationToken(token: string): Promise<Professional | null> {
-    return prisma.professional.findUnique({ where: { verificationToken: token } });
+  async findByVerificationToken(
+    token: string,
+  ): Promise<(Professional & { zones: (ProfessionalZone & { geoNode: { id: string; name: string } })[] }) | null> {
+    return prisma.professional.findUnique({
+      where: { verificationToken: token },
+      include: { zones: { include: { geoNode: true } } },
+    });
   }
 
   async findBySessionToken(token: string): Promise<Professional | null> {

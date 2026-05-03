@@ -93,6 +93,7 @@ export class ProfessionalsService {
   async getVerificationTokenStatus(token: string): Promise<{
     valid: boolean;
     professionalName?: string;
+    zones?: { id: string; name: string }[];
   }> {
     if (!token) {
       throw new AppError('Verification token is required', 400);
@@ -115,6 +116,10 @@ export class ProfessionalsService {
     return {
       valid: true,
       professionalName: professional.name,
+      zones: professional.zones.map((z) => ({
+        id: z.geoNode.id,
+        name: z.geoNode.name,
+      })),
     };
   }
 
