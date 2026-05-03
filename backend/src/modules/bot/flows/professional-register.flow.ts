@@ -1,10 +1,17 @@
 import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
+import { ProfessionalsService } from '../../professionals/professionals.service';
+import { ProfessionalsRepository } from '../../professionals/professionals.repository';
 
 const nlpService = new NlpService();
 
 export class ProfessionalRegisterFlow implements FlowHandler {
   readonly flowName = 'PROFESSIONAL_REGISTER';
+
+  constructor(
+    private readonly professionalsService: ProfessionalsService,
+    private readonly professionalsRepository: ProfessionalsRepository,
+  ) {}
 
   getInitialStep(): string {
     return 'ASK_NAME';
@@ -34,13 +41,24 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputName = message.text?.trim();
+    const alreadyAsked = tempData._nameAsked === true;
 
-    if (!inputName) {
+    if (!alreadyAsked) {
+      tempData._nameAsked = true;
       return {
         response: {
           text: 'Hola! Para registrarte como profesional necesito algunos datos. Cual es tu nombre completo?',
         },
+        nextStep: 'ASK_NAME',
+        tempData,
+      };
+    }
+
+    const inputName = message.text?.trim();
+
+    if (!inputName) {
+      return {
+        response: { text: 'Cual es tu nombre completo?' },
         nextStep: 'ASK_NAME',
         tempData,
       };
@@ -86,7 +104,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Entendido: ${nlpResult.match.name}. En que zonas trabajas? Podes indicar varias separadas por coma.`,
+        text: `Entendido: ${nlpResult.match.name}. En que zonas trabajas? Podes indicar varias separadas por coma o "y".`,
       },
       nextStep: 'ASK_ZONES',
       tempData,
@@ -102,7 +120,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     if (!inputText) {
       return {
         response: {
-          text: 'En que zonas trabajas? Podes indicar varias separadas por coma. (Ej: Maipu, Godoy Cruz, Capital)',
+          text: 'En que zonas trabajas? Podes indicar varias separadas por coma o "y". (Ej: Maipu, Godoy Cruz y Capital)',
         },
         nextStep: 'ASK_ZONES',
         tempData,
@@ -110,6 +128,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     }
 
     const zoneNames = inputText
+      .replace(/\s+y\s+/gi, ',')
+      .replace(/\s+e\s+/gi, ',')
       .split(',')
       .map((z) => z.trim())
       .filter((z) => z.length > 0);
@@ -173,16 +193,49 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     tempData.availability = inputText;
 
-    const publicUrl = process.env.PUBLIC_URL || 'http://localhost:3000';
-    const verificationUrl = `${publicUrl}/professionals/verify/temp-token`;
+    try {
+      const phone = tempData.phone as string;
+      const name = tempData.name as string;
+      const categoryId = tempData.categoryId as string;
+      const zoneIds = (tempData.zoneIds as string[]) || [];
+      const availability = inputText;
 
-    return {
-      response: {
-        text: `Perfecto! Para completar tu registro necesito verificar tu identidad. Accede a este enlace:\n\n${verificationUrl}`,
-      },
-      nextStep: 'SEND_LINK',
-      tempData,
-    };
+      console.log('[ProfessionalRegisterFlow] handleAskAvailability: registering professional', { phone, name, categoryId });
+
+      const { professional, verificationUrl } = await this.professionalsService.register(
+        phone,
+        name,
+        categoryId,
+      );
+
+      for (const zoneId of zoneIds) {
+        await this.professionalsRepository.addZone(professional.id, zoneId);
+      }
+
+      await this.professionalsRepository.update(professional.id, { availability });
+
+      console.log('[ProfessionalRegisterFlow] handleAskAvailability: professional created', { professionalId: professional.id, verificationToken: professional.verificationToken });
+
+      tempData.verificationUrl = verificationUrl;
+
+      return {
+        response: {
+          text: `Perfecto! Para completar tu registro necesito verificar tu identidad. Accede a este enlace:\n\n${verificationUrl}`,
+        },
+        nextStep: 'SEND_LINK',
+        tempData,
+      };
+    } catch (err) {
+      console.error('[ProfessionalRegisterFlow] handleAskAvailability: registration failed', err);
+
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar';
+
+      return {
+        response: { text: `No se pudo completar el registro: ${errorMessage}. Intenta de nuevo mas tarde.` },
+        nextStep: null,
+        tempData,
+      };
+    }
   }
 
   private async handleSendLink(): Promise<FlowStepResult> {

@@ -1,11 +1,14 @@
 import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
+import { RequestsService } from '../../requests/requests.service';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
 
 export class UserRequestFlow implements FlowHandler {
   readonly flowName = 'USER_REQUEST';
+
+  constructor(private readonly requestsService: RequestsService) {}
 
   getInitialStep(): string {
     return 'INIT';
@@ -17,7 +20,9 @@ export class UserRequestFlow implements FlowHandler {
 
     switch (step) {
       case 'INIT':
-        return this.handleInit(message, tempData);
+        return this.handleInit(tempData);
+      case 'ASK_NAME':
+        return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
         return this.handleAskService(message, tempData);
       case 'ASK_ZONE':
@@ -33,78 +38,99 @@ export class UserRequestFlow implements FlowHandler {
       case 'SEARCHING':
         return this.handleSearching();
       default:
-        return this.handleInit(message, tempData);
+        return this.handleInit(tempData);
     }
   }
 
   private async handleInit(
-    message: { text?: string; phone: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const existingName = tempData.name as string | undefined;
+    const userId = tempData.userId as string;
+    const currentName = tempData.name as string;
+    const phone = tempData.phone as string;
 
-    if (existingName) {
+    if (!userId) {
       return {
-        response: { text: `Hola ${existingName}! Que tipo de servicio necesitas?` },
+        response: { text: 'Error interno. Intenta de nuevo mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return {
+        response: { text: 'Error interno. Intenta de nuevo mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    if (user.status === 'BLOCKED') {
+      return {
+        response: { text: 'Lo sentimos, tu cuenta no puede realizar pedidos en este momento.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const activeRequest = await prisma.request.findFirst({
+      where: {
+        userId,
+        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
+      },
+    });
+
+    if (activeRequest) {
+      return {
+        response: {
+          text: 'Ya tenes un pedido en curso. Te avisamos cuando tengamos novedades.',
+        },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const hasName = currentName && currentName !== phone;
+
+    if (hasName) {
+      return {
+        response: { text: `Hola ${currentName}! Que tipo de servicio necesitas?` },
         nextStep: 'ASK_SERVICE',
         tempData,
       };
     }
 
+    return {
+      response: { text: 'Hola, soy NORA. Cual es tu nombre?' },
+      nextStep: 'ASK_NAME',
+      tempData,
+    };
+  }
+
+  private async handleAskName(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const userId = tempData.userId as string;
     const inputName = message.text?.trim();
-    if (!inputName || inputName.length === 0) {
-      const user = await prisma.user.findUnique({ where: { phone: message.phone } });
 
-      if (user) {
-        tempData.name = user.name;
-        tempData.userId = user.id;
-
-        if (user.status === 'BLOCKED') {
-          return {
-            response: { text: 'Lo sentimos, tu cuenta no puede realizar pedidos en este momento.' },
-            nextStep: null,
-            tempData,
-          };
-        }
-
-        const activeRequest = await prisma.request.findFirst({
-          where: {
-            userId: user.id,
-            status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
-          },
-        });
-
-        if (activeRequest) {
-          return {
-            response: {
-              text: 'Ya tenes un pedido en curso. Te avisamos cuando tengamos novedades.',
-            },
-            nextStep: null,
-            tempData,
-          };
-        }
-
-        return {
-          response: {
-            text: `Hola ${user.name}! Que tipo de servicio necesitas?`,
-          },
-          nextStep: 'ASK_SERVICE',
-          tempData,
-        };
-      }
-
+    if (!inputName) {
       return {
         response: { text: 'Hola, soy NORA. Cual es tu nombre?' },
-        nextStep: 'INIT',
+        nextStep: 'ASK_NAME',
         tempData,
       };
     }
 
+    if (userId) {
+      await prisma.user.update({ where: { id: userId }, data: { name: inputName } });
+    }
+
     tempData.name = inputName;
+
     return {
-      response: {
-        text: `Hola ${inputName}! Que tipo de servicio necesitas?`,
-      },
+      response: { text: `Hola ${inputName}! Que tipo de servicio necesitas?` },
       nextStep: 'ASK_SERVICE',
       tempData,
     };
@@ -304,6 +330,31 @@ export class UserRequestFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase();
 
     if (inputText === 'si' || inputText === 'sí') {
+      try {
+        console.log('[UserRequestFlow] handleConfirm: creating request with tempData keys:', Object.keys(tempData));
+
+        await this.requestsService.create({
+          phone: tempData.phone as string,
+          categoryId: tempData.categoryId as string,
+          geoNodeId: tempData.geoNodeId as string,
+          description: tempData.description as string,
+          photoUrls: (tempData.photoUrls as string[]) || [],
+          audioUrl: tempData.audioUrl as string | undefined,
+        });
+
+        console.log('[UserRequestFlow] handleConfirm: request created successfully');
+      } catch (err) {
+        console.error('[UserRequestFlow] handleConfirm: create failed', err);
+
+        const message = err instanceof Error ? err.message : 'Error al crear el pedido';
+
+        return {
+          response: { text: `No se pudo crear el pedido: ${message}. Intenta de nuevo.` },
+          nextStep: null,
+          tempData,
+        };
+      }
+
       return {
         response: {
           text: 'Buscando el profesional ideal... te aviso cuando confirme.',

@@ -1,44 +1,57 @@
 import { useState, useCallback, useRef } from 'react';
-import { Message, SimulatedPhone, BotResponse } from '../types/chat';
+import { Message, BotResponse } from '../types/chat';
 import { sendMessage, resetSession } from '../lib/api';
 
-export function useChat(initialPhone: SimulatedPhone) {
+export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONAL') {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedPhone, setSelectedPhone] = useState<SimulatedPhone>(initialPhone);
+  const [phone, setPhone] = useState(initialPhone);
+  const [role, setRole] = useState<'USER' | 'PROFESSIONAL'>(initialRole);
   const [isLoading, setIsLoading] = useState(false);
   const [session, setSession] = useState<{ flow?: string; step?: string }>({});
   const messageIdRef = useRef(0);
 
-  const addMessage = useCallback((sender: 'user' | 'nora', text: string) => {
-    const now = new Date();
-    const timestamp = now.toLocaleTimeString('es-AR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+  const addMessage = useCallback(
+    (
+      sender: 'user' | 'nora',
+      text: string,
+      imageUrls?: string[],
+      audioUrl?: string,
+    ) => {
+      const now = new Date();
+      const timestamp = now.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
 
-    messageIdRef.current += 1;
-    const newMsg: Message = {
-      id: `msg-${messageIdRef.current}`,
-      sender,
-      text,
-      timestamp,
-    };
+      messageIdRef.current += 1;
+      const newMsg: Message = {
+        id: `msg-${messageIdRef.current}`,
+        sender,
+        text,
+        timestamp,
+        imageUrls,
+        audioUrl,
+      };
 
-    setMessages((prev) => [...prev, newMsg]);
-    return newMsg;
-  }, []);
+      setMessages((prev) => [...prev, newMsg]);
+      return newMsg;
+    },
+    [],
+  );
 
   const send = useCallback(
-    async (text: string) => {
-      addMessage('user', text);
+    async (text: string, imageUrls?: string[], audioUrl?: string) => {
+      addMessage('user', text, imageUrls, audioUrl);
       setIsLoading(true);
 
       try {
         const response: BotResponse = await sendMessage(
-          selectedPhone.phone,
+          phone,
           text,
-          selectedPhone.role,
+          role,
+          imageUrls,
+          audioUrl,
         );
 
         addMessage('nora', response.text);
@@ -53,12 +66,21 @@ export function useChat(initialPhone: SimulatedPhone) {
         setIsLoading(false);
       }
     },
-    [selectedPhone, addMessage],
+    [phone, role, addMessage],
   );
 
   const changePhone = useCallback(
-    (phone: SimulatedPhone) => {
-      setSelectedPhone(phone);
+    (newPhone: string) => {
+      setPhone(newPhone);
+      setMessages([]);
+      setSession({});
+    },
+    [],
+  );
+
+  const changeRole = useCallback(
+    (newRole: 'USER' | 'PROFESSIONAL') => {
+      setRole(newRole);
       setMessages([]);
       setSession({});
     },
@@ -68,7 +90,7 @@ export function useChat(initialPhone: SimulatedPhone) {
   const reset = useCallback(async () => {
     setIsLoading(true);
     try {
-      await resetSession(selectedPhone.phone);
+      await resetSession(phone);
       setMessages([]);
       setSession({});
     } catch {
@@ -76,15 +98,17 @@ export function useChat(initialPhone: SimulatedPhone) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedPhone]);
+  }, [phone]);
 
   return {
     messages,
     isLoading,
     session,
-    selectedPhone,
+    phone,
+    role,
     send,
     changePhone,
+    changeRole,
     reset,
   };
 }

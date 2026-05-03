@@ -1,37 +1,39 @@
-import { SimulatedPhone } from '../../types/chat';
 import { PhoneSelector } from './PhoneSelector';
 import { SessionStatus } from './SessionStatus';
 import { SessionState } from '../../types/chat';
 
 interface ChatHeaderProps {
-  readonly phones: readonly SimulatedPhone[];
-  readonly selectedPhone: SimulatedPhone;
+  readonly phone: string;
+  readonly role: 'USER' | 'PROFESSIONAL';
   readonly session: SessionState;
-  readonly onPhoneSelect: (phone: SimulatedPhone) => void;
+  readonly onPhoneChange: (phone: string) => void;
+  readonly onRoleChange: (role: 'USER' | 'PROFESSIONAL') => void;
   readonly onReset: () => void;
 }
 
 export function ChatHeader({
-  phones,
-  selectedPhone,
+  phone,
+  role,
   session,
-  onPhoneSelect,
+  onPhoneChange,
+  onRoleChange,
   onReset,
 }: ChatHeaderProps) {
   return (
     <header className="sticky top-0 z-10 shrink-0 border-b border-border bg-surface">
-      <div className="mx-auto flex h-[52px] max-w-[720px] items-center justify-between px-5">
-        <h1 className="select-none text-[1rem] font-medium text-steel">
-          NORA Simulator
+      <div className="mx-auto flex h-[52px] max-w-[720px] items-center justify-between gap-2 px-5">
+        <h1 className="select-none shrink-0 font-mono text-[0.75rem] text-zinc-muted">
+          NORA
         </h1>
 
         <PhoneSelector
-          phones={phones}
-          selected={selectedPhone}
-          onSelect={onPhoneSelect}
+          phone={phone}
+          role={role}
+          onPhoneChange={onPhoneChange}
+          onRoleChange={onRoleChange}
         />
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <SessionStatus session={session} />
           <button
             onClick={onReset}

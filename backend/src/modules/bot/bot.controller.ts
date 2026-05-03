@@ -1,9 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { BotService } from './bot.service';
 import { BotRepository } from './bot.repository';
+import { UsersService } from '../users/users.service';
+import { UsersRepository } from '../users/users.repository';
 
 const botRepository = new BotRepository();
-const botService = new BotService(botRepository);
+const usersRepository = new UsersRepository();
+const usersService = new UsersService(usersRepository);
+const botService = new BotService(botRepository, usersService);
 
 export class BotController {
   async message(req: Request, res: Response, next: NextFunction): Promise<void> {
