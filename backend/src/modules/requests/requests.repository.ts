@@ -50,7 +50,13 @@ export class RequestsRepository {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { events: true, feedback: true },
+        include: {
+          events: true,
+          feedback: true,
+          user: true,
+          category: true,
+          assignedProfessional: true,
+        },
       }),
       prisma.request.count(),
     ]);

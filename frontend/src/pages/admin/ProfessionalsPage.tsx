@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getProfessionals } from '../../lib/admin-api';
+import { resolveHostContext } from '../../lib/host';
 import type { Professional, ProfessionalStatus } from '../../types/admin';
 
 const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: string }> = {
@@ -13,6 +14,11 @@ const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: strin
   PAUSED: { label: 'Pausado', className: 'bg-gray-50 text-gray-700' },
   REJECTED: { label: 'Rechazado', className: 'bg-red-50 text-red-700' },
 };
+
+function adminPath(path: string): string {
+  const base = resolveHostContext() === 'admin' ? '' : '/admin';
+  return `${base}${path}`;
+}
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: '', label: 'Todos los estados' },
@@ -159,7 +165,7 @@ export function ProfessionalsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Link
-                          to={`/admin/professionals/${p.id}`}
+                          to={adminPath(`/professionals/${p.id}`)}
                           className="text-sm text-green-700 hover:text-green-800 font-medium"
                         >
                           Ver detalle

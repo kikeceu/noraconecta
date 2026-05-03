@@ -15,30 +15,36 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-
-const navItems = [
-  { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/professionals', label: 'Profesionales', icon: UserCheck },
-  { to: '/admin/users', label: 'Usuarios', icon: Users },
-  { to: '/admin/orders', label: 'Pedidos', icon: ShoppingBag },
-  { to: '/admin/escalations', label: 'Escaladas', icon: AlertTriangle },
-  { to: '/admin/zones', label: 'Zonas', icon: MapPin },
-  { to: '/admin/categories', label: 'Categorías', icon: Tag },
-  { to: '/admin/plans', label: 'Planes', icon: CreditCard },
-];
-
-const superAdminItems = [
-  { to: '/admin/settings', label: 'Configuración', icon: Settings },
-];
+import { resolveHostContext } from '../../lib/host';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { admin, logout, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
 
+  const adminContext = resolveHostContext() === 'admin';
+  const basePath = adminContext ? '' : '/admin';
+  const homePath = basePath || '/';
+  const loginPath = `${basePath}/login`;
+
+  const navItems = [
+    { to: homePath, label: 'Dashboard', icon: LayoutDashboard, end: true },
+    { to: `${basePath}/professionals`, label: 'Profesionales', icon: UserCheck },
+    { to: `${basePath}/users`, label: 'Usuarios', icon: Users },
+    { to: `${basePath}/orders`, label: 'Pedidos', icon: ShoppingBag },
+    { to: `${basePath}/escalations`, label: 'Escaladas', icon: AlertTriangle },
+    { to: `${basePath}/zones`, label: 'Zonas', icon: MapPin },
+    { to: `${basePath}/categories`, label: 'Categorías', icon: Tag },
+    { to: `${basePath}/plans`, label: 'Planes', icon: CreditCard },
+  ];
+
+  const superAdminItems = [
+    { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
+  ];
+
   const handleLogout = () => {
     logout();
-    navigate('/admin/login');
+    navigate(loginPath);
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -58,7 +64,7 @@ export function AdminLayout() {
   const sidebar = (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
-        <Link to="/admin" className="flex items-center gap-2">
+        <Link to={homePath} className="flex items-center gap-2">
           <span className="text-lg font-bold text-green-700">NORA</span>
           <span className="text-xs text-gray-500 font-normal">Admin</span>
         </Link>

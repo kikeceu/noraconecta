@@ -23,6 +23,12 @@ const errorConfig: Record<ErrorVariant, { heading: string; description: string; 
       'El enlace que abriste no es válido. Verificá que la dirección sea correcta o solicitá uno nuevo.',
     showAction: true,
   },
+  missing: {
+    heading: 'Enlace de verificación requerido',
+    description:
+      'Necesitás un enlace de verificación válido para acceder al portal. Solicitá tu enlace desde WhatsApp para completar tu registro.',
+    showAction: true,
+  },
 };
 
 export function ErrorScreen({ variant }: ErrorScreenProps) {

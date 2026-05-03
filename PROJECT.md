@@ -123,8 +123,14 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── main.tsx                    # Entry point: React 19 root
-│   │   ├── App.tsx                     # Root component with react-router-dom: /simulator, /verify/:token
+│   │   ├── main.tsx                    # Entry point: React 19 root (dev mode)
+│   │   ├── main-landing.tsx            # Entry point: landing build (noraconecta.com.ar)
+│   │   ├── main-admin.tsx              # Entry point: admin build (admin.noraconecta.com.ar)
+│   │   ├── main-app.tsx                # Entry point: app build (app.noraconecta.com.ar)
+│   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains
+│   │   ├── App-landing.tsx             # Root component (landing): /simulator only
+│   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build)
+│   │   ├── App-app.tsx                 # Root component (app): /verify/:token only (production build)
 │   │   ├── index.css                   # Tailwind CSS directives + design tokens
 │   │   ├── vite-env.d.ts               # Vite client type reference
 │   │   ├── components/
@@ -142,7 +148,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
-│   │   │   └── onboarding-api.ts      # API client for professional onboarding (NEW)
+│   │   │   ├── onboarding-api.ts      # API client for professional onboarding (NEW)
+│   │   │   └── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
@@ -151,8 +158,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
 │   │   │       ├── admin/
-│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper (NEW)
-│   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard (NEW)
+│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; context-aware nav links (NEW)
+│   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard; context-aware redirect paths (NEW)
 │   │   │       │   └── ConfirmDialog.tsx   # Reusable confirm modal for destructive actions (NEW)
 │   │   ├── pages/
 │   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
@@ -178,7 +185,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── BottomBar.tsx        # Fixed bottom CTA bar (Volver + Continuar/Enviar)
 │   │   │           ├── FileUploadZone.tsx   # Upload zone: empty (dashed) → uploading (spinner) → loaded (green + preview/PDF icon)
 │   │   │           ├── WelcomeScreen.tsx    # "Hola, {name}" + Comenzar CTA
-│   │   │           ├── ErrorScreen.tsx      # 3 variants: expired (amber), used (red), invalid (red)
+│   │   │           ├── ErrorScreen.tsx      # 4 variants: expired (amber), used (red), invalid (red), missing (red)
 │   │   │           ├── PersonalDataStep.tsx # DNI (7-8 digits) + CUIL (XX-XXXXXXXX-X) with inline validation
 │   │   │           ├── DniPhotoStep.tsx     # Front + back DNI photo uploads
 │   │   │           ├── CriminalRecordStep.tsx # Criminal record certificate upload (PDF allowed)
@@ -187,10 +194,17 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones
 │   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
-│   ├── index.html                      # Vite entry HTML
+│   ├── index.html                      # Vite entry HTML (dev mode)
+│   ├── index-landing.html               # Vite entry HTML (landing build)
+│   ├── index-admin.html                 # Vite entry HTML (admin build)
+│   ├── index-app.html                   # Vite entry HTML (app build)
+│   ├── .env.landing                     # Env vars for landing build
+│   ├── .env.admin                       # Env vars for admin build
+│   ├── .env.app                         # Env vars for app build
+│   ├── .env.development                 # Env vars for dev mode (npm run dev)
 │   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
 │   ├── tsconfig.json                   # React + TypeScript strict config
-│   └── vite.config.ts                  # Vite + React + Tailwind + API proxy
+│   └── vite.config.ts                  # Vite + React + Tailwind + API proxy (supports BUILD_TARGET)
 ├── package.json                 # Root workspace config
 ├── .gitignore
 ├── PROJECT.md
@@ -252,6 +266,80 @@ src/
 - **lib**: Shared clients (Prisma instance)
 - **utils**: Pure helper functions
 - **middleware**: Request interceptors (auth, error handling)
+
+## Build Targets (Frontend Subdomain Configuration)
+
+El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.
+En desarrollo local (`npm run dev`) todo corre en `localhost:5173` con rutas separadas; la separación por subdominios es solo para producción.
+
+| Target   | Subdominio                  | Entrypoint           | HTML Entry             | Output dir   | Descripción                          |
+|---------|-----------------------------|---------------------|------------------------|-------------|--------------------------------------|
+| landing | noraconecta.com.ar          | `main-landing.tsx`  | `index-landing.html`  | `dist/landing` | Landing page + simulador del bot     |
+| admin   | admin.noraconecta.com.ar    | `main-admin.tsx`    | `index-admin.html`    | `dist/admin`   | Panel de administración (login + dashboard + CRUD) |
+| app     | app.noraconecta.com.ar      | `main-app.tsx`      | `index-app.html`      | `dist/app`     | Onboarding del profesional (`/verify/:token`) |
+
+### Host-based routing en desarrollo
+
+En `npm run dev`, `App.tsx` detecta el hostname vía `resolveHostContext()` (`lib/host.ts`) y renderiza solo las rutas del contexto correspondiente:
+
+| Hostname                    | Contexto | Rutas activas                                    |
+|----------------------------|----------|-------------------------------------------------|
+| `localhost:5173`           | `all`    | Todas: `/simulator`, `/verify/:token`, `/admin/*` |
+| `admin.noraconecta.local`  | `admin`  | Solo admin (sin prefijo): `/login`, `/professionals`, `/escalations`, etc. |
+| `app.noraconecta.local`    | `app`    | Solo onboarding: `/verify/:token`, `/` → ErrorScreen "missing" |
+| `noraconecta.local`        | `landing`| Solo landing: `/` → `/simulator` |
+
+Los subdominios `.local` requieren mapeo en `/etc/hosts`:
+```
+127.0.0.1 noraconecta.local www.noraconecta.local admin.noraconecta.local app.noraconecta.local
+```
+
+En el contexto `admin`, las rutas no usan el prefijo `/admin` (ej: `/login`, `/professionals`). Los componentes `AdminLayout`, `ProtectedRoute`, `LoginPage`, `ProfessionalsPage` y `ProfessionalDetailPage` usan `resolveHostContext()` o `getAdminDashboardPath()` para generar paths dinámicos según el contexto.
+En el contexto `app`, la raíz `/` muestra un `ErrorScreen` con variante `missing` indicando que se necesita un enlace de verificación válido.
+
+### Scripts de build
+
+```json
+{
+  "build:admin": "BUILD_TARGET=admin vite build",
+  "build:app": "BUILD_TARGET=app vite build",
+  "build:landing": "BUILD_TARGET=landing vite build",
+  "build:all": "npm run build:admin && npm run build:app && npm run build:landing"
+}
+```
+
+La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
+- Seleccionar el HTML de entrada (`index-{target}.html`)
+- Cargar el archivo `.env.{target}` correspondiente
+- Redirigir la salida a `dist/{target}/`
+
+### Archivos de entorno por target
+
+| Archivo          | Variables                                   |
+|-----------------|---------------------------------------------|
+| `.env.landing`    | `VITE_WHATSAPP_NUMBER`                      |
+| `.env.admin`      | `VITE_API_URL`                              |
+| `.env.app`        | `VITE_API_URL`                              |
+| `.env.development`| `VITE_API_URL` (cargado en `npm run dev`)   |
+
+### Nginx en producción (referencia)
+
+```nginx
+server {
+  server_name admin.noraconecta.com.ar;
+  root /var/www/nora/admin;
+}
+
+server {
+  server_name app.noraconecta.com.ar;
+  root /var/www/nora/app;
+}
+
+server {
+  server_name noraconecta.com.ar;
+  root /var/www/nora/landing;
+}
+```
 
 ## Modules
 
@@ -506,6 +594,13 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
 | `/requests/:id`                        | GET    | Detalle de pedido con eventos y feedback       | OPERATOR  |
+
+**GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
+- `user` → nombre del cliente
+- `category` → nombre del servicio
+- `assignedProfessional` → nombre del profesional (puede ser null si no está asignado)
+- `events` → historial de eventos
+- `feedback` → feedback del usuario
 
 **Flujo de estados:**
 ```
@@ -763,6 +858,7 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - **RequestEventType**: ASSIGNED, ACCEPTED, REJECTED, NO_RESPONSE, COMPLETED, NOT_FULFILLED, CANCELLED
 - **EscalationStatus**: OPEN, IN_REVIEW, RESOLVED
 - **BotRole**: USER, PROFESSIONAL
+- **ErrorVariant** (frontend): expired, used, invalid, missing
 
 ## Environment Variables
 
@@ -781,6 +877,9 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 | `R2_SECRET_ACCESS_KEY`| Sí      | Cloudflare R2 secret access key         |
 | `R2_BUCKET_NAME`    | Sí        | Cloudflare R2 bucket name               |
 | `R2_PUBLIC_URL`     | Sí        | URL pública base del bucket R2          |
+| `BUILD_TARGET`      | No        | Target de build: `admin`, `app`, o `landing` (solo frontend) |
+| `VITE_API_URL`      | No        | URL de la API para builds admin/app (.env.admin, .env.app) |
+| `VITE_WHATSAPP_NUMBER`| No      | Número de WhatsApp para build landing (.env.landing) |
 
 ## Business Rules
 
@@ -927,6 +1026,10 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | `npm run dev:frontend` | Inicia servidor frontend (Vite dev server)   |
 | `npm run build:backend`| Compila TypeScript del backend a `dist/`     |
 | `npm run build:frontend`| Compila y empaqueta frontend con Vite        |
+| `npm run build:landing` | Build solo de landing (`BUILD_TARGET=landing`) |
+| `npm run build:admin`   | Build solo de admin (`BUILD_TARGET=admin`)    |
+| `npm run build:app`     | Build solo de app (`BUILD_TARGET=app`)        |
+| `npm run build:all`     | Build secuencial de los tres targets          |
 | `npm run lint`      | Ejecuta ESLint                       |
 | `npm run format`    | Formatea código con Prettier         |
 | `npm run prisma:generate` | Genera Prisma Client           |
