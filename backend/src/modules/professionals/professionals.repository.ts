@@ -141,6 +141,67 @@ export class ProfessionalsRepository {
     return { professionals, total };
   }
 
+  async findPanelData(professionalId: string) {
+    const [professional, membership, requestStats] = await Promise.all([
+      prisma.professional.findUnique({
+        where: { id: professionalId },
+        include: { zones: { include: { geoNode: true } }, category: true },
+      }),
+      prisma.membership.findFirst({
+        where: { professionalId, status: 'ACTIVE' },
+        include: { plan: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.request.groupBy({
+        by: ['status'],
+        where: { assignedProfessionalId: professionalId },
+        _count: { id: true },
+      }),
+    ]);
+
+    const feedbackStats = await prisma.feedback.aggregate({
+      where: {
+        request: { assignedProfessionalId: professionalId },
+      },
+      _count: { id: true },
+    });
+
+    const positiveFeedback = await prisma.feedback.count({
+      where: {
+        request: { assignedProfessionalId: professionalId },
+        wouldRecommend: true,
+      },
+    });
+
+    const totalFeedback = feedbackStats._count.id;
+    const wouldRecommendPct = totalFeedback > 0
+      ? Math.round((positiveFeedback / totalFeedback) * 100)
+      : 0;
+
+    return { professional, membership, requestStats, feedbackStats, wouldRecommendPct };
+  }
+
+  async findOrdersByProfessionalId(
+    professionalId: string,
+    skip: number,
+    take: number,
+  ) {
+    const [orders, total] = await Promise.all([
+      prisma.request.findMany({
+        where: { assignedProfessionalId: professionalId },
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        include: { category: true, geoNode: true },
+      }),
+      prisma.request.count({
+        where: { assignedProfessionalId: professionalId },
+      }),
+    ]);
+
+    return { orders, total };
+  }
+
   async findActiveCandidates(
     categoryId: string,
     geoNodeId: string,

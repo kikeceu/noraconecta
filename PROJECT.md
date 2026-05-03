@@ -53,10 +53,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
 │   │   │   │   └── users.repository.ts     # Prisma queries for User model
 │   │   │   └── professionals/
-│   │   │       ├── professionals.routes.ts     # 11 endpoints under /professionals
+│   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
-│   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
-│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
+│   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session, panel
+│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone, panel data, orders
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
 │   │   │   │   ├── admin.controller.ts # Request handling
@@ -130,7 +130,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains
 │   │   ├── App-landing.tsx             # Root component (landing): /simulator only
 │   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build)
-│   │   ├── App-app.tsx                 # Root component (app): /verify/:token only (production build)
+│   │   ├── App-app.tsx                 # Root component (app): /verify/:token, /panel/:sessionToken (production build)
 │   │   ├── index.css                   # Tailwind CSS directives + design tokens
 │   │   ├── vite-env.d.ts               # Vite client type reference
 │   │   ├── components/
@@ -149,11 +149,13 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
 │   │   │   ├── onboarding-api.ts      # API client for professional onboarding (NEW)
+│   │   │   ├── panel-api.ts           # API client for professional panel (NEW)
 │   │   │   └── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
-│   │   │   └── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) (NEW)
+│   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) (NEW)
+│   │   │   └── panel.ts               # Interfaces for professional panel data (PanelData, PanelOrder, etc.) (NEW)
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
@@ -167,7 +169,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + professional status bars
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination
-│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL
+│   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots
 │   │   │   │   ├── EscalationsPage.tsx          # Table with urgency summary, status change + resolve modal
@@ -194,6 +197,15 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones
 │   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
+│   │   │   └── panel/                        # Professional self-service panel (NEW)
+│   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing
+│   │   │       └── components/
+│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 4 tabs
+│   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
+│   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
+│   │   │           ├── ProfessionalMembership.tsx # Active plan, trial progress bar, expired state with payment alias
+│   │   │           ├── ProfessionalOrders.tsx     # Stats cards, filters, search, table, pagination (no client data)
+│   │   │           └── ProfessionalReputation.tsx # Donut chart, compliance metrics, recommendation %, tips
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
 │   ├── index-admin.html                 # Vite entry HTML (admin build)
@@ -244,8 +256,10 @@ src/
 │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
 │   │   └── users.repository.ts     # Prisma queries for User model
 │   ├── professionals/
-│       ├── professionals.routes.ts     # 11 endpoints under /professionals
+│       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │       ├── professionals.controller.ts # Request validation, response formatting
+│       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session, panel
+│       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone, panel data, orders
 │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
 │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
 │   └── matching/
@@ -276,7 +290,7 @@ En desarrollo local (`npm run dev`) todo corre en `localhost:5173` con rutas sep
 |---------|-----------------------------|---------------------|------------------------|-------------|--------------------------------------|
 | landing | noraconecta.com.ar          | `main-landing.tsx`  | `index-landing.html`  | `dist/landing` | Landing page + simulador del bot     |
 | admin   | admin.noraconecta.com.ar    | `main-admin.tsx`    | `index-admin.html`    | `dist/admin`   | Panel de administración (login + dashboard + CRUD) |
-| app     | app.noraconecta.com.ar      | `main-app.tsx`      | `index-app.html`      | `dist/app`     | Onboarding del profesional (`/verify/:token`) |
+| app     | app.noraconecta.com.ar      | `main-app.tsx`      | `index-app.html`      | `dist/app`     | Onboarding (`/verify/:token`) + Panel profesional (`/panel/:sessionToken`) |
 
 ### Host-based routing en desarrollo
 
@@ -284,9 +298,9 @@ En `npm run dev`, `App.tsx` detecta el hostname vía `resolveHostContext()` (`li
 
 | Hostname                    | Contexto | Rutas activas                                    |
 |----------------------------|----------|-------------------------------------------------|
-| `localhost:5173`           | `all`    | Todas: `/simulator`, `/verify/:token`, `/admin/*` |
+| `localhost:5173`           | `all`    | Todas: `/simulator`, `/verify/:token`, `/panel/:sessionToken`, `/admin/*` |
 | `admin.noraconecta.local`  | `admin`  | Solo admin (sin prefijo): `/login`, `/professionals`, `/escalations`, etc. |
-| `app.noraconecta.local`    | `app`    | Solo onboarding: `/verify/:token`, `/` → ErrorScreen "missing" |
+| `app.noraconecta.local`    | `app`    | Onboarding + panel: `/verify/:token`, `/panel/:sessionToken`, `/` → ErrorScreen "missing" |
 | `noraconecta.local`        | `landing`| Solo landing: `/` → `/simulator` |
 
 Los subdominios `.local` requieren mapeo en `/etc/hosts`:
@@ -313,7 +327,13 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 - Cargar el archivo `.env.{target}` correspondiente
 - Redirigir la salida a `dist/{target}/`
 
-### Archivos de entorno por target
+### Archivos de entorno del backend
+
+| Variable   | Default                         | Descripción                                  |
+|-----------|---------------------------------|----------------------------------------------|
+| `APP_URL` | `http://app.noraconecta.local`  | Base URL del frontend para links enviados por WhatsApp (verificación + panel) |
+
+### Archivos de entorno por target (frontend)
 
 | Archivo          | Variables                                   |
 |-----------------|---------------------------------------------|
@@ -413,6 +433,8 @@ Response shape:
 | `/professionals/verify/:token`         | GET    | Verificar validez del token y obtener nombre + zonas del profesional | Sin auth  |
 | `/professionals/verify/:token`         | POST   | Etapa 2: subir documentación                    | Sin auth  |
 | `/professionals/session/:token`        | GET    | Recuperar sesión de profesional por token       | Sin auth  |
+| `/professionals/session/:token/panel`  | GET    | Datos consolidados del panel (perfil + membresía + reputación) | Sin auth |
+| `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, sin datos del usuario) | Sin auth |
 | `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
 | `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
 | `/professionals/:id/approve`           | POST   | Aprobar profesional (UNDER_REVIEW → ACTIVE)     | SUPERADMIN|
@@ -420,7 +442,7 @@ Response shape:
 | `/professionals/:id/suspend`           | POST   | Suspender profesional                           | SUPERADMIN|
 | `/professionals/:id/reactivate`        | POST   | Reactivar profesional (SUSPENDED → ACTIVE)      | SUPERADMIN|
 | `/professionals/:id/badge`             | PATCH  | Asignar o remover insignia de reputación        | SUPERADMIN|
-| `/professionals/:id/generate-session`  | POST   | Generar token de sesión para portal profesional | SUPERADMIN|
+| `/professionals/:id/generate-session`  | POST   | Generar token de sesión + panelUrl para portal profesional | SUPERADMIN|
 
 ### Plans
 
@@ -629,7 +651,74 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2)
 - `AUTO_COMPLETE_HOURS` (default: 24)
 
-#### Roles
+### Professional Panel (NEW)
+
+Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`app.noraconecta.com.ar/panel/:sessionToken`), sin login con credenciales. El sessionToken (UUID, 30 días de validez) se genera desde el panel admin.
+
+**Arquitectura frontend:**
+- Desktop: sidebar fijo 240px con 4 tabs (Perfil, Membresía, Pedidos, Reputación)
+- Mobile: bottom navigation bar con los mismos 4 tabs
+- Sin header; diseño light mode con NORA Green #0B6E4F, DM Sans, JetBrains Mono para números
+- Mismo design system que AUT-131/132 (assets/9140616588152080241)
+
+**Tabs:**
+
+| Tab | Componente | Descripción |
+|---|---|---|
+| Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
+| Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
+| Pedidos | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Sin datos del cliente (privacidad). Paginación + empty state |
+| Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
+
+**Endpoints del panel (sin auth, protegidos por sessionToken):**
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `/professionals/session/:token/panel` | GET | Datos consolidados: perfil, membresía, reputación |
+| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado (sin datos del usuario) |
+
+**Response shape `GET /session/:token/panel`:**
+```json
+{
+  "data": {
+    "professional": { "id", "name", "phone", "status", "category", "zones", "availability", "hasBadge", "dniFrontUrl", "dniBackUrl", "criminalRecordUrl", "cuil", "references", "presentationVideoUrl" },
+    "membership": { "activeMembership": { "plan", "type", "status", "startDate", "endDate" } | null, "trialRequestsUsed": 0, "trialRequestsLimit": 5 },
+    "reputation": { "complianceScore": 87, "completedRequests": 32, "rejectedRequests": 5, "notFulfilledRequests": 2, "totalRequests": 47, "wouldRecommendPct": 92 }
+  }
+}
+```
+
+**Response shape `GET /session/:token/orders`:**
+```json
+{
+  "data": [{ "id", "createdAt", "status", "category": { "name" }, "geoNode": { "name" } }],
+  "pagination": { "page": 1, "limit": 20, "total": 47, "totalPages": 3 }
+}
+```
+
+**generateSession response (ACTUALIZADO):**
+```json
+{
+  "data": {
+    "professional": { ... },
+    "sessionToken": "uuid-v4",
+    "panelUrl": "http://app.noraconecta.local/panel/uuid-v4"
+  }
+}
+```
+
+`panelUrl` usa la variable de entorno `APP_URL` (default: `http://app.noraconecta.local`). En producción: `https://app.noraconecta.com.ar/panel/:sessionToken`.
+
+**Flujo de acceso:**
+1. Admin genera sesión desde `ProfessionalDetailPage` → botón "Generar enlace de acceso"
+2. Admin copia `panelUrl` y la envía al profesional por WhatsApp
+3. Profesional abre el enlace → `ProfessionalPanelPage` valida el token
+4. Si es inválido/expirado → `SessionErrorScreen` con instrucción de WhatsApp
+5. Si es válido → `ProfessionalLayout` con los 4 tabs
+
+**Diseño Stitch:** Pantallas generadas en proyecto `projects/1505486100227666482`, screenshots en `.stitch/professional/`.
+
+### Roles
 - `SUPERADMIN`: acceso total
 - `OPERATOR`: acceso limitado (futuro)
 
