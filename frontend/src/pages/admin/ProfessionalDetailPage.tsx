@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Copy, Check, Link2 } from 'lucide-react';
 import {
   getProfessional,
   approveProfessional,
   rejectProfessional,
   suspendProfessional,
   reactivateProfessional,
+  generateSession,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
@@ -36,6 +37,9 @@ export function ProfessionalDetailPage() {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ action: string; label: string } | null>(null);
+  const [sessionUrl, setSessionUrl] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +76,31 @@ export function ProfessionalDetailPage() {
     } finally {
       setActionLoading('');
       setConfirmAction(null);
+    }
+  };
+
+  const handleGenerateSession = async () => {
+    if (!id) return;
+    setSessionLoading(true);
+    setSessionUrl(null);
+    try {
+      const res = await generateSession(id);
+      setSessionUrl(res.data.panelUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al generar enlace');
+    } finally {
+      setSessionLoading(false);
+    }
+  };
+
+  const handleCopyUrl = async () => {
+    if (!sessionUrl) return;
+    try {
+      await navigator.clipboard.writeText(sessionUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select text manually
     }
   };
 
@@ -273,6 +302,51 @@ export function ProfessionalDetailPage() {
 
         {/* Right: History + Stats */}
         <div className="space-y-6">
+          {/* Session access link (SUPERADMIN) */}
+          {isSuperAdmin() && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">
+                Acceso del profesional
+              </h2>
+              <button
+                onClick={handleGenerateSession}
+                disabled={sessionLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors w-full justify-center"
+              >
+                <Link2 className="w-4 h-4" />
+                {sessionLoading ? 'Generando...' : 'Generar enlace de acceso'}
+              </button>
+
+              {sessionUrl && (
+                <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={sessionUrl}
+                      className="flex-1 text-xs font-mono text-gray-700 bg-transparent border-none outline-none"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={handleCopyUrl}
+                      className="shrink-0 p-1.5 rounded-md text-gray-400 hover:text-green-700 hover:bg-green-50 transition-colors"
+                      title="Copiar enlace"
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">
+                    Copiá este enlace y enviaselo al profesional por WhatsApp
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Event history */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">

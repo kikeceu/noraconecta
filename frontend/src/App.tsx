@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SimulatorPage } from './pages/SimulatorPage';
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
 import { ErrorScreen } from './pages/onboarding/components/ErrorScreen';
+import { ProfessionalPanelPage } from './pages/panel/ProfessionalPanelPage';
 import { AuthProvider } from './context/AuthContext';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
@@ -84,6 +85,7 @@ function renderAppRoutes(context: HostContext): ReactNode {
         <Route path="/" element={<ErrorScreen variant="missing" />} />
       )}
       <Route path="/verify/:token" element={<OnboardingPage />} />
+      <Route path="/panel/:sessionToken" element={<ProfessionalPanelPage />} />
     </>
   );
 }

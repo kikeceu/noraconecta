@@ -22,6 +22,14 @@ router.get('/session/:token', (req, res, next) => {
   void professionalsController.getSessionByToken(req, res, next);
 });
 
+router.get('/session/:token/panel', (req, res, next) => {
+  void professionalsController.getPanelData(req, res, next);
+});
+
+router.get('/session/:token/orders', (req, res, next) => {
+  void professionalsController.getPanelOrders(req, res, next);
+});
+
 // Auth required — OPERATOR+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);

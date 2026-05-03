@@ -251,8 +251,8 @@ export function toggleProfessionalBadge(
 
 export function generateSession(
   id: string,
-): Promise<SingleResponse<{ professional: Professional; sessionToken: string }>> {
-  return request<SingleResponse<{ professional: Professional; sessionToken: string }>>(
+): Promise<SingleResponse<{ professional: Professional; sessionToken: string; panelUrl: string }>> {
+  return request<SingleResponse<{ professional: Professional; sessionToken: string; panelUrl: string }>>(
     `/professionals/${id}/generate-session`,
     { method: 'POST' },
   );

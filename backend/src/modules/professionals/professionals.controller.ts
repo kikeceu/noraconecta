@@ -235,6 +235,7 @@ export class ProfessionalsController {
         data: {
           professional: result.professional,
           sessionToken: result.sessionToken,
+          panelUrl: result.panelUrl,
         },
       });
     } catch (err) {
@@ -257,6 +258,51 @@ export class ProfessionalsController {
 
       const professional = await professionalsService.getSessionByToken(token);
       res.status(200).json({ data: professional });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPanelData(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+
+      if (!token) {
+        res.status(400).json({ error: 'Session token is required', statusCode: 400 });
+        return;
+      }
+
+      const data = await professionalsService.getPanelData(token);
+      res.status(200).json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPanelOrders(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+      const { page, limit } = req.query as { page?: string; limit?: string };
+
+      if (!token) {
+        res.status(400).json({ error: 'Session token is required', statusCode: 400 });
+        return;
+      }
+
+      const data = await professionalsService.getPanelOrders(
+        token,
+        page ? parseInt(page, 10) : undefined,
+        limit ? parseInt(limit, 10) : undefined,
+      );
+      res.status(200).json(data);
     } catch (err) {
       next(err);
     }

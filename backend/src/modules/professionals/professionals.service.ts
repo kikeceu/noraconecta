@@ -9,7 +9,7 @@ import { Professional, ProfessionalStatus } from '@prisma/client';
 const VERIFICATION_TOKEN_TTL_HOURS = 72;
 const SESSION_TOKEN_TTL_DAYS = 30;
 
-const BASE_URL = process.env.PUBLIC_URL || 'http://localhost:3000';
+const APP_URL = process.env.APP_URL || 'http://app.noraconecta.local';
 
 export interface PaginatedProfessionalsResponse {
   data: Professional[];
@@ -85,7 +85,7 @@ export class ProfessionalsService {
       verificationTokenExp,
     });
 
-    const verificationUrl = `${BASE_URL}/professionals/verify/${verificationToken}`;
+    const verificationUrl = `${APP_URL}/verify/${verificationToken}`;
 
     return { professional, verificationUrl };
   }
@@ -244,6 +244,7 @@ export class ProfessionalsService {
   async generateSessionToken(id: string): Promise<{
     professional: Professional;
     sessionToken: string;
+    panelUrl: string;
   }> {
     const professional = await this.professionalsRepository.findById(id);
 
@@ -269,7 +270,7 @@ export class ProfessionalsService {
       sessionTokenExp,
     );
 
-    return { professional: updated, sessionToken };
+    return { professional: updated, sessionToken, panelUrl: `${APP_URL}/panel/${sessionToken}` };
   }
 
   async getSessionByToken(token: string): Promise<Professional> {
@@ -288,6 +289,94 @@ export class ProfessionalsService {
     }
 
     return professional;
+  }
+
+  async getPanelData(token: string) {
+    const professional = await this.getSessionByToken(token);
+
+    const panelData = await this.professionalsRepository.findPanelData(professional.id);
+
+    const statusCounts: Record<string, number> = {};
+    for (const group of panelData.requestStats) {
+      statusCounts[group.status] = group._count.id;
+    }
+
+    const completed = statusCounts['COMPLETED'] || 0;
+    const rejected = statusCounts['REJECTED'] || 0;
+    const notFulfilled = statusCounts['NOT_FULFILLED'] || 0;
+    const accepted = statusCounts['ACCEPTED'] || 0;
+    const total = completed + rejected + notFulfilled + accepted;
+    const decidedTotal = completed + notFulfilled;
+    const complianceScore = decidedTotal > 0 ? Math.round((completed / decidedTotal) * 100) : 0;
+
+    return {
+      professional: {
+        id: panelData.professional!.id,
+        name: panelData.professional!.name,
+        phone: panelData.professional!.phone,
+        status: panelData.professional!.status,
+        category: panelData.professional!.category,
+        zones: panelData.professional!.zones.map((z) => ({
+          id: z.geoNode.id,
+          name: z.geoNode.name,
+        })),
+        availability: panelData.professional!.availability,
+        hasBadge: panelData.professional!.hasBadge,
+        dniFrontUrl: panelData.professional!.dniFrontUrl,
+        dniBackUrl: panelData.professional!.dniBackUrl,
+        criminalRecordUrl: panelData.professional!.criminalRecordUrl,
+        cuil: panelData.professional!.cuil,
+        references: panelData.professional!.references,
+        presentationVideoUrl: panelData.professional!.presentationVideoUrl,
+      },
+      membership: {
+        activeMembership: panelData.membership,
+        trialRequestsUsed: panelData.professional!.trialRequestsUsed,
+        trialRequestsLimit: 5,
+      },
+      reputation: {
+        complianceScore,
+        completedRequests: completed,
+        rejectedRequests: rejected,
+        notFulfilledRequests: notFulfilled,
+        totalRequests: total,
+        wouldRecommendPct: panelData.wouldRecommendPct,
+      },
+    };
+  }
+
+  async getPanelOrders(
+    token: string,
+    page: number = 1,
+    limit: number = 20,
+  ) {
+    const professional = await this.getSessionByToken(token);
+
+    const validPage = Math.max(1, page);
+    const validLimit = Math.min(50, Math.max(1, limit));
+    const skip = (validPage - 1) * validLimit;
+
+    const { orders, total } = await this.professionalsRepository.findOrdersByProfessionalId(
+      professional.id,
+      skip,
+      validLimit,
+    );
+
+    return {
+      data: orders.map((order) => ({
+        id: order.id,
+        createdAt: order.createdAt,
+        status: order.status,
+        category: order.category ? { id: order.category.id, name: order.category.name } : null,
+        geoNode: order.geoNode ? { id: order.geoNode.id, name: order.geoNode.name } : null,
+      })),
+      pagination: {
+        page: validPage,
+        limit: validLimit,
+        total,
+        totalPages: Math.ceil(total / validLimit),
+      },
+    };
   }
 
   async getById(id: string): Promise<Professional> {
