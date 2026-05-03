@@ -44,7 +44,7 @@ export type OnboardingStep =
   | 'summary'
   | 'confirmation';
 
-export type ErrorVariant = 'expired' | 'used' | 'invalid';
+export type ErrorVariant = 'expired' | 'used' | 'invalid' | 'missing';
 
 export const STEPS: { key: OnboardingStep; label: string; number: number }[] = [
   { key: 'welcome', label: 'Bienvenida', number: 1 },

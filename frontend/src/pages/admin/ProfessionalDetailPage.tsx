@@ -10,7 +10,13 @@ import {
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
+import { resolveHostContext } from '../../lib/host';
 import type { Professional, ProfessionalStatus } from '../../types/admin';
+
+function adminPath(path: string): string {
+  const base = resolveHostContext() === 'admin' ? '' : '/admin';
+  return `${base}${path}`;
+}
 
 const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: string }> = {
   PENDING: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700' },
@@ -108,7 +114,7 @@ export function ProfessionalDetailPage() {
       {/* Breadcrumb + header */}
       <div>
         <Link
-          to="/admin/professionals"
+          to={adminPath('/professionals')}
           className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800 mb-2"
         >
           <ArrowLeft className="w-4 h-4" />

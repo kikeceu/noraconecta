@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getAdminDashboardPath } from '../../lib/host';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,7 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/admin');
+      navigate(getAdminDashboardPath());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     }

@@ -7,6 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:admin": "BUILD_TARGET=admin vite build",
+    "build:app": "BUILD_TARGET=app vite build",
+    "build:landing": "BUILD_TARGET=landing vite build",
+    "build:all": "npm run build:admin && npm run build:app && npm run build:landing",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "format": "prettier --write 'src/**/*.{ts,tsx,css}'"

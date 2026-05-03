@@ -4,17 +4,23 @@ import type { AdminRole } from '../../types/admin';
 
 interface ProtectedRouteProps {
   requiredRole?: AdminRole;
+  loginPath?: string;
+  fallbackPath?: string;
 }
 
-export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  requiredRole,
+  loginPath = '/admin/login',
+  fallbackPath = '/admin',
+}: ProtectedRouteProps) {
   const { isAuthenticated, admin } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   if (requiredRole && admin?.role !== requiredRole) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={fallbackPath} replace />;
   }
 
   return <Outlet />;
