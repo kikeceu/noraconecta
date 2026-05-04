@@ -646,8 +646,8 @@ CREATED → [matching] → ASSIGNED → [acepta] → ACCEPTED
                                 → [rechaza/timeout] → [reasigna] → ASSIGNED (loop)
                                                     → [sin candidatos] → NO_RESPONSE
 CREATED/ASSIGNED → [usuario cancela] → CANCELLED
-ACCEPTED → [profesional marca completo] → [usuario confirma Sí] → COMPLETED → [feedback]
-                                        → [usuario confirma No] → NOT_FULFILLED
+ACCEPTED → [profesional marca completo] → PENDING_CONFIRMATION → [usuario confirma Sí] → COMPLETED → [feedback]
+                                                                   → [usuario confirma No] → NOT_FULFILLED
          → [usuario reporta incumplimiento] → NOT_FULFILLED
 ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 ```
@@ -1028,8 +1028,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - **ProfessionalStatus**: PENDING, UNDER_REVIEW, ACTIVE, OBSERVATION, SUSPENDED, PAUSED, REJECTED
 - **MembershipStatus**: ACTIVE, INACTIVE, EXPIRED
 - **MembershipType**: MONTHLY, ANNUAL
-- **RequestStatus**: CREATED, ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, COMPLETED, NOT_FULFILLED
-- **RequestEventType**: ASSIGNED, ACCEPTED, REJECTED, NO_RESPONSE, COMPLETED, NOT_FULFILLED, CANCELLED
+- **RequestStatus**: CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION, CANCELLED, NO_RESPONSE, COMPLETED, NOT_FULFILLED
+- **RequestEventType**: ASSIGNED, ACCEPTED, REJECTED, NO_RESPONSE, PENDING_CONFIRMATION, COMPLETED, NOT_FULFILLED, CANCELLED
 - **EscalationStatus**: OPEN, IN_REVIEW, RESOLVED
 - **BotRole**: USER, PROFESSIONAL
 - **ErrorVariant** (frontend): expired, used, invalid, missing
