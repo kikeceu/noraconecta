@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "RequestEventType" ADD VALUE 'PENDING_CONFIRMATION';
+
+-- AlterEnum
+ALTER TYPE "RequestStatus" ADD VALUE 'PENDING_CONFIRMATION';
