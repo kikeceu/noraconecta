@@ -34,7 +34,7 @@ export class RequestsRepository {
       include: {
         events: true,
         feedback: true,
-        assignedProfessional: { select: { name: true } },
+        assignedProfessional: { select: { name: true, phone: true } },
       },
     });
   }
