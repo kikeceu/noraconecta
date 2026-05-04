@@ -578,7 +578,7 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE). Se detiene al llegar a estado final.
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo. Se detiene al llegar a estado final.
 
 ### Config (actualizado)
 
@@ -617,7 +617,12 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
-| `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback y profesional asignado | Sin auth (polling simulador) |
+| `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback y profesional asignado (incluye teléfono cuando está ACCEPTED) | Sin auth (polling simulador) |
+
+**GET /requests/:id (polling simulador):** El endpoint incluye datos relacionados para el polling de estado:
+- `assignedProfessional` → `{ name, phone }` del profesional (phone incluido para mostrar datos de contacto al usuario cuando el pedido es ACCEPTED)
+- `events` → historial de eventos
+- `feedback` → feedback del usuario
 
 **GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
 - `user` → nombre del cliente

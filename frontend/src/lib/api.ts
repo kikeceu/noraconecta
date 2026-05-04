@@ -78,6 +78,7 @@ export interface RequestData {
   status: string;
   assignedProfessional?: {
     name: string;
+    phone: string;
   } | null;
 }
 

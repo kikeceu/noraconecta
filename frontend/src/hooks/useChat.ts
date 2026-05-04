@@ -12,7 +12,7 @@ const FINAL_STATUSES = new Set(['ACCEPTED', 'CANCELLED', 'COMPLETED', 'NO_RESPON
 
 function getStatusMessage(data: RequestData): string | null {
   if (data.status === 'ACCEPTED' && data.assignedProfessional?.name) {
-    return `✅ ¡${data.assignedProfessional.name} aceptó tu pedido! Te contactará a la brevedad.`;
+    return `✅ ¡${data.assignedProfessional.name} aceptó tu pedido! Podés contactarlo al ${data.assignedProfessional.phone}. Cualquier consulta podés escribirle directamente.`;
   }
   return STATUS_MESSAGES[data.status] ?? null;
 }
