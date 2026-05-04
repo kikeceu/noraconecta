@@ -953,14 +953,26 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | createdAt     | DateTime | Autogenerado                          |
 
 ### Feedback
-| Columna        | Tipo     | Descripción                     |
-|---------------|----------|---------------------------------|
-| id            | CUID     | PK, autogenerado                |
-| requestId     | CUID     | Único, FK a Request             |
-| workCompleted | Boolean  | ¿El trabajo se completó?        |
-| wouldRecommend| Boolean  | ¿Recomendaría al profesional?   |
-| comment       | String?  | Comentario opcional             |
-| createdAt     | DateTime | Autogenerado                    |
+| Columna                 | Tipo      | Descripción                                          |
+|------------------------|----------|------------------------------------------------------|
+| id                     | CUID     | PK, autogenerado                                      |
+| requestId              | CUID     | Único, FK a Request                                   |
+| rating                 | Int?     | Calificación general del usuario al profesional        |
+| punctualityRating      | Int?     | Puntualidad                                           |
+| qualityRating          | Int?     | Calidad del trabajo                                   |
+| communicationRating    | Int?     | Comunicación                                          |
+| priceFairnessRating    | Int?     | Relación precio-calidad                               |
+| wouldRecommend         | Boolean? | ¿Recomendaría al profesional?                         |
+| userComment            | String?  | Comentario del usuario                                |
+| ratedByUserAt          | DateTime?| Fecha de calificación del usuario                     |
+| requestClarityRating   | Int?     | Claridad del pedido (calificación del profesional al usuario) |
+| userAvailabilityRating | Int?     | Disponibilidad del usuario                            |
+| userTreatmentRating    | Int?     | Trato del usuario                                     |
+| wouldServeAgain        | Boolean? | ¿Atendería de nuevo al usuario?                       |
+| professionalComment    | String?  | Comentario del profesional                            |
+| ratedByProfessionalAt  | DateTime?| Fecha de calificación del profesional                  |
+| createdAt              | DateTime | Autogenerado                                          |
+| updatedAt              | DateTime | Autogenerado (on update)                              |
 
 ### Escalation
 | Columna        | Tipo     | Descripción                              |

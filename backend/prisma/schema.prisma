@@ -257,13 +257,30 @@ model RequestEvent {
 }
 
 model Feedback {
-  id             String   @id @default(cuid())
-  requestId      String   @unique
-  request        Request  @relation(fields: [requestId], references: [id])
-  workCompleted  Boolean
-  wouldRecommend Boolean
-  comment        String?
-  createdAt      DateTime @default(now())
+  id        String  @id @default(cuid())
+  requestId String  @unique
+  request   Request @relation(fields: [requestId], references: [id])
+
+  // User → Professional rating
+  rating                Int?
+  punctualityRating     Int?
+  qualityRating         Int?
+  communicationRating   Int?
+  priceFairnessRating   Int?
+  wouldRecommend        Boolean?
+  userComment           String?
+  ratedByUserAt         DateTime?
+
+  // Professional → User rating
+  requestClarityRating   Int?
+  userAvailabilityRating Int?
+  userTreatmentRating    Int?
+  wouldServeAgain        Boolean?
+  professionalComment    String?
+  ratedByProfessionalAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Escalation {
