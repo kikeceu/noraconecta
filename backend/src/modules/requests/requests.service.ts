@@ -23,6 +23,8 @@ export interface CreateRequestInput {
   audioUrl?: string;
 }
 
+export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
+
 export interface PaginatedRequestsResponse {
   data: Request[];
   pagination: {
@@ -280,6 +282,129 @@ export class RequestsService {
     return this.requestsRepository.update(requestId, {
       completedAt: new Date(),
     });
+  }
+
+  async finish(requestId: string): Promise<Request> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      throw new AppError(
+        `Cannot finish a request with status ${request.status}. Expected ACCEPTED`,
+        400,
+      );
+    }
+
+    if (!request.assignedProfessionalId) {
+      throw new AppError('Request has no assigned professional', 400);
+    }
+
+    const updated = await this.requestsRepository.update(requestId, {
+      status: 'PENDING_CONFIRMATION',
+      completedAt: new Date(),
+    });
+
+    await this.requestsRepository.createEvent({
+      requestId,
+      professionalId: request.assignedProfessionalId,
+      type: 'PENDING_CONFIRMATION',
+    });
+
+    return updated;
+  }
+
+  async confirm(
+    requestId: string,
+    satisfaction: Satisfaction,
+    comment?: string,
+  ): Promise<Request> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'PENDING_CONFIRMATION') {
+      throw new AppError(
+        `Cannot confirm a request with status ${request.status}. Expected PENDING_CONFIRMATION`,
+        400,
+      );
+    }
+
+    if (!request.assignedProfessionalId) {
+      throw new AppError('Request has no assigned professional', 400);
+    }
+
+    if (!['SATISFIED', 'PARTIAL', 'UNSATISFIED'].includes(satisfaction)) {
+      throw new AppError(
+        'satisfaction must be SATISFIED, PARTIAL, or UNSATISFIED',
+        400,
+      );
+    }
+
+    if (satisfaction === 'SATISFIED' || satisfaction === 'PARTIAL') {
+      const updated = await this.requestsRepository.update(requestId, {
+        status: 'COMPLETED',
+      });
+
+      await this.requestsRepository.createEvent({
+        requestId,
+        professionalId: request.assignedProfessionalId,
+        type: 'COMPLETED',
+      });
+
+      await this.reputationService.evaluateBadge(
+        request.assignedProfessionalId,
+      );
+
+      return updated;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await this.requestsRepository.update(
+        requestId,
+        { status: 'NOT_FULFILLED' },
+        tx,
+      );
+
+      await this.requestsRepository.createEvent(
+        {
+          requestId,
+          professionalId: request.assignedProfessionalId,
+          type: 'NOT_FULFILLED',
+          metadata: comment ? { comment } : undefined,
+        },
+        tx,
+      );
+
+      await this.escalationsService.create(
+        requestId,
+        request.userId,
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      await this.reputationService.applyPenalization(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      await this.reputationService.removeBadgeIfActive(
+        request.assignedProfessionalId!,
+        tx,
+      );
+
+      return result;
+    });
+
+    return updated;
+  }
+
+  async dispute(requestId: string, reason?: string): Promise<Request> {
+    return this.confirm(requestId, 'UNSATISFIED', reason);
   }
 
   async confirmCompletion(requestId: string, fulfilled: boolean): Promise<Request> {

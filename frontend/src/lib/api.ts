@@ -116,3 +116,33 @@ export async function rateProfessional(
     throw new Error(err.error || 'Failed to rate professional');
   }
 }
+
+export async function confirmRequest(
+  requestId: string,
+  satisfaction: 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED',
+  comment?: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ satisfaction, comment }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to confirm request' }));
+    throw new Error(err.error || 'Failed to confirm request');
+  }
+}
+
+export async function disputeRequest(requestId: string, reason?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/dispute`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to dispute request' }));
+    throw new Error(err.error || 'Failed to dispute request');
+  }
+}

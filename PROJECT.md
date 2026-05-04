@@ -585,7 +585,7 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo. Se detiene al llegar a estado final.
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, PENDING_CONFIRMATION). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo. Al estado PENDING_CONFIRMATION, muestra opciones "conforme" / "con observaciones" / "no conforme" y ejecuta el endpoint correspondiente. Si queda COMPLETED, dispara el flujo de calificación (AUT-142). Se detiene al llegar a estado final.
 
 ### Config (actualizado)
 
@@ -620,7 +620,10 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/reject`                 | POST   | Profesional rechaza pedido → reasigna          | Sin auth  |
 | `/requests/:id/cancel`                 | POST   | Usuario cancela pedido                         | Sin auth  |
 | `/requests/:id/mark-completed`         | POST   | Profesional marca trabajo como completado      | Sin auth  |
-| `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo            | Sin auth  |
+| `/requests/:id/finish`                 | POST   | Profesional finaliza pedido (ACCEPTED → PENDING_CONFIRMATION) | Sin auth  |
+| `/requests/:id/confirm`                | POST   | Usuario confirma satisfacción (SATISFIED/PARTIAL/UNSATISFIED) | Sin auth  |
+| `/requests/:id/dispute`                | POST   | Usuario disputa pedido (→ NOT_FULFILLED + Escalation) | Sin auth  |
+| `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo (legacy)   | Sin auth  |
 | `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
@@ -658,10 +661,16 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
 - Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar
 - Cancelación: solo permitida en CREATED o ASSIGNED
-- Finalización: profesional marca `completedAt` → usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
-- Auto-complete: 24h después de `completedAt` sin confirmación → COMPLETED automático
+- Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION
+- Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
+  - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge
+  - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
+- Disputa (dispute): alias de confirm con UNSATISFIED
+- Confirm-completion (legacy): usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
+- Auto-complete: 24h después de `completedAt` en PENDING_CONFIRMATION sin confirmación → COMPLETED automático
 - Todos los cambios de estado registran su `RequestEvent`
 - Jobs (sin endpoints): `processTimeouts()`, `processAutoCompletes()` para ser invocados por cron
+- El estado PENDING_CONFIRMATION se considera activo (el usuario no puede crear otro pedido mientras esté en este estado)
 
 **Config keys usadas:**
 - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2)
@@ -683,7 +692,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Sin datos del cliente (privacidad). Paginación + empty state |
+| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Botón "Marcar como finalizado" en pedidos ACCEPTED con modal de confirmación. Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Sin datos del cliente (privacidad). Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
 
@@ -1122,7 +1131,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
    - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
    - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
 - Pedidos:
-  - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED) no puede crear otro → 409
+  - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION) no puede crear otro → 409
   - Usuario bloqueado no puede crear pedidos → 403
   - Creación dispara matching automáticamente vía `findBestCandidate()`; si no hay candidatos → NO_RESPONSE
   - `assignmentTimeoutAt` se setea al asignar: `now() + PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2h)
@@ -1130,12 +1139,15 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Rechazar: registra evento REJECTED, recolecta todos los rejectores anteriores (incluyendo al actual) y reasigna excluyéndolos
   - Sin candidatos tras reasignación → NO_RESPONSE
   - Cancelación: solo permitida en CREATED o ASSIGNED → CANCELLED
-  - `markCompleted`: profesional setea `completedAt`, el status sigue ACCEPTED
-  - `confirmCompletion`: usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
-  - `reportNoncompliance`: usuario reporta incumplimiento → NOT_FULFILLED
+  - `finish`: profesional finaliza trabajo → PENDING_CONFIRMATION + setea `completedAt` + evento PENDING_CONFIRMATION. Solo permitido en ACCEPTED.
+  - `confirm`: usuario confirma satisfacción (SATISFIED/PARTIAL/UNSATISFIED). SATISFIED/PARTIAL → COMPLETED + evaluateBadge. UNSATISFIED → NOT_FULFILLED + Escalation + penalización. Solo permitido en PENDING_CONFIRMATION.
+  - `dispute`: alias de `confirm(UNSATISFIED)`. Crea Escalation y penaliza al profesional automáticamente.
+  - `markCompleted`: (legacy) profesional setea `completedAt`, el status sigue ACCEPTED
+  - `confirmCompletion`: (legacy) usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
+  - `reportNoncompliance`: (legacy) usuario reporta incumplimiento → NOT_FULFILLED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
   - Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
-  - Auto-complete job: busca ACCEPTED con `completedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED
+  - Auto-complete job: busca PENDING_CONFIRMATION con `completedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED
 - Los jobs `processTimeouts()` y `processAutoCompletes()` son métodos públicos sin endpoints, para ser invocados por cron externo
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.

@@ -24,6 +24,18 @@ router.post('/:id/mark-completed', (req, res, next) => {
   void requestsController.markCompleted(req, res, next);
 });
 
+router.post('/:id/finish', (req, res, next) => {
+  void requestsController.finish(req, res, next);
+});
+
+router.post('/:id/confirm', (req, res, next) => {
+  void requestsController.confirm(req, res, next);
+});
+
+router.post('/:id/dispute', (req, res, next) => {
+  void requestsController.dispute(req, res, next);
+});
+
 router.post('/:id/confirm-completion', (req, res, next) => {
   void requestsController.confirmCompletion(req, res, next);
 });

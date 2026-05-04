@@ -86,3 +86,14 @@ export async function rateUser(
     throw new Error(body.error || `Failed to rate user`);
   }
 }
+
+export async function finishRequest(requestId: string): Promise<void> {
+  const res = await fetch(`/api/requests/${encodeURIComponent(requestId)}/finish`, {
+    method: 'POST',
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to finish request`);
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PanelOrder, OrderStatus } from '../../../types/panel';
-import { getPanelOrders, rateUser } from '../../../lib/panel-api';
+import { getPanelOrders, rateUser, finishRequest } from '../../../lib/panel-api';
 
 interface ProfessionalOrdersProps {
   sessionToken: string;
@@ -14,12 +14,14 @@ const STATUS_CONFIG: Record<OrderStatus, { label: string; bg: string; text: stri
   CANCELLED: { label: 'Cancelado', bg: '#FEF2F2', text: '#DC2626' },
   NO_RESPONSE: { label: 'Sin respuesta', bg: '#FFFBEB', text: '#D97706' },
   NOT_FULFILLED: { label: 'No cumplido', bg: '#FFFBEB', text: '#D97706' },
+  PENDING_CONFIRMATION: { label: 'Esperando confirmación', bg: '#FEF3C7', text: '#B45309' },
 };
 
 const FILTER_CHIPS = [
   { key: 'all', label: 'Todos' },
   { key: 'COMPLETED', label: 'Completados' },
   { key: 'ACCEPTED', label: 'En curso' },
+  { key: 'PENDING_CONFIRMATION', label: 'Esperando confirmación' },
   { key: 'CANCELLED', label: 'Cancelados' },
   { key: 'NOT_FULFILLED', label: 'No cumplidos' },
 ] as const;
@@ -42,6 +44,8 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   const [ratingOrderId, setRatingOrderId] = useState<string | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingSuccess, setRatingSuccess] = useState<string | null>(null);
+  const [finishOrderId, setFinishOrderId] = useState<string | null>(null);
+  const [finishLoading, setFinishLoading] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -80,7 +84,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   const stats = {
     total: orders.length,
     completed: orders.filter((o) => o.status === 'COMPLETED').length,
-    pending: orders.filter((o) => o.status === 'ACCEPTED' || o.status === 'ASSIGNED').length,
+    pending: orders.filter((o) => o.status === 'ACCEPTED' || o.status === 'ASSIGNED' || o.status === 'PENDING_CONFIRMATION').length,
     problem: orders.filter((o) => o.status === 'CANCELLED' || o.status === 'NOT_FULFILLED').length,
   };
 
@@ -255,6 +259,27 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
+                          {order.status === 'ACCEPTED' && (
+                            <button
+                              onClick={() => setFinishOrderId(order.id)}
+                              disabled={finishLoading}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors disabled:opacity-50"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                              Marcar finalizado
+                            </button>
+                          )}
+                          {order.status === 'PENDING_CONFIRMATION' && (
+                            <span
+                              className="text-xs text-[#B45309]"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              Esperando confirmación
+                            </span>
+                          )}
                           {order.status === 'COMPLETED' && !order.ratedByProfessional && (
                             <button
                               onClick={() => setRatingOrderId(order.id)}
@@ -315,6 +340,69 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
             </div>
           )}
         </>
+      )}
+
+      {finishOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="rounded-xl bg-white shadow-lg max-w-sm w-full mx-4 overflow-hidden">
+            <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+              <h2
+                className="text-base font-semibold text-[#111827]"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                Marcar como finalizado
+              </h2>
+              <button
+                onClick={() => setFinishOrderId(null)}
+                disabled={finishLoading}
+                className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                ¿Confirmás que el trabajo ya fue realizado?
+              </p>
+              <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+                El usuario deberá confirmar si quedó conforme con el trabajo.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setFinishOrderId(null)}
+                  disabled={finishLoading}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!finishOrderId) return;
+                    setFinishLoading(true);
+                    try {
+                      await finishRequest(finishOrderId);
+                      setFinishOrderId(null);
+                      await loadOrders();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Error al finalizar pedido');
+                    } finally {
+                      setFinishLoading(false);
+                    }
+                  }}
+                  disabled={finishLoading}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] disabled:opacity-50 transition-colors"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  {finishLoading ? 'Enviando...' : 'Sí, finalizar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {ratingOrderId && (
