@@ -548,7 +548,7 @@ POST /bot/message
 - Cada mensaje entrante dispara `UsersService.findOrCreateByPhone(phone)`: si el usuario no existe se crea con `name = phone`, si existe se recupera. La identidad (`userId`, `name`, `phone`) se almacena en `BotSession.tempData` y se propaga a cada paso del flujo.
 - El paso INIT del flujo `USER_REQUEST` usa `tempData` para identificar al usuario en vez de consultar la DB por teléfono. Si el `name` coincide con el `phone` (usuario nuevo), pide el nombre y transiciona a ASK_NAME. Si ya tiene nombre real, saluda directamente.
 - El paso ASK_NAME guarda el nombre provisto en `User.name` vía `prisma.user.update` y también en `tempData`, luego transiciona a ASK_SERVICE.
-- El paso CONFIRM, al recibir "si", llama a `RequestsService.create()` con los datos acumulados en `tempData` (`phone`, `categoryId`, `geoNodeId`, `description`, `photoUrls`, `audioUrl`), lo que persiste el pedido en DB, ejecuta el matching y asigna profesional si hay candidato. Si `create` falla, devuelve el error al usuario.
+- El paso CONFIRM, al recibir "si", llama a `RequestsService.create()` con los datos acumulados en `tempData` (`phone`, `categoryId`, `geoNodeId`, `description`, `photoUrls`, `audioUrl`), lo que persiste el pedido en DB, ejecuta el matching y asigna profesional si hay candidato. Si `create` falla, devuelve el error al usuario. El `requestId` generado se retorna en la respuesta del bot para que el simulador inicie el polling de estado.
 
 **Flujos implementados:**
 
@@ -578,6 +578,7 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE). Se detiene al llegar a estado final.
 
 ### Config (actualizado)
 
@@ -616,7 +617,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
-| `/requests/:id`                        | GET    | Detalle de pedido con eventos y feedback       | OPERATOR  |
+| `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback y profesional asignado | Sin auth (polling simulador) |
 
 **GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
 - `user` → nombre del cliente

@@ -31,7 +31,11 @@ export class RequestsRepository {
   async findById(id: string): Promise<Request | null> {
     return prisma.request.findUnique({
       where: { id },
-      include: { events: true, feedback: true },
+      include: {
+        events: true,
+        feedback: true,
+        assignedProfessional: { select: { name: true } },
+      },
     });
   }
 

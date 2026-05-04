@@ -14,6 +14,7 @@ export interface BotResponse {
   options?: string[];
   flow?: string;
   step?: string;
+  requestId?: string;
 }
 
 export interface SessionState {

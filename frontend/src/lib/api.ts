@@ -72,3 +72,22 @@ export async function resetSession(phone: string): Promise<void> {
     throw new Error('Failed to reset session');
   }
 }
+
+export interface RequestData {
+  id: string;
+  status: string;
+  assignedProfessional?: {
+    name: string;
+  } | null;
+}
+
+export async function getRequest(id: string): Promise<RequestData> {
+  const res = await fetch(`${API_BASE}/requests/${id}`);
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch request');
+  }
+
+  const json = await res.json();
+  return json.data as RequestData;
+}

@@ -105,6 +105,7 @@ export class BotService {
       text: result.response.text,
       mediaUrls: result.response.mediaUrls,
       options: result.response.options,
+      requestId: result.response.requestId,
       flow: updatedSession.currentFlow || undefined,
       step: updatedSession.currentStep || undefined,
     };
