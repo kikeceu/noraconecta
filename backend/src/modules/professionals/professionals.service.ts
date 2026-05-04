@@ -3,6 +3,8 @@ import {
   ProfessionalsRepository,
   ProfessionalFilters,
 } from './professionals.repository';
+import { ReputationService } from '../reputation/reputation.service';
+import { ReputationRepository } from '../reputation/reputation.repository';
 import { AppError } from '../../middleware/error-handler';
 import { Professional, ProfessionalStatus } from '@prisma/client';
 
@@ -43,8 +45,14 @@ function notifyProfessionalPendingReview(professional: Professional): void {
   );
 }
 
+const reputationRepository = new ReputationRepository();
+
 export class ProfessionalsService {
-  constructor(private readonly professionalsRepository: ProfessionalsRepository) {}
+  private readonly reputationService: ReputationService;
+
+  constructor(private readonly professionalsRepository: ProfessionalsRepository) {
+    this.reputationService = new ReputationService(reputationRepository);
+  }
 
   async register(
     phone: string,
@@ -309,6 +317,10 @@ export class ProfessionalsService {
     const decidedTotal = completed + notFulfilled;
     const complianceScore = decidedTotal > 0 ? Math.round((completed / decidedTotal) * 100) : 0;
 
+    const reputationBreakdown = await this.reputationService.getReputationBreakdown(
+      professional.id,
+    );
+
     return {
       professional: {
         id: panelData.professional!.id,
@@ -340,7 +352,13 @@ export class ProfessionalsService {
         rejectedRequests: rejected,
         notFulfilledRequests: notFulfilled,
         totalRequests: total,
-        wouldRecommendPct: panelData.wouldRecommendPct,
+        wouldRecommendPct: reputationBreakdown.wouldRecommendPct,
+        averageRating: reputationBreakdown.averageRating,
+        averagePunctuality: reputationBreakdown.averagePunctuality,
+        averageQuality: reputationBreakdown.averageQuality,
+        averageCommunication: reputationBreakdown.averageCommunication,
+        averagePriceFairness: reputationBreakdown.averagePriceFairness,
+        totalRated: reputationBreakdown.totalRated,
       },
     };
   }
@@ -369,6 +387,10 @@ export class ProfessionalsService {
         status: order.status,
         category: order.category ? { id: order.category.id, name: order.category.name } : null,
         geoNode: order.geoNode ? { id: order.geoNode.id, name: order.geoNode.name } : null,
+        ratedByProfessional: order.feedback?.ratedByProfessionalAt !== null
+          && order.feedback?.ratedByProfessionalAt !== undefined,
+        ratedByUser: order.feedback?.ratedByUserAt !== null
+          && order.feedback?.ratedByUserAt !== undefined,
       })),
       pagination: {
         page: validPage,
@@ -419,6 +441,65 @@ export class ProfessionalsService {
     }
 
     return professional;
+  }
+
+  async getByIdWithReputation(id: string): Promise<{
+    professional: Professional;
+    reputation: {
+      complianceScore: number;
+      completedRequests: number;
+      rejectedRequests: number;
+      notFulfilledRequests: number;
+      totalRequests: number;
+      wouldRecommendPct: number;
+      averageRating: number;
+      averagePunctuality: number;
+      averageQuality: number;
+      averageCommunication: number;
+      averagePriceFairness: number;
+      totalRated: number;
+    };
+  }> {
+    const professional = await this.professionalsRepository.findById(id);
+
+    if (!professional) {
+      throw new AppError('Professional not found', 404);
+    }
+
+    const panelData = await this.professionalsRepository.findPanelData(id);
+
+    const statusCounts: Record<string, number> = {};
+    for (const group of panelData.requestStats) {
+      statusCounts[group.status] = group._count.id;
+    }
+
+    const completed = statusCounts['COMPLETED'] || 0;
+    const rejected = statusCounts['REJECTED'] || 0;
+    const notFulfilled = statusCounts['NOT_FULFILLED'] || 0;
+    const accepted = statusCounts['ACCEPTED'] || 0;
+    const total = completed + rejected + notFulfilled + accepted;
+    const decidedTotal = completed + notFulfilled;
+    const complianceScore = decidedTotal > 0 ? Math.round((completed / decidedTotal) * 100) : 0;
+
+    const reputationBreakdown = await this.reputationService.getReputationBreakdown(id);
+
+    return {
+      professional,
+      reputation: {
+        complianceScore,
+        completedRequests: completed,
+        rejectedRequests: rejected,
+        notFulfilledRequests: notFulfilled,
+        totalRequests: total,
+        wouldRecommendPct: reputationBreakdown.wouldRecommendPct,
+        averageRating: reputationBreakdown.averageRating,
+        averagePunctuality: reputationBreakdown.averagePunctuality,
+        averageQuality: reputationBreakdown.averageQuality,
+        averageCommunication: reputationBreakdown.averageCommunication,
+        averagePriceFairness: reputationBreakdown.averagePriceFairness,
+        totalRated: reputationBreakdown.totalRated,
+      },
+    };
   }
 
   async list(

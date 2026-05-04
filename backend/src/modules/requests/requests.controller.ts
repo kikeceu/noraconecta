@@ -194,6 +194,134 @@ export class RequestsController {
     }
   }
 
+  async rateProfessional(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const {
+        rating,
+        punctualityRating,
+        qualityRating,
+        communicationRating,
+        priceFairnessRating,
+        wouldRecommend,
+        userComment,
+      } = req.body as {
+        rating?: number;
+        punctualityRating?: number;
+        qualityRating?: number;
+        communicationRating?: number;
+        priceFairnessRating?: number;
+        wouldRecommend?: boolean;
+        userComment?: string;
+      };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (rating === undefined) {
+        res.status(400).json({ error: 'rating is required', statusCode: 400 });
+        return;
+      }
+
+      if (punctualityRating === undefined) {
+        res.status(400).json({ error: 'punctualityRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (qualityRating === undefined) {
+        res.status(400).json({ error: 'qualityRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (communicationRating === undefined) {
+        res.status(400).json({ error: 'communicationRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (priceFairnessRating === undefined) {
+        res.status(400).json({ error: 'priceFairnessRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (wouldRecommend === undefined) {
+        res.status(400).json({ error: 'wouldRecommend is required', statusCode: 400 });
+        return;
+      }
+
+      const feedback = await requestsService.rateProfessional(id, {
+        rating,
+        punctualityRating,
+        qualityRating,
+        communicationRating,
+        priceFairnessRating,
+        wouldRecommend,
+        userComment,
+      });
+
+      res.status(201).json({ data: feedback });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async rateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const {
+        requestClarityRating,
+        userAvailabilityRating,
+        userTreatmentRating,
+        wouldServeAgain,
+        professionalComment,
+      } = req.body as {
+        requestClarityRating?: number;
+        userAvailabilityRating?: number;
+        userTreatmentRating?: number;
+        wouldServeAgain?: boolean;
+        professionalComment?: string;
+      };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (requestClarityRating === undefined) {
+        res.status(400).json({ error: 'requestClarityRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (userAvailabilityRating === undefined) {
+        res.status(400).json({ error: 'userAvailabilityRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (userTreatmentRating === undefined) {
+        res.status(400).json({ error: 'userTreatmentRating is required', statusCode: 400 });
+        return;
+      }
+
+      if (wouldServeAgain === undefined) {
+        res.status(400).json({ error: 'wouldServeAgain is required', statusCode: 400 });
+        return;
+      }
+
+      const feedback = await requestsService.rateUser(id, {
+        requestClarityRating,
+        userAvailabilityRating,
+        userTreatmentRating,
+        wouldServeAgain,
+        professionalComment,
+      });
+
+      res.status(201).json({ data: feedback });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { page, limit } = req.query as { page?: string; limit?: string };

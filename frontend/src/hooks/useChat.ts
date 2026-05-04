@@ -1,6 +1,29 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, BotResponse } from '../types/chat';
-import { sendMessage, resetSession, getRequest, RequestData } from '../lib/api';
+import { sendMessage, resetSession, getRequest, RequestData, rateProfessional } from '../lib/api';
+
+type RatingStep =
+  | 'ASK_OVERALL'
+  | 'ASK_PUNCTUALITY'
+  | 'ASK_QUALITY'
+  | 'ASK_COMMUNICATION'
+  | 'ASK_PRICE'
+  | 'ASK_RECOMMEND'
+  | 'ASK_COMMENT'
+  | 'DONE';
+
+interface RatingState {
+  step: RatingStep;
+  professionalName: string;
+  requestId: string;
+  overall: number;
+  punctuality: number;
+  quality: number;
+  communication: number;
+  priceFairness: number;
+  wouldRecommend: boolean;
+  comment: string;
+}
 
 const STATUS_MESSAGES: Record<string, string> = {
   ASSIGNED: 'Encontramos un profesional, esperando confirmación...',
@@ -9,6 +32,12 @@ const STATUS_MESSAGES: Record<string, string> = {
 };
 
 const FINAL_STATUSES = new Set(['ACCEPTED', 'CANCELLED', 'COMPLETED', 'NO_RESPONSE']);
+
+function validateRating(value: string): number | null {
+  const num = parseInt(value.trim(), 10);
+  if (Number.isFinite(num) && num >= 1 && num <= 5) return num;
+  return null;
+}
 
 function getStatusMessage(data: RequestData): string | null {
   if (data.status === 'ACCEPTED' && data.assignedProfessional?.name) {
@@ -26,6 +55,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const messageIdRef = useRef(0);
   const pollIntervalRef = useRef<number | null>(null);
   const lastStatusRef = useRef<string | null>(null);
+  const ratingRef = useRef<RatingState | null>(null);
 
   const addMessage = useCallback(
     (
@@ -82,6 +112,12 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
               addMessage('nora', statusMessage);
             }
 
+            if (newStatus === 'COMPLETED' && data.assignedProfessional?.name) {
+              stopPolling();
+              startRatingFlow(requestId, data.assignedProfessional.name);
+              return;
+            }
+
             if (FINAL_STATUSES.has(newStatus)) {
               stopPolling();
             }
@@ -97,9 +133,170 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     [addMessage, stopPolling],
   );
 
+  const startRatingFlow = useCallback(
+    (requestId: string, professionalName: string) => {
+      ratingRef.current = {
+        step: 'ASK_OVERALL',
+        professionalName,
+        requestId,
+        overall: 0,
+        punctuality: 0,
+        quality: 0,
+        communication: 0,
+        priceFairness: 0,
+        wouldRecommend: true,
+        comment: '',
+      };
+
+      addMessage(
+        'nora',
+        `¿Cómo te fue con ${professionalName}? Calificalo del 1 al 5 ⭐\n(1=Muy malo, 5=Excelente)`,
+      );
+    },
+    [addMessage],
+  );
+
+  const handleRatingResponse = useCallback(
+    async (text: string) => {
+      const rating = ratingRef.current;
+      if (!rating) return false;
+
+      const nextStep = (step: RatingStep): void => {
+        rating.step = step;
+      };
+
+      switch (rating.step) {
+        case 'ASK_OVERALL': {
+          const val = validateRating(text);
+          if (val === null) {
+            addMessage('nora', 'Por favor, respondé con un número del 1 al 5.');
+            return true;
+          }
+          rating.overall = val;
+          nextStep('ASK_PUNCTUALITY');
+          addMessage('nora', '¿Llegó a tiempo o en el horario acordado? (1-5)');
+          return true;
+        }
+
+        case 'ASK_PUNCTUALITY': {
+          const val = validateRating(text);
+          if (val === null) {
+            addMessage('nora', 'Por favor, respondé con un número del 1 al 5.');
+            return true;
+          }
+          rating.punctuality = val;
+          nextStep('ASK_QUALITY');
+          addMessage('nora', '¿Resolvió el problema correctamente? (1-5)');
+          return true;
+        }
+
+        case 'ASK_QUALITY': {
+          const val = validateRating(text);
+          if (val === null) {
+            addMessage('nora', 'Por favor, respondé con un número del 1 al 5.');
+            return true;
+          }
+          rating.quality = val;
+          nextStep('ASK_COMMUNICATION');
+          addMessage('nora', '¿Fue amable y claro? (1-5)');
+          return true;
+        }
+
+        case 'ASK_COMMUNICATION': {
+          const val = validateRating(text);
+          if (val === null) {
+            addMessage('nora', 'Por favor, respondé con un número del 1 al 5.');
+            return true;
+          }
+          rating.communication = val;
+          nextStep('ASK_PRICE');
+          addMessage('nora', '¿Cobró lo acordado sin sorpresas? (1-5)');
+          return true;
+        }
+
+        case 'ASK_PRICE': {
+          const val = validateRating(text);
+          if (val === null) {
+            addMessage('nora', 'Por favor, respondé con un número del 1 al 5.');
+            return true;
+          }
+          rating.priceFairness = val;
+          nextStep('ASK_RECOMMEND');
+          addMessage('nora', '¿Lo recomendarías a otros? (respondé "sí" o "no")');
+          return true;
+        }
+
+        case 'ASK_RECOMMEND': {
+          const lower = text.trim().toLowerCase();
+          if (lower === 'si' || lower === 'sí') {
+            rating.wouldRecommend = true;
+          } else if (lower === 'no') {
+            rating.wouldRecommend = false;
+          } else {
+            addMessage('nora', 'Por favor, respondé "sí" o "no".');
+            return true;
+          }
+          nextStep('ASK_COMMENT');
+          addMessage(
+            'nora',
+            '¿Querés dejar algún comentario? Escribilo o escribí "no" para saltar.',
+          );
+          return true;
+        }
+
+        case 'ASK_COMMENT': {
+          const lower = text.trim().toLowerCase();
+          if (lower !== 'no') {
+            rating.comment = text.trim().substring(0, 300);
+          }
+          nextStep('DONE');
+
+          setIsLoading(true);
+          try {
+            await rateProfessional(rating.requestId, {
+              rating: rating.overall,
+              punctualityRating: rating.punctuality,
+              qualityRating: rating.quality,
+              communicationRating: rating.communication,
+              priceFairnessRating: rating.priceFairness,
+              wouldRecommend: rating.wouldRecommend,
+              userComment: rating.comment || undefined,
+            });
+
+            addMessage(
+              'nora',
+              '¡Gracias por tu calificación! Ayudás a otros usuarios a elegir mejor.',
+            );
+          } catch {
+            addMessage('nora', 'Hubo un error al enviar la calificación. Intentá de nuevo más tarde.');
+          } finally {
+            setIsLoading(false);
+            ratingRef.current = null;
+          }
+          return true;
+        }
+
+        default:
+          return false;
+      }
+    },
+    [addMessage],
+  );
+
   const send = useCallback(
     async (text: string, imageUrls?: string[], audioUrl?: string) => {
       addMessage('user', text, imageUrls, audioUrl);
+
+      if (ratingRef.current) {
+        setIsLoading(true);
+        try {
+          await handleRatingResponse(text);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
       setIsLoading(true);
 
       try {
@@ -127,7 +324,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
         setIsLoading(false);
       }
     },
-    [phone, role, addMessage, startPolling],
+    [phone, role, addMessage, startPolling, handleRatingResponse],
   );
 
   const changePhone = useCallback(

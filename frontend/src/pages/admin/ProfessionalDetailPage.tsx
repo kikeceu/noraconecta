@@ -12,7 +12,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { resolveHostContext } from '../../lib/host';
-import type { Professional, ProfessionalStatus } from '../../types/admin';
+import type { Professional, ProfessionalDetail, ProfessionalStatus } from '../../types/admin';
 
 function adminPath(path: string): string {
   const base = resolveHostContext() === 'admin' ? '' : '/admin';
@@ -33,6 +33,7 @@ export function ProfessionalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isSuperAdmin } = useAuth();
   const [professional, setProfessional] = useState<Professional | null>(null);
+  const [reputation, setReputation] = useState<ProfessionalDetail['reputation'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState('');
@@ -44,7 +45,10 @@ export function ProfessionalDetailPage() {
   useEffect(() => {
     if (!id) return;
     getProfessional(id)
-      .then((res) => setProfessional(res.data))
+      .then((res) => {
+        setProfessional(res.data.professional);
+        setReputation(res.data.reputation);
+      })
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Error al cargar'),
       )
@@ -70,7 +74,8 @@ export function ProfessionalDetailPage() {
           break;
       }
       const res = await getProfessional(id);
-      setProfessional(res.data);
+      setProfessional(res.data.professional);
+      setReputation(res.data.reputation);
     } catch (err) {
       setError(err instanceof Error ? err.message : `Error al ${action}`);
     } finally {
@@ -385,6 +390,65 @@ export function ProfessionalDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Reputation */}
+          {reputation && reputation.totalRequests > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">
+                Reputación
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Pedidos completados</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.completedRequests}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Pedidos no cumplidos</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.notFulfilledRequests}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">% Recomendación</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.wouldRecommendPct}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Calificación promedio</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.averageRating}/5
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Puntualidad</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.averagePunctuality}/5
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Calidad</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.averageQuality}/5
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Comunicación</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.averageCommunication}/5
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-500">Precio justo</span>
+                  <span className="text-sm font-mono font-medium text-gray-900">
+                    {reputation.averagePriceFairness}/5
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

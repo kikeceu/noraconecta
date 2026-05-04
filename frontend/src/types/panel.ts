@@ -51,6 +51,12 @@ export interface PanelReputation {
   notFulfilledRequests: number;
   totalRequests: number;
   wouldRecommendPct: number;
+  averageRating: number;
+  averagePunctuality: number;
+  averageQuality: number;
+  averageCommunication: number;
+  averagePriceFairness: number;
+  totalRated: number;
 }
 
 export interface PanelData {
@@ -65,6 +71,8 @@ export interface PanelOrder {
   status: OrderStatus;
   category: { id: string; name: string } | null;
   geoNode: { id: string; name: string } | null;
+  ratedByProfessional: boolean;
+  ratedByUser: boolean;
 }
 
 export type OrderStatus =

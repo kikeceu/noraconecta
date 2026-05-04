@@ -13,7 +13,20 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
 }
 
 export function ProfessionalReputation({ reputation }: ProfessionalReputationProps) {
-  const { complianceScore, completedRequests, rejectedRequests, notFulfilledRequests, totalRequests, wouldRecommendPct } = reputation;
+  const {
+    complianceScore,
+    completedRequests,
+    rejectedRequests,
+    notFulfilledRequests,
+    totalRequests,
+    wouldRecommendPct,
+    averageRating,
+    averagePunctuality,
+    averageQuality,
+    averageCommunication,
+    averagePriceFairness,
+    totalRated,
+  } = reputation;
 
   const circumference = 2 * Math.PI * 54;
   const strokeDashoffset = circumference - (complianceScore / 100) * circumference;
@@ -156,15 +169,13 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
             className="text-2xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
-            {totalRequests > 0
-              ? Math.round((completedRequests / totalRequests) * 100)
-              : 0}%
+            {totalRated > 0 ? averageRating : '—'}
           </p>
           <p
             className="text-xs text-[#6B7280] mt-1"
             style={{ fontFamily: 'DM Sans' }}
           >
-            Tasa de aceptación
+            Calificación promedio
           </p>
         </Card>
 
@@ -173,15 +184,30 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
             className="text-2xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
-            {totalRequests > 0 ? Math.round(totalRequests / 6) : 0}
+            {totalRated}
           </p>
           <p
             className="text-xs text-[#6B7280] mt-1"
             style={{ fontFamily: 'DM Sans' }}
           >
-            Pedidos promedio por mes
+            Pedidos calificados
           </p>
         </Card>
+      </div>
+
+      <h2
+        className="text-lg font-bold text-[#111827] mt-2"
+        style={{ fontFamily: 'DM Sans' }}
+      >
+        Desglose por eje
+      </h2>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <MiniAxisCard label="Puntualidad" value={averagePunctuality} hasData={totalRated > 0} />
+        <MiniAxisCard label="Calidad" value={averageQuality} hasData={totalRated > 0} />
+        <MiniAxisCard label="Comunicación" value={averageCommunication} hasData={totalRated > 0} />
+        <MiniAxisCard label="Precio justo" value={averagePriceFairness} hasData={totalRated > 0} />
+        <MiniAxisCard label="General" value={averageRating} hasData={totalRated > 0} />
       </div>
 
       <Card className="!border-[#A7F3D0] !bg-[#F0FDF4]">
@@ -224,6 +250,42 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           </div>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function MiniAxisCard({ label, value, hasData }: { label: string; value: number; hasData: boolean }) {
+  const stars = hasData ? Math.round(value) : 0;
+
+  return (
+    <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 text-center">
+      <p
+        className="text-2xl font-bold text-[#111827]"
+        style={{ fontFamily: 'JetBrains Mono' }}
+      >
+        {hasData ? value : '—'}
+      </p>
+      <div className="flex justify-center gap-0.5 mt-1">
+        {Array.from({ length: 5 }, (_, i) => (
+          <svg
+            key={i}
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill={i < stars ? '#F59E0B' : '#E5E7EB'}
+            stroke={i < stars ? '#F59E0B' : '#E5E7EB'}
+            strokeWidth="1"
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        ))}
+      </div>
+      <p
+        className="text-xs text-[#6B7280] mt-1"
+        style={{ fontFamily: 'DM Sans' }}
+      >
+        {label}
+      </p>
     </div>
   );
 }

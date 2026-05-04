@@ -192,7 +192,13 @@ export class ProfessionalsRepository {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { category: true, geoNode: true },
+        include: {
+          category: true,
+          geoNode: true,
+          feedback: {
+            select: { ratedByProfessionalAt: true, ratedByUserAt: true },
+          },
+        },
       }),
       prisma.request.count({
         where: { assignedProfessionalId: professionalId },

@@ -103,6 +103,60 @@ export class RequestsRepository {
     return prisma.feedback.create({ data });
   }
 
+  async upsertFeedback(
+    requestId: string,
+    data: {
+      rating?: number;
+      punctualityRating?: number;
+      qualityRating?: number;
+      communicationRating?: number;
+      priceFairnessRating?: number;
+      wouldRecommend?: boolean;
+      userComment?: string;
+      ratedByUserAt?: Date;
+      requestClarityRating?: number;
+      userAvailabilityRating?: number;
+      userTreatmentRating?: number;
+      wouldServeAgain?: boolean;
+      professionalComment?: string;
+      ratedByProfessionalAt?: Date;
+    },
+  ): Promise<Feedback> {
+    return prisma.feedback.upsert({
+      where: { requestId },
+      create: { requestId, ...data },
+      update: data,
+    });
+  }
+
+  async findRatedFeedbacksByProfessionalId(
+    professionalId: string,
+  ): Promise<
+    {
+      rating: number | null;
+      punctualityRating: number | null;
+      qualityRating: number | null;
+      communicationRating: number | null;
+      priceFairnessRating: number | null;
+      wouldRecommend: boolean | null;
+    }[]
+  > {
+    return prisma.feedback.findMany({
+      where: {
+        request: { assignedProfessionalId: professionalId },
+        ratedByUserAt: { not: null },
+      },
+      select: {
+        rating: true,
+        punctualityRating: true,
+        qualityRating: true,
+        communicationRating: true,
+        priceFairnessRating: true,
+        wouldRecommend: true,
+      },
+    });
+  }
+
   async findFeedbackByRequestId(requestId: string): Promise<Feedback | null> {
     return prisma.feedback.findUnique({ where: { requestId } });
   }

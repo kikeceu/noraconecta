@@ -36,6 +36,14 @@ router.post('/:id/submit-feedback', (req, res, next) => {
   void requestsController.submitFeedback(req, res, next);
 });
 
+router.post('/:id/rate-professional', (req, res, next) => {
+  void requestsController.rateProfessional(req, res, next);
+});
+
+router.post('/:id/rate-user', (req, res, next) => {
+  void requestsController.rateUser(req, res, next);
+});
+
 router.get('/', requireAuth, (req, res, next) => {
   void requestsController.list(req, res, next);
 });
