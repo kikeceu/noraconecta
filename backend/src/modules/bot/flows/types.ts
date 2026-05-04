@@ -11,6 +11,7 @@ export interface BotResponse {
   text: string;
   mediaUrls?: string[];
   options?: string[];
+  requestId?: string;
 }
 
 export interface FlowContext {

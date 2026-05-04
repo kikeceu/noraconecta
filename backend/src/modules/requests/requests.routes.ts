@@ -40,7 +40,7 @@ router.get('/', requireAuth, (req, res, next) => {
   void requestsController.list(req, res, next);
 });
 
-router.get('/:id', requireAuth, (req, res, next) => {
+router.get('/:id', (req, res, next) => {
   void requestsController.getById(req, res, next);
 });
 

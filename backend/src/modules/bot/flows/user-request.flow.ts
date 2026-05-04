@@ -331,9 +331,7 @@ export class UserRequestFlow implements FlowHandler {
 
     if (inputText === 'si' || inputText === 'sí') {
       try {
-        console.log('[UserRequestFlow] handleConfirm: creating request with tempData keys:', Object.keys(tempData));
-
-        await this.requestsService.create({
+        const request = await this.requestsService.create({
           phone: tempData.phone as string,
           categoryId: tempData.categoryId as string,
           geoNodeId: tempData.geoNodeId as string,
@@ -342,7 +340,16 @@ export class UserRequestFlow implements FlowHandler {
           audioUrl: tempData.audioUrl as string | undefined,
         });
 
-        console.log('[UserRequestFlow] handleConfirm: request created successfully');
+        tempData.requestId = request.id;
+
+        return {
+          response: {
+            text: 'Buscando el profesional ideal... te aviso cuando confirme.',
+            requestId: request.id,
+          },
+          nextStep: 'SEARCHING',
+          tempData,
+        };
       } catch (err) {
         console.error('[UserRequestFlow] handleConfirm: create failed', err);
 
@@ -354,14 +361,6 @@ export class UserRequestFlow implements FlowHandler {
           tempData,
         };
       }
-
-      return {
-        response: {
-          text: 'Buscando el profesional ideal... te aviso cuando confirme.',
-        },
-        nextStep: 'SEARCHING',
-        tempData,
-      };
     }
 
     if (inputText === 'no') {
