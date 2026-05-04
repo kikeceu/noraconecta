@@ -64,3 +64,25 @@ export async function rejectRequest(requestId: string): Promise<{ id: string; st
   );
   return res.data;
 }
+
+export async function rateUser(
+  requestId: string,
+  data: {
+    requestClarityRating: number;
+    userAvailabilityRating: number;
+    userTreatmentRating: number;
+    wouldServeAgain: boolean;
+    professionalComment?: string;
+  },
+): Promise<void> {
+  const res = await fetch(`/api/requests/${encodeURIComponent(requestId)}/rate-user`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to rate user`);
+  }
+}

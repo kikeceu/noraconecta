@@ -92,3 +92,27 @@ export async function getRequest(id: string): Promise<RequestData> {
   const json = await res.json();
   return json.data as RequestData;
 }
+
+export async function rateProfessional(
+  requestId: string,
+  data: {
+    rating: number;
+    punctualityRating: number;
+    qualityRating: number;
+    communicationRating: number;
+    priceFairnessRating: number;
+    wouldRecommend: boolean;
+    userComment?: string;
+  },
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/rate-professional`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to rate professional' }));
+    throw new Error(err.error || 'Failed to rate professional');
+  }
+}

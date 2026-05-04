@@ -119,8 +119,8 @@ export class ProfessionalsController {
         return;
       }
 
-      const professional = await professionalsService.getById(id);
-      res.status(200).json({ data: professional });
+      const result = await professionalsService.getByIdWithReputation(id);
+      res.status(200).json({ data: result });
     } catch (err) {
       next(err);
     }

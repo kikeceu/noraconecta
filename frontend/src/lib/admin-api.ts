@@ -6,6 +6,7 @@ import type {
   GeoNode,
   User,
   Professional,
+  ProfessionalDetail,
   Plan,
   Membership,
   RequestOrder,
@@ -199,8 +200,8 @@ export function getProfessionals(params?: {
 
 export function getProfessional(
   id: string,
-): Promise<SingleResponse<Professional>> {
-  return request<SingleResponse<Professional>>(`/professionals/${id}`);
+): Promise<SingleResponse<ProfessionalDetail>> {
+  return request<SingleResponse<ProfessionalDetail>>(`/professionals/${id}`);
 }
 
 export function approveProfessional(

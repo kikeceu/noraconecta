@@ -113,6 +113,26 @@ export interface Professional {
   updatedAt: string;
 }
 
+export interface ProfessionalReputationData {
+  complianceScore: number;
+  completedRequests: number;
+  rejectedRequests: number;
+  notFulfilledRequests: number;
+  totalRequests: number;
+  wouldRecommendPct: number;
+  averageRating: number;
+  averagePunctuality: number;
+  averageQuality: number;
+  averageCommunication: number;
+  averagePriceFairness: number;
+  totalRated: number;
+}
+
+export interface ProfessionalDetail {
+  professional: Professional;
+  reputation: ProfessionalReputationData;
+}
+
 export interface ProfessionalZone {
   id: string;
   professionalId: string;
@@ -183,10 +203,22 @@ export interface RequestOrder {
 export interface Feedback {
   id: string;
   requestId: string;
-  workCompleted: boolean;
-  wouldRecommend: boolean;
-  comment: string | null;
+  rating: number | null;
+  punctualityRating: number | null;
+  qualityRating: number | null;
+  communicationRating: number | null;
+  priceFairnessRating: number | null;
+  wouldRecommend: boolean | null;
+  userComment: string | null;
+  ratedByUserAt: string | null;
+  requestClarityRating: number | null;
+  userAvailabilityRating: number | null;
+  userTreatmentRating: number | null;
+  wouldServeAgain: boolean | null;
+  professionalComment: string | null;
+  ratedByProfessionalAt: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Escalation {

@@ -67,6 +67,18 @@ export class ReputationService {
     }
   }
 
+  async getReputationBreakdown(professionalId: string): Promise<{
+    averageRating: number;
+    averagePunctuality: number;
+    averageQuality: number;
+    averageCommunication: number;
+    averagePriceFairness: number;
+    wouldRecommendPct: number;
+    totalRated: number;
+  }> {
+    return this.reputationRepository.findFeedbackBreakdown(professionalId);
+  }
+
   private async getBadgeMinCompleted(): Promise<number> {
     const config = await configRepository.findByKey(
       'BADGE_MIN_COMPLETED_REQUESTS',

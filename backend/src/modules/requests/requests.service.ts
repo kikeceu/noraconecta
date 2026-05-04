@@ -440,6 +440,118 @@ export class RequestsService {
     });
   }
 
+  async rateProfessional(
+    requestId: string,
+    data: {
+      rating: number;
+      punctualityRating: number;
+      qualityRating: number;
+      communicationRating: number;
+      priceFairnessRating: number;
+      wouldRecommend: boolean;
+      userComment?: string;
+    },
+  ): Promise<Feedback> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'COMPLETED') {
+      throw new AppError(
+        `Cannot rate a request with status ${request.status}. Expected COMPLETED`,
+        400,
+      );
+    }
+
+    const validateRating = (field: string, value: number): void => {
+      if (!Number.isFinite(value) || value < 1 || value > 5) {
+        throw new AppError(`${field} must be between 1 and 5`, 400);
+      }
+    };
+
+    validateRating('rating', data.rating);
+    validateRating('punctualityRating', data.punctualityRating);
+    validateRating('qualityRating', data.qualityRating);
+    validateRating('communicationRating', data.communicationRating);
+    validateRating('priceFairnessRating', data.priceFairnessRating);
+
+    if (data.userComment && data.userComment.length > 300) {
+      throw new AppError('userComment must not exceed 300 characters', 400);
+    }
+
+    const existing = await this.requestsRepository.findFeedbackByRequestId(requestId);
+
+    if (existing?.ratedByUserAt) {
+      throw new AppError('User has already rated this request', 409);
+    }
+
+    return this.requestsRepository.upsertFeedback(requestId, {
+      rating: data.rating,
+      punctualityRating: data.punctualityRating,
+      qualityRating: data.qualityRating,
+      communicationRating: data.communicationRating,
+      priceFairnessRating: data.priceFairnessRating,
+      wouldRecommend: data.wouldRecommend,
+      userComment: data.userComment,
+      ratedByUserAt: new Date(),
+    });
+  }
+
+  async rateUser(
+    requestId: string,
+    data: {
+      requestClarityRating: number;
+      userAvailabilityRating: number;
+      userTreatmentRating: number;
+      wouldServeAgain: boolean;
+      professionalComment?: string;
+    },
+  ): Promise<Feedback> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'COMPLETED') {
+      throw new AppError(
+        `Cannot rate a request with status ${request.status}. Expected COMPLETED`,
+        400,
+      );
+    }
+
+    const validateRating = (field: string, value: number): void => {
+      if (!Number.isFinite(value) || value < 1 || value > 5) {
+        throw new AppError(`${field} must be between 1 and 5`, 400);
+      }
+    };
+
+    validateRating('requestClarityRating', data.requestClarityRating);
+    validateRating('userAvailabilityRating', data.userAvailabilityRating);
+    validateRating('userTreatmentRating', data.userTreatmentRating);
+
+    if (data.professionalComment && data.professionalComment.length > 300) {
+      throw new AppError('professionalComment must not exceed 300 characters', 400);
+    }
+
+    const existing = await this.requestsRepository.findFeedbackByRequestId(requestId);
+
+    if (existing?.ratedByProfessionalAt) {
+      throw new AppError('Professional has already rated this request', 409);
+    }
+
+    return this.requestsRepository.upsertFeedback(requestId, {
+      requestClarityRating: data.requestClarityRating,
+      userAvailabilityRating: data.userAvailabilityRating,
+      userTreatmentRating: data.userTreatmentRating,
+      wouldServeAgain: data.wouldServeAgain,
+      professionalComment: data.professionalComment,
+      ratedByProfessionalAt: new Date(),
+    });
+  }
+
   async list(page: number = 1, limit: number = 20): Promise<PaginatedRequestsResponse> {
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit));

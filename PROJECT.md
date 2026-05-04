@@ -462,7 +462,14 @@ Response shape:
 
 ### Reputation
 
-Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos y Matching.
+Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoints de calificación.
+
+| Método                     | Descripción                                                     |
+|---------------------------|-----------------------------------------------------------------|
+| `applyPenalization()`     | Cuenta NOT_FULFILLED, aplica OBSERVATION o SUSPENDED             |
+| `evaluateBadge()`         | Otorga badge si cumplimiento 100% y completados ≥ umbral         |
+| `removeBadgeIfActive()`   | Remueve badge al recibir NOT_FULFILLED                          |
+| `getReputationBreakdown()`| Calcula promedios on-the-fly desde feedbacks: rating, puntualidad, calidad, comunicación, precio justo, % recomendación |
 
 | Método                  | Descripción                                         |
 |-------------------------|-----------------------------------------------------|
@@ -616,6 +623,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo            | Sin auth  |
 | `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
+| `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
+| `/requests/:id/rate-user`             | POST   | Profesional califica al usuario (4 ejes)       | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
 | `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback y profesional asignado (incluye teléfono cuando está ACCEPTED) | Sin auth (polling simulador) |
 
@@ -686,21 +695,34 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | `/professionals/session/:token/orders` | GET | Historial de pedidos paginado (sin datos del usuario) |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante |
 
-**Response shape `GET /session/:token/panel`:**
+**Response shape `GET /session/:token/panel` (ACTUALIZADO AUT-142):**
 ```json
 {
   "data": {
     "professional": { "id", "name", "phone", "status", "category", "zones", "availability", "hasBadge", "dniFrontUrl", "dniBackUrl", "criminalRecordUrl", "cuil", "references", "presentationVideoUrl" },
     "membership": { "activeMembership": { "plan", "type", "status", "startDate", "endDate" } | null, "trialRequestsUsed": 0, "trialRequestsLimit": 5 },
-    "reputation": { "complianceScore": 87, "completedRequests": 32, "rejectedRequests": 5, "notFulfilledRequests": 2, "totalRequests": 47, "wouldRecommendPct": 92 }
+    "reputation": {
+      "complianceScore": 87,
+      "completedRequests": 32,
+      "rejectedRequests": 5,
+      "notFulfilledRequests": 2,
+      "totalRequests": 47,
+      "wouldRecommendPct": 92,
+      "averageRating": 4.2,
+      "averagePunctuality": 4.1,
+      "averageQuality": 4.5,
+      "averageCommunication": 4.3,
+      "averagePriceFairness": 4.0,
+      "totalRated": 20
+    }
   }
 }
 ```
 
-**Response shape `GET /session/:token/orders`:**
+**Response shape `GET /session/:token/orders` (ACTUALIZADO AUT-142):**
 ```json
 {
-  "data": [{ "id", "createdAt", "status", "category": { "name" }, "geoNode": { "name" } }],
+  "data": [{ "id", "createdAt", "status", "category": { "name" }, "geoNode": { "name" }, "ratedByProfessional": false, "ratedByUser": true }],
   "pagination": { "page": 1, "limit": 20, "total": 47, "totalPages": 3 }
 }
 ```
@@ -1129,6 +1151,15 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
 - `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
+- Calificación post-servicio (AUT-142):
+  - `POST /requests/:id/rate-professional`: solo pedidos COMPLETED; una calificación por usuario (ratedByUserAt) → 409 si ya calificó
+  - `POST /requests/:id/rate-user`: solo pedidos COMPLETED; una calificación por profesional (ratedByProfessionalAt) → 409 si ya calificó
+  - Todos los campos numéricos entre 1 y 5; comentarios opcionales con máximo 300 caracteres
+  - La reputación (promedios por eje, % recomendación, total calificados) se calcula on-the-fly desde los feedbacks, sin campos nuevos en Professional
+  - El panel del profesional muestra desglose por eje (puntualidad, calidad, comunicación, precio justo) con estrellas
+  - El profesional puede calificar al usuario desde la pestaña "Mis Pedidos" del panel (botón "Calificar" en pedidos COMPLETED sin calificar)
+  - El panel admin muestra reputación real con desglose por eje en el detalle del profesional
+  - El simulador guía al usuario paso a paso por los 7 ejes de calificación cuando el pedido pasa a COMPLETED
 
 ## Frontend: Admin Panel (NEW — AUT-132)
 
