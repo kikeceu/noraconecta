@@ -44,7 +44,7 @@ const STATUS_MESSAGES: Record<string, string> = {
   CANCELLED: 'El pedido fue cancelado.',
 };
 
-const FINAL_STATUSES = new Set(['ACCEPTED', 'CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE']);
+const FINAL_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE']);
 
 function validateRating(value: string): number | null {
   const num = parseInt(value.trim(), 10);

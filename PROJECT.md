@@ -374,9 +374,10 @@ server {
 
 Agrega métricas del panel de administración agregadas desde múltiples entidades.
 
-| Endpoint         | Método | Descripción                          | Auth requerida |
-|-----------------|--------|--------------------------------------|----------------|
-| `/admin/metrics` | GET    | Dashboard KPIs (orders, professionals, escalations, feedback) | OPERATOR |
+| Endpoint                       | Método | Descripción                          | Auth requerida |
+|-------------------------------|--------|--------------------------------------|----------------|
+| `/admin/metrics`               | GET    | Dashboard KPIs (orders, professionals, escalations, feedback) | OPERATOR |
+| `/admin/requests/auto-close`   | POST   | Trigger manual de auto-cierre de pedidos PENDING_CONFIRMATION > 24h (testing) | SUPERADMIN |
 
 Response shape:
 ```json
@@ -585,7 +586,7 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, PENDING_CONFIRMATION). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo. Al estado PENDING_CONFIRMATION, muestra opciones "conforme" / "con observaciones" / "no conforme" y ejecuta el endpoint correspondiente. Si queda COMPLETED, dispara el flujo de calificación (AUT-142). Se detiene al llegar a estado final.
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, PENDING_CONFIRMATION). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo y el polling continúa (ACCEPTED no es terminal). Al estado PENDING_CONFIRMATION, muestra opciones "conforme" / "con observaciones" / "no conforme" y ejecuta el endpoint correspondiente. Si queda COMPLETED, dispara el flujo de calificación (AUT-142). Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE).
 
 ### Config (actualizado)
 
@@ -667,9 +668,9 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
   - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
 - Disputa (dispute): alias de confirm con UNSATISFIED
 - Confirm-completion (legacy): usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
-- Auto-complete: 24h después de `completedAt` en PENDING_CONFIRMATION sin confirmación → COMPLETED automático
+- Auto-complete: 24h después de `updatedAt` en PENDING_CONFIRMATION sin confirmación → COMPLETED automático con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. No dispara flujo de calificación.
 - Todos los cambios de estado registran su `RequestEvent`
-- Jobs (sin endpoints): `processTimeouts()`, `processAutoCompletes()` para ser invocados por cron
+- Jobs (sin endpoints): `processTimeouts()`, `autoClosePendingConfirmations()` invocados por cron (cada hora en `server.ts`)
 - El estado PENDING_CONFIRMATION se considera activo (el usuario no puede crear otro pedido mientras esté en este estado)
 
 **Config keys usadas:**
@@ -1147,8 +1148,9 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `reportNoncompliance`: (legacy) usuario reporta incumplimiento → NOT_FULFILLED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
   - Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
-  - Auto-complete job: busca PENDING_CONFIRMATION con `completedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED
-- Los jobs `processTimeouts()` y `processAutoCompletes()` son métodos públicos sin endpoints, para ser invocados por cron externo
+  - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
+- Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
+- Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos

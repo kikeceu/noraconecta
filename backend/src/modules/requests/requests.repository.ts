@@ -200,11 +200,11 @@ export class RequestsRepository {
     });
   }
 
-  async findPendingAutoComplete(cutoff: Date): Promise<Request[]> {
+  async findPendingAutoClose(cutoff: Date): Promise<Request[]> {
     return prisma.request.findMany({
       where: {
         status: 'PENDING_CONFIRMATION',
-        completedAt: { not: null, lt: cutoff },
+        updatedAt: { lt: cutoff },
       },
     });
   }
