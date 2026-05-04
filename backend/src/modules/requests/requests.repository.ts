@@ -19,7 +19,7 @@ export type CreateRequestInput = {
 export type CreateEventInput = {
   requestId: string;
   professionalId?: string | null;
-  type: 'ASSIGNED' | 'ACCEPTED' | 'REJECTED' | 'NO_RESPONSE' | 'COMPLETED' | 'NOT_FULFILLED' | 'CANCELLED';
+  type: 'ASSIGNED' | 'ACCEPTED' | 'REJECTED' | 'NO_RESPONSE' | 'PENDING_CONFIRMATION' | 'COMPLETED' | 'NOT_FULFILLED' | 'CANCELLED';
   metadata?: Prisma.JsonObject;
 };
 
@@ -43,7 +43,7 @@ export class RequestsRepository {
     return prisma.request.findFirst({
       where: {
         userId,
-        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
+        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] },
       },
     });
   }
@@ -203,7 +203,7 @@ export class RequestsRepository {
   async findPendingAutoComplete(cutoff: Date): Promise<Request[]> {
     return prisma.request.findMany({
       where: {
-        status: 'ACCEPTED',
+        status: 'PENDING_CONFIRMATION',
         completedAt: { not: null, lt: cutoff },
       },
     });

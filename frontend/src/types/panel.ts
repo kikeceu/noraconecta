@@ -79,6 +79,7 @@ export type OrderStatus =
   | 'CREATED'
   | 'ASSIGNED'
   | 'ACCEPTED'
+  | 'PENDING_CONFIRMATION'
   | 'CANCELLED'
   | 'NO_RESPONSE'
   | 'COMPLETED'

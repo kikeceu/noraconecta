@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { RequestsService } from './requests.service';
+import { RequestsService, Satisfaction } from './requests.service';
 import { RequestsRepository } from './requests.repository';
 import { UsersRepository } from '../users/users.repository';
 
@@ -113,6 +113,76 @@ export class RequestsController {
       }
 
       const request = await requestsService.markCompleted(id);
+      res.status(200).json({ data: request });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async finish(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      const request = await requestsService.finish(id);
+      res.status(200).json({ data: request });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async confirm(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { satisfaction, comment } = req.body as {
+        satisfaction?: string;
+        comment?: string;
+      };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!satisfaction) {
+        res.status(400).json({ error: 'satisfaction is required', statusCode: 400 });
+        return;
+      }
+
+      if (!['SATISFIED', 'PARTIAL', 'UNSATISFIED'].includes(satisfaction)) {
+        res.status(400).json({
+          error: 'satisfaction must be SATISFIED, PARTIAL, or UNSATISFIED',
+          statusCode: 400,
+        });
+        return;
+      }
+
+      const request = await requestsService.confirm(
+        id,
+        satisfaction as Satisfaction,
+        comment,
+      );
+      res.status(200).json({ data: request });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async dispute(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { reason } = req.body as { reason?: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      const request = await requestsService.dispute(id, reason);
       res.status(200).json({ data: request });
     } catch (err) {
       next(err);

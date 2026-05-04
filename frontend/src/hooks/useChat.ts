@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Message, BotResponse } from '../types/chat';
-import { sendMessage, resetSession, getRequest, RequestData, rateProfessional } from '../lib/api';
+import { sendMessage, resetSession, getRequest, RequestData, rateProfessional, confirmRequest, disputeRequest } from '../lib/api';
 
 type RatingStep =
   | 'ASK_OVERALL'
@@ -9,6 +9,11 @@ type RatingStep =
   | 'ASK_COMMUNICATION'
   | 'ASK_PRICE'
   | 'ASK_RECOMMEND'
+  | 'ASK_COMMENT'
+  | 'DONE';
+
+type ConfirmationStep =
+  | 'ASK_SATISFACTION'
   | 'ASK_COMMENT'
   | 'DONE';
 
@@ -25,13 +30,21 @@ interface RatingState {
   comment: string;
 }
 
+interface ConfirmationState {
+  step: ConfirmationStep;
+  professionalName: string;
+  requestId: string;
+  satisfaction: 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED' | null;
+  comment: string;
+}
+
 const STATUS_MESSAGES: Record<string, string> = {
   ASSIGNED: 'Encontramos un profesional, esperando confirmación...',
   NO_RESPONSE: 'No encontramos profesionales disponibles en este momento.',
   CANCELLED: 'El pedido fue cancelado.',
 };
 
-const FINAL_STATUSES = new Set(['ACCEPTED', 'CANCELLED', 'COMPLETED', 'NO_RESPONSE']);
+const FINAL_STATUSES = new Set(['ACCEPTED', 'CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE']);
 
 function validateRating(value: string): number | null {
   const num = parseInt(value.trim(), 10);
@@ -42,6 +55,10 @@ function validateRating(value: string): number | null {
 function getStatusMessage(data: RequestData): string | null {
   if (data.status === 'ACCEPTED' && data.assignedProfessional?.name) {
     return `✅ ¡${data.assignedProfessional.name} aceptó tu pedido! Podés contactarlo al ${data.assignedProfessional.phone}. Cualquier consulta podés escribirle directamente.`;
+  }
+  if (data.status === 'PENDING_CONFIRMATION' && data.assignedProfessional?.name) {
+    const name = data.assignedProfessional.name;
+    return `El profesional ${name} indicó que finalizó el trabajo.\n¿Cómo quedó?\n\nRespondé: "conforme", "con observaciones" o "no conforme"`;
   }
   return STATUS_MESSAGES[data.status] ?? null;
 }
@@ -56,6 +73,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const pollIntervalRef = useRef<number | null>(null);
   const lastStatusRef = useRef<string | null>(null);
   const ratingRef = useRef<RatingState | null>(null);
+  const confirmationRef = useRef<ConfirmationState | null>(null);
 
   const addMessage = useCallback(
     (
@@ -110,6 +128,11 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
 
             if (statusMessage) {
               addMessage('nora', statusMessage);
+            }
+
+            if (newStatus === 'PENDING_CONFIRMATION' && data.assignedProfessional?.name) {
+              startConfirmationFlow(requestId, data.assignedProfessional.name);
+              return;
             }
 
             if (newStatus === 'COMPLETED' && data.assignedProfessional?.name) {
@@ -283,6 +306,107 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     [addMessage],
   );
 
+  const startConfirmationFlow = useCallback(
+    (requestId: string, professionalName: string) => {
+      confirmationRef.current = {
+        step: 'ASK_SATISFACTION',
+        professionalName,
+        requestId,
+        satisfaction: null,
+        comment: '',
+      };
+    },
+    [],
+  );
+
+  const handleConfirmationResponse = useCallback(
+    async (text: string) => {
+      const confirmation = confirmationRef.current;
+      if (!confirmation) return false;
+
+      const trimmed = text.trim().toLowerCase();
+
+      switch (confirmation.step) {
+        case 'ASK_SATISFACTION': {
+          if (trimmed === 'conforme') {
+            confirmation.satisfaction = 'SATISFIED';
+            confirmation.step = 'DONE';
+            setIsLoading(true);
+            try {
+              await confirmRequest(confirmation.requestId, 'SATISFIED');
+              addMessage('nora', '¡Gracias por confirmar!');
+            } catch {
+              addMessage('nora', 'Hubo un error. Intentá de nuevo más tarde.');
+            } finally {
+              setIsLoading(false);
+              confirmationRef.current = null;
+            }
+            return true;
+          }
+
+          if (trimmed === 'con observaciones') {
+            confirmation.satisfaction = 'PARTIAL';
+            confirmation.step = 'ASK_COMMENT';
+            addMessage(
+              'nora',
+              '¿Querés dejar un comentario antes de calificar? Escribilo o respondé "no" para saltar.',
+            );
+            return true;
+          }
+
+          if (trimmed === 'no conforme') {
+            confirmation.satisfaction = 'UNSATISFIED';
+            confirmation.step = 'DONE';
+            setIsLoading(true);
+            try {
+              await disputeRequest(confirmation.requestId);
+              addMessage(
+                'nora',
+                'Gracias por avisar. Creamos un reclamo automático y revisaremos el caso.',
+              );
+            } catch {
+              addMessage('nora', 'Hubo un error. Intentá de nuevo más tarde.');
+            } finally {
+              setIsLoading(false);
+              confirmationRef.current = null;
+            }
+            return true;
+          }
+
+          addMessage('nora', 'Por favor, respondé: "conforme", "con observaciones" o "no conforme".');
+          return true;
+        }
+
+        case 'ASK_COMMENT': {
+          if (trimmed !== 'no') {
+            confirmation.comment = text.trim().substring(0, 300);
+          }
+          confirmation.step = 'DONE';
+
+          setIsLoading(true);
+          try {
+            await confirmRequest(
+              confirmation.requestId,
+              confirmation.satisfaction!,
+              confirmation.comment || undefined,
+            );
+            addMessage('nora', '¡Gracias por confirmar!');
+          } catch {
+            addMessage('nora', 'Hubo un error. Intentá de nuevo más tarde.');
+          } finally {
+            setIsLoading(false);
+            confirmationRef.current = null;
+          }
+          return true;
+        }
+
+        default:
+          return false;
+      }
+    },
+    [addMessage],
+  );
+
   const send = useCallback(
     async (text: string, imageUrls?: string[], audioUrl?: string) => {
       addMessage('user', text, imageUrls, audioUrl);
@@ -291,6 +415,16 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
         setIsLoading(true);
         try {
           await handleRatingResponse(text);
+        } finally {
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      if (confirmationRef.current) {
+        setIsLoading(true);
+        try {
+          await handleConfirmationResponse(text);
         } finally {
           setIsLoading(false);
         }
@@ -324,7 +458,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
         setIsLoading(false);
       }
     },
-    [phone, role, addMessage, startPolling, handleRatingResponse],
+    [phone, role, addMessage, startPolling, handleRatingResponse, handleConfirmationResponse],
   );
 
   const changePhone = useCallback(
