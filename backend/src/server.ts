@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cron from 'node-cron';
 import { errorHandler } from './middleware/error-handler';
 import authRoutes from './modules/auth/auth.routes';
 import categoriesRoutes from './modules/categories/categories.routes';
@@ -18,6 +19,9 @@ import escalationsRoutes from './modules/escalations/escalations.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
+import { RequestsService } from './modules/requests/requests.service';
+import { RequestsRepository } from './modules/requests/requests.repository';
+import { UsersRepository } from './modules/users/users.repository';
 
 const app = express();
 
@@ -45,6 +49,15 @@ app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
 
 app.use(errorHandler);
+
+// Cron job: auto-close PENDING_CONFIRMATION requests older than 24h (runs every hour)
+const requestsRepository = new RequestsRepository();
+const usersRepository = new UsersRepository();
+const requestsService = new RequestsService(requestsRepository, usersRepository);
+
+cron.schedule('0 * * * *', () => {
+  void requestsService.autoClosePendingConfirmations();
+});
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 

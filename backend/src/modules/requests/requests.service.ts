@@ -775,11 +775,12 @@ export class RequestsService {
     return processed;
   }
 
-  async processAutoCompletes(): Promise<number> {
+  async autoClosePendingConfirmations(): Promise<number> {
     const autoCompleteHours = await this.getAutoCompleteHours();
     const cutoff = new Date(Date.now() - autoCompleteHours * 60 * 60 * 1000);
+    const now = new Date();
 
-    const pending = await this.requestsRepository.findPendingAutoComplete(cutoff);
+    const pending = await this.requestsRepository.findPendingAutoClose(cutoff);
     let processed = 0;
 
     for (const request of pending) {
@@ -792,6 +793,10 @@ export class RequestsService {
           requestId: request.id,
           professionalId: request.assignedProfessionalId,
           type: 'COMPLETED',
+          metadata: {
+            autoClosedAt: now.toISOString(),
+            reason: 'timeout_user_confirmation',
+          },
         });
 
         if (request.assignedProfessionalId) {
