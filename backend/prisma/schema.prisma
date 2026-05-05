@@ -239,6 +239,11 @@ model Request {
   acceptedAt             DateTime?
   completedAt            DateTime?
   assignmentTimeoutAt    DateTime?
+  scheduledAt            DateTime?
+  clientAddress          String?
+  clientLatitude         Float?
+  clientLongitude        Float?
+  coordinationStatus     String?
 
   events     RequestEvent[]
   feedback   Feedback?
