@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PanelOrder, OrderStatus } from '../../../types/panel';
-import { getPanelOrders, rateUser, finishRequest } from '../../../lib/panel-api';
+import { getPanelOrders, rateUser, finishRequest, confirmVisitRequest } from '../../../lib/panel-api';
 
 interface ProfessionalOrdersProps {
   sessionToken: string;
@@ -34,6 +34,15 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   );
 }
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between items-start gap-2">
+      <span className="text-xs text-[#6B7280] shrink-0" style={{ fontFamily: 'DM Sans' }}>{label}</span>
+      <span className="text-sm text-[#111827] text-right" style={{ fontFamily: 'DM Sans' }}>{value}</span>
+    </div>
+  );
+}
+
 export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   const [orders, setOrders] = useState<PanelOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +55,11 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   const [ratingSuccess, setRatingSuccess] = useState<string | null>(null);
   const [finishOrderId, setFinishOrderId] = useState<string | null>(null);
   const [finishLoading, setFinishLoading] = useState(false);
+  const [confirmVisitOrderId, setConfirmVisitOrderId] = useState<string | null>(null);
+  const [proposingAlternative, setProposingAlternative] = useState(false);
+  const [alternativeText, setAlternativeText] = useState('');
+  const [confirmVisitLoading, setConfirmVisitLoading] = useState(false);
+  const [viewAddressOrderId, setViewAddressOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -259,7 +273,40 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {order.status === 'ACCEPTED' && (
+                          {order.coordinationStatus === 'AWAITING_CONFIRMATION' && (
+                            <button
+                              onClick={() => {
+                                setConfirmVisitOrderId(order.id);
+                                setProposingAlternative(false);
+                                setAlternativeText('');
+                              }}
+                              disabled={confirmVisitLoading}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors disabled:opacity-50"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                <line x1="16" y1="2" x2="16" y2="6" />
+                                <line x1="8" y1="2" x2="8" y2="6" />
+                                <line x1="3" y1="10" x2="21" y2="10" />
+                              </svg>
+                              Confirmar visita
+                            </button>
+                          )}
+                          {order.coordinationStatus === 'SCHEDULED' && (
+                            <button
+                              onClick={() => setViewAddressOrderId(order.id)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#0B6E4F] text-[#0B6E4F] hover:bg-[#0B6E4F]/5 transition-colors"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                              Ver detalle
+                            </button>
+                          )}
+                          {order.status === 'ACCEPTED' && order.coordinationStatus !== 'AWAITING_CONFIRMATION' && (
                             <button
                               onClick={() => setFinishOrderId(order.id)}
                               disabled={finishLoading}
@@ -404,6 +451,215 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
           </div>
         </div>
       )}
+
+      {confirmVisitOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="rounded-xl bg-white shadow-lg max-w-sm w-full mx-4 overflow-hidden">
+            <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+              <h2
+                className="text-base font-semibold text-[#111827]"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                Confirmar visita
+              </h2>
+              <button
+                onClick={() => {
+                  setConfirmVisitOrderId(null);
+                  setProposingAlternative(false);
+                }}
+                disabled={confirmVisitLoading}
+                className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {(() => {
+                const order = orders.find((o) => o.id === confirmVisitOrderId);
+                const availability = order?.clientAddress || 'No especificada';
+                return (
+                  <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB]">
+                    <p className="text-xs text-[#6B7280] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Disponibilidad del usuario
+                    </p>
+                    <p className="text-sm text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+                      {availability}
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {!proposingAlternative ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={async () => {
+                      const order = orders.find((o) => o.id === confirmVisitOrderId);
+                      const availability = order?.clientAddress || '';
+                      if (!availability) return;
+                      setConfirmVisitLoading(true);
+                      try {
+                        await confirmVisitRequest(confirmVisitOrderId!, availability);
+                        setConfirmVisitOrderId(null);
+                        setProposingAlternative(false);
+                        await loadOrders();
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'Error al confirmar visita');
+                      } finally {
+                        setConfirmVisitLoading(false);
+                      }
+                    }}
+                    disabled={confirmVisitLoading}
+                    className="w-full px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] disabled:opacity-50 transition-colors"
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    Confirmo ese horario
+                  </button>
+                  <button
+                    onClick={() => setProposingAlternative(true)}
+                    disabled={confirmVisitLoading}
+                    className="w-full px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors"
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    Proponer otro horario
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                      ¿Qué horario proponés?
+                    </label>
+                    <input
+                      type="text"
+                      value={alternativeText}
+                      onChange={(e) => setAlternativeText(e.target.value)}
+                      placeholder="Ej: jueves a las 15hs"
+                      className="w-full px-3 py-2 rounded-lg border border-[#E5E7EB] text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0B6E4F] focus:border-transparent"
+                      style={{ fontFamily: 'DM Sans' }}
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setProposingAlternative(false);
+                        setAlternativeText('');
+                      }}
+                      disabled={confirmVisitLoading}
+                      className="flex-1 px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors"
+                      style={{ fontFamily: 'DM Sans' }}
+                    >
+                      Volver
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!confirmVisitOrderId || !alternativeText.trim()) return;
+                        setConfirmVisitLoading(true);
+                        try {
+                          await confirmVisitRequest(confirmVisitOrderId, alternativeText.trim());
+                          setConfirmVisitOrderId(null);
+                          setProposingAlternative(false);
+                          setAlternativeText('');
+                          await loadOrders();
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Error al confirmar visita');
+                        } finally {
+                          setConfirmVisitLoading(false);
+                        }
+                      }}
+                      disabled={confirmVisitLoading || !alternativeText.trim()}
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] disabled:opacity-50 transition-colors"
+                      style={{ fontFamily: 'DM Sans' }}
+                    >
+                      {confirmVisitLoading ? 'Enviando...' : 'Enviar propuesta'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewAddressOrderId && (() => {
+        const order = orders.find((o) => o.id === viewAddressOrderId);
+        const address = order?.clientAddress || 'No especificada';
+        const lat = order?.clientLatitude;
+        const lng = order?.clientLongitude;
+        const mapsUrl = lat != null && lng != null
+          ? `https://maps.google.com/?q=${lat},${lng}`
+          : null;
+        const scheduledAt = order?.scheduledAt ? new Date(order.scheduledAt) : null;
+        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const scheduleText = scheduledAt
+          ? `${dayNames[scheduledAt.getDay()]} ${scheduledAt.getHours().toString().padStart(2, '0')}:${scheduledAt.getMinutes().toString().padStart(2, '0')}`
+          : null;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+            <div className="rounded-xl bg-white shadow-lg max-w-sm w-full mx-4 overflow-hidden">
+              <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+                <h2
+                  className="text-base font-semibold text-[#111827]"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  Detalle de la visita
+                </h2>
+                <button
+                  onClick={() => setViewAddressOrderId(null)}
+                  className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB] space-y-2">
+                  <DetailRow label="Cliente" value={order?.userName || '—'} />
+                  <DetailRow label="Teléfono" value={order?.userPhone || '—'} />
+                  <DetailRow label="Pedido" value={order?.description || '—'} />
+                  <DetailRow label="Rubro" value={order?.category?.name || '—'} />
+                  <DetailRow label="Zona" value={order?.geoNode?.name || '—'} />
+                  {scheduleText && <DetailRow label="Día y hora" value={scheduleText} />}
+                </div>
+                <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB] space-y-2">
+                  <DetailRow label="Dirección" value={address} />
+                </div>
+                {mapsUrl ? (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] transition-colors"
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    Abrir en Google Maps
+                  </a>
+                ) : (
+                  <p className="text-xs text-[#9CA3AF] text-center" style={{ fontFamily: 'DM Sans' }}>
+                    El usuario no compartió su ubicación
+                  </p>
+                )}
+                <button
+                  onClick={() => setViewAddressOrderId(null)}
+                  className="w-full px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {ratingOrderId && (
         <RateUserModal

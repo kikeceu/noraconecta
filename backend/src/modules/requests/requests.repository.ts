@@ -35,6 +35,7 @@ export class RequestsRepository {
         events: true,
         feedback: true,
         assignedProfessional: { select: { name: true, phone: true } },
+        category: { select: { name: true } },
       },
     });
   }
@@ -205,6 +206,38 @@ export class RequestsRepository {
       where: {
         status: 'PENDING_CONFIRMATION',
         updatedAt: { lt: cutoff },
+      },
+    });
+  }
+
+  async findScheduledVisitsForReminder(
+    windowStart: Date,
+    windowEnd: Date,
+  ): Promise<Request[]> {
+    return prisma.request.findMany({
+      where: {
+        coordinationStatus: 'SCHEDULED',
+        scheduledAt: {
+          gte: windowStart,
+          lt: windowEnd,
+        },
+      },
+      include: {
+        user: { select: { name: true, phone: true } },
+        assignedProfessional: { select: { name: true, phone: true } },
+      },
+    });
+  }
+
+  async findByIdWithCoordination(id: string) {
+    return prisma.request.findUnique({
+      where: { id },
+      include: {
+        events: true,
+        feedback: true,
+        assignedProfessional: { select: { name: true, phone: true } },
+        user: { select: { name: true, phone: true } },
+        category: { select: { name: true } },
       },
     });
   }

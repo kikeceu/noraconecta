@@ -1,6 +1,6 @@
 import { BotRepository } from './bot.repository';
 import { resolveFlowHandler, getFlowHandlerByName } from './flows/flow-handler.factory';
-import { FlowContext, BotResponse } from './flows/types';
+import { FlowContext, BotResponse, LocationData } from './flows/types';
 import { UsersService } from '../users/users.service';
 import { Prisma } from '@prisma/client';
 
@@ -9,7 +9,17 @@ export type ProcessMessageInput = {
   text?: string;
   imageUrls?: string[];
   audioUrl?: string;
+  location?: LocationData;
   role?: 'USER' | 'PROFESSIONAL';
+};
+
+export type PendingNotification = {
+  targetPhone: string;
+  targetRole: 'USER' | 'PROFESSIONAL';
+  message: string;
+  flow: string | null;
+  step: string | null;
+  tempData: Record<string, unknown>;
 };
 
 export class BotService {
@@ -18,7 +28,9 @@ export class BotService {
     private readonly usersService: UsersService,
   ) {}
 
-  async processMessage(input: ProcessMessageInput): Promise<BotResponse & { flow?: string; step?: string }> {
+  async processMessage(
+    input: ProcessMessageInput,
+  ): Promise<BotResponse & { flow?: string; step?: string }> {
     const user = await this.usersService.findOrCreateByPhone(input.phone);
 
     let session = await this.botRepository.findByPhone(input.phone);
@@ -57,6 +69,20 @@ export class BotService {
       }
     }
 
+    const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+
+    const hasPendingMessage = !!sessionTempData.pendingMessage;
+    if (hasPendingMessage) {
+      const { ['pendingMessage']: _, ...cleanTempData } = sessionTempData as Record<string, unknown>;
+
+      session = await this.botRepository.upsert(input.phone, {
+        role,
+        currentFlow: session.currentFlow,
+        currentStep: session.currentStep,
+        tempData: cleanTempData as Prisma.InputJsonValue,
+      });
+    }
+
     if (!session.currentFlow) {
       const handler = resolveFlowHandler(role);
       session.currentFlow = handler.flowName;
@@ -84,12 +110,22 @@ export class BotService {
         text: input.text,
         imageUrls,
         audioUrl,
+        location: input.location,
       },
     };
 
     const result = await flowHandler.handleStep(step, context);
 
-    const finalTempData = (result.tempData as Record<string, unknown>) || {};
+    const resultTempData = (result.tempData as Record<string, unknown>) || {};
+    const pendingNotification = resultTempData.pendingNotification as PendingNotification | undefined;
+
+    const finalTempData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(resultTempData)) {
+      if (key !== 'pendingNotification') {
+        finalTempData[key] = value;
+      }
+    }
+
     if (!finalTempData.userId) finalTempData.userId = user.id;
     if (!finalTempData.name) finalTempData.name = user.name;
     if (!finalTempData.phone) finalTempData.phone = user.phone;
@@ -100,6 +136,21 @@ export class BotService {
       currentStep: result.nextStep || undefined,
       tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
     });
+
+    if (pendingNotification) {
+      const targetTempData: Record<string, unknown> = {
+        ...pendingNotification.tempData,
+        pendingMessage: pendingNotification.message,
+        userId: pendingNotification.tempData.userId,
+      };
+
+      await this.botRepository.upsert(pendingNotification.targetPhone, {
+        role: pendingNotification.targetRole,
+        currentFlow: pendingNotification.flow,
+        currentStep: pendingNotification.step,
+        tempData: targetTempData as Prisma.InputJsonValue,
+      });
+    }
 
     return {
       text: result.response.text,

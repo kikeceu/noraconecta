@@ -22,6 +22,8 @@ import botRoutes from './modules/bot/bot.routes';
 import { RequestsService } from './modules/requests/requests.service';
 import { RequestsRepository } from './modules/requests/requests.repository';
 import { UsersRepository } from './modules/users/users.repository';
+import { CoordinationService } from './modules/bot/coordination.service';
+import { BotRepository } from './modules/bot/bot.repository';
 
 const app = express();
 
@@ -57,6 +59,13 @@ const requestsService = new RequestsService(requestsRepository, usersRepository)
 
 cron.schedule('0 * * * *', () => {
   void requestsService.autoClosePendingConfirmations();
+});
+
+// Cron job: send visit reminders 24h before scheduledAt (runs every hour)
+const coordinationService = new CoordinationService(new BotRepository());
+
+cron.schedule('0 * * * *', () => {
+  void coordinationService.sendReminders();
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;

@@ -53,8 +53,21 @@ function validateRating(value: string): number | null {
 }
 
 function getStatusMessage(data: RequestData): string | null {
-  if (data.status === 'ACCEPTED' && data.assignedProfessional?.name) {
-    return `✅ ¡${data.assignedProfessional.name} aceptó tu pedido! Podés contactarlo al ${data.assignedProfessional.phone}. Cualquier consulta podés escribirle directamente.`;
+  if (data.coordinationStatus === 'AWAITING_LOCATION') {
+    const name = data.assignedProfessional?.name || 'El profesional';
+    return `${name} ya confirmó el horario. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación.`;
+  }
+  if (data.coordinationStatus === 'SCHEDULED' && data.scheduledAt && data.assignedProfessional?.name) {
+    const d = new Date(data.scheduledAt);
+    const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    const dayName = dayNames[d.getDay()];
+    const hours = d.getHours().toString().padStart(2, '0');
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    return `¡Todo listo! ${data.assignedProfessional.name} ya tiene tus datos. La visita quedó coordinada para el ${dayName} a las ${hours}:${minutes}.`;
+  }
+  if (data.status === 'ACCEPTED' && data.coordinationStatus === 'AWAITING_AVAILABILITY' && data.assignedProfessional?.name) {
+    const categoryName = data.category?.name || 'el servicio';
+    return `¡Buenas noticias! ${data.assignedProfessional.name} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita?`;
   }
   if (data.status === 'PENDING_CONFIRMATION' && data.assignedProfessional?.name) {
     const name = data.assignedProfessional.name;
@@ -72,6 +85,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const messageIdRef = useRef(0);
   const pollIntervalRef = useRef<number | null>(null);
   const lastStatusRef = useRef<string | null>(null);
+  const lastCoordinationRef = useRef<string | null>(null);
   const ratingRef = useRef<RatingState | null>(null);
   const confirmationRef = useRef<ConfirmationState | null>(null);
 
@@ -116,14 +130,21 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     (requestId: string) => {
       stopPolling();
       lastStatusRef.current = null;
+      lastCoordinationRef.current = null;
 
       const poll = async () => {
         try {
           const data = await getRequest(requestId);
           const newStatus = data.status;
+          const newCoordination = data.coordinationStatus || null;
 
-          if (newStatus !== lastStatusRef.current) {
+          const statusChanged = newStatus !== lastStatusRef.current;
+          const coordinationChanged = newCoordination !== lastCoordinationRef.current;
+
+          if (statusChanged || coordinationChanged) {
             lastStatusRef.current = newStatus;
+            lastCoordinationRef.current = newCoordination;
+
             const statusMessage = getStatusMessage(data);
 
             if (statusMessage) {

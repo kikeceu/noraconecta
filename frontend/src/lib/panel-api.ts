@@ -88,12 +88,45 @@ export async function rateUser(
 }
 
 export async function finishRequest(requestId: string): Promise<void> {
-  const res = await fetch(`/api/requests/${encodeURIComponent(requestId)}/finish`, {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/finish`, {
     method: 'POST',
   });
 
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Failed to finish request`);
+    const err = await res.json().catch(() => ({ error: 'Failed to finish request' }));
+    throw new Error(err.error || 'Failed to finish request');
+  }
+}
+
+export async function sendBotMessage(
+  phone: string,
+  text: string,
+  role: 'USER' | 'PROFESSIONAL',
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/bot/message`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone, text, role }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to send message' }));
+    throw new Error(err.error || 'Failed to send message');
+  }
+}
+
+export async function confirmVisitRequest(
+  requestId: string,
+  scheduleText: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/confirm-visit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scheduleText }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to confirm visit' }));
+    throw new Error(err.error || 'Failed to confirm visit');
   }
 }

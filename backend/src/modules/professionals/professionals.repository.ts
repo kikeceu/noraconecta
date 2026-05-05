@@ -195,6 +195,7 @@ export class ProfessionalsRepository {
         include: {
           category: true,
           geoNode: true,
+          user: { select: { name: true, phone: true } },
           feedback: {
             select: { ratedByProfessionalAt: true, ratedByUserAt: true },
           },

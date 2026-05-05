@@ -1,10 +1,16 @@
 import { BotSession } from '@prisma/client';
 
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+}
+
 export interface IncomingMessage {
   phone: string;
   text?: string;
   imageUrls?: string[];
   audioUrl?: string;
+  location?: LocationData;
 }
 
 export interface BotResponse {
