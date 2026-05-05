@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Plan" ADD COLUMN     "priority" INTEGER NOT NULL DEFAULT 1;
