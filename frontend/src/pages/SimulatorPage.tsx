@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ChatHeader } from '../components/chat/ChatHeader';
 import { MessageList } from '../components/chat/MessageList';
 import { ChatInput } from '../components/chat/ChatInput';
@@ -15,12 +15,27 @@ export function SimulatorPage() {
     isLoading,
     session,
     send,
+    sendLocation,
     changePhone,
     changeRole,
     reset,
   } = useChat(phone, role);
 
   const hasMessages = messages.length > 0;
+
+  const showLocationButton = useMemo(() => {
+    const lastNoraMsg = [...messages].reverse().find((m) => m.sender === 'nora');
+    if (!lastNoraMsg) return false;
+    const text = lastNoraMsg.text.toLowerCase();
+    return (
+      text.includes('ubicación') ||
+      text.includes('ubicacion') ||
+      text.includes('compartí') ||
+      text.includes('comparti') ||
+      text.includes('pin') ||
+      text.includes('whatsapp')
+    );
+  }, [messages]);
 
   const handlePhoneChange = (newPhone: string) => {
     setPhone(newPhone);
@@ -65,7 +80,12 @@ export function SimulatorPage() {
         </div>
       )}
 
-      <ChatInput onSend={send} disabled={isLoading} />
+      <ChatInput
+        onSend={send}
+        onSendLocation={sendLocation}
+        showLocationButton={showLocationButton}
+        disabled={isLoading}
+      />
     </div>
   );
 }

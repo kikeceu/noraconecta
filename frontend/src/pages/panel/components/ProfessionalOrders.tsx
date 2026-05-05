@@ -293,6 +293,18 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                               Confirmar visita
                             </button>
                           )}
+                          {order.coordinationStatus === 'AWAITING_LOCATION' && (
+                            <span
+                              className="inline-flex items-center gap-1 text-xs text-[#2563EB]"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                              </svg>
+                              Esperando ubicación
+                            </span>
+                          )}
                           {order.coordinationStatus === 'SCHEDULED' && (
                             <button
                               onClick={() => setViewAddressOrderId(order.id)}
@@ -306,7 +318,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                               Ver detalle
                             </button>
                           )}
-                          {order.status === 'ACCEPTED' && order.coordinationStatus !== 'AWAITING_CONFIRMATION' && (
+                          {order.status === 'ACCEPTED' && order.coordinationStatus !== 'AWAITING_CONFIRMATION' && order.coordinationStatus !== 'AWAITING_LOCATION' && (
                             <button
                               onClick={() => setFinishOrderId(order.id)}
                               disabled={finishLoading}
@@ -502,9 +514,9 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                       setConfirmVisitLoading(true);
                       try {
                         await confirmVisitRequest(confirmVisitOrderId!, availability);
-                        setConfirmVisitOrderId(null);
                         setProposingAlternative(false);
                         await loadOrders();
+                        setConfirmVisitOrderId(null);
                       } catch (err) {
                         setError(err instanceof Error ? err.message : 'Error al confirmar visita');
                       } finally {
@@ -559,10 +571,10 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                         setConfirmVisitLoading(true);
                         try {
                           await confirmVisitRequest(confirmVisitOrderId, alternativeText.trim());
-                          setConfirmVisitOrderId(null);
                           setProposingAlternative(false);
                           setAlternativeText('');
                           await loadOrders();
+                          setConfirmVisitOrderId(null);
                         } catch (err) {
                           setError(err instanceof Error ? err.message : 'Error al confirmar visita');
                         } finally {

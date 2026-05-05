@@ -3,6 +3,8 @@ import { presignUpload, uploadToR2 } from '../../lib/api';
 
 interface ChatInputProps {
   readonly onSend: (text: string, imageUrls?: string[], audioUrl?: string) => void;
+  readonly onSendLocation: () => void;
+  readonly showLocationButton: boolean;
   readonly disabled: boolean;
 }
 
@@ -12,7 +14,7 @@ interface UploadingImage {
   previewUrl: string;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onSendLocation, showLocationButton, disabled }: ChatInputProps) {
   const [text, setText] = useState('');
   const [images, setImages] = useState<UploadingImage[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -285,6 +287,21 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
               </svg>
             )}
           </button>
+
+          {showLocationButton && (
+            <button
+              type="button"
+              disabled={disabled || isUploading}
+              onClick={() => onSendLocation()}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-iron transition-colors hover:bg-hover hover:text-emerald disabled:opacity-40"
+              title="Compartir ubicacion (simulada)"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
             <input

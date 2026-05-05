@@ -607,6 +607,7 @@ POST /bot/message
   - `NO_RESPONSE` → "No encontramos profesionales disponibles..."
   - `CANCELLED` → "El pedido fue cancelado."
   - El teléfono del profesional NUNCA se muestra al usuario en el simulador
+  - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
 ### Config (actualizado)
@@ -1189,20 +1190,23 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía `pendingMessage` a usuario y profesional vía `BotSession`. El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
-- **Coordinación de visita (AUT-151):**
+- **Coordinación de visita (AUT-151, AUT-152):**
   - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsController` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot
   - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
   - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
   - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAddress` y notifica al profesional
-  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `scheduledAt` se guarda, NORA pide ubicación al usuario
+  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `scheduledAt` se guarda, `coordinationStatus = AWAITING_LOCATION`, NORA pide ubicación al usuario
   - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
   - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante
   - Al completar ambos → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con todos los datos
-  - El profesional ve en su panel: botón "Confirmar visita" (cuando AWAITING_CONFIRMATION) y botón "Ver detalle" (cuando SCHEDULED, muestra dirección y link Google Maps)
+  - El profesional ve en su panel: botón "Confirmar visita" (cuando AWAITING_CONFIRMATION), indicador "Esperando ubicación" (cuando AWAITING_LOCATION, no permite marcar finalizado) y botón "Ver detalle" (cuando SCHEDULED, muestra dirección y link Google Maps)
+  - El simulador web incluye un botón "📍 Compartir ubicación (simulada)" que envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) cuando NORA pide compartir ubicación desde WhatsApp — exclusivo para testing en desarrollo
   - El usuario NUNCA recibe el teléfono del profesional en ningún momento
   - El profesional SÍ recibe el teléfono del usuario en el modal "Ver detalle" del panel
   - Cron job `sendVisitReminders()` busca pedidos SCHEDULED con `scheduledAt` dentro de 23-24h y envía recordatorio a ambas partes vía `pendingMessage` en BotSession
   - El coordination flow y el coordination service están aislados del módulo de requests — `RequestsService.create()` no importa dependencias de coordinación
+  - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
+  - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos
