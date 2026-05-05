@@ -612,6 +612,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
 **Scoring** (calculado en tiempo real, no almacenado): Cumplimiento (50%) + TasaRespuesta (30%) + Recomendación (10%) + Distribución (10%). Parámetros configurables vía `SystemConfig` con defaults.
 
+**Desempate por plan**: Cuando dos profesionales tienen score similar (diferencia < 5 puntos), el de mayor `plan.priority` gana la posición. Premium (3) > Profesional (2) > Básico (1). Si no tiene membresía activa, se trata como priority=1.
+
 ### Requests
 
 | Endpoint                               | Método | Descripción                                    | Auth      |

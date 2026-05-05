@@ -89,7 +89,19 @@ export class MatchingService {
       return null;
     }
 
-    scored.sort((a, b) => b.score - a.score);
+    const planPriorities = await this.matchingRepository.getPlanPriorities(
+      scored.map((s) => s.professionalId),
+    );
+
+    scored.sort((a, b) => {
+      const scoreDiff = b.score - a.score;
+      if (Math.abs(scoreDiff) < 5) {
+        const aPriority = planPriorities.get(a.professionalId) ?? 1;
+        const bPriority = planPriorities.get(b.professionalId) ?? 1;
+        return bPriority - aPriority;
+      }
+      return scoreDiff;
+    });
 
     return scored[0];
   }

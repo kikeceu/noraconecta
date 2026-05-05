@@ -160,6 +160,33 @@ export class MatchingRepository {
     return map;
   }
 
+  async getPlanPriorities(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const memberships = await prisma.membership.findMany({
+      where: {
+        professionalId: { in: professionalIds },
+        status: 'ACTIVE',
+        endDate: { gt: new Date() },
+      },
+      select: {
+        professionalId: true,
+        plan: {
+          select: { priority: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const map = new Map<string, number>();
+    for (const m of memberships) {
+      if (!map.has(m.professionalId)) {
+        map.set(m.professionalId, m.plan.priority);
+      }
+    }
+    return map;
+  }
+
   async getTrialRequestsUsed(
     professionalIds: string[],
   ): Promise<Map<string, number>> {
