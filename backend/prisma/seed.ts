@@ -133,32 +133,55 @@ async function seedSystemConfig(): Promise<void> {
 }
 
 async function seedPlans(): Promise<void> {
-  const monthlyPrice = process.env.PLAN_MONTHLY_PRICE;
-  const annualDiscountPct = process.env.PLAN_ANNUAL_DISCOUNT_PCT;
+  const plans = [
+    { name: 'Básico', monthlyPrice: 9000, annualDiscountPct: 10, priority: 1 },
+    { name: 'Profesional', monthlyPrice: 20000, annualDiscountPct: 15, priority: 2 },
+    { name: 'Premium', monthlyPrice: 40000, annualDiscountPct: 20, priority: 3 },
+  ];
 
-  if (!monthlyPrice || !annualDiscountPct) {
-    // eslint-disable-next-line no-console
-    console.log('PLAN_MONTHLY_PRICE and PLAN_ANNUAL_DISCOUNT_PCT not set. Skipping plan seed.');
-    return;
-  }
-
-  const planName = 'Profesional NORA';
-
-  await prisma.plan.upsert({
-    where: { name: planName },
-    update: {
-      monthlyPrice: parseFloat(monthlyPrice),
-      annualDiscountPct: parseFloat(annualDiscountPct),
-    },
-    create: {
-      name: planName,
-      monthlyPrice: parseFloat(monthlyPrice),
-      annualDiscountPct: parseFloat(annualDiscountPct),
-    },
+  const legacyProfessional = await prisma.plan.findUnique({
+    where: { name: 'Profesional NORA' },
   });
 
-  // eslint-disable-next-line no-console
-  console.log(`Plan "${planName}" seeded successfully.`);
+  if (legacyProfessional) {
+    const existingProfessional = await prisma.plan.findUnique({
+      where: { name: 'Profesional' },
+    });
+
+    if (existingProfessional) {
+      await prisma.plan.delete({ where: { id: legacyProfessional.id } });
+      // eslint-disable-next-line no-console
+      console.log('Legacy plan "Profesional NORA" removed (duplicate of "Profesional").');
+    } else {
+      await prisma.plan.update({
+        where: { id: legacyProfessional.id },
+        data: { name: 'Profesional' },
+      });
+      // eslint-disable-next-line no-console
+      console.log('Legacy plan "Profesional NORA" renamed to "Profesional".');
+    }
+  }
+
+  for (const plan of plans) {
+    await prisma.plan.upsert({
+      where: { name: plan.name },
+      update: {
+        monthlyPrice: plan.monthlyPrice,
+        annualDiscountPct: plan.annualDiscountPct,
+        priority: plan.priority,
+        isActive: true,
+      },
+      create: {
+        name: plan.name,
+        monthlyPrice: plan.monthlyPrice,
+        annualDiscountPct: plan.annualDiscountPct,
+        priority: plan.priority,
+      },
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`Plan "${plan.name}" seeded successfully.`);
+  }
 }
 
 async function seedCategories(): Promise<void> {
