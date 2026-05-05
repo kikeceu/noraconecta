@@ -1057,8 +1057,6 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `PUBLIC_URL`       | No (http://localhost:3000) | URL pública para links de verificación   |
 | `SEED_ADMIN_EMAIL` | No        | Email del superadmin inicial (seed)      |
 | `SEED_ADMIN_PASSWORD`| No      | Password del superadmin inicial (seed)   |
-| `PLAN_MONTHLY_PRICE`| No      | Precio mensual del plan (seed)           |
-| `PLAN_ANNUAL_DISCOUNT_PCT`| No | % descuento plan anual (seed)           |
 | `R2_ACCOUNT_ID`     | Sí        | Cloudflare R2 account ID                |
 | `R2_ACCESS_KEY_ID`  | Sí        | Cloudflare R2 access key ID             |
 | `R2_SECRET_ACCESS_KEY`| Sí      | Cloudflare R2 secret access key         |
@@ -1075,7 +1073,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Solo usuarios con rol `SUPERADMIN` pueden acceder a rutas protegidas con `requireSuperAdmin`
 - Errores de autenticación retornan 401 (credenciales inválidas o token inválido/expirado)
 - Errores de autorización retornan 403 (rol insuficiente)
-- El seed solo crea el superadmin y la jerarquía geográfica si no existen previamente
+- El seed crea/actualiza superadmin, jerarquía geográfica, configuración del sistema, planes y categorías si no existen previamente
 - Jerarquía geográfica:
   - Países son nodos raíz (`parentId = null`, `levelId = null`)
   - Cada país define N niveles con nombres configurables (GeoLevel)
@@ -1110,6 +1108,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `getActiveCandidates(categoryId, geoNodeId)`: retorna profesionales ACTIVE con zona y rubro coincidentes, con trialRequestsUsed < 5 y `canReceiveRequests() = true`
   - En MVP: un solo rubro por profesional
 - Planes:
+  - Tres planes: Básico ($9.000/mes, prioridad 1), Profesional ($20.000/mes, prioridad 2), Premium ($40.000/mes, prioridad 3)
   - `monthlyPrice` debe ser un número no negativo
   - `annualDiscountPct` debe estar entre 0 y 100
   - No se permite crear planes con nombre duplicado → 409
