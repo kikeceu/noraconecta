@@ -925,6 +925,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | name             | String   | Único, nombre del plan               |
 | monthlyPrice     | Float    | Precio mensual                       |
 | annualDiscountPct| Float    | % descuento plan anual               |
+| priority         | Int      | Prioridad del plan (1=Básico, 2=Profesional, 3=Premium, default: 1) |
 | isActive         | Boolean  | Plan activo (default: true)          |
 | createdAt        | DateTime | Autogenerado                         |
 | updatedAt        | DateTime | Autogenerado (on update)             |

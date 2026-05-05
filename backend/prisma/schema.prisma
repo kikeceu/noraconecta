@@ -189,6 +189,7 @@ model Plan {
   name              String  @unique
   monthlyPrice      Float
   annualDiscountPct Float
+  priority          Int     @default(1)
   isActive          Boolean @default(true)
 
   memberships Membership[]
