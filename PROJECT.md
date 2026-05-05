@@ -972,6 +972,11 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | acceptedAt            | DateTime? | Timestamp de aceptación                      |
 | completedAt           | DateTime? | Timestamp de finalización                    |
 | assignmentTimeoutAt   | DateTime? | Timeout de respuesta del profesional         |
+| scheduledAt           | DateTime? | Fecha y hora confirmada de la visita         |
+| clientAddress         | String?   | Dirección exacta ingresada por el usuario    |
+| clientLatitude        | Float?    | Latitud del pin de WhatsApp                  |
+| clientLongitude       | Float?    | Longitud del pin de WhatsApp                 |
+| coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| SCHEDULED |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
