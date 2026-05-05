@@ -56,6 +56,10 @@ router.post('/:id/rate-user', (req, res, next) => {
   void requestsController.rateUser(req, res, next);
 });
 
+router.post('/:id/confirm-visit', (req, res, next) => {
+  void requestsController.confirmVisit(req, res, next);
+});
+
 router.get('/', requireAuth, (req, res, next) => {
   void requestsController.list(req, res, next);
 });

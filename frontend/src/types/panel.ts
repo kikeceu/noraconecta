@@ -69,10 +69,18 @@ export interface PanelOrder {
   id: string;
   createdAt: string;
   status: OrderStatus;
+  description?: string | null;
+  userName?: string | null;
+  userPhone?: string | null;
   category: { id: string; name: string } | null;
   geoNode: { id: string; name: string } | null;
   ratedByProfessional: boolean;
   ratedByUser: boolean;
+  coordinationStatus?: string | null;
+  clientAddress?: string | null;
+  clientLatitude?: number | null;
+  clientLongitude?: number | null;
+  scheduledAt?: string | null;
 }
 
 export type OrderStatus =

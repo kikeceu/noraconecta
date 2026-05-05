@@ -385,12 +385,20 @@ export class ProfessionalsService {
         id: order.id,
         createdAt: order.createdAt,
         status: order.status,
+        description: order.description,
+        userName: order.user?.name || null,
+        userPhone: order.user?.phone || null,
         category: order.category ? { id: order.category.id, name: order.category.name } : null,
         geoNode: order.geoNode ? { id: order.geoNode.id, name: order.geoNode.name } : null,
         ratedByProfessional: order.feedback?.ratedByProfessionalAt !== null
           && order.feedback?.ratedByProfessionalAt !== undefined,
         ratedByUser: order.feedback?.ratedByUserAt !== null
           && order.feedback?.ratedByUserAt !== undefined,
+        coordinationStatus: order.coordinationStatus,
+        clientAddress: order.clientAddress,
+        clientLatitude: order.clientLatitude,
+        clientLongitude: order.clientLongitude,
+        scheduledAt: order.scheduledAt,
       })),
       pagination: {
         page: validPage,

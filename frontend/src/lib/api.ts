@@ -80,6 +80,18 @@ export interface RequestData {
     name: string;
     phone: string;
   } | null;
+  category?: {
+    name: string;
+  } | null;
+  coordinationStatus?: string | null;
+  scheduledAt?: string | null;
+  clientAddress?: string | null;
+  coordination?: {
+    status: string;
+    scheduledAt?: string | null;
+    clientAddress?: string | null;
+    hasLocation: boolean;
+  } | null;
 }
 
 export async function getRequest(id: string): Promise<RequestData> {

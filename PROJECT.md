@@ -100,13 +100,15 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
+│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
+│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
@@ -531,7 +533,7 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
 
 ### Bot
 
-Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web o WhatsApp). Recibe mensajes de texto, imagen y audio con un `phone` y un `role`, y retorna la respuesta que debe enviarse. El estado persiste en `BotSession`.
+Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web o WhatsApp). Recibe mensajes de texto, imagen, audio y ubicación con un `phone` y un `role`, y retorna la respuesta que debe enviarse. El estado persiste en `BotSession`.
 
 | Endpoint               | Método | Descripción                                          | Auth      |
 |-----------------------|--------|------------------------------------------------------|-----------|
@@ -544,19 +546,28 @@ POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
     → UsersService.findOrCreateByPhone(phone)  // garantiza User en DB
-    → BotRepository.findOrCreate(phone)
+    → BotRepository.findByPhone(phone)
+    → detectar pendingMessage (notificación proactiva de coordinación)
     → determinar rol (USER / PROFESSIONAL)
     → despachar al FlowHandler correspondiente
     → FlowHandler ejecuta el paso actual
+    → procesar pendingNotification (notificar al otro participante)
     → actualiza sesión
-    → retorna { text, mediaUrls?, options?, flow?, step? }
+    → retorna { text, mediaUrls?, options?, flow?, step?, requestId? }
 ```
 
-**Lógica de negocio:**
-- Cada mensaje entrante dispara `UsersService.findOrCreateByPhone(phone)`: si el usuario no existe se crea con `name = phone`, si existe se recupera. La identidad (`userId`, `name`, `phone`) se almacena en `BotSession.tempData` y se propaga a cada paso del flujo.
-- El paso INIT del flujo `USER_REQUEST` usa `tempData` para identificar al usuario en vez de consultar la DB por teléfono. Si el `name` coincide con el `phone` (usuario nuevo), pide el nombre y transiciona a ASK_NAME. Si ya tiene nombre real, saluda directamente.
-- El paso ASK_NAME guarda el nombre provisto en `User.name` vía `prisma.user.update` y también en `tempData`, luego transiciona a ASK_SERVICE.
-- El paso CONFIRM, al recibir "si", llama a `RequestsService.create()` con los datos acumulados en `tempData` (`phone`, `categoryId`, `geoNodeId`, `description`, `photoUrls`, `audioUrl`), lo que persiste el pedido en DB, ejecuta el matching y asigna profesional si hay candidato. Si `create` falla, devuelve el error al usuario. El `requestId` generado se retorna en la respuesta del bot para que el simulador inicie el polling de estado.
+**Mensajería proactiva (pending notification):**
+- `BotSession.tempData` puede contener `pendingMessage`: un mensaje que NORA necesita entregar proactivamente
+- Cuando el usuario envía cualquier mensaje, si hay `pendingMessage`, se entrega primero y se limpia
+- Los flujos de coordinación generan `pendingNotification` en `tempData` para notificar al otro participante:
+  ```ts
+  { targetPhone, targetRole, message, flow, step, tempData }
+  ```
+- `BotService` procesa la notificación: crea/actualiza la sesión del destinatario con el `pendingMessage`
+
+**Soporte de ubicación (WhatsApp location):**
+- `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body
+- Si el proveedor no soporta reenvío de mensajes `location`, se genera un link de Google Maps: `https://maps.google.com/?q={lat},{lng}`
 
 **Flujos implementados:**
 
@@ -564,6 +575,7 @@ POST /bot/message
 |------------------------|-------------------------------------------------------------------------|
 | `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
+| `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED |
 
 **Lógica de flujo PROFESSIONAL_REGISTER:**
 - `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó.
@@ -586,7 +598,16 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat (ASSIGNED, ACCEPTED, CANCELLED, NO_RESPONSE, PENDING_CONFIRMATION). Al estado ACCEPTED, incluye el nombre y teléfono del profesional para contacto directo y el polling continúa (ACCEPTED no es terminal). Al estado PENDING_CONFIRMATION, muestra opciones "conforme" / "con observaciones" / "no conforme" y ejecuta el endpoint correspondiente. Si queda COMPLETED, dispara el flujo de calificación (AUT-142). Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE).
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat. Detecta tanto cambios de `status` como de `coordinationStatus`:
+  - `ASSIGNED` → "Encontramos un profesional..."
+  - `ACCEPTED` + `coordinationStatus = AWAITING_AVAILABILITY` → "¡Buenas noticias! {nombre} aceptó tu pedido..."
+  - `coordinationStatus = AWAITING_LOCATION` → "{nombre} ya confirmó el horario. Respondé con tu dirección..."
+  - `coordinationStatus = SCHEDULED` → "¡Todo listo! La visita quedó coordinada..."
+  - `PENDING_CONFIRMATION` → opciones "conforme" / "con observaciones" / "no conforme"
+  - `NO_RESPONSE` → "No encontramos profesionales disponibles..."
+  - `CANCELLED` → "El pedido fue cancelado."
+  - El teléfono del profesional NUNCA se muestra al usuario en el simulador
+  - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
 ### Config (actualizado)
 
@@ -631,13 +652,15 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
 | `/requests/:id/rate-user`             | POST   | Profesional califica al usuario (4 ejes)       | Sin auth  |
+| `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel) | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
-| `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback y profesional asignado (incluye teléfono cuando está ACCEPTED) | Sin auth (polling simulador) |
+| `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback, profesional asignado (incluye teléfono cuando está ACCEPTED) y datos de coordinación | Sin auth (polling simulador) |
 
 **GET /requests/:id (polling simulador):** El endpoint incluye datos relacionados para el polling de estado:
 - `assignedProfessional` → `{ name, phone }` del profesional (phone incluido para mostrar datos de contacto al usuario cuando el pedido es ACCEPTED)
 - `events` → historial de eventos
 - `feedback` → feedback del usuario
+- `coordination` → (solo si `coordinationStatus !== 'SCHEDULED'`) `{ status, scheduledAt, clientAddress, hasLocation }` para que el frontend muestre el estado de coordinación
 
 **GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
 - `user` → nombre del cliente
@@ -695,7 +718,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Botón "Marcar como finalizado" en pedidos ACCEPTED con modal de confirmación. Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Sin datos del cliente (privacidad). Paginación + empty state |
+| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos ACCEPTED: botón "Marcar finalizado" (si no está en coordinación) o "Confirmar visita" (si `coordinationStatus = AWAITING_CONFIRMATION`). Pedidos SCHEDULED: botón "Ver detalle" con modal mostrando cliente, teléfono, pedido, rubro, zona, día/hora, dirección y link Google Maps. Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
 
@@ -704,7 +727,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | Endpoint | Método | Descripción |
 |---|---|---|
 | `/professionals/session/:token/panel` | GET | Datos consolidados: perfil, membresía, reputación |
-| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado (sin datos del usuario) |
+| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado: incluye datos del cliente (nombre, teléfono), descripción, rubro, zona, estado, campos de coordinación (coordinationStatus, clientAddress, clientLatitude, clientLongitude, scheduledAt), flags de calificación |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante |
 
 **Response shape `GET /session/:token/panel` (ACTUALIZADO AUT-142):**
@@ -731,10 +754,17 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 }
 ```
 
-**Response shape `GET /session/:token/orders` (ACTUALIZADO AUT-142):**
+**Response shape `GET /session/:token/orders` (ACTUALIZADO AUT-151):**
 ```json
 {
-  "data": [{ "id", "createdAt", "status", "category": { "name" }, "geoNode": { "name" }, "ratedByProfessional": false, "ratedByUser": true }],
+  "data": [{
+    "id", "createdAt", "status", "description", "userName", "userPhone",
+    "category": { "name" }, "geoNode": { "name" },
+    "ratedByProfessional": false, "ratedByUser": true,
+    "coordinationStatus": "SCHEDULED", "clientAddress": "Calle 123",
+    "clientLatitude": -32.89, "clientLongitude": -68.84,
+    "scheduledAt": "2026-05-06T14:00:00.000Z"
+  }],
   "pagination": { "page": 1, "limit": 20, "total": 47, "totalPages": 3 }
 }
 ```
@@ -1154,10 +1184,25 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `confirmCompletion`: (legacy) usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
   - `reportNoncompliance`: (legacy) usuario reporta incumplimiento → NOT_FULFILLED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
-  - Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
-  - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
+- Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
+- Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
+- **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía `pendingMessage` a usuario y profesional vía `BotSession`. El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
+- **Coordinación de visita (AUT-151):**
+  - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsController` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot
+  - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
+  - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
+  - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAddress` y notifica al profesional
+  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `scheduledAt` se guarda, NORA pide ubicación al usuario
+  - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
+  - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante
+  - Al completar ambos → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con todos los datos
+  - El profesional ve en su panel: botón "Confirmar visita" (cuando AWAITING_CONFIRMATION) y botón "Ver detalle" (cuando SCHEDULED, muestra dirección y link Google Maps)
+  - El usuario NUNCA recibe el teléfono del profesional en ningún momento
+  - El profesional SÍ recibe el teléfono del usuario en el modal "Ver detalle" del panel
+  - Cron job `sendVisitReminders()` busca pedidos SCHEDULED con `scheduledAt` dentro de 23-24h y envía recordatorio a ambas partes vía `pendingMessage` en BotSession
+  - El coordination flow y el coordination service están aislados del módulo de requests — `RequestsService.create()` no importa dependencias de coordinación
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos

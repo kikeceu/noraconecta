@@ -12,11 +12,12 @@ const botService = new BotService(botRepository, usersService);
 export class BotController {
   async message(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { phone, text, imageUrls, audioUrl, role } = req.body as {
+      const { phone, text, imageUrls, audioUrl, location, role } = req.body as {
         phone: string;
         text?: string;
         imageUrls?: string[];
         audioUrl?: string;
+        location?: { latitude: number; longitude: number };
         role?: 'USER' | 'PROFESSIONAL';
       };
 
@@ -30,6 +31,7 @@ export class BotController {
         text,
         imageUrls,
         audioUrl,
+        location,
         role,
       });
 

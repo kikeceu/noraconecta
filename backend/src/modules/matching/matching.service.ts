@@ -64,6 +64,14 @@ export class MatchingService {
         excludedProfessionalIds,
       );
 
+    console.log('[Matching] findBestCandidate:', {
+      categoryId,
+      geoNodeId,
+      excludedCount: excludedProfessionalIds.length,
+      eligibleCount: eligible.length,
+      eligibleNames: eligible.map((p) => `${p.name} (${p.id})`),
+    });
+
     if (eligible.length === 0) {
       return null;
     }
@@ -75,6 +83,11 @@ export class MatchingService {
       candidateIds,
       config,
     );
+
+    console.log('[Matching] after hard filters:', {
+      filteredCount: filtered.length,
+      filteredNames: filtered.map((p) => p.id),
+    });
 
     if (filtered.length === 0) {
       return null;

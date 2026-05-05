@@ -2,10 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { RequestsService, Satisfaction } from './requests.service';
 import { RequestsRepository } from './requests.repository';
 import { UsersRepository } from '../users/users.repository';
+import { CoordinationService } from '../bot/coordination.service';
+import { BotRepository } from '../bot/bot.repository';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
 const requestsService = new RequestsService(requestsRepository, usersRepository);
+const coordinationService = new CoordinationService(new BotRepository());
 
 export class RequestsController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -65,6 +68,27 @@ export class RequestsController {
       }
 
       const request = await requestsService.accept(id);
+
+      try {
+        const fullRequest = await requestsRepository.findByIdWithCoordination(id);
+
+        if (fullRequest?.user?.phone && fullRequest.assignedProfessional?.phone) {
+          await coordinationService.initAfterAccept({
+            requestId: fullRequest.id,
+            userId: fullRequest.userId,
+            userName: fullRequest.user?.name || 'Usuario',
+            userPhone: fullRequest.user.phone,
+            professionalId: fullRequest.assignedProfessionalId!,
+            professionalName: fullRequest.assignedProfessional?.name || 'Profesional',
+            professionalPhone: fullRequest.assignedProfessional.phone,
+            categoryName: fullRequest.category?.name || 'el servicio',
+            description: fullRequest.description,
+          });
+        }
+      } catch (err) {
+        console.error('[RequestsController] Failed to init coordination:', err);
+      }
+
       res.status(200).json({ data: request });
     } catch (err) {
       next(err);
@@ -416,6 +440,41 @@ export class RequestsController {
         return;
       }
 
+      const request = await requestsService.getById(id);
+
+      const response: Record<string, unknown> = { ...request as Record<string, unknown> };
+
+      if (request.coordinationStatus && request.coordinationStatus !== 'SCHEDULED') {
+        response.coordination = {
+          status: request.coordinationStatus,
+          scheduledAt: request.scheduledAt,
+          clientAddress: request.clientAddress,
+          hasLocation: !!(request.clientLatitude && request.clientLongitude),
+        };
+      }
+
+      res.status(200).json({ data: response });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async confirmVisit(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { scheduleText } = req.body as { scheduleText?: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!scheduleText || !scheduleText.trim()) {
+        res.status(400).json({ error: 'scheduleText is required', statusCode: 400 });
+        return;
+      }
+
+      await coordinationService.confirmVisit(id, scheduleText.trim());
       const request = await requestsService.getById(id);
       res.status(200).json({ data: request });
     } catch (err) {
