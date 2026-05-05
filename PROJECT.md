@@ -56,7 +56,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
 │   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session, panel
-│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone, panel data, orders
+│   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
 │   │   │   │   ├── admin.controller.ts # Request handling

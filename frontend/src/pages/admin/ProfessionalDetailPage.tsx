@@ -247,7 +247,7 @@ export function ProfessionalDetailPage() {
               <div>
                 <dt className="text-xs text-gray-500">Zona</dt>
                 <dd className="text-sm text-gray-600">
-                  {p.zones?.[0]?.geoNode?.name || '—'}
+                  {p.zones?.map(z => z.geoNode.name).join(', ') || '—'}
                 </dd>
               </div>
               <div>

@@ -49,7 +49,7 @@ export class ProfessionalsRepository {
   async findById(id: string): Promise<Professional | null> {
     return prisma.professional.findUnique({
       where: { id },
-      include: { zones: true },
+      include: { zones: { include: { geoNode: true } }, category: true },
     });
   }
 
