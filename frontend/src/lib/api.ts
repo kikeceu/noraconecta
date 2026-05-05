@@ -46,11 +46,17 @@ export async function sendMessage(
   role: 'USER' | 'PROFESSIONAL',
   imageUrls?: string[],
   audioUrl?: string,
+  location?: { latitude: number; longitude: number },
 ): Promise<BotResponse> {
+  const body: Record<string, unknown> = { phone, text, role };
+  if (imageUrls) body.imageUrls = imageUrls;
+  if (audioUrl) body.audioUrl = audioUrl;
+  if (location) body.location = location;
+
   const res = await fetch(`${API_BASE}/bot/message`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone, text, role, imageUrls, audioUrl }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {

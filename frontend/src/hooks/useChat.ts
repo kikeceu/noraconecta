@@ -482,6 +482,46 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     [phone, role, addMessage, startPolling, handleRatingResponse, handleConfirmationResponse],
   );
 
+  const sendLocation = useCallback(
+    async () => {
+      const text = '📍 Ubicación compartida';
+      addMessage('user', text);
+
+      if (ratingRef.current || confirmationRef.current) {
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const response: BotResponse = await sendMessage(
+          phone,
+          text,
+          role,
+          undefined,
+          undefined,
+          { latitude: -32.8908, longitude: -68.8272 },
+        );
+
+        addMessage('nora', response.text);
+
+        setSession({
+          flow: response.flow,
+          step: response.step,
+        });
+
+        if (response.requestId) {
+          startPolling(response.requestId);
+        }
+      } catch {
+        addMessage('nora', 'Error de conexion con el servidor. Intenta de nuevo.');
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [phone, role, addMessage, startPolling],
+  );
+
   const changePhone = useCallback(
     (newPhone: string) => {
       stopPolling();
@@ -529,6 +569,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     phone,
     role,
     send,
+    sendLocation,
     changePhone,
     changeRole,
     reset,
