@@ -26,3 +26,27 @@ export function parseExactDate(input: string): Date | null {
 
   return date;
 }
+
+const ARGENTINA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+export function getDayArgentina(date: Date): number {
+  const ar = new Date(date.getTime() - ARGENTINA_OFFSET_MS);
+  return ar.getUTCDay();
+}
+
+export function getHoursArgentina(date: Date): number {
+  return new Date(date.getTime() - ARGENTINA_OFFSET_MS).getUTCHours();
+}
+
+export function getMinutesArgentina(date: Date): number {
+  return new Date(date.getTime() - ARGENTINA_OFFSET_MS).getUTCMinutes();
+}
+
+export function formatDateTimeArgentina(date: Date): string {
+  const ar = new Date(date.getTime() - ARGENTINA_OFFSET_MS);
+  const day = ar.getUTCDate().toString().padStart(2, '0');
+  const month = (ar.getUTCMonth() + 1).toString().padStart(2, '0');
+  const hours = ar.getUTCHours().toString().padStart(2, '0');
+  const minutes = ar.getUTCMinutes().toString().padStart(2, '0');
+  return `${day}/${month} ${hours}:${minutes}`;
+}

@@ -1,7 +1,7 @@
 import { BotRepository } from './bot.repository';
 import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
-import { parseExactDate } from '../../utils/date-utils';
+import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 
 export type CoordinationInitData = {
   requestId: string;
@@ -255,11 +255,7 @@ export class CoordinationService {
         const professionalName = request.assignedProfessional?.name || 'El profesional';
         const availability = clientAvailability || 'ese horario';
 
-        const day = scheduledAt.getDate().toString().padStart(2, '0');
-        const month = (scheduledAt.getMonth() + 1).toString().padStart(2, '0');
-        const hours = scheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
-        const alternativeText = `${day}/${month} ${hours}:${minutes}`;
+        const alternativeText = formatDateTimeArgentina(scheduledAt);
 
         const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
@@ -311,9 +307,9 @@ export class CoordinationService {
       const professionalName = request.assignedProfessional?.name || 'El profesional';
 
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-      const dayName = dayNames[scheduledAt.getDay()];
-      const hours = scheduledAt.getHours().toString().padStart(2, '0');
-      const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
+      const dayName = dayNames[getDayArgentina(scheduledAt)];
+      const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+      const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
       const userMessage = `${professionalName} llega el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
@@ -348,10 +344,10 @@ function isSameSchedule(proposed: Date, available: Date | null): boolean {
   if (!available) return false;
 
   return (
-    proposed.getDay() === available.getDay() &&
+    getDayArgentina(proposed) === getDayArgentina(available) &&
     Math.abs(
-      proposed.getHours() * 60 + proposed.getMinutes() -
-      (available.getHours() * 60 + available.getMinutes())
+      getHoursArgentina(proposed) * 60 + getMinutesArgentina(proposed) -
+      (getHoursArgentina(available) * 60 + getMinutesArgentina(available))
     ) <= 15
   );
 }
