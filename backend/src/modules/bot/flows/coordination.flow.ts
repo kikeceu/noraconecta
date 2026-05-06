@@ -1,5 +1,6 @@
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import prisma from '../../../lib/prisma';
+import { parseScheduledAt } from '../../../lib/llm';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { UsersRepository } from '../../users/users.repository';
@@ -138,15 +139,58 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role === 'PROFESSIONAL' && message.text?.trim()) {
       const scheduleText = message.text.trim();
-      const professionalScheduledAt = this.parseScheduleDate(scheduleText);
+      const now = new Date();
+
+      const request = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { clientAvailability: true },
+      });
+
+      let professionalScheduledAt = await parseScheduledAt(scheduleText, now);
+
+      if (!professionalScheduledAt && request?.clientAvailability) {
+        professionalScheduledAt = await parseScheduledAt(request.clientAvailability, now);
+      }
 
       if (!professionalScheduledAt) {
+        await prisma.request.update({
+          where: { id: requestId },
+          data: {
+            coordinationStatus: 'AWAITING_AVAILABILITY',
+            clientAvailability: null,
+          },
+        });
+
+        const userMessage =
+          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
+
         return {
           response: {
-            text: 'No pude interpretar la fecha y hora. ¿Podés indicarme el día y horario? (Ej: "martes a las 10 de la mañana" o "lunes 14hs")',
+            text: 'No pude interpretar el horario. Le pido al usuario que lo especifique mejor.',
           },
-          nextStep: 'AWAITING_CONFIRMATION',
-          tempData,
+          nextStep: null,
+          tempData: {
+            requestId,
+            pendingNotification: {
+              targetPhone: tempData.userPhone,
+              targetRole: 'USER',
+              message: userMessage,
+              flow: 'COORDINATION',
+              step: 'AWAITING_AVAILABILITY',
+              tempData: {
+                requestId,
+                userId: tempData.userId,
+                userName: tempData.userName,
+                userPhone: tempData.userPhone,
+                professionalId: tempData.professionalId,
+                professionalName: tempData.professionalName,
+                professionalPhone: tempData.professionalPhone,
+                categoryName: tempData.categoryName,
+                description: tempData.description,
+                negotiationRounds: tempData.negotiationRounds,
+              },
+            },
+          } as Record<string, unknown>,
         };
       }
 

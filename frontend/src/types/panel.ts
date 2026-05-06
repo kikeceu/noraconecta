@@ -77,6 +77,7 @@ export interface PanelOrder {
   ratedByProfessional: boolean;
   ratedByUser: boolean;
   coordinationStatus?: string | null;
+  clientAvailability?: string | null;
   clientAddress?: string | null;
   clientLatitude?: number | null;
   clientLongitude?: number | null;

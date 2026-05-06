@@ -9,6 +9,7 @@ import { EscalationsService } from '../escalations/escalations.service';
 import { EscalationsRepository } from '../escalations/escalations.repository';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
+import { parseScheduledAt } from '../../lib/llm';
 import { Request, Feedback } from '@prisma/client';
 
 const DEFAULT_RESPONSE_TIMEOUT_HOURS = 2;
@@ -970,14 +971,28 @@ export class RequestsService {
         clientAvailability: scheduleText,
       });
     } else {
-      const parsed = this.parseScheduleDateFromText(scheduleText);
-      if (!parsed) {
-        throw new AppError('Could not parse scheduleText into a date', 400);
+      const now = new Date();
+      let scheduledAt = await parseScheduledAt(scheduleText, now);
+
+      if (!scheduledAt && request.clientAvailability) {
+        scheduledAt = await parseScheduledAt(request.clientAvailability, now);
+      }
+
+      if (!scheduledAt) {
+        await this.requestsRepository.update(requestId, {
+          coordinationStatus: 'AWAITING_AVAILABILITY',
+          clientAvailability: null,
+        });
+
+        throw new AppError(
+          'Could not parse the schedule. The user will be asked to reformulate.',
+          422,
+        );
       }
 
       await this.requestsRepository.update(requestId, {
         coordinationStatus: 'AWAITING_LOCATION',
-        scheduledAt: parsed,
+        scheduledAt,
       });
     }
 
@@ -1049,55 +1064,5 @@ export class RequestsService {
     }
 
     return DEFAULT_AUTO_COMPLETE_HOURS;
-  }
-
-  private parseScheduleDateFromText(input: string): Date | null {
-    const now = new Date();
-    const normalized = input.toLowerCase().trim();
-
-    const dayMap: Record<string, number> = {
-      domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3,
-      jueves: 4, viernes: 5, sábado: 6, sabado: 6,
-    };
-
-    const timeMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|horas|am|pm)?/);
-    if (!timeMatch) return null;
-
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-
-    if (normalized.includes('pm') && hours < 12) hours += 12;
-    if (normalized.includes('am') && hours === 12) hours = 0;
-
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-
-    let targetDay = -1;
-    for (const [name, day] of Object.entries(dayMap)) {
-      if (normalized.includes(name)) {
-        targetDay = day;
-        break;
-      }
-    }
-
-    if (normalized.includes('hoy')) targetDay = now.getDay();
-    if (normalized.includes('mañana') || normalized.includes('manana')) {
-      targetDay = (now.getDay() + 1) % 7;
-    }
-
-    const result = new Date(now);
-    result.setHours(hours, minutes, 0, 0);
-
-    if (targetDay >= 0) {
-      const currentDay = now.getDay();
-      let daysUntil = targetDay - currentDay;
-      if (daysUntil <= 0) daysUntil += 7;
-      result.setDate(result.getDate() + daysUntil);
-    }
-
-    if (result <= now) {
-      result.setDate(result.getDate() + 1);
-    }
-
-    return result;
   }
 }

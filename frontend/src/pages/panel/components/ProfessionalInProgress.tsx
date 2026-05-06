@@ -455,7 +455,7 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
             <div className="p-5 space-y-4">
               {(() => {
                 const order = orders.find((o) => o.id === confirmVisitOrderId);
-                const availability = order?.clientAddress || 'No especificada';
+                const availability = order?.clientAvailability || 'No especificada';
                 return (
                   <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB]">
                     <p className="text-xs text-[#6B7280] mb-1" style={{ fontFamily: 'DM Sans' }}>
@@ -473,7 +473,7 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                   <button
                     onClick={async () => {
                       const order = orders.find((o) => o.id === confirmVisitOrderId);
-                      const availability = order?.clientAddress || '';
+                      const availability = order?.clientAvailability || '';
                       if (!availability) return;
                       setConfirmVisitLoading(true);
                       try {

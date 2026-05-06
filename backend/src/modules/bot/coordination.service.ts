@@ -1,6 +1,7 @@
 import { BotRepository } from './bot.repository';
 import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
+import { parseScheduledAt } from '../../lib/llm';
 
 export type CoordinationInitData = {
   requestId: string;
@@ -173,9 +174,50 @@ export class CoordinationService {
       throw new Error('Request is not awaiting confirmation');
     }
 
-    const scheduledAt = this.parseScheduleDate(scheduleText);
+    const now = new Date();
+    let scheduledAt = await parseScheduledAt(scheduleText, now);
+
+    if (!scheduledAt && request.clientAvailability) {
+      scheduledAt = await parseScheduledAt(request.clientAvailability, now);
+    }
+
     if (!scheduledAt) {
-      throw new Error('Could not parse schedule date');
+      await prisma.request.update({
+        where: { id: requestId },
+        data: {
+          coordinationStatus: 'AWAITING_AVAILABILITY',
+          clientAvailability: null,
+        },
+      });
+
+      if (request.user?.phone) {
+        const userMessage =
+          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
+
+        const userSession = await this.botRepository.findByPhone(request.user.phone);
+        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+
+        await this.botRepository.upsert(request.user.phone, {
+          role: 'USER',
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_AVAILABILITY',
+          tempData: {
+            ...userTempData,
+            requestId,
+            userId: request.userId,
+            userName: request.user?.name,
+            userPhone: request.user.phone,
+            professionalId: request.assignedProfessionalId,
+            professionalName: request.assignedProfessional?.name || 'El profesional',
+            professionalPhone: request.assignedProfessional?.phone,
+            categoryName: request.category?.name,
+            description: request.description,
+            pendingMessage: userMessage,
+          } as Prisma.InputJsonValue,
+        });
+      }
+
+      return;
     }
 
     await prisma.request.update({
@@ -221,53 +263,4 @@ export class CoordinationService {
     }
   }
 
-  private parseScheduleDate(input: string): Date | null {
-    const now = new Date();
-    const normalized = input.toLowerCase().trim();
-
-    const dayMap: Record<string, number> = {
-      domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3,
-      jueves: 4, viernes: 5, sábado: 6, sabado: 6,
-    };
-
-    const timeMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|horas|am|pm)?/);
-    if (!timeMatch) return null;
-
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-
-    if (normalized.includes('pm') && hours < 12) hours += 12;
-    if (normalized.includes('am') && hours === 12) hours = 0;
-
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-
-    let targetDay = -1;
-    for (const [name, day] of Object.entries(dayMap)) {
-      if (normalized.includes(name)) {
-        targetDay = day;
-        break;
-      }
-    }
-
-    if (normalized.includes('hoy')) targetDay = now.getDay();
-    if (normalized.includes('mañana') || normalized.includes('manana')) {
-      targetDay = (now.getDay() + 1) % 7;
-    }
-
-    const result = new Date(now);
-    result.setHours(hours, minutes, 0, 0);
-
-    if (targetDay >= 0) {
-      const currentDay = now.getDay();
-      let daysUntil = targetDay - currentDay;
-      if (daysUntil <= 0) daysUntil += 7;
-      result.setDate(result.getDate() + daysUntil);
-    }
-
-    if (result <= now) {
-      result.setDate(result.getDate() + 1);
-    }
-
-    return result;
-  }
 }

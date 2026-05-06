@@ -455,6 +455,7 @@ export class RequestsController {
         response.coordination = {
           status: request.coordinationStatus,
           scheduledAt: request.scheduledAt,
+          clientAvailability: request.clientAvailability,
           clientAddress: request.clientAddress,
           hasLocation: !!(request.clientLatitude && request.clientLongitude),
         };

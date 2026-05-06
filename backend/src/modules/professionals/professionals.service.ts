@@ -395,6 +395,7 @@ export class ProfessionalsService {
         ratedByUser: order.feedback?.ratedByUserAt !== null
           && order.feedback?.ratedByUserAt !== undefined,
         coordinationStatus: order.coordinationStatus,
+        clientAvailability: order.clientAvailability,
         clientAddress: order.clientAddress,
         clientLatitude: order.clientLatitude,
         clientLongitude: order.clientLongitude,

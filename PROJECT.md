@@ -22,7 +22,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── server.ts                  # Entry point: Express app bootstrap
 │   │   ├── lib/
 │   │   │   ├── prisma.ts              # Prisma client singleton
-│   │   │   └── r2-client.ts           # Cloudflare R2 client (presigned URLs)
+│   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs)
+│   │   │   └── llm.ts                 # LLM client: parseScheduledAt (AUT-163)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -280,7 +281,7 @@ src/
 - **controllers**: Request/response handling, input validation, delegate to services
 - **services**: Business logic, orchestration of repositories
 - **repositories**: Database access only (Prisma), no business logic
-- **lib**: Shared clients (Prisma instance)
+- **lib**: Shared clients (Prisma instance, R2 client, LLM client)
 - **utils**: Pure helper functions
 - **middleware**: Request interceptors (auth, error handling)
 
@@ -771,7 +772,8 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
     "id", "createdAt", "status", "description", "userName", "userPhone",
     "category": { "name" }, "geoNode": { "name" },
     "ratedByProfessional": false, "ratedByUser": true,
-    "coordinationStatus": "SCHEDULED", "clientAddress": "Calle 123",
+    "coordinationStatus": "SCHEDULED", "clientAvailability": "el viernes a las 18",
+    "clientAddress": "Calle 123",
     "clientLatitude": -32.89, "clientLongitude": -68.84,
     "scheduledAt": "2026-05-06T14:00:00.000Z",
     "photoUrls": ["https://r2.example.com/uuid.jpg"],
@@ -1121,6 +1123,9 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `BUILD_TARGET`      | No        | Target de build: `admin`, `app`, o `landing` (solo frontend) |
 | `VITE_API_URL`      | No        | URL de la API para builds admin/app (.env.admin, .env.app) |
 | `VITE_WHATSAPP_NUMBER`| No      | Número de WhatsApp para build landing (.env.landing) |
+| `OPENAI_API_KEY`    | No        | API key de OpenAI para parseo de fechas con LLM (AUT-163) |
+| `OPENAI_BASE_URL`   | No        | URL base alternativa de la API de OpenAI (default: https://api.openai.com/v1) |
+| `LLM_MODEL`         | No        | Modelo LLM a usar (default: gpt-4o-mini) |
 
 ## Business Rules
 
@@ -1232,6 +1237,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
   - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
+  - **Parseo de fecha con LLM (AUT-163):** Al confirmar el horario, el texto en lenguaje natural del usuario (`clientAvailability`) se convierte a `scheduledAt` usando OpenAI `gpt-4o-mini` vía `lib/llm.ts` → `parseScheduledAt()`. Si el LLM no puede parsear la fecha, se le pide al usuario que reformule y se regresa a `AWAITING_AVAILABILITY`. Si `OPENAI_API_KEY` no está configurado, el LLM se deshabilita silenciosamente (retorna null). El prompt es mínimo para mantener bajo costo por llamada.
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos
