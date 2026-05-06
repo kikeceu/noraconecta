@@ -221,14 +221,14 @@ export function EscalationsPage() {
                             <button
                               onClick={() => setConfirmAction(e)}
                               disabled={actionLoading === e.id}
-                              className="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                              className="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors cursor-pointer"
                             >
                               Revisar
                             </button>
                             <button
                               onClick={() => setResolveModal(e)}
                               disabled={actionLoading === e.id}
-                              className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors"
+                              className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
                             >
                               Resolver
                             </button>
@@ -238,7 +238,7 @@ export function EscalationsPage() {
                           <button
                             onClick={() => setResolveModal(e)}
                             disabled={actionLoading === e.id}
-                            className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors"
+                            className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
                           >
                             Resolver
                           </button>
@@ -278,14 +278,14 @@ export function EscalationsPage() {
               <button
                 onClick={() => fetchData(pagination.page - 1)}
                 disabled={pagination.page <= 1}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => fetchData(pagination.page + 1)}
                 disabled={pagination.page >= pagination.totalPages}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -325,14 +325,14 @@ export function EscalationsPage() {
                   setResolveModal(null);
                   setResolution('');
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => setConfirmResolve(true)}
                 disabled={!resolution.trim()}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 Resolver
               </button>

@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { User, CreditCard, ClipboardList, Star, Clock } from 'lucide-react';
+import { User, CreditCard, ClipboardList, Star, Clock, Activity } from 'lucide-react';
 import type { PanelTab, ProfessionalStatus } from '../../../types/panel';
 
 interface ProfessionalLayoutProps {
@@ -13,6 +13,7 @@ interface ProfessionalLayoutProps {
 const tabs: { key: PanelTab; label: string; icon: typeof User }[] = [
   { key: 'profile', label: 'Perfil', icon: User },
   { key: 'pending', label: 'Pedidos pendientes', icon: Clock },
+  { key: 'in-progress', label: 'En curso', icon: Activity },
   { key: 'orders', label: 'Historial', icon: ClipboardList },
   { key: 'membership', label: 'Membresía', icon: CreditCard },
   { key: 'reputation', label: 'Reputación', icon: Star },
@@ -43,7 +44,7 @@ function DesktopSidebar({
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
-              className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                 isActive
                   ? 'bg-[#ECFDF5] text-[#0B6E4F] border-l-[3px] border-[#0B6E4F]'
                   : 'text-[#374151] hover:bg-[#F9FAFB] border-l-[3px] border-transparent'
@@ -85,7 +86,7 @@ function MobileBottomNav({
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
-              className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors ${
+              className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
                 isActive ? 'text-[#0B6E4F]' : 'text-[#6B7280]'
               }`}
             >

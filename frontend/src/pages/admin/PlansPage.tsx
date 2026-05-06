@@ -117,7 +117,7 @@ export function PlansPage() {
             {isSuperAdmin() && (
               <button
                 onClick={() => openEdit(plan)}
-                className="mt-3 w-full py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="mt-3 w-full py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Editar precio
               </button>
@@ -189,14 +189,14 @@ export function PlansPage() {
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
               <button
                 onClick={() => setEditPlan(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
                 disabled={editLoading}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
               >
                 {editLoading ? 'Guardando...' : 'Guardar cambios'}
               </button>

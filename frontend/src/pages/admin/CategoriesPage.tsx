@@ -92,7 +92,7 @@ export function CategoriesPage() {
         {isSuperAdmin() && (
           <button
             onClick={openCreate}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors cursor-pointer"
           >
             Crear categoría
           </button>
@@ -148,7 +148,7 @@ export function CategoriesPage() {
                           <button
                             onClick={() => handleToggle(cat.id)}
                             disabled={actionLoading === cat.id}
-                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
                               cat.isActive ? 'bg-green-600' : 'bg-gray-200'
                             } disabled:opacity-50`}
                           >
@@ -176,7 +176,7 @@ export function CategoriesPage() {
                         {isSuperAdmin() && (
                           <button
                             onClick={() => openEdit(cat)}
-                            className="text-sm text-green-700 hover:text-green-800 font-medium"
+                            className="text-sm text-green-700 hover:text-green-800 font-medium cursor-pointer"
                           >
                             Editar
                           </button>
@@ -242,14 +242,14 @@ export function CategoriesPage() {
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
               <button
                 onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleSave}
                 disabled={!form.name.trim() || modalLoading}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
               >
                 {modalLoading
                   ? 'Guardando...'

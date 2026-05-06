@@ -284,7 +284,7 @@ export function ZonesPage() {
         {isSuperAdmin() && (
           <button
             onClick={() => setShowAddCountry(true)}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors"
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors cursor-pointer"
           >
             Agregar país
           </button>
@@ -477,7 +477,7 @@ function TreeNodeRow({
                 <button
                   onClick={() => onAddChild(node)}
                   disabled={!!actionLoading}
-                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-green-700 transition-colors disabled:opacity-50 px-1.5"
+                  className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-green-700 transition-colors disabled:opacity-50 px-1.5 cursor-pointer"
                   title={`Agregar sub-nivel en ${node.name}`}
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -486,7 +486,7 @@ function TreeNodeRow({
               <button
                 onClick={() => onEdit(node)}
                 disabled={!!actionLoading}
-                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50 px-1.5"
+                className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50 px-1.5 cursor-pointer"
                 title="Editar nombre"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -497,7 +497,7 @@ function TreeNodeRow({
             <button
               onClick={() => onToggle(node.id, countryId)}
               disabled={!!actionLoading}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0 ${
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer flex-shrink-0 ${
                 node.isActive ? 'bg-green-600' : 'bg-gray-200'
               } disabled:opacity-50`}
             >
@@ -541,7 +541,7 @@ function Modal({ children, title, onClose }: { children: React.ReactNode; title:
       <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-sm p-6 mx-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -561,13 +561,13 @@ function ModalFooter({ onCancel, onConfirm, disabled, confirmLabel }: {
 }) {
   return (
     <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-      <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+      <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer">
         Cancelar
       </button>
       <button
         onClick={onConfirm}
         disabled={disabled}
-        className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+        className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
       >
         {confirmLabel}
       </button>

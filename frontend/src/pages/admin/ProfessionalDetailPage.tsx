@@ -105,7 +105,20 @@ export function ProfessionalDetailPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback: select text manually
+      const textarea = document.createElement('textarea');
+      textarea.value = sessionUrl;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // silently fail
+      }
+      document.body.removeChild(textarea);
     }
   };
 
@@ -149,7 +162,7 @@ export function ProfessionalDetailPage() {
       <div>
         <Link
           to={adminPath('/professionals')}
-          className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800 mb-2"
+          className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:text-green-800 mb-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           Profesionales
@@ -171,7 +184,7 @@ export function ProfessionalDetailPage() {
             <button
               onClick={() => setConfirmAction({ action: 'approve', label: `aprobar a ${p.name}` })}
               disabled={!!actionLoading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
             >
               <CheckCircle className="w-4 h-4" />
               Aprobar
@@ -181,7 +194,7 @@ export function ProfessionalDetailPage() {
             <button
               onClick={() => setConfirmAction({ action: 'reject', label: `rechazar a ${p.name}` })}
               disabled={!!actionLoading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors cursor-pointer"
             >
               <XCircle className="w-4 h-4" />
               Rechazar
@@ -191,7 +204,7 @@ export function ProfessionalDetailPage() {
             <button
               onClick={() => setConfirmAction({ action: 'suspend', label: `suspender a ${p.name}` })}
               disabled={!!actionLoading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors cursor-pointer"
             >
               Suspender
             </button>
@@ -200,7 +213,7 @@ export function ProfessionalDetailPage() {
             <button
               onClick={() => setConfirmAction({ action: 'reactivate', label: `reactivar a ${p.name}` })}
               disabled={!!actionLoading}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
             >
               Reactivar
             </button>
@@ -280,7 +293,7 @@ export function ProfessionalDetailPage() {
                     href={doc.url!}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-100 text-sm text-green-700 hover:bg-green-50 hover:border-green-200 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-100 text-sm text-green-700 hover:bg-green-50 hover:border-green-200 transition-colors cursor-pointer"
                   >
                     <FileText className="w-4 h-4" />
                     {doc.label}
@@ -316,7 +329,7 @@ export function ProfessionalDetailPage() {
               <button
                 onClick={handleGenerateSession}
                 disabled={sessionLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors w-full justify-center"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors w-full justify-center cursor-pointer"
               >
                 <Link2 className="w-4 h-4" />
                 {sessionLoading ? 'Generando...' : 'Generar enlace de acceso'}
@@ -334,7 +347,7 @@ export function ProfessionalDetailPage() {
                     />
                     <button
                       onClick={handleCopyUrl}
-                      className="shrink-0 p-1.5 rounded-md text-gray-400 hover:text-green-700 hover:bg-green-50 transition-colors"
+                      className="shrink-0 p-1.5 rounded-md text-gray-400 hover:text-green-700 hover:bg-green-50 transition-colors cursor-pointer"
                       title="Copiar enlace"
                     >
                       {copied ? (

@@ -151,7 +151,7 @@ export function SettingsPage() {
                   <button
                     onClick={() => handleSave(field.key)}
                     disabled={saving === field.key}
-                    className="px-3 py-2 text-xs font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+                    className="px-3 py-2 text-xs font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors whitespace-nowrap cursor-pointer"
                   >
                     {saving === field.key ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
@@ -191,7 +191,7 @@ export function SettingsPage() {
                     handleSave(t.key);
                   }}
                   disabled={saving === t.key}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
                     isOn ? 'bg-green-600' : 'bg-gray-200'
                   } disabled:opacity-50`}
                 >
