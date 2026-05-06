@@ -856,6 +856,132 @@ export class RequestsService {
     return processed;
   }
 
+  async reassignAfterNegotiation(requestId: string, professionalId: string): Promise<Request | null> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      throw new AppError(
+        `Cannot reassign a request with status ${request.status}. Expected ACCEPTED`,
+        400,
+      );
+    }
+
+    const rejectorIds = await this.requestsRepository.findRejectorIds(requestId);
+    const excludedIds = [...new Set([...rejectorIds, professionalId])];
+
+    const match = await this.matchingService.findBestCandidate(
+      request.categoryId,
+      request.geoNodeId,
+      excludedIds,
+    );
+
+    if (!match) {
+      const updated = await this.requestsRepository.update(requestId, {
+        status: 'NO_RESPONSE',
+        assignedProfessionalId: null,
+        assignedAt: null,
+        assignmentTimeoutAt: null,
+        scheduledAt: null,
+        clientAddress: null,
+        clientLatitude: null,
+        clientLongitude: null,
+        coordinationStatus: null,
+        negotiationRounds: 0,
+      });
+
+      await this.requestsRepository.createEvent({
+        requestId,
+        type: 'NO_RESPONSE',
+      });
+
+      return updated;
+    }
+
+    const responseTimeoutHours = await this.getResponseTimeoutHours();
+    const now = new Date();
+    const assignmentTimeoutAt = new Date(now.getTime() + responseTimeoutHours * 60 * 60 * 1000);
+
+    const updated = await this.requestsRepository.update(requestId, {
+      status: 'ASSIGNED',
+      assignedProfessionalId: match.professionalId,
+      assignedAt: now,
+      assignmentTimeoutAt,
+      scheduledAt: null,
+      clientAddress: null,
+      clientLatitude: null,
+      clientLongitude: null,
+      coordinationStatus: null,
+      negotiationRounds: 0,
+    });
+
+    await this.requestsRepository.createEvent({
+      requestId,
+      professionalId: match.professionalId,
+      type: 'ASSIGNED',
+    });
+
+    await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
+
+    return updated;
+  }
+
+  async confirmSchedule(
+    requestId: string,
+    scheduleText: string,
+    proposedAt: string | null,
+  ): Promise<Request> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      throw new AppError(
+        `Cannot confirm schedule for a request with status ${request.status}. Expected ACCEPTED`,
+        400,
+      );
+    }
+
+    if (
+      request.coordinationStatus !== 'AWAITING_CONFIRMATION' &&
+      request.coordinationStatus !== 'AWAITING_USER_CONFIRMATION'
+    ) {
+      throw new AppError(
+        `Cannot confirm schedule when coordination is ${request.coordinationStatus || 'not active'}`,
+        400,
+      );
+    }
+
+    if (proposedAt) {
+      const parsedProposedAt = new Date(proposedAt);
+      if (isNaN(parsedProposedAt.getTime())) {
+        throw new AppError('proposedAt must be a valid ISO 8601 date', 400);
+      }
+
+      await this.requestsRepository.update(requestId, {
+        coordinationStatus: 'AWAITING_USER_CONFIRMATION',
+        clientAddress: scheduleText,
+      });
+    } else {
+      const parsed = this.parseScheduleDateFromText(scheduleText);
+      if (!parsed) {
+        throw new AppError('Could not parse scheduleText into a date', 400);
+      }
+
+      await this.requestsRepository.update(requestId, {
+        coordinationStatus: 'AWAITING_LOCATION',
+        scheduledAt: parsed,
+      });
+    }
+
+    return this.getById(requestId);
+  }
+
   async autoClosePendingConfirmations(): Promise<number> {
     const autoCompleteHours = await this.getAutoCompleteHours();
     const cutoff = new Date(Date.now() - autoCompleteHours * 60 * 60 * 1000);
@@ -921,5 +1047,55 @@ export class RequestsService {
     }
 
     return DEFAULT_AUTO_COMPLETE_HOURS;
+  }
+
+  private parseScheduleDateFromText(input: string): Date | null {
+    const now = new Date();
+    const normalized = input.toLowerCase().trim();
+
+    const dayMap: Record<string, number> = {
+      domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3,
+      jueves: 4, viernes: 5, sábado: 6, sabado: 6,
+    };
+
+    const timeMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|horas|am|pm)?/);
+    if (!timeMatch) return null;
+
+    let hours = parseInt(timeMatch[1], 10);
+    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+
+    if (normalized.includes('pm') && hours < 12) hours += 12;
+    if (normalized.includes('am') && hours === 12) hours = 0;
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
+
+    let targetDay = -1;
+    for (const [name, day] of Object.entries(dayMap)) {
+      if (normalized.includes(name)) {
+        targetDay = day;
+        break;
+      }
+    }
+
+    if (normalized.includes('hoy')) targetDay = now.getDay();
+    if (normalized.includes('mañana') || normalized.includes('manana')) {
+      targetDay = (now.getDay() + 1) % 7;
+    }
+
+    const result = new Date(now);
+    result.setHours(hours, minutes, 0, 0);
+
+    if (targetDay >= 0) {
+      const currentDay = now.getDay();
+      let daysUntil = targetDay - currentDay;
+      if (daysUntil <= 0) daysUntil += 7;
+      result.setDate(result.getDate() + daysUntil);
+    }
+
+    if (result <= now) {
+      result.setDate(result.getDate() + 1);
+    }
+
+    return result;
   }
 }

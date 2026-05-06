@@ -577,7 +577,7 @@ POST /bot/message
 |------------------------|-------------------------------------------------------------------------|
 | `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
-| `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED |
+| `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
 **Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
 
@@ -660,6 +660,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
 | `/requests/:id/rate-user`             | POST   | Profesional califica al usuario (4 ejes)       | Sin auth  |
 | `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel) | Sin auth  |
+| `/requests/:id/confirm-schedule`      | POST   | Bot/panel confirma horario del profesional, acepta `proposedAt DateTime?` para horario alternativo | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
 | `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback, profesional asignado (incluye teléfono cuando está ACCEPTED) y datos de coordinación | Sin auth (polling simulador) |
 
@@ -1208,12 +1209,16 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía `pendingMessage` a usuario y profesional vía `BotSession`. El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
-- **Coordinación de visita (AUT-151, AUT-152):**
+- **Coordinación de visita (AUT-151, AUT-152, AUT-160):**
   - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsController` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot
   - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
   - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
+  - Si el profesional propone un horario diferente al del usuario → `AWAITING_USER_CONFIRMATION`:
+    - Usuario acepta → `AWAITING_LOCATION` (continúa flujo normal de ubicación)
+    - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` (nueva ronda, máximo 3 rondas de negociación)
+    - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
   - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAddress` y notifica al profesional
-  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `scheduledAt` se guarda, `coordinationStatus = AWAITING_LOCATION`, NORA pide ubicación al usuario
+  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) o desde el chat → `scheduledAt` se guarda, `coordinationStatus = AWAITING_LOCATION`, NORA pide ubicación al usuario
   - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
   - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante
   - Al completar ambos → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con todos los datos
@@ -1225,6 +1230,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El coordination flow y el coordination service están aislados del módulo de requests — `RequestsService.create()` no importa dependencias de coordinación
   - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
+  - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos
