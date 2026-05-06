@@ -887,6 +887,7 @@ export class RequestsService {
         assignmentTimeoutAt: null,
         scheduledAt: null,
         clientAddress: null,
+        clientAvailability: null,
         clientLatitude: null,
         clientLongitude: null,
         coordinationStatus: null,
@@ -912,6 +913,7 @@ export class RequestsService {
       assignmentTimeoutAt,
       scheduledAt: null,
       clientAddress: null,
+      clientAvailability: null,
       clientLatitude: null,
       clientLongitude: null,
       coordinationStatus: null,
@@ -965,7 +967,7 @@ export class RequestsService {
 
       await this.requestsRepository.update(requestId, {
         coordinationStatus: 'AWAITING_USER_CONFIRMATION',
-        clientAddress: scheduleText,
+        clientAvailability: scheduleText,
       });
     } else {
       const parsed = this.parseScheduleDateFromText(scheduleText);

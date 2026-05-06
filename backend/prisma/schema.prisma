@@ -241,6 +241,7 @@ model Request {
   assignmentTimeoutAt    DateTime?
   scheduledAt            DateTime?
   clientAddress          String?
+  clientAvailability     String?
   clientLatitude         Float?
   clientLongitude        Float?
   coordinationStatus     String?
