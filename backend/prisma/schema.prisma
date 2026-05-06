@@ -244,6 +244,7 @@ model Request {
   clientLatitude         Float?
   clientLongitude        Float?
   coordinationStatus     String?
+  negotiationRounds      Int           @default(0)
 
   events     RequestEvent[]
   feedback   Feedback?

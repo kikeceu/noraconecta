@@ -1024,7 +1024,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | clientAddress         | String?   | Dirección exacta ingresada por el usuario    |
 | clientLatitude        | Float?    | Latitud del pin de WhatsApp                  |
 | clientLongitude       | Float?    | Longitud del pin de WhatsApp                 |
-| coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| SCHEDULED |
+| coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| AWAITING_USER_CONFIRMATION \| AWAITING_LOCATION \| SCHEDULED |
+| negotiationRounds     | Int       | Rondas de negociación de horario (default: 0) |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
