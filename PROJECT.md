@@ -668,7 +668,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 - `assignedProfessional` → `{ name, phone }` del profesional (phone incluido para mostrar datos de contacto al usuario cuando el pedido es ACCEPTED)
 - `events` → historial de eventos
 - `feedback` → feedback del usuario
-- `coordination` → (solo si `coordinationStatus !== 'SCHEDULED'`) `{ status, scheduledAt, clientAddress, hasLocation }` para que el frontend muestre el estado de coordinación
+- `coordination` → (solo si `coordinationStatus !== 'SCHEDULED'`) `{ status, scheduledAt, clientAvailability, clientAddress, hasLocation }` para que el frontend muestre el estado de coordinación
 
 **GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
 - `user` → nombre del cliente
@@ -1023,6 +1023,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | assignmentTimeoutAt   | DateTime? | Timeout de respuesta del profesional         |
 | scheduledAt           | DateTime? | Fecha y hora confirmada de la visita         |
 | clientAddress         | String?   | Dirección exacta ingresada por el usuario    |
+| clientAvailability    | String?   | Disponibilidad horaria en texto libre        |
 | clientLatitude        | Float?    | Latitud del pin de WhatsApp                  |
 | clientLongitude       | Float?    | Longitud del pin de WhatsApp                 |
 | coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| AWAITING_USER_CONFIRMATION \| AWAITING_LOCATION \| SCHEDULED |
@@ -1217,7 +1218,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
     - Usuario acepta → `AWAITING_LOCATION` (continúa flujo normal de ubicación)
     - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` (nueva ronda, máximo 3 rondas de negociación)
     - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
-  - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAddress` y notifica al profesional
+  - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAvailability` y notifica al profesional
   - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) o desde el chat → `scheduledAt` se guarda, `coordinationStatus = AWAITING_LOCATION`, NORA pide ubicación al usuario
   - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
   - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante

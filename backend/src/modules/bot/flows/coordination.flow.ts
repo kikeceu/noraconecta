@@ -48,7 +48,7 @@ export class CoordinationFlow implements FlowHandler {
         where: { id: requestId },
         data: {
           coordinationStatus: 'AWAITING_CONFIRMATION',
-          clientAddress: availability,
+          clientAvailability: availability,
         },
         include: {
           user: { select: { name: true, phone: true } },
@@ -371,7 +371,7 @@ export class CoordinationFlow implements FlowHandler {
           data: {
             coordinationStatus: 'AWAITING_AVAILABILITY',
             negotiationRounds,
-            clientAddress: null,
+            clientAvailability: null,
           },
         });
 
