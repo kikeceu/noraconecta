@@ -488,6 +488,35 @@ export class RequestsController {
       next(err);
     }
   }
+
+  async confirmSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { scheduleText, proposedAt } = req.body as {
+        scheduleText?: string;
+        proposedAt?: string;
+      };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!scheduleText || !scheduleText.trim()) {
+        res.status(400).json({ error: 'scheduleText is required', statusCode: 400 });
+        return;
+      }
+
+      const request = await requestsService.confirmSchedule(
+        id,
+        scheduleText.trim(),
+        proposedAt || null,
+      );
+      res.status(200).json({ data: request });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const requestsController = new RequestsController();

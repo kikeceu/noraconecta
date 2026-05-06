@@ -60,6 +60,10 @@ router.post('/:id/confirm-visit', (req, res, next) => {
   void requestsController.confirmVisit(req, res, next);
 });
 
+router.post('/:id/confirm-schedule', (req, res, next) => {
+  void requestsController.confirmSchedule(req, res, next);
+});
+
 router.get('/', requireAuth, (req, res, next) => {
   void requestsController.list(req, res, next);
 });
