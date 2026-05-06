@@ -23,13 +23,14 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── lib/
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs)
-│   │   │   └── llm.ts                 # LLM client: parseScheduledAt con contexto de disponibilidad del cliente (AUT-163, AUT-164)
+│   │   │   └── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
-│   │   │   └── jwt.ts                 # signToken / verifyToken
+│   │   │   ├── jwt.ts                 # signToken / verifyToken
+│   │   │   └── date-utils.ts          # parseExactDate: validación estricta DD/MM HH:MM con timezone Argentina (AUT-166)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
@@ -580,14 +581,14 @@ POST /bot/message
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
-**Parseo LLM con contexto (AUT-164, AUT-165):** `parseScheduledAt` recibe opcionalmente `clientAvailability` (la disponibilidad propuesta por el usuario) para mejorar la precisión del parseo cuando el profesional responde con cambios parciales. Ej: si el usuario dijo "viernes a las 18" y el profesional responde "mejor a las 16", el LLM puede inferir "viernes a las 16:00" usando el contexto.
+**Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH:MM`. El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})/(\d{2})\s+(\d{2}):(\d{2})$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
 
-**Detección de horario alternativo (AUT-165):**
-- **Panel: `CoordinationService.confirmVisit`**: El LLM (`parseScheduledAt`) parsea el texto del profesional. Si `parsedFromProfessionalsText` es false (LLM no pudo parsear), se resetea a `AWAITING_AVAILABILITY` en vez de caer en `AWAITING_LOCATION`. Si parsea ok, se compara con `parseScheduledAt(clientAvailability, now)` (mismo LLM) vía `isSameSchedule` (margen de tolerancia: 15 min, ajustado de 60 min).
-- **Chat: `CoordinationFlow.handleAwaitingConfirmation`**: El LLM parsea el texto del profesional. Luego `isAffirmative(scheduleText)` detecta si es una confirmación (ej: "dale", "ok"). Si es afirmativo → `AWAITING_LOCATION`. Si no es afirmativo y el LLM parseó → `AWAITING_USER_CONFIRMATION`.
-- **`handleAwaitingAvailability`** también usa `parseScheduledAt` para parsear la disponibilidad del usuario (reemplazó al regex `parseScheduleDate`).
-- **Timezone**: `parseScheduledAt` construye la fecha en zona horaria argentina (`-03:00`) para que `getHours()`/`getDay()` reflejen la hora local correcta.
-- Si el LLM no puede determinar el horario ni siquiera con contexto, NORA pide al profesional que sea más específico.
+**Flujo de coordinación actualizado (AUT-166):**
+- **`handleAwaitingAvailability`**: Mensaje al usuario: "¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)". Valida con `parseExactDate`. Si no cumple → "El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)" → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
+- **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
+- **`CoordinationService.confirmVisit`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Misma lógica de detección de horario alternativo vía `isSameSchedule` (margen 15 min).
+- **`RequestsService.confirmSchedule`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Sin fallback a `clientAvailability`.
+- **Timezone**: `parseExactDate` construye la fecha en zona horaria argentina (`-03:00`).
 
 **Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
 
@@ -671,8 +672,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
 | `/requests/:id/rate-user`             | POST   | Profesional califica al usuario (4 ejes)       | Sin auth  |
-| `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel). Detecta automáticamente horario alternativo via LLM con contexto. Si alternativo → `AWAITING_USER_CONFIRMATION` + pendingMessage al usuario (AUT-164) | Sin auth  |
-| `/requests/:id/confirm-schedule`      | POST   | Bot/panel confirma horario del profesional, acepta `proposedAt DateTime?` para horario alternativo. LLM recibe `clientAvailability` como contexto adicional (AUT-164) | Sin auth  |
+| `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel). Detecta automáticamente horario alternativo via `parseExactDate`. Si alternativo → `AWAITING_USER_CONFIRMATION` + pendingMessage al usuario (AUT-164, AUT-166) | Sin auth  |
+| `/requests/:id/confirm-schedule`      | POST   | Bot/panel confirma horario del profesional, acepta `proposedAt DateTime?` para horario alternativo. Usa `parseExactDate` (AUT-166) | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
 | `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback, profesional asignado (incluye teléfono cuando está ACCEPTED) y datos de coordinación | Sin auth (polling simulador) |
 
@@ -1134,9 +1135,9 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `BUILD_TARGET`      | No        | Target de build: `admin`, `app`, o `landing` (solo frontend) |
 | `VITE_API_URL`      | No        | URL de la API para builds admin/app (.env.admin, .env.app) |
 | `VITE_WHATSAPP_NUMBER`| No      | Número de WhatsApp para build landing (.env.landing) |
-| `OPENAI_API_KEY`    | No        | API key de OpenAI para parseo de fechas con LLM (AUT-163) |
+| `OPENAI_API_KEY`    | No        | API key de OpenAI (obsoleta para parseo de fechas desde AUT-166; conservada para usos futuros) |
 | `OPENAI_BASE_URL`   | No        | URL base alternativa de la API de OpenAI (default: https://api.openai.com/v1) |
-| `LLM_MODEL`         | No        | Modelo LLM a usar (default: gpt-4o-mini) |
+| `LLM_MODEL`         | No        | Modelo LLM a usar (default: gpt-4o-mini). Sin uso activo en coordinación desde AUT-166 |
 
 ## Business Rules
 
@@ -1235,7 +1236,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
     - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` (nueva ronda, máximo 3 rondas de negociación)
     - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
   - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAvailability` y notifica al profesional
-  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `confirmVisit` detecta si el horario es alternativo comparando el parseo LLM del texto del profesional con `isAffirmative`. Si la respuesta es afirmativa ("dale", "confirmo", etc.) → `AWAITING_LOCATION`. Si no es afirmativa y el LLM parseó → `AWAITING_USER_CONFIRMATION`. Si el LLM no parseó el texto del profesional → reset a `AWAITING_AVAILABILITY`. `scheduledAt` se guarda, NORA pide ubicación al usuario.
+  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `confirmVisit` detecta si el horario es alternativo comparando el parseo con `parseExactDate` del texto del profesional vía `isSameSchedule`. Si la respuesta es afirmativa ("dale", "confirmo", etc.) → `AWAITING_LOCATION`. Si no es afirmativa y `parseExactDate` parseó → `AWAITING_USER_CONFIRMATION`. Si no se pudo parsear el texto del profesional → reset a `AWAITING_AVAILABILITY`. `scheduledAt` se guarda, NORA pide ubicación al usuario.
   - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
   - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante
   - Al completar ambos → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con todos los datos
@@ -1248,7 +1249,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
   - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
-  - **Parseo de fecha con LLM (AUT-163):** Al confirmar el horario, el texto en lenguaje natural del usuario (`clientAvailability`) se convierte a `scheduledAt` usando OpenAI `gpt-4o-mini` vía `lib/llm.ts` → `parseScheduledAt()`. Si el LLM no puede parsear la fecha, se le pide al usuario que reformule y se regresa a `AWAITING_AVAILABILITY`. Si `OPENAI_API_KEY` no está configurado, el LLM se deshabilita silenciosamente (retorna null). El prompt es mínimo para mantener bajo costo por llamada.
+  - **Parseo de fecha estricto (AUT-166):** El texto del usuario y profesional debe usar formato `DD/MM HH:MM`. Se valida con `parseExactDate()` (`utils/date-utils.ts`). Si el formato es inválido, NORA pide corrección y se queda en el mismo paso. Sin dependencia de LLM.
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos

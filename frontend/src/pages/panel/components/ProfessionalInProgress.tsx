@@ -513,7 +513,7 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                       type="text"
                       value={alternativeText}
                       onChange={(e) => setAlternativeText(e.target.value)}
-                      placeholder="Ej: jueves a las 15hs"
+                      placeholder="Ej: 20/06 17:00"
                       className="w-full px-3 py-2 rounded-lg border border-[#E5E7EB] text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0B6E4F] focus:border-transparent"
                       style={{ fontFamily: 'DM Sans' }}
                     />

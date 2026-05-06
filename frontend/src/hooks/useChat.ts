@@ -90,7 +90,7 @@ function getStatusMessage(data: RequestData): string | null {
   }
   if (data.status === 'ACCEPTED' && data.coordinationStatus === 'AWAITING_AVAILABILITY' && data.assignedProfessional?.name) {
     const categoryName = data.category?.name || 'el servicio';
-    return `¡Buenas noticias! ${data.assignedProfessional.name} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita?`;
+    return `¡Buenas noticias! ${data.assignedProfessional.name} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`;
   }
   return STATUS_MESSAGES[data.status] ?? null;
 }
