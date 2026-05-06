@@ -87,20 +87,6 @@ export class RequestsService {
       throw new AppError('User already has an active request', 409);
     }
 
-    const match = await this.matchingService.findBestCandidate(
-      input.categoryId,
-      input.geoNodeId,
-      [],
-    );
-
-    const responseTimeoutHours = await this.getResponseTimeoutHours();
-    const now = new Date();
-    const assignmentTimeoutAt = match
-      ? new Date(now.getTime() + responseTimeoutHours * 60 * 60 * 1000)
-      : undefined;
-
-    const status = match ? 'ASSIGNED' : 'NO_RESPONSE';
-
     const request = await this.requestsRepository.create({
       userId: user.id,
       categoryId: input.categoryId,
@@ -108,21 +94,49 @@ export class RequestsService {
       description: input.description.trim(),
       photoUrls: input.photoUrls || [],
       audioUrl: input.audioUrl,
-      status,
-      assignedProfessionalId: match?.professionalId,
-      assignedAt: match ? now : undefined,
-      assignmentTimeoutAt,
+      status: 'CREATED',
     });
 
-    await this.requestsRepository.createEvent({
-      requestId: request.id,
-      professionalId: match?.professionalId ?? null,
-      type: match ? 'ASSIGNED' : 'NO_RESPONSE',
-    });
+    const match = await this.matchingService.findBestCandidate(
+      input.categoryId,
+      input.geoNodeId,
+      [],
+    );
 
     if (match) {
+      const responseTimeoutHours = await this.getResponseTimeoutHours();
+      const now = new Date();
+      const assignmentTimeoutAt = new Date(
+        now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
+      );
+
+      const updated = await this.requestsRepository.update(request.id, {
+        status: 'ASSIGNED',
+        assignedProfessionalId: match.professionalId,
+        assignedAt: now,
+        assignmentTimeoutAt,
+      });
+
+      await this.requestsRepository.createEvent({
+        requestId: request.id,
+        professionalId: match.professionalId,
+        type: 'ASSIGNED',
+      });
+
       await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
+
+      return updated;
     }
+
+    const responseTimeoutHours = await this.getResponseTimeoutHours();
+    const now = new Date();
+    const assignmentTimeoutAt = new Date(
+      now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
+    );
+
+    await this.requestsRepository.update(request.id, {
+      assignmentTimeoutAt,
+    });
 
     return request;
   }
@@ -706,8 +720,71 @@ export class RequestsService {
   }
 
   async processTimeouts(): Promise<number> {
-    const expired = await this.requestsRepository.findExpiredAssignments(new Date());
+    const now = new Date();
     let processed = 0;
+
+    const expiredCreated = await this.requestsRepository.findExpiredCreated(now);
+
+    for (const request of expiredCreated) {
+      try {
+        const match = await this.matchingService.findBestCandidate(
+          request.categoryId,
+          request.geoNodeId,
+          [],
+        );
+
+        if (!match) {
+          await this.requestsRepository.update(request.id, {
+            status: 'NO_RESPONSE',
+            assignmentTimeoutAt: null,
+          });
+
+          await this.requestsRepository.createEvent({
+            requestId: request.id,
+            type: 'NO_RESPONSE',
+          });
+
+          console.log(
+            '[RequestsService] CREATED request moved to NO_RESPONSE (timeout, no candidates):',
+            request.id,
+          );
+        } else {
+          const responseTimeoutHours = await this.getResponseTimeoutHours();
+          const assignmentTimeoutAt = new Date(
+            now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
+          );
+
+          await this.requestsRepository.update(request.id, {
+            status: 'ASSIGNED',
+            assignedProfessionalId: match.professionalId,
+            assignedAt: now,
+            assignmentTimeoutAt,
+          });
+
+          await this.requestsRepository.createEvent({
+            requestId: request.id,
+            professionalId: match.professionalId,
+            type: 'ASSIGNED',
+          });
+
+          await this.requestsRepository.updateLastAssignedAt(
+            match.professionalId,
+            now,
+          );
+
+          console.log(
+            '[RequestsService] CREATED request assigned on timeout retry:',
+            { requestId: request.id, professionalId: match.professionalId },
+          );
+        }
+
+        processed++;
+      } catch {
+        // Continue processing remaining requests
+      }
+    }
+
+    const expired = await this.requestsRepository.findExpiredAssignments(now);
 
     for (const request of expired) {
       try {
@@ -747,8 +824,9 @@ export class RequestsService {
           });
         } else {
           const responseTimeoutHours = await this.getResponseTimeoutHours();
-          const now = new Date();
-          const assignmentTimeoutAt = new Date(now.getTime() + responseTimeoutHours * 60 * 60 * 1000);
+          const assignmentTimeoutAt = new Date(
+            now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
+          );
 
           await this.requestsRepository.update(request.id, {
             status: 'ASSIGNED',
@@ -763,7 +841,10 @@ export class RequestsService {
             type: 'ASSIGNED',
           });
 
-          await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
+          await this.requestsRepository.updateLastAssignedAt(
+            match.professionalId,
+            now,
+          );
         }
 
         processed++;

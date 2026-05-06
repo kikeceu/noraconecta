@@ -201,6 +201,15 @@ export class RequestsRepository {
     });
   }
 
+  async findExpiredCreated(now: Date): Promise<Request[]> {
+    return prisma.request.findMany({
+      where: {
+        status: 'CREATED',
+        assignmentTimeoutAt: { lt: now },
+      },
+    });
+  }
+
   async findPendingAutoClose(cutoff: Date): Promise<Request[]> {
     return prisma.request.findMany({
       where: {
