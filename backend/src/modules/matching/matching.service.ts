@@ -135,10 +135,10 @@ export class MatchingService {
   // --- Hard filters ---
 
   private async applyHardFilters(
-    professionals: { id: string; phone: string }[],
+    professionals: { id: string; name: string; phone: string }[],
     ids: string[],
     config: ScoringConfig,
-  ): Promise<{ id: string; phone: string }[]> {
+  ): Promise<{ id: string; name: string; phone: string }[]> {
     const [memberships, trialMap, activeRequestCounts] = await Promise.all([
       this.matchingRepository.getActiveMemberships(ids),
       this.matchingRepository.getTrialRequestsUsed(ids),
@@ -146,7 +146,10 @@ export class MatchingService {
     ]);
 
     return professionals.filter((p) => {
-      if (!this.canReceiveRequests(memberships.get(p.id) ?? null, trialMap.get(p.id) ?? 0, config)) {
+      const membership = memberships.get(p.id) ?? null;
+      const trialUsed = trialMap.get(p.id) ?? 0;
+
+      if (!this.canReceiveRequests(membership, trialUsed, config)) {
         return false;
       }
 

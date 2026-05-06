@@ -52,11 +52,17 @@ app.use('/bot', botRoutes);
 
 app.use(errorHandler);
 
-// Cron job: auto-close PENDING_CONFIRMATION requests older than 24h (runs every hour)
+// Cron job: process timeouts (expired ASSIGNED and CREATED requests)
+// Runs every 15 minutes
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
 const requestsService = new RequestsService(requestsRepository, usersRepository);
 
+cron.schedule('*/15 * * * *', () => {
+  void requestsService.processTimeouts();
+});
+
+// Cron job: auto-close PENDING_CONFIRMATION requests older than 24h (runs every hour)
 cron.schedule('0 * * * *', () => {
   void requestsService.autoClosePendingConfirmations();
 });

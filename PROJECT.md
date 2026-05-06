@@ -640,6 +640,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
 **Desempate por plan**: Cuando dos profesionales tienen score similar (diferencia < 5 puntos), el de mayor `plan.priority` gana la posición. Premium (3) > Profesional (2) > Básico (1). Si no tiene membresía activa, se trata como priority=1.
 
+**Logs de diagnóstico**: `applyHardFilters()` loguea cada profesional excluido con su motivo (cannot receive requests con membership/trialUsed/limit, o max active requests alcanzado). `findEligibleProfessionals()` loguea los resultados crudos de la query y los filtros aplicados.
+
 ### Requests
 
 | Endpoint                               | Método | Descripción                                    | Auth      |
@@ -687,10 +689,10 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 ```
 
 **Lógica de negocio:**
-- Crear: validar usuario sin pedido activo (409 si ya tiene) → matching → asignar con `assignmentTimeoutAt`
+- Crear: validar usuario sin pedido activo (409 si ya tiene) → crea en CREATED → matching → si encuentra candidato transiciona a ASSIGNED con `assignmentTimeoutAt`. Si no encuentra, permanece en CREATED con `assignmentTimeoutAt` para que el cron reintente.
 - Aceptar: incrementar `trialRequestsUsed` si no tiene membresía activa
 - Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
-- Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar
+- Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar. CREATED con `assignmentTimeoutAt < now()` → reintenta matching → si falla → NO_RESPONSE
 - Cancelación: solo permitida en CREATED o ASSIGNED
 - Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía pendingMessage al usuario con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158).
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
@@ -700,12 +702,13 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Confirm-completion (legacy): usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
 - Auto-complete: 24h después de `updatedAt` en PENDING_CONFIRMATION sin confirmación → COMPLETED automático con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. No dispara flujo de calificación.
 - Todos los cambios de estado registran su `RequestEvent`
-- Jobs (sin endpoints): `processTimeouts()`, `autoClosePendingConfirmations()` invocados por cron (cada hora en `server.ts`)
+- Jobs (sin endpoints): `processTimeouts()` (cada 15 min), `autoClosePendingConfirmations()` (cada hora) invocados por cron en `server.ts`
 - El estado PENDING_CONFIRMATION se considera activo (el usuario no puede crear otro pedido mientras esté en este estado)
 
 **Config keys usadas:**
 - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2)
 - `AUTO_COMPLETE_HOURS` (default: 24)
+- `TRIAL_REQUESTS_LIMIT` (default: 3)
 
 ### Professional Panel (NEW)
 
