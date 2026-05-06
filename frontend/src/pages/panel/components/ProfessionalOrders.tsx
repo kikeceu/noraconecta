@@ -2,6 +2,23 @@ import { useEffect, useState } from 'react';
 import type { PanelOrder, OrderStatus } from '../../../types/panel';
 import { getPanelOrders, rateUser, finishRequest, confirmVisitRequest } from '../../../lib/panel-api';
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wide text-[#0B6E4F] mb-2" style={{ fontFamily: 'DM Sans' }}>
+      {children}
+    </p>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3 py-1.5">
+      <span className="text-xs text-[#6B7280] w-20 shrink-0" style={{ fontFamily: 'DM Sans' }}>{label}</span>
+      <span className="text-sm text-[#111827] break-words" style={{ fontFamily: 'DM Sans' }}>{value}</span>
+    </div>
+  );
+}
+
 interface ProfessionalOrdersProps {
   sessionToken: string;
 }
@@ -30,15 +47,6 @@ function Card({ children, className = '' }: { children: React.ReactNode; classNa
   return (
     <div className={`rounded-xl bg-white border border-[#E5E7EB] p-5 ${className}`}>
       {children}
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between items-start gap-2">
-      <span className="text-xs text-[#6B7280] shrink-0" style={{ fontFamily: 'DM Sans' }}>{label}</span>
-      <span className="text-sm text-[#111827] text-right" style={{ fontFamily: 'DM Sans' }}>{value}</span>
     </div>
   );
 }
@@ -608,68 +616,21 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
         const scheduleText = scheduledAt
           ? `${dayNames[scheduledAt.getDay()]} ${scheduledAt.getHours().toString().padStart(2, '0')}:${scheduledAt.getMinutes().toString().padStart(2, '0')}`
           : null;
+        const photos = order?.photoUrls?.length ? order.photoUrls : null;
+        const audio = order?.audioUrl || null;
+        const hasMedia = photos != null || audio != null;
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-            <div className="rounded-xl bg-white shadow-lg max-w-sm w-full mx-4 overflow-hidden">
-              <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
-                <h2
-                  className="text-base font-semibold text-[#111827]"
-                  style={{ fontFamily: 'DM Sans' }}
-                >
-                  Detalle de la visita
-                </h2>
-                <button
-                  onClick={() => setViewAddressOrderId(null)}
-                  className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="p-5 space-y-3">
-                <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB] space-y-2">
-                  <DetailRow label="Cliente" value={order?.userName || '—'} />
-                  <DetailRow label="Teléfono" value={order?.userPhone || '—'} />
-                  <DetailRow label="Pedido" value={order?.description || '—'} />
-                  <DetailRow label="Rubro" value={order?.category?.name || '—'} />
-                  <DetailRow label="Zona" value={order?.geoNode?.name || '—'} />
-                  {scheduleText && <DetailRow label="Día y hora" value={scheduleText} />}
-                </div>
-                <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB] space-y-2">
-                  <DetailRow label="Dirección" value={address} />
-                </div>
-                {mapsUrl ? (
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] transition-colors"
-                    style={{ fontFamily: 'DM Sans' }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    Abrir en Google Maps
-                  </a>
-                ) : (
-                  <p className="text-xs text-[#9CA3AF] text-center" style={{ fontFamily: 'DM Sans' }}>
-                    El usuario no compartió su ubicación
-                  </p>
-                )}
-                <button
-                  onClick={() => setViewAddressOrderId(null)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors"
-                  style={{ fontFamily: 'DM Sans' }}
-                >
-                  Cerrar
-                </button>
-              </div>
-            </div>
-          </div>
+          <ViewAddressModal
+            order={order!}
+            address={address}
+            mapsUrl={mapsUrl}
+            scheduleText={scheduleText}
+            photos={photos}
+            audio={audio}
+            hasMedia={hasMedia}
+            onClose={() => setViewAddressOrderId(null)}
+          />
         );
       })()}
 
@@ -725,6 +686,171 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function ViewAddressModal({
+  order,
+  address,
+  mapsUrl,
+  scheduleText,
+  photos,
+  audio,
+  hasMedia,
+  onClose,
+}: {
+  order: PanelOrder;
+  address: string;
+  mapsUrl: string | null;
+  scheduleText: string | null;
+  photos: string[] | null;
+  audio: string | null;
+  hasMedia: boolean;
+  onClose: () => void;
+}) {
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 md:p-0">
+        <div className="rounded-xl bg-white shadow-xl w-full md:max-w-[600px] max-h-[95vh] md:max-h-[80vh] overflow-hidden flex flex-col">
+          <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between shrink-0">
+            <h2
+              className="text-base font-semibold text-[#111827]"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Detalle de la visita
+            </h2>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="p-5 space-y-5 overflow-y-auto flex-1">
+            <section>
+              <SectionLabel>Cliente</SectionLabel>
+              <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB]">
+                <InfoRow label="Nombre" value={order.userName || '—'} />
+                <InfoRow label="Teléfono" value={order.userPhone || '—'} />
+              </div>
+            </section>
+
+            <section>
+              <SectionLabel>Pedido</SectionLabel>
+              <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB]">
+                <InfoRow label="Descripción" value={order.description || '—'} />
+                <InfoRow label="Rubro" value={order.category?.name || '—'} />
+                <InfoRow label="Zona" value={order.geoNode?.name || '—'} />
+              </div>
+            </section>
+
+            <section>
+              <SectionLabel>Visita</SectionLabel>
+              <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB]">
+                {scheduleText && <InfoRow label="Día y hora" value={scheduleText} />}
+                <InfoRow label="Dirección" value={address} />
+              </div>
+              {mapsUrl ? (
+                <a
+                  href={mapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#0B6E4F] text-white text-sm font-medium hover:bg-[#085D42] transition-colors"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                  Abrir en Google Maps
+                </a>
+              ) : (
+                <p className="mt-3 text-xs text-[#9CA3AF] text-center" style={{ fontFamily: 'DM Sans' }}>
+                  El usuario no compartió su ubicación
+                </p>
+              )}
+            </section>
+
+            {hasMedia && (
+              <section>
+                <SectionLabel>Multimedia</SectionLabel>
+                <div className="bg-[#F9FAFB] rounded-lg p-3 border border-[#E5E7EB] space-y-3">
+                  {photos && (
+                    <div>
+                      <p className="text-xs text-[#6B7280] mb-2" style={{ fontFamily: 'DM Sans' }}>Fotos</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {photos.map((url, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setLightboxUrl(url)}
+                            className="aspect-square rounded-lg overflow-hidden border border-[#E5E7EB] hover:ring-2 hover:ring-[#0B6E4F]/40 transition-all"
+                          >
+                            <img
+                              src={url}
+                              alt={`Foto ${i + 1}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {audio && (
+                    <div>
+                      <p className="text-xs text-[#6B7280] mb-2" style={{ fontFamily: 'DM Sans' }}>Audio</p>
+                      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                      <audio controls className="w-full h-10">
+                        <source src={audio} />
+                        Tu navegador no soporta reproducción de audio.
+                      </audio>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-full px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] transition-colors"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <img
+            src={lightboxUrl}
+            alt="Foto en tamaño completo"
+            className="max-w-full max-h-[90vh] rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
   );
 }
 

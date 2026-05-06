@@ -399,6 +399,8 @@ export class ProfessionalsService {
         clientLatitude: order.clientLatitude,
         clientLongitude: order.clientLongitude,
         scheduledAt: order.scheduledAt,
+        photoUrls: order.photoUrls,
+        audioUrl: order.audioUrl,
       })),
       pagination: {
         page: validPage,

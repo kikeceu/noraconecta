@@ -81,6 +81,8 @@ export interface PanelOrder {
   clientLatitude?: number | null;
   clientLongitude?: number | null;
   scheduledAt?: string | null;
+  photoUrls?: string[];
+  audioUrl?: string | null;
 }
 
 export type OrderStatus =

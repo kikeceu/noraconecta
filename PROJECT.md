@@ -719,7 +719,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos ACCEPTED: botón "Marcar finalizado" (si no está en coordinación) o "Confirmar visita" (si `coordinationStatus = AWAITING_CONFIRMATION`). Pedidos SCHEDULED: botón "Ver detalle" con modal mostrando cliente, teléfono, pedido, rubro, zona, día/hora, dirección y link Google Maps. Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Paginación + empty state |
+| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos ACCEPTED: botón "Marcar finalizado" (si no está en coordinación) o "Confirmar visita" (si `coordinationStatus = AWAITING_CONFIRMATION`). Pedidos SCHEDULED: botón "Ver detalle" abre modal ampliado (desktop: 600px, mobile: fullscreen) con 4 secciones (Cliente, Pedido, Visita, Multimedia) y lightbox de fotos + reproductor de audio inline (AUT-154). Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
 
@@ -728,7 +728,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | Endpoint | Método | Descripción |
 |---|---|---|
 | `/professionals/session/:token/panel` | GET | Datos consolidados: perfil, membresía, reputación |
-| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado: incluye datos del cliente (nombre, teléfono), descripción, rubro, zona, estado, campos de coordinación (coordinationStatus, clientAddress, clientLatitude, clientLongitude, scheduledAt), flags de calificación |
+| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado: incluye datos del cliente (nombre, teléfono), descripción, rubro, zona, estado, campos de coordinación (coordinationStatus, clientAddress, clientLatitude, clientLongitude, scheduledAt), photoUrls, audioUrl, flags de calificación |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante |
 
 **Response shape `GET /session/:token/panel` (ACTUALIZADO AUT-142):**
@@ -755,7 +755,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 }
 ```
 
-**Response shape `GET /session/:token/orders` (ACTUALIZADO AUT-151):**
+**Response shape `GET /session/:token/orders` (ACTUALIZADO AUT-154):**
 ```json
 {
   "data": [{
@@ -764,7 +764,9 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
     "ratedByProfessional": false, "ratedByUser": true,
     "coordinationStatus": "SCHEDULED", "clientAddress": "Calle 123",
     "clientLatitude": -32.89, "clientLongitude": -68.84,
-    "scheduledAt": "2026-05-06T14:00:00.000Z"
+    "scheduledAt": "2026-05-06T14:00:00.000Z",
+    "photoUrls": ["https://r2.example.com/uuid.jpg"],
+    "audioUrl": null
   }],
   "pagination": { "page": 1, "limit": 20, "total": 47, "totalPages": 3 }
 }
