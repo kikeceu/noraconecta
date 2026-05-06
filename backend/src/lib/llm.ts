@@ -5,6 +5,7 @@ const LLM_MODEL = process.env.LLM_MODEL || 'gpt-4o-mini';
 export async function parseScheduledAt(
   availabilityText: string,
   referenceDate: Date,
+  clientAvailability?: string,
 ): Promise<Date | null> {
   if (!OPENAI_API_KEY) {
     console.warn('[llm] OPENAI_API_KEY not configured, skipping LLM date parsing');
@@ -15,22 +16,35 @@ export async function parseScheduledAt(
   const refStr = referenceDate.toISOString().slice(0, 10);
   const refDayName = dayNames[referenceDate.getDay()];
 
+  const contextLines = [
+    `Fecha de referencia (hoy): ${refStr} (${refDayName})`,
+  ];
+
+  if (clientAvailability) {
+    contextLines.push(`Disponibilidad propuesta por el usuario: "${clientAvailability}"`);
+  }
+
+  contextLines.push(`Texto a analizar: "${availabilityText}"`);
+
   const prompt =
-    `Extraé la fecha y hora del siguiente texto y devolvé SOLO un objeto JSON con este formato exacto:
+    `Extraé la fecha y hora del texto a analizar y devolvé SOLO un objeto JSON con este formato exacto:
 { "date": "YYYY-MM-DD", "time": "HH:MM" }
 
+Contexto:
+${contextLines.join('\n')}
+
 Reglas:
-- HOY es ${refStr} (${refDayName}). Usá esta fecha como referencia.
+- Usá la fecha de referencia como HOY.
 - "viernes", "sábado", etc. → el próximo día de semana DESPUÉS de hoy. Si el día coincide con hoy, usá hoy.
 - "mañana" → el día siguiente a hoy.
 - "hoy" → ${refStr}.
-- Si no se menciona día de semana ni fecha explícita → date: null.
+- Si el texto a analizar es una confirmación o aceptación sin fecha explícita (ej: "confirmo", "dale", "ok") → date: null, time: null.
+- Si el texto a analizar propone un cambio parcial (ej: "mejor a las 16", "que tal a las 10"), usá la disponibilidad del usuario para inferir el día que falta y completar la fecha.
+- Si el texto a analizar no menciona día de semana ni fecha explícita, y no se puede inferir de la disponibilidad del usuario → date: null.
 - Si no se menciona hora → time: null.
 - Si no podés determinar con certeza → date: null, time: null.
 
-No incluyas explicaciones ni texto adicional. Solo el JSON.
-
-Texto: "${availabilityText}"`;
+No incluyas explicaciones ni texto adicional. Solo el JSON.`;
 
   try {
     const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {

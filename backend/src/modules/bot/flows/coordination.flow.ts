@@ -146,10 +146,21 @@ export class CoordinationFlow implements FlowHandler {
         select: { clientAvailability: true },
       });
 
-      let professionalScheduledAt = await parseScheduledAt(scheduleText, now);
+      const clientAvailability = request?.clientAvailability ?? undefined;
+      let parsedFromProfessionalsText = false;
 
-      if (!professionalScheduledAt && request?.clientAvailability) {
-        professionalScheduledAt = await parseScheduledAt(request.clientAvailability, now);
+      let professionalScheduledAt = await parseScheduledAt(
+        scheduleText,
+        now,
+        clientAvailability,
+      );
+
+      if (professionalScheduledAt) {
+        parsedFromProfessionalsText = true;
+      }
+
+      if (!professionalScheduledAt && clientAvailability) {
+        professionalScheduledAt = await parseScheduledAt(clientAvailability, now);
       }
 
       if (!professionalScheduledAt) {
@@ -197,7 +208,9 @@ export class CoordinationFlow implements FlowHandler {
       const userProposedAtStr = tempData.userProposedAt as string | undefined;
       const userProposedAt = userProposedAtStr ? new Date(userProposedAtStr) : null;
 
-      const isAlternative = !this.isSameSchedule(professionalScheduledAt, userProposedAt);
+      const isAlternative = parsedFromProfessionalsText && (
+        !userProposedAt || !this.isSameSchedule(professionalScheduledAt, userProposedAt)
+      );
 
       if (isAlternative) {
         const userName = tempData.userName as string;
@@ -214,6 +227,7 @@ export class CoordinationFlow implements FlowHandler {
           where: { id: requestId },
           data: {
             coordinationStatus: 'AWAITING_USER_CONFIRMATION',
+            scheduledAt: professionalScheduledAt,
           },
         });
 
@@ -648,7 +662,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private isSameSchedule(proposed: Date, available: Date | null): boolean {
-    if (!available) return true;
+    if (!available) return false;
 
     return (
       proposed.getDay() === available.getDay() &&
