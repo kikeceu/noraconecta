@@ -9,7 +9,7 @@ import { EscalationsService } from '../escalations/escalations.service';
 import { EscalationsRepository } from '../escalations/escalations.repository';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
-import { parseScheduledAt } from '../../lib/llm';
+import { parseExactDate } from '../../utils/date-utils';
 import { Request, Feedback } from '@prisma/client';
 
 const DEFAULT_RESPONSE_TIMEOUT_HOURS = 2;
@@ -971,14 +971,7 @@ export class RequestsService {
         clientAvailability: scheduleText,
       });
     } else {
-      const now = new Date();
-      const clientAvailability = request.clientAvailability ?? undefined;
-
-      let scheduledAt = await parseScheduledAt(scheduleText, now, clientAvailability);
-
-      if (!scheduledAt && clientAvailability) {
-        scheduledAt = await parseScheduledAt(clientAvailability, now);
-      }
+      const scheduledAt = parseExactDate(scheduleText);
 
       if (!scheduledAt) {
         await this.requestsRepository.update(requestId, {
@@ -987,7 +980,7 @@ export class RequestsService {
         });
 
         throw new AppError(
-          'Could not parse the schedule. The user will be asked to reformulate.',
+          'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)',
           422,
         );
       }

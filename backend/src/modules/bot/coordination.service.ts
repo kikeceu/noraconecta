@@ -1,7 +1,7 @@
 import { BotRepository } from './bot.repository';
 import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
-import { parseScheduledAt } from '../../lib/llm';
+import { parseExactDate } from '../../utils/date-utils';
 
 export type CoordinationInitData = {
   requestId: string;
@@ -180,32 +180,10 @@ export class CoordinationService {
       clientAvailability: request.clientAvailability,
     });
 
-    const now = new Date();
-    const clientAvailability = request.clientAvailability ?? undefined;
-    console.log('[COORD DEBUG clientAvailability]', {
-      fromDB: request.clientAvailability,
-      scheduleText,
-    });
-    let parsedFromProfessionalsText = false;
-
-    let scheduledAt = await parseScheduledAt(scheduleText, now, clientAvailability);
-
-    if (scheduledAt) {
-      parsedFromProfessionalsText = true;
-      console.log('[CoordinationService.confirmVisit] LLM parsed professional text:', {
-        scheduleText,
-        scheduledAt: scheduledAt.toISOString(),
-      });
-    } else {
-      console.log('[CoordinationService.confirmVisit] LLM could not parse professional text');
-    }
-
-    if (!scheduledAt && clientAvailability) {
-      scheduledAt = await parseScheduledAt(clientAvailability, now);
-    }
+    const scheduledAt = parseExactDate(scheduleText);
 
     if (!scheduledAt) {
-      console.log('[CoordinationService.confirmVisit] Could not parse any schedule, resetting to AWAITING_AVAILABILITY');
+      console.log('[CoordinationService.confirmVisit] Could not parse schedule, resetting to AWAITING_AVAILABILITY');
       await prisma.request.update({
         where: { id: requestId },
         data: {
@@ -216,7 +194,7 @@ export class CoordinationService {
 
       if (request.user?.phone) {
         const userMessage =
-          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
+          'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
 
         const userSession = await this.botRepository.findByPhone(request.user.phone);
         const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
@@ -237,6 +215,7 @@ export class CoordinationService {
             categoryName: request.category?.name,
             description: request.description,
             pendingMessage: userMessage,
+            negotiationRounds: 0,
           } as Prisma.InputJsonValue,
         });
       }
@@ -244,56 +223,18 @@ export class CoordinationService {
       return;
     }
 
-    if (!parsedFromProfessionalsText) {
-      console.log('[CoordinationService.confirmVisit] Could not parse professional text (fallback used), resetting to AWAITING_AVAILABILITY');
-      await prisma.request.update({
-        where: { id: requestId },
-        data: {
-          coordinationStatus: 'AWAITING_AVAILABILITY',
-          clientAvailability: null,
-        },
-      });
+    console.log('[CoordinationService.confirmVisit] Parsed schedule:', {
+      scheduleText,
+      scheduledAt: scheduledAt.toISOString(),
+    });
 
-      if (request.user?.phone) {
-        const userMessage =
-          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
+    const clientAvailability = request.clientAvailability ?? undefined;
+    const userProposedAt = clientAvailability ? parseExactDate(clientAvailability) : null;
 
-        const userSession = await this.botRepository.findByPhone(request.user.phone);
-        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
-
-        await this.botRepository.upsert(request.user.phone, {
-          role: 'USER',
-          currentFlow: 'COORDINATION',
-          currentStep: 'AWAITING_AVAILABILITY',
-          tempData: {
-            ...userTempData,
-            requestId,
-            userId: request.userId,
-            userName: request.user?.name,
-            userPhone: request.user.phone,
-            professionalId: request.assignedProfessionalId,
-            professionalName: request.assignedProfessional?.name || 'El profesional',
-            professionalPhone: request.assignedProfessional?.phone,
-            categoryName: request.category?.name,
-            description: request.description,
-            pendingMessage: userMessage,
-          } as Prisma.InputJsonValue,
-        });
-      }
-
-      return;
-    }
-
-    const userProposedAt = clientAvailability
-      ? await parseScheduledAt(clientAvailability, now)
-      : null;
-    const isAlternative = parsedFromProfessionalsText && (
-      !userProposedAt || !isSameSchedule(scheduledAt, userProposedAt)
-    );
+    const isAlternative = !userProposedAt || !isSameSchedule(scheduledAt, userProposedAt);
 
     console.log('[CoordinationService.confirmVisit] Alternative detection:', {
       requestId,
-      parsedFromProfessionalsText,
       userProposedAt: userProposedAt?.toISOString() ?? null,
       scheduledAt: scheduledAt.toISOString(),
       isAlternative,
@@ -314,13 +255,13 @@ export class CoordinationService {
         const professionalName = request.assignedProfessional?.name || 'El profesional';
         const availability = clientAvailability || 'ese horario';
 
-        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[scheduledAt.getDay()];
+        const day = scheduledAt.getDate().toString().padStart(2, '0');
+        const month = (scheduledAt.getMonth() + 1).toString().padStart(2, '0');
         const hours = scheduledAt.getHours().toString().padStart(2, '0');
         const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
-        const alternativeText = `el ${dayName} a las ${hours}:${minutes}`;
+        const alternativeText = `${day}/${month} ${hours}:${minutes}`;
 
-        const userMessage = `${professionalName} no puede ${availability}. Propone ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+        const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
         const userSession = await this.botRepository.findByPhone(request.user.phone);
         const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
@@ -342,7 +283,6 @@ export class CoordinationService {
             description: request.description,
             alternativeScheduledAt: scheduledAt.toISOString(),
             availability: clientAvailability,
-            userProposedAt: userProposedAt?.toISOString() ?? null,
             negotiationRounds: 0,
             pendingMessage: userMessage,
           } as Prisma.InputJsonValue,

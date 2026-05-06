@@ -1,6 +1,6 @@
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import prisma from '../../../lib/prisma';
-import { parseScheduledAt } from '../../../lib/llm';
+import { parseExactDate } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { UsersRepository } from '../../users/users.repository';
@@ -40,16 +40,52 @@ export class CoordinationFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     const requestId = tempData.requestId as string;
     const negotiationRounds = (tempData.negotiationRounds as number) || 0;
+    const alreadySent = tempData._sent as boolean;
 
     if (role === 'USER' && message.text?.trim()) {
+      if (alreadySent) {
+        const request = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: {
+            assignedProfessional: { select: { name: true } },
+          },
+        });
+        const professionalName = request?.assignedProfessional?.name || 'El profesional';
+        return {
+          response: {
+            text: `Ya le avisé a ${professionalName}. Esperá su confirmación.`,
+          },
+          nextStep: 'AWAITING_AVAILABILITY',
+          tempData,
+        };
+      }
+
       const availability = message.text.trim();
-      const userProposedAt = this.parseScheduleDate(availability);
+      const parsedDate = parseExactDate(availability);
+
+      if (!parsedDate) {
+        return {
+          response: {
+            text: 'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)',
+          },
+          nextStep: 'AWAITING_AVAILABILITY',
+          tempData: { ...tempData, negotiationRounds },
+        };
+      }
+
+      console.log('[CoordinationFlow] handleAwaitingAvailability - updating request:', {
+        requestId,
+        coordinationStatus: 'AWAITING_CONFIRMATION',
+        availability,
+        scheduledAt: parsedDate.toISOString(),
+      });
 
       const request = await prisma.request.update({
         where: { id: requestId },
         data: {
           coordinationStatus: 'AWAITING_CONFIRMATION',
           clientAvailability: availability,
+          scheduledAt: parsedDate,
         },
         include: {
           user: { select: { name: true, phone: true } },
@@ -58,20 +94,33 @@ export class CoordinationFlow implements FlowHandler {
         },
       });
 
+      console.log('[CoordinationFlow] handleAwaitingAvailability - request updated:', {
+        requestId,
+        newCoordinationStatus: request.coordinationStatus,
+        scheduledAt: request.scheduledAt?.toISOString(),
+      });
+
       const professionalName = request.assignedProfessional?.name || 'El profesional';
 
-      const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede ${availability}. ¿Confirmás ese horario o proponés uno alternativo?`;
+      const day = parsedDate.getDate().toString().padStart(2, '0');
+      const month = (parsedDate.getMonth() + 1).toString().padStart(2, '0');
+      const hours = parsedDate.getHours().toString().padStart(2, '0');
+      const minutes = parsedDate.getMinutes().toString().padStart(2, '0');
+      const formattedDate = `${day}/${month} ${hours}:${minutes}`;
+
+      const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede el ${formattedDate}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)`;
 
       return {
         response: {
-          text: `Le aviso a ${professionalName} que podés ${availability}. Esperá su confirmación.`,
+          text: `Le aviso a ${professionalName} que podés ${formattedDate}. Esperá su confirmación.`,
         },
-        nextStep: null,
+        nextStep: 'AWAITING_AVAILABILITY',
         tempData: {
           requestId,
           availability,
-          userProposedAt: userProposedAt?.toISOString() || null,
+          scheduledAt: parsedDate.toISOString(),
           negotiationRounds,
+          _sent: true,
           pendingNotification: {
             targetPhone: request.assignedProfessional?.phone,
             targetRole: 'PROFESSIONAL',
@@ -87,7 +136,7 @@ export class CoordinationFlow implements FlowHandler {
               professionalName: professionalName,
               professionalPhone: request.assignedProfessional?.phone,
               availability,
-              userProposedAt: userProposedAt?.toISOString() || null,
+              scheduledAt: parsedDate.toISOString(),
               negotiationRounds,
               categoryName: request.category?.name,
               description: request.description,
@@ -118,8 +167,8 @@ export class CoordinationFlow implements FlowHandler {
     const categoryName = request.category?.name || 'el servicio';
 
     const messageText = negotiationRounds > 0
-      ? `¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})?`
-      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita?`;
+      ? `¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`
+      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`;
 
     return {
       response: {
@@ -139,121 +188,42 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role === 'PROFESSIONAL' && message.text?.trim()) {
       const scheduleText = message.text.trim();
-      const now = new Date();
 
-      const request = await prisma.request.findUnique({
-        where: { id: requestId },
-        select: { clientAvailability: true },
-      });
+      if (this.isAffirmative(scheduleText)) {
+        const existingScheduledAt = tempData.scheduledAt as string;
+        const scheduledAt = new Date(existingScheduledAt);
 
-      const clientAvailability = request?.clientAvailability ?? undefined;
-      let parsedFromProfessionalsText = false;
-
-      let professionalScheduledAt = await parseScheduledAt(
-        scheduleText,
-        now,
-        clientAvailability,
-      );
-
-      if (professionalScheduledAt) {
-        parsedFromProfessionalsText = true;
-      }
-
-      if (!professionalScheduledAt && clientAvailability) {
-        professionalScheduledAt = await parseScheduledAt(clientAvailability, now);
-      }
-
-      if (!professionalScheduledAt) {
         await prisma.request.update({
           where: { id: requestId },
           data: {
-            coordinationStatus: 'AWAITING_AVAILABILITY',
-            clientAvailability: null,
+            coordinationStatus: 'AWAITING_LOCATION',
           },
         });
 
-        const userMessage =
-          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
-
-        return {
-          response: {
-            text: 'No pude interpretar el horario. Le pido al usuario que lo especifique mejor.',
-          },
-          nextStep: null,
-          tempData: {
-            requestId,
-            pendingNotification: {
-              targetPhone: tempData.userPhone,
-              targetRole: 'USER',
-              message: userMessage,
-              flow: 'COORDINATION',
-              step: 'AWAITING_AVAILABILITY',
-              tempData: {
-                requestId,
-                userId: tempData.userId,
-                userName: tempData.userName,
-                userPhone: tempData.userPhone,
-                professionalId: tempData.professionalId,
-                professionalName: tempData.professionalName,
-                professionalPhone: tempData.professionalPhone,
-                categoryName: tempData.categoryName,
-                description: tempData.description,
-                negotiationRounds: tempData.negotiationRounds,
-              },
-            },
-          } as Record<string, unknown>,
-        };
-      }
-
-      const userProposedAtStr = tempData.userProposedAt as string | undefined;
-      const userProposedAt = userProposedAtStr ? new Date(userProposedAtStr) : null;
-
-      const isAlternative = parsedFromProfessionalsText && (
-        !userProposedAt || !this.isSameSchedule(professionalScheduledAt, userProposedAt)
-      );
-
-      console.log('[COORD DEBUG]', {
-        scheduleText,
-        isConfirmation: this.isAffirmative(scheduleText),
-        parsedFromProfessionalsText,
-        isAlternative,
-      });
-
-      if (isAlternative) {
         const userName = tempData.userName as string;
         const professionalName = tempData.professionalName as string;
-        const availability = (tempData.availability as string) || 'ese horario';
 
         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[professionalScheduledAt.getDay()];
-        const hours = professionalScheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = professionalScheduledAt.getMinutes().toString().padStart(2, '0');
-        const alternativeText = `el ${dayName} a las ${hours}:${minutes}`;
+        const dayName = dayNames[scheduledAt.getDay()];
+        const hours = scheduledAt.getHours().toString().padStart(2, '0');
+        const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
 
-        await prisma.request.update({
-          where: { id: requestId },
-          data: {
-            coordinationStatus: 'AWAITING_USER_CONFIRMATION',
-            scheduledAt: professionalScheduledAt,
-          },
-        });
-
-        const userMessage = `${professionalName} no puede ${availability}. Propone ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
         return {
           response: {
-            text: `Le aviso a ${userName} que proponés ${alternativeText}.`,
+            text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
           },
           nextStep: null,
           tempData: {
             requestId,
-            alternativeScheduledAt: professionalScheduledAt.toISOString(),
+            scheduledAt: existingScheduledAt,
             pendingNotification: {
               targetPhone: tempData.userPhone,
               targetRole: 'USER',
               message: userMessage,
               flow: 'COORDINATION',
-              step: 'AWAITING_USER_CONFIRMATION',
+              step: 'AWAITING_LOCATION',
               tempData: {
                 requestId,
                 userId: tempData.userId,
@@ -264,10 +234,72 @@ export class CoordinationFlow implements FlowHandler {
                 professionalPhone: tempData.professionalPhone,
                 categoryName: tempData.categoryName,
                 description: tempData.description,
-                alternativeScheduledAt: professionalScheduledAt.toISOString(),
-                availability,
-                userProposedAt: userProposedAtStr,
-                negotiationRounds: tempData.negotiationRounds,
+                scheduledAt: existingScheduledAt,
+              },
+            },
+          } as Record<string, unknown>,
+        };
+      }
+
+      const newScheduledAt = parseExactDate(scheduleText);
+
+      if (!newScheduledAt) {
+        return {
+          response: {
+            text: 'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 17:00)',
+          },
+          nextStep: 'AWAITING_CONFIRMATION',
+          tempData,
+        };
+      }
+
+      const existingScheduledAt = tempData.scheduledAt as string | undefined;
+      const existingDate = existingScheduledAt ? new Date(existingScheduledAt) : null;
+
+      if (existingDate && this.isSameSchedule(newScheduledAt, existingDate)) {
+        await prisma.request.update({
+          where: { id: requestId },
+          data: {
+            coordinationStatus: 'AWAITING_LOCATION',
+            scheduledAt: newScheduledAt,
+          },
+        });
+
+        const userName = tempData.userName as string;
+        const professionalName = tempData.professionalName as string;
+
+        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const dayName = dayNames[newScheduledAt.getDay()];
+        const hours = newScheduledAt.getHours().toString().padStart(2, '0');
+        const minutes = newScheduledAt.getMinutes().toString().padStart(2, '0');
+
+        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+
+        return {
+          response: {
+            text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+          },
+          nextStep: null,
+          tempData: {
+            requestId,
+            scheduledAt: newScheduledAt.toISOString(),
+            pendingNotification: {
+              targetPhone: tempData.userPhone,
+              targetRole: 'USER',
+              message: userMessage,
+              flow: 'COORDINATION',
+              step: 'AWAITING_LOCATION',
+              tempData: {
+                requestId,
+                userId: tempData.userId,
+                userName,
+                userPhone: tempData.userPhone,
+                professionalId: tempData.professionalId,
+                professionalName,
+                professionalPhone: tempData.professionalPhone,
+                categoryName: tempData.categoryName,
+                description: tempData.description,
+                scheduledAt: newScheduledAt.toISOString(),
               },
             },
           } as Record<string, unknown>,
@@ -277,34 +309,37 @@ export class CoordinationFlow implements FlowHandler {
       await prisma.request.update({
         where: { id: requestId },
         data: {
-          coordinationStatus: 'AWAITING_LOCATION',
-          scheduledAt: professionalScheduledAt,
+          coordinationStatus: 'AWAITING_USER_CONFIRMATION',
+          scheduledAt: newScheduledAt,
         },
       });
 
       const userName = tempData.userName as string;
       const professionalName = tempData.professionalName as string;
 
-      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-      const dayName = dayNames[professionalScheduledAt.getDay()];
-      const hours = professionalScheduledAt.getHours().toString().padStart(2, '0');
-      const minutes = professionalScheduledAt.getMinutes().toString().padStart(2, '0');
+      const day = newScheduledAt.getDate().toString().padStart(2, '0');
+      const month = (newScheduledAt.getMonth() + 1).toString().padStart(2, '0');
+      const hours = newScheduledAt.getHours().toString().padStart(2, '0');
+      const minutes = newScheduledAt.getMinutes().toString().padStart(2, '0');
+      const alternativeText = `${day}/${month} ${hours}:${minutes}`;
 
-      const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+      const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
       return {
         response: {
-          text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+          text: `Le aviso a ${userName} que proponés el ${alternativeText}.`,
         },
         nextStep: null,
         tempData: {
           requestId,
+          alternativeScheduledAt: newScheduledAt.toISOString(),
+          scheduledAt: existingScheduledAt,
           pendingNotification: {
             targetPhone: tempData.userPhone,
             targetRole: 'USER',
             message: userMessage,
             flow: 'COORDINATION',
-            step: 'AWAITING_LOCATION',
+            step: 'AWAITING_USER_CONFIRMATION',
             tempData: {
               requestId,
               userId: tempData.userId,
@@ -315,7 +350,8 @@ export class CoordinationFlow implements FlowHandler {
               professionalPhone: tempData.professionalPhone,
               categoryName: tempData.categoryName,
               description: tempData.description,
-              scheduledAt: professionalScheduledAt.toISOString(),
+              alternativeScheduledAt: newScheduledAt.toISOString(),
+              negotiationRounds: tempData.negotiationRounds,
             },
           },
         } as Record<string, unknown>,
@@ -323,11 +359,21 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const userName = (tempData.userName as string) || 'el usuario';
-    const availability = (tempData.availability as string) || 'en ese horario';
+    const scheduledAtStr = tempData.scheduledAt as string | undefined;
+
+    let formattedDate = 'ese horario';
+    if (scheduledAtStr) {
+      const parsed = new Date(scheduledAtStr);
+      const day = parsed.getDate().toString().padStart(2, '0');
+      const month = (parsed.getMonth() + 1).toString().padStart(2, '0');
+      const hours = parsed.getHours().toString().padStart(2, '0');
+      const minutes = parsed.getMinutes().toString().padStart(2, '0');
+      formattedDate = `${day}/${month} ${hours}:${minutes}`;
+    }
 
     return {
       response: {
-        text: `Tu cliente ${userName} puede ${availability}. ¿Confirmás un horario? (Ej: "martes a las 10 de la mañana")`,
+        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)`,
       },
       nextStep: 'AWAITING_CONFIRMATION',
       tempData,
@@ -616,56 +662,6 @@ export class CoordinationFlow implements FlowHandler {
         clientAddress: newAddress,
       },
     };
-  }
-
-  private parseScheduleDate(input: string): Date | null {
-    const now = new Date();
-    const normalized = input.toLowerCase().trim();
-
-    const dayMap: Record<string, number> = {
-      domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3,
-      jueves: 4, viernes: 5, sábado: 6, sabado: 6,
-    };
-
-    const timeMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|horas|am|pm)?/);
-    if (!timeMatch) return null;
-
-    let hours = parseInt(timeMatch[1], 10);
-    const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-
-    if (normalized.includes('pm') && hours < 12) hours += 12;
-    if (normalized.includes('am') && hours === 12) hours = 0;
-
-    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-
-    let targetDay = -1;
-    for (const [name, day] of Object.entries(dayMap)) {
-      if (normalized.includes(name)) {
-        targetDay = day;
-        break;
-      }
-    }
-
-    if (normalized.includes('hoy')) targetDay = now.getDay();
-    if (normalized.includes('mañana') || normalized.includes('manana')) {
-      targetDay = (now.getDay() + 1) % 7;
-    }
-
-    const result = new Date(now);
-    result.setHours(hours, minutes, 0, 0);
-
-    if (targetDay >= 0) {
-      const currentDay = now.getDay();
-      let daysUntil = targetDay - currentDay;
-      if (daysUntil <= 0) daysUntil += 7;
-      result.setDate(result.getDate() + daysUntil);
-    }
-
-    if (result <= now) {
-      result.setDate(result.getDate() + 1);
-    }
-
-    return result;
   }
 
   private isSameSchedule(proposed: Date, available: Date | null): boolean {
