@@ -275,11 +275,17 @@ export class UserRequestFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     if (message.audioUrl) {
       tempData.audioUrl = message.audioUrl;
+      const confirmText = this.buildConfirmation(tempData);
+      return {
+        response: { text: confirmText, options: ['Si', 'No'] },
+        nextStep: 'CONFIRM',
+        tempData,
+      };
     }
 
     const inputText = message.text?.trim().toLowerCase();
 
-    if (inputText === 'listo' || (inputText !== 'listo' && !message.audioUrl)) {
+    if (inputText === 'listo' || !!inputText) {
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText, options: ['Si', 'No'] },

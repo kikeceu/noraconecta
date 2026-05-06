@@ -419,6 +419,9 @@ export class ProfessionalsService {
       description: string;
       createdAt: Date;
       assignmentTimeoutAt: Date | null;
+      userName: string | null;
+      photoUrls: string[];
+      audioUrl: string | null;
     }[];
   }> {
     const professional = await this.getSessionByToken(token);
@@ -439,6 +442,9 @@ export class ProfessionalsService {
         description: request.description,
         createdAt: request.createdAt,
         assignmentTimeoutAt: request.assignmentTimeoutAt,
+        userName: request.user?.name ?? null,
+        photoUrls: request.photoUrls,
+        audioUrl: request.audioUrl,
       })),
     };
   }

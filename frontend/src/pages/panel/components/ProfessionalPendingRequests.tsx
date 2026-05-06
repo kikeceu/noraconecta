@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Clock, MapPin, Wrench, Check, X, Inbox } from 'lucide-react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Clock, MapPin, Wrench, Check, X, Inbox, Play, Pause } from 'lucide-react';
 import type { PendingRequest } from '../../../types/panel';
 import { getPendingRequests, acceptRequest, rejectRequest } from '../../../lib/panel-api';
 
@@ -40,6 +40,9 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
   const [modal, setModal] = useState<ActionModal>(null);
   const [acting, setActing] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +64,34 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
     const interval = setInterval(() => setNow(Date.now()), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  function toggleAudio(url: string) {
+    if (playingAudio === url) {
+      audioRef.current?.pause();
+      setPlayingAudio(null);
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.onended = () => setPlayingAudio(null);
+    audio.onerror = () => setPlayingAudio(null);
+    audio.play().catch(() => setPlayingAudio(null));
+    setPlayingAudio(url);
+  }
 
   async function handleConfirm() {
     if (!modal) return;
@@ -183,6 +214,45 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
                   {req.description}
                 </p>
 
+                {(req.photoUrls.length > 0 || req.audioUrl) && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {req.photoUrls.map((url, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setLightboxUrl(url)}
+                        className="size-16 overflow-hidden rounded-lg border border-[#E5E7EB] hover:opacity-80 transition-opacity"
+                      >
+                        <img
+                          src={url}
+                          alt={`Foto ${i + 1}`}
+                          className="size-full object-cover"
+                        />
+                      </button>
+                    ))}
+                    {req.audioUrl && (
+                      <button
+                        type="button"
+                        onClick={() => toggleAudio(req.audioUrl!)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#F3F4F6] px-3 py-2 text-sm font-medium text-[#374151] hover:bg-[#E5E7EB] transition-colors"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        {playingAudio === req.audioUrl ? (
+                          <>
+                            <Pause className="w-4 h-4 text-[#0B6E4F]" />
+                            Pausar
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4 text-[#0B6E4F]" />
+                            Escuchar audio
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-1.5">
                     <Clock className={`w-4 h-4 ${isUrgent ? 'text-[#DC2626]' : 'text-[#F59E0B]'}`} />
@@ -223,6 +293,19 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
         })}
       </div>
 
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt="Foto ampliada"
+            className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+          />
+        </div>
+      )}
+
       {modal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
@@ -242,9 +325,9 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
               className="mt-2 text-sm text-[#374151]"
               style={{ fontFamily: 'DM Sans' }}
             >
-              {modal.action === 'accept'
-                ? `¿Estás seguro de que querés aceptar este pedido de ${modal.request.category?.name ?? 'este rubro'}?`
-                : `¿Estás seguro de que querés rechazar este pedido de ${modal.request.category?.name ?? 'este rubro'}?`}
+{modal.action === 'accept'
+                  ? `¿Estás seguro de que querés aceptar el pedido de ${modal.request.userName ?? 'este usuario'}?`
+                  : `¿Estás seguro de que querés rechazar el pedido de ${modal.request.userName ?? 'este usuario'}?`}
             </p>
 
             <div className="mt-5 flex justify-end gap-3">
