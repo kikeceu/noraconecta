@@ -114,6 +114,9 @@ export interface PendingRequest {
   description: string;
   createdAt: string;
   assignmentTimeoutAt: string | null;
+  userName: string | null;
+  photoUrls: string[];
+  audioUrl: string | null;
 }
 
 export interface PendingRequestsResponse {

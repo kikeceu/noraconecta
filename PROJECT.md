@@ -577,6 +577,8 @@ POST /bot/message
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED |
 
+**Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
+
 **Lógica de flujo PROFESSIONAL_REGISTER:**
 - `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó.
 - `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein).
@@ -772,7 +774,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 }
 ```
 
-**Response shape `GET /session/:token/pending-requests`:**
+**Response shape `GET /session/:token/pending-requests` (ACTUALIZADO AUT-155):**
 ```json
 {
   "data": [
@@ -782,7 +784,10 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
       "geoNode": { "id": "cuid", "name": "Maipú" },
       "description": "Se rompió un caño en el baño",
       "createdAt": "2026-05-03T12:00:00.000Z",
-      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z"
+      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z",
+      "userName": "Carlos López",
+      "photoUrls": ["https://r2.example.com/uuid1.jpg", "https://r2.example.com/uuid2.jpg"],
+      "audioUrl": "https://r2.example.com/uuid-audio.webm"
     }
   ]
 }
@@ -807,11 +812,12 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 
 - **Aceptar** (POST `/requests/:id/accept`): cambia estado a `ACCEPTED`, incrementa `trialRequestsUsed` si no tiene membresía ACTIVA
 - **Rechazar** (POST `/requests/:id/reject`): registra evento REJECTED, el motor reasigna excluyendo al rejector
-- **Modal de confirmación**: antes de aceptar o rechazar, muestra confirmación con datos del pedido
+- **Modal de confirmación**: antes de aceptar o rechazar, muestra confirmación con el nombre del usuario y datos del pedido (AUT-155)
+- **Multimedia en card**: la card muestra miniaturas de fotos clickeables (lightbox) y reproductor de audio inline si existen `photoUrls` o `audioUrl` (AUT-155)
 - **Empty state**: "No tenés pedidos pendientes por responder" cuando no hay pedidos ASSIGNED
 - Esta sección se reemplazará por notificaciones WhatsApp en AUT-134
 
-**Response shape `GET /session/:token/pending-requests`:**
+**Response shape `GET /session/:token/pending-requests` (ACTUALIZADO AUT-155):**
 ```json
 {
   "data": [
@@ -821,7 +827,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
       "geoNode": { "id": "cuid", "name": "Maipú" },
       "description": "Se rompió un caño en el baño",
       "createdAt": "2026-05-03T12:00:00.000Z",
-      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z"
+      "assignmentTimeoutAt": "2026-05-03T15:00:00.000Z",
+      "userName": "Carlos López",
+      "photoUrls": ["https://r2.example.com/uuid1.jpg"],
+      "audioUrl": null
     }
   ]
 }

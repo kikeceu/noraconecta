@@ -231,6 +231,7 @@ export class ProfessionalsRepository {
     (Request & {
       category: { id: string; name: string } | null;
       geoNode: { id: string; name: string } | null;
+      user: { name: string } | null;
     })[]
   > {
     return prisma.request.findMany({
@@ -242,6 +243,7 @@ export class ProfessionalsRepository {
       include: {
         category: true,
         geoNode: true,
+        user: { select: { name: true } },
       },
     });
   }
