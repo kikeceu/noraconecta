@@ -212,6 +212,13 @@ export class CoordinationFlow implements FlowHandler {
         !userProposedAt || !this.isSameSchedule(professionalScheduledAt, userProposedAt)
       );
 
+      console.log('[COORD DEBUG]', {
+        scheduleText,
+        isConfirmation: this.isAffirmative(scheduleText),
+        parsedFromProfessionalsText,
+        isAlternative,
+      });
+
       if (isAlternative) {
         const userName = tempData.userName as string;
         const professionalName = tempData.professionalName as string;
@@ -669,7 +676,7 @@ export class CoordinationFlow implements FlowHandler {
       Math.abs(
         proposed.getHours() * 60 + proposed.getMinutes() -
         (available.getHours() * 60 + available.getMinutes())
-      ) <= 60
+      ) <= 15
     );
   }
 

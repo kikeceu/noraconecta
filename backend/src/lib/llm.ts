@@ -89,7 +89,7 @@ No incluyas explicaciones ni texto adicional. Solo el JSON.`;
       return null;
     }
 
-    const dateTime = new Date(`${parsed.date}T${parsed.time}:00`);
+    const dateTime = new Date(`${parsed.date}T${parsed.time}:00-03:00`);
     if (isNaN(dateTime.getTime())) {
       console.warn('[llm] Invalid date parsed:', parsed);
       return null;

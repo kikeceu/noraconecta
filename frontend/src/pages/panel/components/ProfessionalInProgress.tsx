@@ -21,10 +21,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const COORDINATION_LABEL: Record<string, { label: string; color: string }> = {
-  AWAITING_AVAILABILITY: { label: 'Coordinando visita', color: '#2563EB' },
-  AWAITING_CONFIRMATION: { label: 'Esperando confirmación del profesional', color: '#2563EB' },
+  AWAITING_AVAILABILITY: { label: 'Coordinando horario con el usuario', color: '#2563EB' },
+  AWAITING_CONFIRMATION: { label: 'Esperando tu confirmación de horario', color: '#2563EB' },
+  AWAITING_USER_CONFIRMATION: { label: 'Esperando que el usuario acepte tu propuesta', color: '#2563EB' },
   AWAITING_LOCATION: { label: 'Esperando ubicación del usuario', color: '#2563EB' },
-  SCHEDULED: { label: 'Visita coordinada', color: '#059669' },
+  SCHEDULED: { label: 'Visita confirmada', color: '#059669' },
 };
 
 function formatDate(dateStr: string): string {
