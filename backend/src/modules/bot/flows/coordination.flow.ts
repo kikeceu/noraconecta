@@ -1,6 +1,6 @@
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import prisma from '../../../lib/prisma';
-import { parseExactDate } from '../../../utils/date-utils';
+import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { UsersRepository } from '../../users/users.repository';
@@ -102,11 +102,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const professionalName = request.assignedProfessional?.name || 'El profesional';
 
-      const day = parsedDate.getDate().toString().padStart(2, '0');
-      const month = (parsedDate.getMonth() + 1).toString().padStart(2, '0');
-      const hours = parsedDate.getHours().toString().padStart(2, '0');
-      const minutes = parsedDate.getMinutes().toString().padStart(2, '0');
-      const formattedDate = `${day}/${month} ${hours}:${minutes}`;
+      const formattedDate = formatDateTimeArgentina(parsedDate);
 
       const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede el ${formattedDate}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)`;
 
@@ -204,9 +200,9 @@ export class CoordinationFlow implements FlowHandler {
         const professionalName = tempData.professionalName as string;
 
         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[scheduledAt.getDay()];
-        const hours = scheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
+        const dayName = dayNames[getDayArgentina(scheduledAt)];
+        const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+        const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
         const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
@@ -269,9 +265,9 @@ export class CoordinationFlow implements FlowHandler {
         const professionalName = tempData.professionalName as string;
 
         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[newScheduledAt.getDay()];
-        const hours = newScheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = newScheduledAt.getMinutes().toString().padStart(2, '0');
+        const dayName = dayNames[getDayArgentina(newScheduledAt)];
+        const hours = getHoursArgentina(newScheduledAt).toString().padStart(2, '0');
+        const minutes = getMinutesArgentina(newScheduledAt).toString().padStart(2, '0');
 
         const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
@@ -317,11 +313,7 @@ export class CoordinationFlow implements FlowHandler {
       const userName = tempData.userName as string;
       const professionalName = tempData.professionalName as string;
 
-      const day = newScheduledAt.getDate().toString().padStart(2, '0');
-      const month = (newScheduledAt.getMonth() + 1).toString().padStart(2, '0');
-      const hours = newScheduledAt.getHours().toString().padStart(2, '0');
-      const minutes = newScheduledAt.getMinutes().toString().padStart(2, '0');
-      const alternativeText = `${day}/${month} ${hours}:${minutes}`;
+      const alternativeText = formatDateTimeArgentina(newScheduledAt);
 
       const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
@@ -364,11 +356,7 @@ export class CoordinationFlow implements FlowHandler {
     let formattedDate = 'ese horario';
     if (scheduledAtStr) {
       const parsed = new Date(scheduledAtStr);
-      const day = parsed.getDate().toString().padStart(2, '0');
-      const month = (parsed.getMonth() + 1).toString().padStart(2, '0');
-      const hours = parsed.getHours().toString().padStart(2, '0');
-      const minutes = parsed.getMinutes().toString().padStart(2, '0');
-      formattedDate = `${day}/${month} ${hours}:${minutes}`;
+      formattedDate = formatDateTimeArgentina(parsed);
     }
 
     return {
@@ -406,9 +394,9 @@ export class CoordinationFlow implements FlowHandler {
         });
 
         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[alternativeScheduledAt.getDay()];
-        const hours = alternativeScheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = alternativeScheduledAt.getMinutes().toString().padStart(2, '0');
+        const dayName = dayNames[getDayArgentina(alternativeScheduledAt)];
+        const hours = getHoursArgentina(alternativeScheduledAt).toString().padStart(2, '0');
+        const minutes = getMinutesArgentina(alternativeScheduledAt).toString().padStart(2, '0');
 
         const professionalMessage = `El cliente aceptó el ${dayName} a las ${hours}:${minutes}. Visita confirmada.`;
 
@@ -490,7 +478,7 @@ export class CoordinationFlow implements FlowHandler {
 
         return {
           response: {
-            text: `Entendido. ¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})?`,
+            text: `Entendido. ¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`,
           },
           nextStep: 'AWAITING_AVAILABILITY',
           tempData: {
@@ -515,11 +503,9 @@ export class CoordinationFlow implements FlowHandler {
 
     if (alternativeScheduledAt) {
       const parsed = new Date(alternativeScheduledAt);
-      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-      const dayName = dayNames[parsed.getDay()];
-      const hours = parsed.getHours().toString().padStart(2, '0');
-      const minutes = parsed.getMinutes().toString().padStart(2, '0');
-      alternativeText = `el ${dayName} a las ${hours}:${minutes}`;
+      const formatted = formatDateTimeArgentina(parsed);
+      const [datePart, timePart] = formatted.split(' ');
+      alternativeText = `el ${datePart} a las ${timePart}`;
     }
 
     return {
@@ -592,9 +578,9 @@ export class CoordinationFlow implements FlowHandler {
       let scheduleText = '';
       if (scheduledAt) {
         const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[scheduledAt.getDay()];
-        const hours = scheduledAt.getHours().toString().padStart(2, '0');
-        const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
+        const dayName = dayNames[getDayArgentina(scheduledAt)];
+        const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+        const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
         scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
       }
 
@@ -668,10 +654,10 @@ export class CoordinationFlow implements FlowHandler {
     if (!available) return false;
 
     return (
-      proposed.getDay() === available.getDay() &&
+      getDayArgentina(proposed) === getDayArgentina(available) &&
       Math.abs(
-        proposed.getHours() * 60 + proposed.getMinutes() -
-        (available.getHours() * 60 + available.getMinutes())
+        getHoursArgentina(proposed) * 60 + getMinutesArgentina(proposed) -
+        (getHoursArgentina(available) * 60 + getMinutesArgentina(available))
       ) <= 15
     );
   }

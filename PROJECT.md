@@ -30,7 +30,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   └── date-utils.ts          # parseExactDate: validación estricta DD/MM HH:MM con timezone Argentina (AUT-166)
+│   │   │   └── date-utils.ts          # parseExactDate + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
@@ -588,7 +588,12 @@ POST /bot/message
 - **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
 - **`CoordinationService.confirmVisit`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Misma lógica de detección de horario alternativo vía `isSameSchedule` (margen 15 min).
 - **`RequestsService.confirmSchedule`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Sin fallback a `clientAvailability`.
-- **Timezone**: `parseExactDate` construye la fecha en zona horaria argentina (`-03:00`).
+- **Timezone**: `parseExactDate` construye la fecha en zona horaria argentina (`-03:00`). `getDayArgentina`, `getHoursArgentina`, `getMinutesArgentina`, `formatDateTimeArgentina` (`utils/date-utils.ts`) aplican offset UTC-3 al formatear fechas para mostrar.
+- **Flujo de coordinación actualizado (AUT-167):**
+  - Segunda ronda (usuario dice "No" al alternativo) incluye formato en el mensaje: "Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)".
+  - Mensaje de horario alternativo al usuario muestra `DD/MM a las HH:MM` (ej: "el 07/06 a las 09:00") en vez del día de semana.
+  - Todas las operaciones de formateo de fecha (`getDay`, `getHours`, `getMinutes`, `getDate`/`getMonth`) usan las funciones con offset Argentina para corregir el día de semana y la hora.
+  - `isSameSchedule` en `coordination.flow.ts` y `coordination.service.ts` usa las versiones Argentina para comparar correctamente.
 
 **Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
 
@@ -1231,10 +1236,11 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsController` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot
   - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
   - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
-  - Si el profesional propone un horario diferente al del usuario → `AWAITING_USER_CONFIRMATION`:
-    - Usuario acepta → `AWAITING_LOCATION` (continúa flujo normal de ubicación)
-    - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` (nueva ronda, máximo 3 rondas de negociación)
-    - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
+   - Si el profesional propone un horario diferente al del usuario → `AWAITING_USER_CONFIRMATION`:
+     - Mensaje al usuario: "{nombre} no puede {disponibilidad}. Propone el DD/MM a las HH:MM. ¿Te viene bien? (Sí / No)" en vez del día de semana (AUT-167)
+     - Usuario acepta → `AWAITING_LOCATION` (continúa flujo normal de ubicación)
+     - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` con mensaje que incluye formato: "Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)" (AUT-167)
+     - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
   - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAvailability` y notifica al profesional
   - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `confirmVisit` detecta si el horario es alternativo comparando el parseo con `parseExactDate` del texto del profesional vía `isSameSchedule`. Si la respuesta es afirmativa ("dale", "confirmo", etc.) → `AWAITING_LOCATION`. Si no es afirmativa y `parseExactDate` parseó → `AWAITING_USER_CONFIRMATION`. Si no se pudo parsear el texto del profesional → reset a `AWAITING_AVAILABILITY`. `scheduledAt` se guarda, NORA pide ubicación al usuario.
   - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
@@ -1250,6 +1256,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
   - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
   - **Parseo de fecha estricto (AUT-166):** El texto del usuario y profesional debe usar formato `DD/MM HH:MM`. Se valida con `parseExactDate()` (`utils/date-utils.ts`). Si el formato es inválido, NORA pide corrección y se queda en el mismo paso. Sin dependencia de LLM.
+  - **Timezone Argentina (AUT-167):** Al formatear fechas para mostrar al usuario o profesional, se usan `getDayArgentina`, `getHoursArgentina`, `getMinutesArgentina`, `formatDateTimeArgentina` (`utils/date-utils.ts`) que aplican offset UTC-3. Esto corrige el día de semana y la hora cuando el panel envía fechas en UTC.
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.
 - Reactivación (manual vía SUPERADMIN) conserva todo el historial de eventos
