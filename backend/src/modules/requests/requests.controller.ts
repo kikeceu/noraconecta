@@ -153,6 +153,13 @@ export class RequestsController {
       }
 
       const request = await requestsService.finish(id);
+
+      try {
+        await coordinationService.notifyWorkFinished(id);
+      } catch (err) {
+        console.error('[RequestsController] Failed to notify work finished:', err);
+      }
+
       res.status(200).json({ data: request });
     } catch (err) {
       next(err);

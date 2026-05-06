@@ -565,6 +565,7 @@ POST /bot/message
   { targetPhone, targetRole, message, flow, step, tempData }
   ```
 - `BotService` procesa la notificación: crea/actualiza la sesión del destinatario con el `pendingMessage`
+- `CoordinationService.notifyWorkFinished(requestId)`: invocado por `POST /requests/:id/finish`, envía pendingMessage al usuario con el mensaje de confirmación de cierre y limpia el flujo de coordinación de su sesión (AUT-158)
 
 **Soporte de ubicación (WhatsApp location):**
 - `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body
@@ -601,12 +602,12 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat. Detecta tanto cambios de `status` como de `coordinationStatus`:
-  - `ASSIGNED` → "Encontramos un profesional..."
-  - `ACCEPTED` + `coordinationStatus = AWAITING_AVAILABILITY` → "¡Buenas noticias! {nombre} aceptó tu pedido..."
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat. Antes del primer poll, se inicializan los refs de estado con los valores actuales del pedido para evitar mensajes duplicados (AUT-158). Detecta tanto cambios de `status` como de `coordinationStatus`:
+  - `PENDING_CONFIRMATION` → opciones "conforme" / "con observaciones" / "no conforme"
   - `coordinationStatus = AWAITING_LOCATION` → "{nombre} ya confirmó el horario. Respondé con tu dirección..."
   - `coordinationStatus = SCHEDULED` → "¡Todo listo! La visita quedó coordinada..."
-  - `PENDING_CONFIRMATION` → opciones "conforme" / "con observaciones" / "no conforme"
+  - `ASSIGNED` → "Encontramos un profesional..."
+  - `ACCEPTED` + `coordinationStatus = AWAITING_AVAILABILITY` → "¡Buenas noticias! {nombre} aceptó tu pedido..."
   - `NO_RESPONSE` → "No encontramos profesionales disponibles..."
   - `CANCELLED` → "El pedido fue cancelado."
   - El teléfono del profesional NUNCA se muestra al usuario en el simulador
@@ -648,7 +649,7 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/reject`                 | POST   | Profesional rechaza pedido → reasigna          | Sin auth  |
 | `/requests/:id/cancel`                 | POST   | Usuario cancela pedido                         | Sin auth  |
 | `/requests/:id/mark-completed`         | POST   | Profesional marca trabajo como completado      | Sin auth  |
-| `/requests/:id/finish`                 | POST   | Profesional finaliza pedido (ACCEPTED → PENDING_CONFIRMATION) | Sin auth  |
+| `/requests/:id/finish`                 | POST   | Profesional finaliza pedido (ACCEPTED → PENDING_CONFIRMATION). Notifica al usuario vía pendingMessage. | Sin auth  |
 | `/requests/:id/confirm`                | POST   | Usuario confirma satisfacción (SATISFIED/PARTIAL/UNSATISFIED) | Sin auth  |
 | `/requests/:id/dispute`                | POST   | Usuario disputa pedido (→ NOT_FULFILLED + Escalation) | Sin auth  |
 | `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo (legacy)   | Sin auth  |
@@ -691,7 +692,7 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
 - Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar
 - Cancelación: solo permitida en CREATED o ASSIGNED
-- Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION
+- Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía pendingMessage al usuario con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158).
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
   - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge
   - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
