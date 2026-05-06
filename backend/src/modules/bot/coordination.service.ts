@@ -182,6 +182,10 @@ export class CoordinationService {
 
     const now = new Date();
     const clientAvailability = request.clientAvailability ?? undefined;
+    console.log('[COORD DEBUG clientAvailability]', {
+      fromDB: request.clientAvailability,
+      scheduleText,
+    });
     let parsedFromProfessionalsText = false;
 
     let scheduledAt = await parseScheduledAt(scheduleText, now, clientAvailability);
@@ -193,17 +197,11 @@ export class CoordinationService {
         scheduledAt: scheduledAt.toISOString(),
       });
     } else {
-      console.log('[CoordinationService.confirmVisit] LLM could not parse professional text, falling back to clientAvailability');
+      console.log('[CoordinationService.confirmVisit] LLM could not parse professional text');
     }
 
     if (!scheduledAt && clientAvailability) {
       scheduledAt = await parseScheduledAt(clientAvailability, now);
-      if (scheduledAt) {
-        console.log('[CoordinationService.confirmVisit] Fallback parsed clientAvailability:', {
-          clientAvailability,
-          scheduledAt: scheduledAt.toISOString(),
-        });
-      }
     }
 
     if (!scheduledAt) {
@@ -246,7 +244,49 @@ export class CoordinationService {
       return;
     }
 
-    const userProposedAt = parseScheduleDate(clientAvailability ?? '');
+    if (!parsedFromProfessionalsText) {
+      console.log('[CoordinationService.confirmVisit] Could not parse professional text (fallback used), resetting to AWAITING_AVAILABILITY');
+      await prisma.request.update({
+        where: { id: requestId },
+        data: {
+          coordinationStatus: 'AWAITING_AVAILABILITY',
+          clientAvailability: null,
+        },
+      });
+
+      if (request.user?.phone) {
+        const userMessage =
+          'No pude entender el horario. ¿Podés escribirlo así? Ejemplo: viernes 9 de mayo a las 18:00';
+
+        const userSession = await this.botRepository.findByPhone(request.user.phone);
+        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+
+        await this.botRepository.upsert(request.user.phone, {
+          role: 'USER',
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_AVAILABILITY',
+          tempData: {
+            ...userTempData,
+            requestId,
+            userId: request.userId,
+            userName: request.user?.name,
+            userPhone: request.user.phone,
+            professionalId: request.assignedProfessionalId,
+            professionalName: request.assignedProfessional?.name || 'El profesional',
+            professionalPhone: request.assignedProfessional?.phone,
+            categoryName: request.category?.name,
+            description: request.description,
+            pendingMessage: userMessage,
+          } as Prisma.InputJsonValue,
+        });
+      }
+
+      return;
+    }
+
+    const userProposedAt = clientAvailability
+      ? await parseScheduledAt(clientAvailability, now)
+      : null;
     const isAlternative = parsedFromProfessionalsText && (
       !userProposedAt || !isSameSchedule(scheduledAt, userProposedAt)
     );
@@ -364,56 +404,6 @@ export class CoordinationService {
 
 }
 
-function parseScheduleDate(input: string): Date | null {
-  const now = new Date();
-  const normalized = input.toLowerCase().trim();
-
-  const dayMap: Record<string, number> = {
-    domingo: 0, lunes: 1, martes: 2, miércoles: 3, miercoles: 3,
-    jueves: 4, viernes: 5, sábado: 6, sabado: 6,
-  };
-
-  const timeMatch = normalized.match(/(\d{1,2})(?::(\d{2}))?\s*(?:hs|horas|am|pm)?/);
-  if (!timeMatch) return null;
-
-  let hours = parseInt(timeMatch[1], 10);
-  const minutes = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
-
-  if (normalized.includes('pm') && hours < 12) hours += 12;
-  if (normalized.includes('am') && hours === 12) hours = 0;
-
-  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null;
-
-  let targetDay = -1;
-  for (const [name, day] of Object.entries(dayMap)) {
-    if (normalized.includes(name)) {
-      targetDay = day;
-      break;
-    }
-  }
-
-  if (normalized.includes('hoy')) targetDay = now.getDay();
-  if (normalized.includes('mañana') || normalized.includes('manana')) {
-    targetDay = (now.getDay() + 1) % 7;
-  }
-
-  const result = new Date(now);
-  result.setHours(hours, minutes, 0, 0);
-
-  if (targetDay >= 0) {
-    const currentDay = now.getDay();
-    let daysUntil = targetDay - currentDay;
-    if (daysUntil <= 0) daysUntil += 7;
-    result.setDate(result.getDate() + daysUntil);
-  }
-
-  if (result <= now) {
-    result.setDate(result.getDate() + 1);
-  }
-
-  return result;
-}
-
 function isSameSchedule(proposed: Date, available: Date | null): boolean {
   if (!available) return false;
 
@@ -422,6 +412,6 @@ function isSameSchedule(proposed: Date, available: Date | null): boolean {
     Math.abs(
       proposed.getHours() * 60 + proposed.getMinutes() -
       (available.getHours() * 60 + available.getMinutes())
-    ) <= 60
+    ) <= 15
   );
 }

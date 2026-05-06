@@ -38,6 +38,12 @@ interface ConfirmationState {
   comment: string;
 }
 
+interface ScheduleConfirmationState {
+  requestId: string;
+  professionalName: string;
+  scheduledAt: string;
+}
+
 const STATUS_MESSAGES: Record<string, string> = {
   ASSIGNED: 'Encontramos un profesional, esperando confirmación...',
   NO_RESPONSE: 'No encontramos profesionales disponibles en este momento.',
@@ -101,6 +107,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const lastCoordinationRef = useRef<string | null>(null);
   const ratingRef = useRef<RatingState | null>(null);
   const confirmationRef = useRef<ConfirmationState | null>(null);
+  const scheduleConfirmationRef = useRef<ScheduleConfirmationState | null>(null);
   const activeRequestIdRef = useRef<string | null>(null);
 
   const addMessage = useCallback(
@@ -139,6 +146,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
       pollIntervalRef.current = null;
     }
     activeRequestIdRef.current = null;
+    scheduleConfirmationRef.current = null;
   }, []);
 
   const startPolling = useCallback(
@@ -168,6 +176,16 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           if (statusChanged || coordinationChanged) {
             lastStatusRef.current = newStatus;
             lastCoordinationRef.current = newCoordination;
+
+            if (newCoordination === 'AWAITING_USER_CONFIRMATION' && data.assignedProfessional?.name) {
+              scheduleConfirmationRef.current = {
+                requestId,
+                professionalName: data.assignedProfessional.name,
+                scheduledAt: data.scheduledAt || '',
+              };
+            } else if (newCoordination !== 'AWAITING_USER_CONFIRMATION' && scheduleConfirmationRef.current) {
+              scheduleConfirmationRef.current = null;
+            }
 
             const statusMessage = getStatusMessage(data);
 
@@ -453,6 +471,59 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     [addMessage],
   );
 
+  const handleScheduleConfirmationResponse = useCallback(
+    async (text: string) => {
+      const confirmation = scheduleConfirmationRef.current;
+      if (!confirmation) return false;
+
+      const trimmed = text.trim().toLowerCase();
+
+      if (trimmed === 'si' || trimmed === 'sí') {
+        scheduleConfirmationRef.current = null;
+        setIsLoading(true);
+        try {
+          const response: BotResponse = await sendMessage(phone, 'Sí', role);
+          addMessage('nora', response.text);
+          setSession({ flow: response.flow, step: response.step });
+          if (pollIntervalRef.current !== null && activeRequestIdRef.current) {
+            const data = await getRequest(activeRequestIdRef.current);
+            lastStatusRef.current = data.status;
+            lastCoordinationRef.current = data.coordinationStatus || null;
+          }
+        } catch {
+          addMessage('nora', 'Error de conexion con el servidor. Intenta de nuevo.');
+        } finally {
+          setIsLoading(false);
+        }
+        return true;
+      }
+
+      if (trimmed === 'no') {
+        scheduleConfirmationRef.current = null;
+        setIsLoading(true);
+        try {
+          const response: BotResponse = await sendMessage(phone, 'No', role);
+          addMessage('nora', response.text);
+          setSession({ flow: response.flow, step: response.step });
+          if (pollIntervalRef.current !== null && activeRequestIdRef.current) {
+            const data = await getRequest(activeRequestIdRef.current);
+            lastStatusRef.current = data.status;
+            lastCoordinationRef.current = data.coordinationStatus || null;
+          }
+        } catch {
+          addMessage('nora', 'Error de conexion con el servidor. Intenta de nuevo.');
+        } finally {
+          setIsLoading(false);
+        }
+        return true;
+      }
+
+      addMessage('nora', 'Por favor, respondé "Sí" o "No".');
+      return true;
+    },
+    [phone, role, addMessage],
+  );
+
   const send = useCallback(
     async (text: string, imageUrls?: string[], audioUrl?: string) => {
       addMessage('user', text, imageUrls, audioUrl);
@@ -475,6 +546,21 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           setIsLoading(false);
         }
         return;
+      }
+
+      if (scheduleConfirmationRef.current) {
+        setIsLoading(true);
+        try {
+          const handled = await handleScheduleConfirmationResponse(text);
+          if (handled) {
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // fall through to normal send
+        } finally {
+          setIsLoading(false);
+        }
       }
 
       setIsLoading(true);
@@ -512,7 +598,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
         setIsLoading(false);
       }
     },
-    [phone, role, addMessage, startPolling, handleRatingResponse, handleConfirmationResponse],
+    [phone, role, addMessage, startPolling, handleRatingResponse, handleConfirmationResponse, handleScheduleConfirmationResponse],
   );
 
   const sendLocation = useCallback(
@@ -520,7 +606,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
       const text = '📍 Ubicación compartida';
       addMessage('user', text);
 
-      if (ratingRef.current || confirmationRef.current) {
+      if (ratingRef.current || confirmationRef.current || scheduleConfirmationRef.current) {
         return;
       }
 
