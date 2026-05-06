@@ -23,7 +23,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── lib/
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs)
-│   │   │   └── llm.ts                 # LLM client: parseScheduledAt (AUT-163)
+│   │   │   └── llm.ts                 # LLM client: parseScheduledAt con contexto de disponibilidad del cliente (AUT-163, AUT-164)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -580,6 +580,8 @@ POST /bot/message
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
+**Parseo LLM con contexto (AUT-164):** `parseScheduledAt` recibe opcionalmente `clientAvailability` (la disponibilidad propuesta por el usuario) para mejorar la precisión del parseo cuando el profesional responde con cambios parciales. Ej: si el usuario dijo "viernes a las 18" y el profesional responde "mejor a las 16", el LLM puede inferir "viernes a las 16:00" usando el contexto. Si el LLM parsea exitosamente el texto del profesional y detecta un horario alternativo (o el usuario no propuso horario específico), el flujo va a `AWAITING_USER_CONFIRMATION` con notificación al usuario. Esta lógica aplica tanto en el flujo del chat (`CoordinationFlow.handleAwaitingConfirmation`) como en el panel del profesional (`CoordinationService.confirmVisit` vía `POST /requests/:id/confirm-visit`). Si el LLM no puede determinar el horario ni siquiera con contexto, NORA pide al profesional que sea más específico.
+
 **Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
 
 **Lógica de flujo PROFESSIONAL_REGISTER:**
@@ -603,14 +605,16 @@ POST /bot/message
 - Botón de imagen: file picker con filtro `image/jpeg,png,webp` (máx 3), upload directo a R2 vía presign, preview con miniaturas antes del envío
 - Botón de audio: grabación con Web Audio API (MediaRecorder), upload a R2 vía presign, indicador visual de grabación activa (pulsing dot), preview "Audio listo" antes del envío
 - Mensajes con media: render de thumbnails (grid 1 o 2 columnas) y reproductor de audio inline con play/pause
-- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat. Antes del primer poll, se inicializan los refs de estado con los valores actuales del pedido para evitar mensajes duplicados (AUT-158). Detecta tanto cambios de `status` como de `coordinationStatus`:
+- Polling de estado del pedido: cuando se crea un pedido y el bot retorna `requestId`, el simulador inicia polling cada 5s a `GET /requests/:id` y muestra mensajes automáticos de cambio de estado en el chat. Antes del primer poll, se inicializan los refs de estado con los valores actuales del pedido para evitar mensajes duplicados (AUT-158). Después de cada `send`/`sendLocation`, si el polling está activo, se sincronizan los refs con el estado actual del pedido para evitar mensajes duplicados cuando el bot cambia el estado procesando un mensaje (AUT-164). Detecta tanto cambios de `status` como de `coordinationStatus`:
   - `PENDING_CONFIRMATION` → opciones "conforme" / "con observaciones" / "no conforme"
+  - `coordinationStatus = AWAITING_USER_CONFIRMATION` → "{nombre} no puede en ese horario. Propone el {horario alternativo}. ¿Te viene bien? (Sí / No)" (AUT-164)
   - `coordinationStatus = AWAITING_LOCATION` → "{nombre} ya confirmó el horario. Respondé con tu dirección..."
   - `coordinationStatus = SCHEDULED` → "¡Todo listo! La visita quedó coordinada..."
   - `ASSIGNED` → "Encontramos un profesional..."
   - `ACCEPTED` + `coordinationStatus = AWAITING_AVAILABILITY` → "¡Buenas noticias! {nombre} aceptó tu pedido..."
   - `NO_RESPONSE` → "No encontramos profesionales disponibles..."
   - `CANCELLED` → "El pedido fue cancelado."
+  - Cuando el status cambia a `COMPLETED`, el polling saltea cualquier mensaje de coordinación e inicia directamente el flujo de calificación (AUT-164)
   - El teléfono del profesional NUNCA se muestra al usuario en el simulador
   - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
@@ -660,8 +664,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
 | `/requests/:id/rate-professional`     | POST   | Usuario califica al profesional (7 ejes)       | Sin auth  |
 | `/requests/:id/rate-user`             | POST   | Profesional califica al usuario (4 ejes)       | Sin auth  |
-| `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel) | Sin auth  |
-| `/requests/:id/confirm-schedule`      | POST   | Bot/panel confirma horario del profesional, acepta `proposedAt DateTime?` para horario alternativo | Sin auth  |
+| `/requests/:id/confirm-visit`         | POST   | Profesional confirma horario de visita (desde panel). Detecta automáticamente horario alternativo via LLM con contexto. Si alternativo → `AWAITING_USER_CONFIRMATION` + pendingMessage al usuario (AUT-164) | Sin auth  |
+| `/requests/:id/confirm-schedule`      | POST   | Bot/panel confirma horario del profesional, acepta `proposedAt DateTime?` para horario alternativo. LLM recibe `clientAvailability` como contexto adicional (AUT-164) | Sin auth  |
 | `/requests`                            | GET    | Lista paginada de pedidos                      | OPERATOR  |
 | `/requests/:id`                        | GET    | Detalle de pedido con eventos, feedback, profesional asignado (incluye teléfono cuando está ACCEPTED) y datos de coordinación | Sin auth (polling simulador) |
 

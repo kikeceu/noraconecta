@@ -57,6 +57,19 @@ function getStatusMessage(data: RequestData): string | null {
     const name = data.assignedProfessional.name;
     return `El profesional ${name} indicó que finalizó el trabajo.\n¿Cómo quedó?\n\nRespondé: "conforme", "con observaciones" o "no conforme"`;
   }
+  if (data.coordinationStatus === 'AWAITING_USER_CONFIRMATION' && data.assignedProfessional?.name) {
+    const name = data.assignedProfessional.name;
+    const scheduledAt = data.scheduledAt || data.coordination?.scheduledAt;
+    if (scheduledAt) {
+      const d = new Date(scheduledAt);
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const dayName = dayNames[d.getDay()];
+      const hours = d.getHours().toString().padStart(2, '0');
+      const minutes = d.getMinutes().toString().padStart(2, '0');
+      return `${name} no puede en ese horario. Propone el ${dayName} a las ${hours}:${minutes}. ¿Te viene bien? (Sí / No)`;
+    }
+    return `${name} propone otro horario. ¿Te viene bien? (Sí / No)`;
+  }
   if (data.coordinationStatus === 'AWAITING_LOCATION') {
     const name = data.assignedProfessional?.name || 'El profesional';
     return `${name} ya confirmó el horario. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación.`;
@@ -88,6 +101,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const lastCoordinationRef = useRef<string | null>(null);
   const ratingRef = useRef<RatingState | null>(null);
   const confirmationRef = useRef<ConfirmationState | null>(null);
+  const activeRequestIdRef = useRef<string | null>(null);
 
   const addMessage = useCallback(
     (
@@ -124,11 +138,13 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     }
+    activeRequestIdRef.current = null;
   }, []);
 
   const startPolling = useCallback(
     (requestId: string) => {
       stopPolling();
+      activeRequestIdRef.current = requestId;
 
       const initialize = async () => {
         try {
@@ -155,7 +171,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
 
             const statusMessage = getStatusMessage(data);
 
-            if (statusMessage) {
+            if (statusMessage && newStatus !== 'COMPLETED') {
               addMessage('nora', statusMessage);
             }
 
@@ -481,6 +497,14 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
 
         if (response.requestId) {
           startPolling(response.requestId);
+        } else if (pollIntervalRef.current !== null && activeRequestIdRef.current) {
+          try {
+            const data = await getRequest(activeRequestIdRef.current);
+            lastStatusRef.current = data.status;
+            lastCoordinationRef.current = data.coordinationStatus || null;
+          } catch {
+            // silently sync refs to prevent duplicate messages
+          }
         }
       } catch {
         addMessage('nora', 'Error de conexion con el servidor. Intenta de nuevo.');
@@ -521,6 +545,14 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
 
         if (response.requestId) {
           startPolling(response.requestId);
+        } else if (pollIntervalRef.current !== null && activeRequestIdRef.current) {
+          try {
+            const data = await getRequest(activeRequestIdRef.current);
+            lastStatusRef.current = data.status;
+            lastCoordinationRef.current = data.coordinationStatus || null;
+          } catch {
+            // silently sync refs to prevent duplicate messages
+          }
         }
       } catch {
         addMessage('nora', 'Error de conexion con el servidor. Intenta de nuevo.');

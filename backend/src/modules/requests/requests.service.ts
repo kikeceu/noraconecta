@@ -972,10 +972,12 @@ export class RequestsService {
       });
     } else {
       const now = new Date();
-      let scheduledAt = await parseScheduledAt(scheduleText, now);
+      const clientAvailability = request.clientAvailability ?? undefined;
 
-      if (!scheduledAt && request.clientAvailability) {
-        scheduledAt = await parseScheduledAt(request.clientAvailability, now);
+      let scheduledAt = await parseScheduledAt(scheduleText, now, clientAvailability);
+
+      if (!scheduledAt && clientAvailability) {
+        scheduledAt = await parseScheduledAt(clientAvailability, now);
       }
 
       if (!scheduledAt) {
