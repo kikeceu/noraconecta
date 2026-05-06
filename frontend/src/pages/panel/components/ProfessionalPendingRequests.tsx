@@ -133,7 +133,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
         </p>
         <button
           onClick={() => { setLoading(true); load(); }}
-          className="mt-3 text-sm font-medium text-[#0B6E4F] hover:underline"
+          className="mt-3 text-sm font-medium text-[#0B6E4F] hover:underline cursor-pointer"
           style={{ fontFamily: 'DM Sans' }}
         >
           Reintentar
@@ -221,7 +221,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
                         key={i}
                         type="button"
                         onClick={() => setLightboxUrl(url)}
-                        className="size-16 overflow-hidden rounded-lg border border-[#E5E7EB] hover:opacity-80 transition-opacity"
+                        className="size-16 overflow-hidden rounded-lg border border-[#E5E7EB] hover:opacity-80 transition-opacity cursor-pointer"
                       >
                         <img
                           src={url}
@@ -234,7 +234,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
                       <button
                         type="button"
                         onClick={() => toggleAudio(req.audioUrl!)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#F3F4F6] px-3 py-2 text-sm font-medium text-[#374151] hover:bg-[#E5E7EB] transition-colors"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-[#F3F4F6] px-3 py-2 text-sm font-medium text-[#374151] hover:bg-[#E5E7EB] transition-colors cursor-pointer"
                         style={{ fontFamily: 'DM Sans' }}
                       >
                         {playingAudio === req.audioUrl ? (
@@ -269,7 +269,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setModal({ request: req, action: 'reject' })}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-[#DC2626] bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-[#DC2626] bg-red-50 hover:bg-red-100 rounded-lg transition-colors cursor-pointer"
                       style={{ fontFamily: 'DM Sans' }}
                       disabled={acting}
                     >
@@ -278,7 +278,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
                     </button>
                     <button
                       onClick={() => setModal({ request: req, action: 'accept' })}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-white bg-[#0B6E4F] hover:bg-[#095C42] rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm font-medium text-white bg-[#0B6E4F] hover:bg-[#095C42] rounded-lg transition-colors cursor-pointer"
                       style={{ fontFamily: 'DM Sans' }}
                       disabled={acting}
                     >
@@ -333,7 +333,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setModal(null)}
-                className="px-4 py-2 text-sm font-medium text-[#374151] bg-[#F3F4F6] hover:bg-[#E5E7EB] rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-medium text-[#374151] bg-[#F3F4F6] hover:bg-[#E5E7EB] rounded-lg transition-colors cursor-pointer"
                 style={{ fontFamily: 'DM Sans' }}
                 disabled={acting}
               >
@@ -341,7 +341,7 @@ export function ProfessionalPendingRequests({ sessionToken }: ProfessionalPendin
               </button>
               <button
                 onClick={handleConfirm}
-                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 ${
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50 cursor-pointer ${
                   modal.action === 'accept'
                     ? 'bg-[#0B6E4F] hover:bg-[#095C42]'
                     : 'bg-[#DC2626] hover:bg-[#B91C1C]'

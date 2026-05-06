@@ -155,7 +155,7 @@ export function UsersPage() {
                           <button
                             onClick={() => setConfirmUser(u)}
                             disabled={actionLoading === u.id}
-                            className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 ${
+                            className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 cursor-pointer ${
                               u.status === 'BLOCKED'
                                 ? 'text-green-700 border-green-300 hover:bg-green-50'
                                 : 'text-red-600 border-red-300 hover:bg-red-50'
@@ -222,14 +222,14 @@ export function UsersPage() {
               <button
                 onClick={() => fetchData(pagination.page - 1)}
                 disabled={pagination.page <= 1}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => fetchData(pagination.page + 1)}
                 disabled={pagination.page >= pagination.totalPages}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

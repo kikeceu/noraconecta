@@ -202,11 +202,12 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing
 │   │   │       └── components/
-│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 5 tabs
+│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 6 tabs
 │   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
-│   │   │           ├── ProfessionalOrders.tsx     # Stats cards, filters, search, table, pagination (no client data)
+│   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): coordination status, confirm visit, mark finished, view detail modal (AUT-156)
+│   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders (COMPLETED, NOT_FULFILLED, CANCELLED, NO_RESPONSE), stats cards, filters, search, table, pagination, rate user (AUT-156)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart, compliance metrics, recommendation %, tips
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
@@ -710,8 +711,8 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`app.noraconecta.com.ar/panel/:sessionToken`), sin login con credenciales. El sessionToken (UUID, 30 días de validez) se genera desde el panel admin.
 
 **Arquitectura frontend:**
-- Desktop: sidebar fijo 240px con 5 tabs (Perfil, Pedidos pendientes, Historial, Membresía, Reputación)
-- Mobile: bottom navigation bar con los mismos 5 tabs
+- Desktop: sidebar fijo 240px con 6 tabs (Perfil, Pedidos pendientes, En curso, Historial, Membresía, Reputación) (AUT-156)
+- Mobile: bottom navigation bar con los mismos 6 tabs
 - Sin header; diseño light mode con NORA Green #0B6E4F, DM Sans, JetBrains Mono para números
 - Mismo design system que AUT-131/132 (assets/9140616588152080241)
 
@@ -721,7 +722,8 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| Historial | `ProfessionalOrders` | Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos ACCEPTED: botón "Marcar finalizado" (si no está en coordinación) o "Confirmar visita" (si `coordinationStatus = AWAITING_CONFIRMATION`). Pedidos SCHEDULED: botón "Ver detalle" abre modal ampliado (desktop: 600px, mobile: fullscreen) con 4 secciones (Cliente, Pedido, Visita, Multimedia) y lightbox de fotos + reproductor de audio inline (AUT-154). Pedidos PENDING_CONFIRMATION muestran "Esperando confirmación". Paginación + empty state |
+| En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación (AWAITING_AVAILABILITY, AWAITING_CONFIRMATION, AWAITING_LOCATION, SCHEDULED) con etiquetas descriptivas ("Coordinando visita", "Esperando ubicación", "Visita coordinada · jueves 8/5 a las 17:00hs"). Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado) |
+| Historial | `ProfessionalOrders` | Pedidos en estados terminales (COMPLETED, NOT_FULFILLED, CANCELLED, NO_RESPONSE). Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos COMPLETED sin calificar: botón "Calificar". Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
 
@@ -1257,6 +1259,7 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 - Design asset: `assets/9140616588152080241`
 - DESIGN.md: `.stitch/admin/DESIGN.md`
 - Modo claro, DM Sans + JetBrains Mono, NORA Green (#0B6E4F) como acento
+- Todos los elementos interactivos (botones, links, toggles, cards clickeables) usan `cursor-pointer` (AUT-156)
 
 ### Pages
 

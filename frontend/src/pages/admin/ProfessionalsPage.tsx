@@ -166,7 +166,7 @@ export function ProfessionalsPage() {
                       <td className="px-4 py-3">
                         <Link
                           to={adminPath(`/professionals/${p.id}`)}
-                          className="text-sm text-green-700 hover:text-green-800 font-medium"
+                          className="text-sm text-green-700 hover:text-green-800 font-medium cursor-pointer"
                         >
                           Ver detalle
                         </Link>
@@ -203,14 +203,14 @@ export function ProfessionalsPage() {
               <button
                 onClick={() => fetchData(pagination.page - 1)}
                 disabled={pagination.page <= 1}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={() => fetchData(pagination.page + 1)}
                 disabled={pagination.page >= pagination.totalPages}
-                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

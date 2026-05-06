@@ -9,6 +9,7 @@ import { ProfessionalMembership } from './components/ProfessionalMembership';
 import { ProfessionalOrders } from './components/ProfessionalOrders';
 import { ProfessionalReputation } from './components/ProfessionalReputation';
 import { ProfessionalPendingRequests } from './components/ProfessionalPendingRequests';
+import { ProfessionalInProgress } from './components/ProfessionalInProgress';
 
 type PageState =
   | { status: 'loading' }
@@ -73,6 +74,7 @@ export function ProfessionalPanelPage() {
     >
       {activeTab === 'profile' && <ProfessionalProfile professional={data.professional} />}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}
+      {activeTab === 'in-progress' && <ProfessionalInProgress sessionToken={sessionToken!} />}
       {activeTab === 'membership' && <ProfessionalMembership membership={data.membership} />}
       {activeTab === 'orders' && <ProfessionalOrders sessionToken={sessionToken!} />}
       {activeTab === 'reputation' && <ProfessionalReputation reputation={data.reputation} />}

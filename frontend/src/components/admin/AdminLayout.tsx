@@ -64,12 +64,12 @@ export function AdminLayout() {
   const sidebar = (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
-        <Link to={homePath} className="flex items-center gap-2">
+        <Link to={homePath} className="flex items-center gap-2 cursor-pointer">
           <span className="text-lg font-bold text-green-700">NORA</span>
           <span className="text-xs text-gray-500 font-normal">Admin</span>
         </Link>
         <button
-          className="lg:hidden p-1 text-gray-500 hover:text-gray-700"
+          className="lg:hidden p-1 text-gray-500 hover:text-gray-700 cursor-pointer"
           onClick={() => setSidebarOpen(false)}
         >
           <X className="w-5 h-5" />
@@ -118,7 +118,7 @@ export function AdminLayout() {
           </div>
           <button
             onClick={handleLogout}
-            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
@@ -154,7 +154,7 @@ export function AdminLayout() {
         <div className="lg:hidden flex items-center h-14 px-4 bg-white border-b border-gray-200">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 text-gray-500 hover:text-gray-700 mr-3"
+            className="p-1.5 text-gray-500 hover:text-gray-700 mr-3 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>
