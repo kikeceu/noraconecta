@@ -44,6 +44,43 @@ export class CoordinationService {
     ]);
   }
 
+  async notifyWorkFinished(requestId: string): Promise<void> {
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
+      include: {
+        user: { select: { name: true, phone: true } },
+        assignedProfessional: { select: { name: true } },
+      },
+    });
+
+    if (!request) return;
+
+    const userPhone = request.user?.phone;
+    if (!userPhone) return;
+
+    const professionalName = request.assignedProfessional?.name || 'El profesional';
+
+    const message =
+      `El profesional ${professionalName} indicó que finalizó el trabajo.\n` +
+      `¿Cómo quedó?\n\n` +
+      `Respondé: "conforme", "con observaciones" o "no conforme"`;
+
+    const userSession = await this.botRepository.findByPhone(userPhone);
+    const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+
+    await this.botRepository.upsert(userPhone, {
+      role: 'USER',
+      currentFlow: null,
+      currentStep: null,
+      tempData: {
+        ...userTempData,
+        pendingMessage: message,
+        requestId,
+        userId: request.userId,
+      } as Prisma.InputJsonValue,
+    });
+  }
+
   async sendReminders(): Promise<number> {
     const now = new Date();
 

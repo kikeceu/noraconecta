@@ -53,6 +53,10 @@ function validateRating(value: string): number | null {
 }
 
 function getStatusMessage(data: RequestData): string | null {
+  if (data.status === 'PENDING_CONFIRMATION' && data.assignedProfessional?.name) {
+    const name = data.assignedProfessional.name;
+    return `El profesional ${name} indicó que finalizó el trabajo.\n¿Cómo quedó?\n\nRespondé: "conforme", "con observaciones" o "no conforme"`;
+  }
   if (data.coordinationStatus === 'AWAITING_LOCATION') {
     const name = data.assignedProfessional?.name || 'El profesional';
     return `${name} ya confirmó el horario. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación.`;
@@ -68,10 +72,6 @@ function getStatusMessage(data: RequestData): string | null {
   if (data.status === 'ACCEPTED' && data.coordinationStatus === 'AWAITING_AVAILABILITY' && data.assignedProfessional?.name) {
     const categoryName = data.category?.name || 'el servicio';
     return `¡Buenas noticias! ${data.assignedProfessional.name} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita?`;
-  }
-  if (data.status === 'PENDING_CONFIRMATION' && data.assignedProfessional?.name) {
-    const name = data.assignedProfessional.name;
-    return `El profesional ${name} indicó que finalizó el trabajo.\n¿Cómo quedó?\n\nRespondé: "conforme", "con observaciones" o "no conforme"`;
   }
   return STATUS_MESSAGES[data.status] ?? null;
 }
@@ -129,8 +129,16 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const startPolling = useCallback(
     (requestId: string) => {
       stopPolling();
-      lastStatusRef.current = null;
-      lastCoordinationRef.current = null;
+
+      const initialize = async () => {
+        try {
+          const data = await getRequest(requestId);
+          lastStatusRef.current = data.status;
+          lastCoordinationRef.current = data.coordinationStatus || null;
+        } catch {
+          // silently fail, refs will be set on next poll
+        }
+      };
 
       const poll = async () => {
         try {
@@ -171,8 +179,9 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
         }
       };
 
-      poll();
-      pollIntervalRef.current = window.setInterval(poll, 5000);
+      initialize().then(() => {
+        pollIntervalRef.current = window.setInterval(poll, 5000);
+      });
     },
     [addMessage, stopPolling],
   );
