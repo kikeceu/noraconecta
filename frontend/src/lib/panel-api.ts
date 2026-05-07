@@ -115,6 +115,22 @@ export async function sendBotMessage(
   }
 }
 
+export async function cancelByProfessionalRequest(
+  requestId: string,
+  professionalId: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/cancel-by-professional`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ professionalId }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to cancel request' }));
+    throw new Error(err.error || 'Failed to cancel request');
+  }
+}
+
 export async function confirmVisitRequest(
   requestId: string,
   scheduleText: string,

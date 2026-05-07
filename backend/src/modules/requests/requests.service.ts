@@ -957,6 +957,133 @@ export class RequestsService {
     return processed;
   }
 
+  async cancelByProfessional(
+    requestId: string,
+    professionalId: string,
+  ): Promise<{
+    request: Request;
+    userPhone: string;
+    userMessage: string;
+    hadConfirmedVisit: boolean;
+    scheduledAt: Date | null;
+  }> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    if (request.status !== 'ACCEPTED') {
+      throw new AppError(
+        `Cannot cancel a request with status ${request.status}. Expected ACCEPTED`,
+        400,
+      );
+    }
+
+    if (request.assignedProfessionalId !== professionalId) {
+      throw new AppError('Professional is not assigned to this request', 403);
+    }
+
+    const userPhone = (request as unknown as Record<string, unknown>).user as
+      | { phone: string }
+      | undefined;
+
+    if (!userPhone?.phone) {
+      throw new AppError('User phone not found', 500);
+    }
+
+    const hasConfirmedVisit =
+      request.coordinationStatus === 'SCHEDULED' && !!request.scheduledAt;
+    const scheduledAt = request.scheduledAt;
+
+    await this.requestsRepository.update(requestId, {
+      status: 'CANCELLED',
+      assignmentTimeoutAt: null,
+      scheduledAt: null,
+      clientAddress: null,
+      clientAvailability: null,
+      clientLatitude: null,
+      clientLongitude: null,
+      coordinationStatus: null,
+      negotiationRounds: 0,
+    });
+
+    await this.requestsRepository.createEvent({
+      requestId,
+      professionalId,
+      type: 'CANCELLED',
+      metadata: {
+        cancelledBy: 'PROFESSIONAL',
+        hadConfirmedVisit: hasConfirmedVisit,
+        scheduledAt: scheduledAt?.toISOString() ?? null,
+      },
+    });
+
+    const rejectorIds = await this.requestsRepository.findRejectorIds(requestId);
+    const excludedIds = [...new Set([...rejectorIds, professionalId])];
+
+    const match = await this.matchingService.findBestCandidate(
+      request.categoryId,
+      request.geoNodeId,
+      excludedIds,
+    );
+
+    let userMessage: string;
+
+    if (hasConfirmedVisit && scheduledAt) {
+      const formattedDate = formatDateTimeArgentina(scheduledAt);
+      userMessage = `Lamentablemente el profesional canceló la visita programada para el ${formattedDate}. Estamos buscando otro profesional disponible.`;
+    } else {
+      userMessage =
+        'Lamentablemente el profesional no puede atenderte en este momento. Estamos buscando otro profesional disponible para tu pedido.';
+    }
+
+    if (match) {
+      const responseTimeoutHours = await this.getResponseTimeoutHours();
+      const now = new Date();
+      const assignmentTimeoutAt = new Date(
+        now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
+      );
+
+      await this.requestsRepository.update(requestId, {
+        status: 'ASSIGNED',
+        assignedProfessionalId: match.professionalId,
+        assignedAt: now,
+        assignmentTimeoutAt,
+      });
+
+      await this.requestsRepository.createEvent({
+        requestId,
+        professionalId: match.professionalId,
+        type: 'ASSIGNED',
+      });
+
+      await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
+    } else {
+      userMessage =
+        'No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno.';
+
+      await this.requestsRepository.update(requestId, {
+        status: 'NO_RESPONSE',
+      });
+
+      await this.requestsRepository.createEvent({
+        requestId,
+        type: 'NO_RESPONSE',
+      });
+    }
+
+    const updated = await this.requestsRepository.findById(requestId);
+
+    return {
+      request: updated!,
+      userPhone: userPhone.phone,
+      userMessage,
+      hadConfirmedVisit: hasConfirmedVisit,
+      scheduledAt,
+    };
+  }
+
   async reassignAfterNegotiation(requestId: string, professionalId: string): Promise<Request | null> {
     const request = await this.requestsRepository.findById(requestId);
 

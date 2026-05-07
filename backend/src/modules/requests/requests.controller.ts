@@ -490,6 +490,58 @@ export class RequestsController {
     }
   }
 
+  async cancelByProfessional(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const { professionalId } = req.body as { professionalId?: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!professionalId) {
+        res.status(400).json({
+          error: 'professionalId is required',
+          statusCode: 400,
+        });
+        return;
+      }
+
+      const result = await requestsService.cancelByProfessional(id, professionalId);
+
+      try {
+        const userSession = await new BotRepository().findByPhone(result.userPhone);
+        const userTempData =
+          (userSession?.tempData as Record<string, unknown>) || {};
+
+        await new BotRepository().upsert(result.userPhone, {
+          role: 'USER',
+          currentFlow: userSession?.currentFlow,
+          currentStep: userSession?.currentStep,
+          tempData: {
+            ...userTempData,
+            pendingMessage: result.userMessage,
+            requestId: id,
+          },
+        });
+      } catch (err) {
+        console.error(
+          '[RequestsController] Failed to notify user about professional cancellation:',
+          err,
+        );
+      }
+
+      res.status(200).json({ data: result.request });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async confirmSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };

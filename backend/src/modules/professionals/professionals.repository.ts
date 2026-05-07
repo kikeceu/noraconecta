@@ -186,9 +186,15 @@ export class ProfessionalsRepository {
     skip: number,
     take: number,
   ) {
+    const where = {
+      events: {
+        some: { professionalId },
+      },
+    };
+
     const [orders, total] = await Promise.all([
       prisma.request.findMany({
-        where: { assignedProfessionalId: professionalId },
+        where,
         skip,
         take,
         orderBy: { createdAt: 'desc' },
@@ -199,11 +205,14 @@ export class ProfessionalsRepository {
           feedback: {
             select: { ratedByProfessionalAt: true, ratedByUserAt: true },
           },
+          events: {
+            where: { professionalId },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+          },
         },
       }),
-      prisma.request.count({
-        where: { assignedProfessionalId: professionalId },
-      }),
+      prisma.request.count({ where }),
     ]);
 
     return { orders, total };

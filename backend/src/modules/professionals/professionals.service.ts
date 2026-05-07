@@ -381,28 +381,37 @@ export class ProfessionalsService {
     );
 
     return {
-      data: orders.map((order) => ({
-        id: order.id,
-        createdAt: order.createdAt,
-        status: order.status,
-        description: order.description,
-        userName: order.user?.name || null,
-        userPhone: order.user?.phone || null,
-        category: order.category ? { id: order.category.id, name: order.category.name } : null,
-        geoNode: order.geoNode ? { id: order.geoNode.id, name: order.geoNode.name } : null,
-        ratedByProfessional: order.feedback?.ratedByProfessionalAt !== null
-          && order.feedback?.ratedByProfessionalAt !== undefined,
-        ratedByUser: order.feedback?.ratedByUserAt !== null
-          && order.feedback?.ratedByUserAt !== undefined,
-        coordinationStatus: order.coordinationStatus,
-        clientAvailability: order.clientAvailability,
-        clientAddress: order.clientAddress,
-        clientLatitude: order.clientLatitude,
-        clientLongitude: order.clientLongitude,
-        scheduledAt: order.scheduledAt,
-        photoUrls: order.photoUrls,
-        audioUrl: order.audioUrl,
-      })),
+      data: orders.map((order) => {
+        const firstEvent = (
+          order as { events?: Array<{ type: string }> }
+        ).events?.[0];
+
+        return {
+          id: order.id,
+          createdAt: order.createdAt,
+          status: order.status,
+          professionalEventType: firstEvent?.type ?? null,
+          description: order.description,
+          userName: order.user?.name || null,
+          userPhone: order.user?.phone || null,
+          category: order.category ? { id: order.category.id, name: order.category.name } : null,
+          geoNode: order.geoNode ? { id: order.geoNode.id, name: order.geoNode.name } : null,
+          ratedByProfessional:
+            order.feedback?.ratedByProfessionalAt !== null
+            && order.feedback?.ratedByProfessionalAt !== undefined,
+          ratedByUser:
+            order.feedback?.ratedByUserAt !== null
+            && order.feedback?.ratedByUserAt !== undefined,
+          coordinationStatus: order.coordinationStatus,
+          clientAvailability: order.clientAvailability,
+          clientAddress: order.clientAddress,
+          clientLatitude: order.clientLatitude,
+          clientLongitude: order.clientLongitude,
+          scheduledAt: order.scheduledAt,
+          photoUrls: order.photoUrls,
+          audioUrl: order.audioUrl,
+        };
+      }),
       pagination: {
         page: validPage,
         limit: validLimit,
