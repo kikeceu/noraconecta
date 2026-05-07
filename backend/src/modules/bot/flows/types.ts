@@ -41,3 +41,12 @@ export interface NlpResult<T> {
   match: T | null;
   confidence: 'exact' | 'fuzzy' | 'none';
 }
+
+export interface PendingNotification {
+  targetPhone: string;
+  targetRole: 'USER' | 'PROFESSIONAL';
+  message: string;
+  flow: string | null;
+  step: string | null;
+  tempData: Record<string, unknown>;
+}

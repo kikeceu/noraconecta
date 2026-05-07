@@ -46,6 +46,9 @@ export class RequestsRepository {
         userId,
         status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] },
       },
+      include: {
+        assignedProfessional: { select: { phone: true } },
+      },
     });
   }
 

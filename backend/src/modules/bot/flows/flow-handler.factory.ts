@@ -17,7 +17,7 @@ const professionalsService = new ProfessionalsService(professionalsRepository);
 
 const userRequestFlow = new UserRequestFlow(requestsService);
 const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository);
-const coordinationFlow = new CoordinationFlow();
+const coordinationFlow = new CoordinationFlow(requestsService);
 
 export function resolveFlowHandler(role: 'USER' | 'PROFESSIONAL'): FlowHandler {
   switch (role) {

@@ -102,7 +102,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein
@@ -111,6 +111,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
+│   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   ├── routes/                    # (placeholder for future shared routes)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
@@ -608,6 +609,17 @@ POST /bot/message
 - `resolveZone(text)`: ídem para GeoNode
 - Retorna `{ match, confidence: 'exact' | 'fuzzy' | 'none' }`
 
+**Flujo de cancelación de pedido por el usuario (AUT-169):**
+- **Trigger**: El usuario escribe palabras clave de cancelación ("cancelar", "cancel", "quiero cancelar", "cancelar pedido", "no quiero más", "no quiero mas") en cualquier punto del flujo activo.
+- **Detección**: `BotService.processMessage()` intercepta antes del flow handler usando `isCancellationIntent()`. Si el usuario tiene un request activo (`findActiveByUserId`), guarda el flow/step anterior en `_previousFlow`/`_previousStep` y redirige a `CANCEL_CONFIRMATION`.
+- **Confirmación**: NORA responde "¿Confirmás que querés cancelar tu pedido? Respondé Sí para confirmar o No para continuar." con opciones `['Sí', 'No']`. Si el usuario no confirma ni rechaza, repite la pregunta.
+- **Si confirma (Sí)**: Llama a `RequestsService.cancelByUser()` → registra evento `CANCELLED` con metadata `{ cancelledBy: 'USER', hadConfirmedVisit, hoursBeforeVisit }`. Si corresponde, notifica al profesional vía `pendingNotification`.
+- **Si rechaza (No)**: NORA responde "Entendido, tu pedido sigue activo." y restaura el flow/step anterior desde `_previousFlow`/`_previousStep`.
+- **Escenario A (sin visita confirmada)**: Estados CREATED, ASSIGNED, ACCEPTED con cualquier `coordinationStatus` excepto SCHEDULED. Cancelación libre sin restricción de tiempo. El profesional se notifica solo si ya había aceptado (ACCEPTED): "El usuario canceló el pedido. Quedás disponible para nuevas asignaciones."
+- **Escenario B (visita confirmada)**: Estado ACCEPTED con `coordinationStatus = SCHEDULED`. Si faltan más de 2 horas para `scheduledAt`: cancela y notifica al profesional con "El usuario canceló la visita programada para el [DD/MM HH:MM]. Quedás disponible para nuevas asignaciones." Si faltan menos de 2 horas: bloquea la cancelación con "Ya no es posible cancelar con menos de 2 horas de anticipación. Si tenés un problema, podés contactarnos."
+- **Manejo en flows**: `UserRequestFlow` y `CoordinationFlow` incluyen case `CANCEL_CONFIRMATION` que delega en `handleCancelConfirmation()` (`cancel-flow.helper.ts`). `RequestsService` se inyecta en ambos flows para ejecutar `cancelByUser()`.
+- **Sin request activo**: Si el usuario escribe "cancelar" pero no tiene pedidos activos, el mensaje no se intercepta y el flow handler lo procesa normalmente.
+
 **Simulador web (frontend):**
 - Interfaz React + Tailwind en `frontend/src/pages/SimulatorPage.tsx`
 - Input de texto libre para ingresar cualquier numero de telefono + toggle de rol (Usuario / Profesional)
@@ -712,7 +724,8 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Aceptar: incrementar `trialRequestsUsed` si no tiene membresía activa
 - Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
 - Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar. CREATED con `assignmentTimeoutAt < now()` → reintenta matching → si falla → NO_RESPONSE
-- Cancelación: solo permitida en CREATED o ASSIGNED
+- Cancelación (cancel): solo permitida en CREATED o ASSIGNED
+- Cancelación por usuario (cancelByUser, AUT-169): permitida en CREATED, ASSIGNED, ACCEPTED (cualquier coordinationStatus incluyendo SCHEDULED). Si coordinationStatus = SCHEDULED, valida que falten más de 2 horas para `scheduledAt`. Registra evento CANCELLED con metadata `{ cancelledBy: 'USER', hadConfirmedVisit, hoursBeforeVisit }`. Retorna `CancelByUserResult` con info de notificación al profesional: notifica solo si ya había aceptado o tenía visita confirmada.
 - Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía pendingMessage al usuario con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158).
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
   - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge

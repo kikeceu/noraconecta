@@ -9,7 +9,7 @@ import { EscalationsService } from '../escalations/escalations.service';
 import { EscalationsRepository } from '../escalations/escalations.repository';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
-import { parseExactDate } from '../../utils/date-utils';
+import { parseExactDate, formatDateTimeArgentina } from '../../utils/date-utils';
 import { Request, Feedback } from '@prisma/client';
 
 const DEFAULT_RESPONSE_TIMEOUT_HOURS = 2;
@@ -25,6 +25,13 @@ export interface CreateRequestInput {
 }
 
 export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
+
+export interface CancelByUserResult {
+  request: Request;
+  shouldNotifyProfessional: boolean;
+  professionalPhone: string | null;
+  professionalMessage: string | null;
+}
 
 export interface PaginatedRequestsResponse {
   data: Request[];
@@ -278,6 +285,99 @@ export class RequestsService {
     });
 
     return updated;
+  }
+
+  async cancelByUser(requestId: string): Promise<CancelByUserResult> {
+    const request = await this.requestsRepository.findById(requestId);
+
+    if (!request) {
+      throw new AppError('Request not found', 404);
+    }
+
+    const validStatuses = ['CREATED', 'ASSIGNED', 'ACCEPTED'];
+
+    if (!validStatuses.includes(request.status)) {
+      throw new AppError(
+        `Cannot cancel a request with status ${request.status}. Expected CREATED, ASSIGNED, or ACCEPTED`,
+        400,
+      );
+    }
+
+    const coordinationStatus = request.coordinationStatus;
+    const scheduledAt = request.scheduledAt;
+    const hasConfirmedVisit = coordinationStatus === 'SCHEDULED' && !!scheduledAt;
+
+    if (hasConfirmedVisit && scheduledAt) {
+      const now = new Date();
+      const hoursBeforeVisit =
+        (scheduledAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+      if (hoursBeforeVisit < 2) {
+        throw new AppError(
+          'Ya no es posible cancelar con menos de 2 horas de anticipación. Si tenés un problema, podés contactarnos.',
+          400,
+        );
+      }
+    }
+
+    let shouldNotifyProfessional = false;
+    let professionalMessage: string | null = null;
+
+    if (hasConfirmedVisit && scheduledAt) {
+      shouldNotifyProfessional = true;
+      const formattedDate = formatDateTimeArgentina(scheduledAt);
+      professionalMessage = `El usuario canceló la visita programada para el ${formattedDate}. Quedás disponible para nuevas asignaciones.`;
+    } else if (
+      request.status === 'ACCEPTED' &&
+      request.assignedProfessionalId
+    ) {
+      shouldNotifyProfessional = true;
+      professionalMessage =
+        'El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.';
+    }
+
+    let hoursBeforeVisit: number | null = null;
+
+    if (hasConfirmedVisit && scheduledAt) {
+      const now = new Date();
+      hoursBeforeVisit =
+        Math.round(
+          ((scheduledAt.getTime() - now.getTime()) / (1000 * 60 * 60)) * 10,
+        ) / 10;
+    }
+
+    const updated = await this.requestsRepository.update(requestId, {
+      status: 'CANCELLED',
+      assignmentTimeoutAt: null,
+    });
+
+    await this.requestsRepository.createEvent({
+      requestId,
+      professionalId: request.assignedProfessionalId,
+      type: 'CANCELLED',
+      metadata: {
+        cancelledBy: 'USER',
+        hadConfirmedVisit: hasConfirmedVisit,
+        hoursBeforeVisit,
+      },
+    });
+
+    let professionalPhone: string | null = null;
+
+    if (shouldNotifyProfessional && request.assignedProfessionalId) {
+      const pro = await prisma.professional.findUnique({
+        where: { id: request.assignedProfessionalId },
+        select: { phone: true },
+      });
+      professionalPhone = pro?.phone ?? null;
+    }
+
+    return {
+      request: updated,
+      shouldNotifyProfessional,
+      professionalPhone,
+      professionalMessage,
+    };
   }
 
   async markCompleted(requestId: string): Promise<Request> {
