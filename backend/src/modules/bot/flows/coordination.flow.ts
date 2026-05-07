@@ -4,11 +4,14 @@ import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { UsersRepository } from '../../users/users.repository';
+import { handleCancelConfirmation } from './cancel-flow.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
 export class CoordinationFlow implements FlowHandler {
   readonly flowName = 'COORDINATION';
+
+  constructor(private readonly requestsService: RequestsService) {}
 
   getInitialStep(): string {
     return 'AWAITING_AVAILABILITY';
@@ -28,6 +31,8 @@ export class CoordinationFlow implements FlowHandler {
         return this.handleAwaitingUserConfirmation(message, tempData, role);
       case 'AWAITING_LOCATION':
         return this.handleAwaitingLocation(message, tempData, role);
+      case 'CANCEL_CONFIRMATION':
+        return handleCancelConfirmation(context, this.requestsService);
       default:
         return this.handleAwaitingAvailability(message, tempData, role);
     }
@@ -164,7 +169,7 @@ export class CoordinationFlow implements FlowHandler {
 
     const messageText = negotiationRounds > 0
       ? `¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`
-      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`;
+      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar el pedido, escribí cancelar en cualquier momento.`;
 
     return {
       response: {

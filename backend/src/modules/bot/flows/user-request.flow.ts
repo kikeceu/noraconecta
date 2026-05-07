@@ -1,6 +1,7 @@
 import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { RequestsService } from '../../requests/requests.service';
+import { handleCancelConfirmation } from './cancel-flow.helper';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -37,6 +38,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleConfirm(message, tempData);
       case 'SEARCHING':
         return this.handleSearching();
+      case 'CANCEL_CONFIRMATION':
+        return handleCancelConfirmation(context, this.requestsService);
       default:
         return this.handleInit(tempData);
     }
