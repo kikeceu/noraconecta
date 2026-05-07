@@ -25,7 +25,7 @@ const FILTER_CHIPS = [
   { key: 'NO_RESPONSE', label: 'Sin respuesta' },
 ] as const;
 
-const TERMINAL_STATUSES: OrderStatus[] = ['COMPLETED', 'NOT_FULFILLED', 'CANCELLED', 'NO_RESPONSE'];
+const TERMINAL_EVENT_TYPES = ['CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE'];
 
 function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
@@ -78,8 +78,8 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
     setError(null);
     try {
       const res = await getPanelOrders(sessionToken, page, 50);
-      const terminalOrders = res.data.filter((o) =>
-        TERMINAL_STATUSES.includes(o.status as OrderStatus),
+      const terminalOrders = res.data.filter(
+        (o) => o.professionalEventType && TERMINAL_EVENT_TYPES.includes(o.professionalEventType),
       );
       setOrders(terminalOrders);
       setPagination({
@@ -95,7 +95,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   }
 
   const filteredOrders = orders.filter((order) => {
-    if (filter !== 'all' && order.status !== filter) return false;
+    if (filter !== 'all' && order.professionalEventType !== filter) return false;
     if (search) {
       const q = search.toLowerCase();
       const categoryName = order.category?.name?.toLowerCase() || '';
@@ -107,10 +107,10 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
 
   const stats = {
     total: orders.length,
-    completed: orders.filter((o) => o.status === 'COMPLETED').length,
-    cancelled: orders.filter((o) => o.status === 'CANCELLED').length,
-    notFulfilled: orders.filter((o) => o.status === 'NOT_FULFILLED').length,
-    noResponse: orders.filter((o) => o.status === 'NO_RESPONSE').length,
+    completed: orders.filter((o) => o.professionalEventType === 'COMPLETED').length,
+    cancelled: orders.filter((o) => o.professionalEventType === 'CANCELLED').length,
+    notFulfilled: orders.filter((o) => o.professionalEventType === 'NOT_FULFILLED').length,
+    noResponse: orders.filter((o) => o.professionalEventType === 'NO_RESPONSE').length,
   };
 
   if (loading) {
@@ -250,7 +250,8 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                 </thead>
                 <tbody className="divide-y divide-[#F3F4F6]">
                   {filteredOrders.map((order) => {
-                    const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.CREATED;
+                    const statusKey = (order.professionalEventType || order.status) as OrderStatus;
+                    const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.CREATED;
                     return (
                       <tr key={order.id} className="hover:bg-[#F9FAFB] transition-colors">
                         <td
@@ -284,7 +285,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {order.status === 'COMPLETED' && !order.ratedByProfessional && (
+                          {order.professionalEventType === 'COMPLETED' && !order.ratedByProfessional && (
                             <button
                               onClick={() => setRatingOrderId(order.id)}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors cursor-pointer"

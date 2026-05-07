@@ -69,6 +69,7 @@ export interface PanelOrder {
   id: string;
   createdAt: string;
   status: OrderStatus;
+  professionalEventType?: string | null;
   description?: string | null;
   userName?: string | null;
   userPhone?: string | null;

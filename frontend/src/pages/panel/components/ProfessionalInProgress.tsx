@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import type { PanelOrder } from '../../../types/panel';
-import { getPanelOrders, finishRequest, confirmVisitRequest } from '../../../lib/panel-api';
+import { getPanelOrders, finishRequest, confirmVisitRequest, cancelByProfessionalRequest } from '../../../lib/panel-api';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -52,9 +52,10 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 interface ProfessionalInProgressProps {
   sessionToken: string;
+  professionalId: string;
 }
 
-export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressProps) {
+export function ProfessionalInProgress({ sessionToken, professionalId }: ProfessionalInProgressProps) {
   const [orders, setOrders] = useState<PanelOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +68,8 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
   const [confirmVisitLoading, setConfirmVisitLoading] = useState(false);
   const [viewAddressOrderId, setViewAddressOrderId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     loadInProgress();
@@ -284,6 +287,22 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right">
+                          {order.status === 'ACCEPTED' && (
+                            <button
+                              onClick={() => setCancelOrderId(order.id)}
+                              disabled={cancelLoading}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#DC2626] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors disabled:opacity-50 cursor-pointer mb-2"
+                              style={{ fontFamily: 'DM Sans' }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="15" y1="9" x2="9" y2="15" />
+                                <line x1="9" y1="9" x2="15" y2="15" />
+                              </svg>
+                              Cancelar pedido
+                            </button>
+                          )}
+                          <div className="flex flex-col gap-2 items-end">
                           {order.coordinationStatus === 'AWAITING_CONFIRMATION' && (
                             <button
                               onClick={() => {
@@ -350,6 +369,7 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                               Esperando confirmación
                             </span>
                           )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -422,6 +442,66 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                   style={{ fontFamily: 'DM Sans' }}
                 >
                   {finishLoading ? 'Enviando...' : 'Sí, finalizar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cancelOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="rounded-xl bg-white shadow-lg max-w-sm w-full mx-4 overflow-hidden">
+            <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+              <h2
+                className="text-base font-semibold text-[#111827]"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                Cancelar pedido
+              </h2>
+              <button
+                onClick={() => setCancelOrderId(null)}
+                disabled={cancelLoading}
+                className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                ¿Confirmás que querés cancelar este pedido? Esta acción no se puede deshacer.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setCancelOrderId(null)}
+                  disabled={cancelLoading}
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors cursor-pointer"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  No, mantener
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!cancelOrderId) return;
+                    setCancelLoading(true);
+                    try {
+                      await cancelByProfessionalRequest(cancelOrderId, professionalId);
+                      setCancelOrderId(null);
+                      await loadInProgress();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Error al cancelar pedido');
+                    } finally {
+                      setCancelLoading(false);
+                    }
+                  }}
+                  disabled={cancelLoading}
+                  className="flex-1 px-4 py-2.5 rounded-lg bg-[#DC2626] text-white text-sm font-medium hover:bg-[#B91C1C] disabled:opacity-50 transition-colors cursor-pointer"
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  {cancelLoading ? 'Cancelando...' : 'Sí, cancelar'}
                 </button>
               </div>
             </div>

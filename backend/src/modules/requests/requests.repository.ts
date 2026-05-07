@@ -35,6 +35,7 @@ export class RequestsRepository {
         events: true,
         feedback: true,
         assignedProfessional: { select: { name: true, phone: true } },
+        user: { select: { phone: true } },
         category: { select: { name: true } },
       },
     });
@@ -241,6 +242,7 @@ export class RequestsRepository {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async findByIdWithCoordination(id: string) {
     return prisma.request.findUnique({
       where: { id },

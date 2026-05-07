@@ -74,7 +74,12 @@ export function ProfessionalPanelPage() {
     >
       {activeTab === 'profile' && <ProfessionalProfile professional={data.professional} />}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}
-      {activeTab === 'in-progress' && <ProfessionalInProgress sessionToken={sessionToken!} />}
+      {activeTab === 'in-progress' && (
+        <ProfessionalInProgress
+          sessionToken={sessionToken!}
+          professionalId={data.professional.id}
+        />
+      )}
       {activeTab === 'membership' && <ProfessionalMembership membership={data.membership} />}
       {activeTab === 'orders' && <ProfessionalOrders sessionToken={sessionToken!} />}
       {activeTab === 'reputation' && <ProfessionalReputation reputation={data.reputation} />}
