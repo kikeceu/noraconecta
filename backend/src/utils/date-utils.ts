@@ -2,12 +2,15 @@ export function parseExactDate(input: string): Date | null {
   const trimmed = input.trim();
   console.log('[parseExactDate] input:', JSON.stringify(input), 'trimmed:', JSON.stringify(trimmed));
 
-  const match = trimmed.match(/^(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/);
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$/);
   console.log('[parseExactDate] match:', match);
 
   if (!match) return null;
 
-  const [, dd, mm, hh, min] = match;
+  const dd = match[1];
+  const mm = match[2];
+  const hh = match[3];
+  const min = match[4] ?? '00';
   const day = parseInt(dd, 10);
   const month = parseInt(mm, 10);
   const hour = parseInt(hh, 10);
