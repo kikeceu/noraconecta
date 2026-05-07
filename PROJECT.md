@@ -30,7 +30,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   └── date-utils.ts          # parseExactDate + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   └── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
@@ -208,7 +208,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
-│   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): coordination status, confirm visit, mark finished, view detail modal (AUT-156)
+│   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): coordination status, confirm visit (prefilled alternative schedule from clientAvailability), mark finished, view detail modal (AUT-156, AUT-168)
 │   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders (COMPLETED, NOT_FULFILLED, CANCELLED, NO_RESPONSE), stats cards, filters, search, table, pagination, rate user (AUT-156)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart, compliance metrics, recommendation %, tips
 │   ├── index.html                      # Vite entry HTML (dev mode)
@@ -581,7 +581,7 @@ POST /bot/message
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
-**Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH:MM`. El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})/(\d{2})\s+(\d{2}):(\d{2})$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
+**Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
 
 **Flujo de coordinación actualizado (AUT-166):**
 - **`handleAwaitingAvailability`**: Mensaje al usuario: "¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)". Valida con `parseExactDate`. Si no cumple → "El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)" → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
@@ -745,7 +745,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 |---|---|---|
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando ubicación del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado) |
+| En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando ubicación del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado). Modal "Confirmar visita": al proponer horario alternativo, el campo se prellena con `clientAvailability` del pedido (AUT-168) |
 | Historial | `ProfessionalOrders` | Pedidos en estados terminales (COMPLETED, NOT_FULFILLED, CANCELLED, NO_RESPONSE). Stats cards, filtros por status (chips + búsqueda), tabla con fecha/rubro/zona/estado. Pedidos COMPLETED sin calificar: botón "Calificar". Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
@@ -1255,7 +1255,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
   - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
-  - **Parseo de fecha estricto (AUT-166):** El texto del usuario y profesional debe usar formato `DD/MM HH:MM`. Se valida con `parseExactDate()` (`utils/date-utils.ts`). Si el formato es inválido, NORA pide corrección y se queda en el mismo paso. Sin dependencia de LLM.
+  - **Parseo de fecha estricto (AUT-166):** El texto del usuario y profesional debe usar formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00`). Se valida con `parseExactDate()` (`utils/date-utils.ts`). Si el formato es inválido, NORA pide corrección y se queda en el mismo paso. Sin dependencia de LLM.
   - **Timezone Argentina (AUT-167):** Al formatear fechas para mostrar al usuario o profesional, se usan `getDayArgentina`, `getHoursArgentina`, `getMinutesArgentina`, `formatDateTimeArgentina` (`utils/date-utils.ts`) que aplican offset UTC-3. Esto corrige el día de semana y la hora cuando el panel envía fechas en UTC.
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.

@@ -494,8 +494,12 @@ export function ProfessionalInProgress({ sessionToken }: ProfessionalInProgressP
                   >
                     Confirmo ese horario
                   </button>
-                  <button
-                    onClick={() => setProposingAlternative(true)}
+                   <button
+                    onClick={() => {
+                      setProposingAlternative(true);
+                      const order = orders.find((o) => o.id === confirmVisitOrderId);
+                      setAlternativeText(order?.clientAvailability || '');
+                    }}
                     disabled={confirmVisitLoading}
                     className="w-full px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors cursor-pointer"
                     style={{ fontFamily: 'DM Sans' }}
