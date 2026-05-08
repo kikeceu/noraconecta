@@ -37,6 +37,19 @@ export class BotRepository {
     });
   }
 
+  async updateLastInboundAt(phone: string, at: Date): Promise<void> {
+    await prisma.botSession.update({
+      where: { phone },
+      data: { lastInboundAt: at },
+    });
+  }
+
+  async isWithin24hWindow(phone: string): Promise<boolean> {
+    const session = await prisma.botSession.findUnique({ where: { phone } });
+    if (!session?.lastInboundAt) return false;
+    return Date.now() - session.lastInboundAt.getTime() < 24 * 60 * 60 * 1000;
+  }
+
   async deleteByPhone(phone: string): Promise<void> {
     await prisma.botSession.deleteMany({ where: { phone } });
   }

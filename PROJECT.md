@@ -30,7 +30,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   └── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
@@ -237,7 +238,9 @@ src/
 │   ├── require-auth.ts        # JWT validation middleware
 │   └── require-super-admin.ts # SUPERADMIN role guard
 ├── utils/
-│   └── jwt.ts                 # signToken / verifyToken
+│   ├── jwt.ts                 # signToken / verifyToken
+│   ├── date-utils.ts          # parseExactDate + funciones de timezone Argentina (AUT-166, AUT-167)
+│   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp (AUT-171)
 ├── types/
   │   └── express.d.ts           # Express Request augmentation (req.admin)
   ├── modules/
@@ -619,6 +622,15 @@ POST /bot/message
 - **Escenario B (visita confirmada)**: Estado ACCEPTED con `coordinationStatus = SCHEDULED`. Si faltan más de 2 horas para `scheduledAt`: cancela y notifica al profesional con "El usuario canceló la visita programada para el [DD/MM HH:MM]. Quedás disponible para nuevas asignaciones." Si faltan menos de 2 horas: bloquea la cancelación con "Ya no es posible cancelar con menos de 2 horas de anticipación. Si tenés un problema, podés contactarnos."
 - **Manejo en flows**: `UserRequestFlow` y `CoordinationFlow` incluyen case `CANCEL_CONFIRMATION` que delega en `handleCancelConfirmation()` (`cancel-flow.helper.ts`). `RequestsService` se inyecta en ambos flows para ejecutar `cancelByUser()`.
 - **Sin request activo**: Si el usuario escribe "cancelar" pero no tiene pedidos activos, el mensaje no se intercepta y el flow handler lo procesa normalmente.
+
+**Tracking de ventana de conversación de 24hs (WhatsApp) (AUT-171):**
+- `BotSession.lastInboundAt` registra el timestamp del último mensaje entrante recibido de un número
+- `BotRepository.updateLastInboundAt(phone, at)`: actualiza `lastInboundAt` en cada mensaje entrante
+- `BotRepository.isWithin24hWindow(phone)`: retorna `true` si `lastInboundAt` existe y `Date.now() - lastInboundAt < 24 horas`
+- `BotService.processMessage()` llama a `updateLastInboundAt(phone, new Date())` después de garantizar que la sesión existe, antes de cualquier otro procesamiento
+- `shouldUseTemplate(phone, botRepository)` (`utils/whatsapp-utils.ts`): helper stateless que retorna `true` si se necesita template (fuera de ventana de 24hs) o `false` si se puede responder con mensaje libre
+- La ventana la abre el usuario/profesional cuando nos escribe; no se abre cuando NORA escribe a ellos
+- El helper es reutilizable desde cualquier módulo — las issues futuras de envío de mensajes lo consumen para decidir entre template y mensaje libre
 
 **Simulador web (frontend):**
 - Interfaz React + Tailwind en `frontend/src/pages/SimulatorPage.tsx`
@@ -1115,16 +1127,17 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | updatedAt     | DateTime | Autogenerado (on update)                 |
 
 ### BotSession
-| Columna     | Tipo     | Descripción                           |
-|------------|----------|---------------------------------------|
-| id         | CUID     | PK, autogenerado                      |
-| phone      | String   | Único, teléfono del usuario           |
-| role       | Enum?    | USER \| PROFESSIONAL                  |
-| currentFlow| String?  | Flujo actual del bot                  |
-| currentStep| String?  | Paso actual dentro del flujo          |
-| tempData   | Json?    | Datos temporales de la conversación   |
-| createdAt  | DateTime | Autogenerado                          |
-| updatedAt  | DateTime | Autogenerado (on update)              |
+| Columna       | Tipo      | Descripción                                      |
+|--------------|----------|--------------------------------------------------|
+| id           | CUID     | PK, autogenerado                                 |
+| phone        | String   | Único, teléfono del usuario                      |
+| role         | Enum?    | USER \| PROFESSIONAL                             |
+| currentFlow  | String?  | Flujo actual del bot                             |
+| currentStep  | String?  | Paso actual dentro del flujo                     |
+| tempData     | Json?    | Datos temporales de la conversación              |
+| lastInboundAt| DateTime?| Timestamp del último mensaje entrante recibido   |
+| createdAt    | DateTime | Autogenerado                                     |
+| updatedAt    | DateTime | Autogenerado (on update)                         |
 
 ### Enums
 
@@ -1286,6 +1299,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Cada folder (`request-photos`, etc.) tiene su propia lista blanca de contentTypes
 - La URL pre-firmada expira después de un tiempo configurable (default: 3600 segundos)
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
+- Ventana de conversación de WhatsApp (24hs): el sistema registra `lastInboundAt` en cada mensaje entrante. Si el último mensaje recibido fue hace menos de 24hs, NORA puede responder con mensaje libre; si pasaron más de 24hs o nunca hubo mensaje, NORA debe usar una plantilla aprobada. La ventana la abre el usuario/profesional cuando escribe, no cuando NORA escribe. El helper `shouldUseTemplate()` en `utils/whatsapp-utils.ts` encapsula esta decisión para todos los módulos.
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
 - `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
 - Calificación post-servicio (AUT-142):

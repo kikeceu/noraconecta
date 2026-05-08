@@ -313,7 +313,8 @@ model BotSession {
   role        BotRole?
   currentFlow String?
   currentStep String?
-  tempData    Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  tempData      Json?
+  lastInboundAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
