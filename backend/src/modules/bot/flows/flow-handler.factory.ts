@@ -4,13 +4,17 @@ import { ProfessionalRegisterFlow } from './professional-register.flow';
 import { CoordinationFlow } from './coordination.flow';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
+import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
+import { BotRepository } from '../../bot/bot.repository';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
-const requestsService = new RequestsService(requestsRepository, usersRepository);
+const matchingRepository = new MatchingRepository();
+const botRepository = new BotRepository();
+const requestsService = new RequestsService(requestsRepository, usersRepository, matchingRepository, botRepository);
 
 const professionalsRepository = new ProfessionalsRepository();
 const professionalsService = new ProfessionalsService(professionalsRepository);

@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma';
-import { Professional, Membership } from '@prisma/client';
+import { Professional, Membership, Request } from '@prisma/client';
 
 export interface NotFulfilledEvent {
   professionalId: string;
@@ -200,5 +200,29 @@ export class MatchingRepository {
       map.set(p.id, p.trialRequestsUsed);
     }
     return map;
+  }
+
+  async findRequestsForReminder(
+    nowMinus60: Date,
+    nowMinus90: Date,
+  ): Promise<(Request & { assignedProfessional: { phone: string } | null })[]> {
+    return prisma.request.findMany({
+      where: {
+        status: 'ASSIGNED',
+        updatedAt: { lt: nowMinus60, gt: nowMinus90 },
+      },
+      include: {
+        assignedProfessional: { select: { phone: true } },
+      },
+    });
+  }
+
+  async findRequestsForReassignment(nowMinus90: Date): Promise<Request[]> {
+    return prisma.request.findMany({
+      where: {
+        status: 'ASSIGNED',
+        updatedAt: { lt: nowMinus90 },
+      },
+    });
   }
 }

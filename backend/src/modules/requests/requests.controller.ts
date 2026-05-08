@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { RequestsService, Satisfaction } from './requests.service';
 import { RequestsRepository } from './requests.repository';
+import { MatchingRepository } from '../matching/matching.repository';
 import { UsersRepository } from '../users/users.repository';
 import { CoordinationService } from '../bot/coordination.service';
 import { BotRepository } from '../bot/bot.repository';
@@ -8,8 +9,9 @@ import { formatDateTimeArgentina } from '../../utils/date-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
-const requestsService = new RequestsService(requestsRepository, usersRepository);
+const matchingRepository = new MatchingRepository();
 const botRepository = new BotRepository();
+const requestsService = new RequestsService(requestsRepository, usersRepository, matchingRepository, botRepository);
 const coordinationService = new CoordinationService(botRepository);
 
 export class RequestsController {
