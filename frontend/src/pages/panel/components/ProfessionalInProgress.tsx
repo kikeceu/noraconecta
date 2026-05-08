@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import type { PanelOrder } from '../../../types/panel';
-import { getPanelOrders, finishRequest, confirmVisitRequest, cancelByProfessionalRequest } from '../../../lib/panel-api';
+import { getPanelOrders, finishRequest, confirmVisitRequest, confirmScheduleRequest, cancelByProfessionalRequest } from '../../../lib/panel-api';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -66,6 +66,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
   const [proposingAlternative, setProposingAlternative] = useState(false);
   const [alternativeText, setAlternativeText] = useState('');
   const [confirmVisitLoading, setConfirmVisitLoading] = useState(false);
+  const [confirmVisitError, setConfirmVisitError] = useState<string | null>(null);
   const [viewAddressOrderId, setViewAddressOrderId] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [cancelOrderId, setCancelOrderId] = useState<string | null>(null);
@@ -309,6 +310,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                                 setConfirmVisitOrderId(order.id);
                                 setProposingAlternative(false);
                                 setAlternativeText('');
+                                setConfirmVisitError(null);
                               }}
                               disabled={confirmVisitLoading}
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors disabled:opacity-50 cursor-pointer"
@@ -523,6 +525,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                 onClick={() => {
                   setConfirmVisitOrderId(null);
                   setProposingAlternative(false);
+                  setConfirmVisitError(null);
                 }}
                 disabled={confirmVisitLoading}
                 className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
@@ -549,6 +552,14 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                 );
               })()}
 
+              {confirmVisitError && (
+                <div className="rounded-lg bg-[#FEF2F2] border border-[#FECACA] p-3">
+                  <p className="text-sm text-[#DC2626]" style={{ fontFamily: 'DM Sans' }}>
+                    {confirmVisitError}
+                  </p>
+                </div>
+              )}
+
               {!proposingAlternative ? (
                 <div className="space-y-3">
                   <button
@@ -557,13 +568,14 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                       const availability = order?.clientAvailability || '';
                       if (!availability) return;
                       setConfirmVisitLoading(true);
+                      setConfirmVisitError(null);
                       try {
                         await confirmVisitRequest(confirmVisitOrderId!, availability);
                         setProposingAlternative(false);
                         await loadInProgress();
                         setConfirmVisitOrderId(null);
                       } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Error al confirmar visita');
+                        setConfirmVisitError(err instanceof Error ? err.message : 'Error al confirmar visita');
                       } finally {
                         setConfirmVisitLoading(false);
                       }
@@ -577,6 +589,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                    <button
                     onClick={() => {
                       setProposingAlternative(true);
+                      setConfirmVisitError(null);
                       const order = orders.find((o) => o.id === confirmVisitOrderId);
                       setAlternativeText(order?.clientAvailability || '');
                     }}
@@ -607,6 +620,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                       onClick={() => {
                         setProposingAlternative(false);
                         setAlternativeText('');
+                        setConfirmVisitError(null);
                       }}
                       disabled={confirmVisitLoading}
                       className="flex-1 px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors cursor-pointer"
@@ -618,14 +632,16 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                       onClick={async () => {
                         if (!confirmVisitOrderId || !alternativeText.trim()) return;
                         setConfirmVisitLoading(true);
+                        setConfirmVisitError(null);
                         try {
-                          await confirmVisitRequest(confirmVisitOrderId, alternativeText.trim());
+                          const proposedAtISO = toArgentineISO(alternativeText.trim());
+                          await confirmScheduleRequest(confirmVisitOrderId, alternativeText.trim(), proposedAtISO);
                           setProposingAlternative(false);
                           setAlternativeText('');
                           await loadInProgress();
                           setConfirmVisitOrderId(null);
                         } catch (err) {
-                          setError(err instanceof Error ? err.message : 'Error al confirmar visita');
+                          setConfirmVisitError(err instanceof Error ? err.message : 'Error al proponer horario');
                         } finally {
                           setConfirmVisitLoading(false);
                         }
@@ -803,6 +819,20 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
       )}
     </div>
   );
+}
+
+function toArgentineISO(scheduleText: string): string | null {
+  const trimmed = scheduleText.trim();
+  const match = trimmed.match(/^(\d{2})\/(\d{2})\s+(\d{2}):?(\d{2})?$/);
+  if (!match) return null;
+  const day = match[1];
+  const month = match[2];
+  const hours = match[3];
+  const minutes = match[4] || '00';
+  const year = new Date().getFullYear();
+  const date = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00-03:00`);
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString();
 }
 
 function formatScheduledDate(dateStr: string): string {

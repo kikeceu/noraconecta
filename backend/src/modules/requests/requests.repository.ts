@@ -214,6 +214,37 @@ export class RequestsRepository {
     });
   }
 
+  async findConflictingSchedule(
+    professionalId: string,
+    scheduledAt: Date,
+    excludeRequestId: string,
+  ): Promise<boolean> {
+    const ARGENTINA_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+    const requests = await prisma.request.findMany({
+      where: {
+        assignedProfessionalId: professionalId,
+        coordinationStatus: 'SCHEDULED',
+        id: { not: excludeRequestId },
+        scheduledAt: { not: null },
+      },
+      select: { scheduledAt: true },
+    });
+
+    const targetDate = new Date(scheduledAt.getTime() - ARGENTINA_OFFSET_MS);
+
+    return requests.some((r) => {
+      if (!r.scheduledAt) return false;
+      const existing = new Date(r.scheduledAt.getTime() - ARGENTINA_OFFSET_MS);
+      return (
+        existing.getUTCDate() === targetDate.getUTCDate() &&
+        existing.getUTCMonth() === targetDate.getUTCMonth() &&
+        existing.getUTCHours() === targetDate.getUTCHours() &&
+        existing.getUTCMinutes() === targetDate.getUTCMinutes()
+      );
+    });
+  }
+
   async findPendingAutoClose(cutoff: Date): Promise<Request[]> {
     return prisma.request.findMany({
       where: {

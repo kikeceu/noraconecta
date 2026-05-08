@@ -632,6 +632,22 @@ POST /bot/message
 - La ventana la abre el usuario/profesional cuando nos escribe; no se abre cuando NORA escribe a ellos
 - El helper es reutilizable desde cualquier módulo — las issues futuras de envío de mensajes lo consumen para decidir entre template y mensaje libre
 
+**Validación de colisión de fechas en coordinación (AUT-172):**
+- Antes de procesar una fecha propuesta (usuario o profesional), el sistema verifica que el profesional asignado no tenga otra visita confirmada (`coordinationStatus = SCHEDULED`) en el mismo día y hora exactos (timezone Argentina).
+- `RequestsRepository.findConflictingSchedule(professionalId, scheduledAt, excludeRequestId)`: busca pedidos del profesional con `coordinationStatus = SCHEDULED`, mismo día/mes/hora/minuto en UTC-3, excluyendo el pedido actual.
+- **Punto 1 — `handleAwaitingAvailability` (usuario propone fecha, WhatsApp)**: después de validar formato con `parseExactDate`, consulta colisión. Si hay colisión → "Ese horario no está disponible para el profesional. Proponé otro día y hora: DD/MM HH:MM (ejemplo: 20/06 16:00)", permanece en `AWAITING_AVAILABILITY`.
+- **Punto 2 — `handleAwaitingConfirmation` (profesional propone alternativa, WhatsApp)**: después de validar formato con `parseExactDate`, consulta colisión. Si hay colisión → "Ya tenés una visita confirmada en ese día y hora. Proponé otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)", permanece en `AWAITING_CONFIRMATION`.
+- **Punto 3 — `confirmSchedule` (profesional confirma o propone desde panel web)**: antes de guardar la fecha, consulta colisión. Si hay colisión → lanza `AppError` 409 "Ya tenés una visita confirmada en ese día y hora. Proponé otro horario." El controller captura 409 y retorna HTTP 409. El frontend muestra el error inline en el modal de confirmación de visita.
+- **Definición de colisión**: mismo día, mes, hora y minuto exacto. Dos visitas a las 10:00 y 10:30 no colisionan.
+- **Confirmación con "Sí" (WhatsApp)**: no se valida colisión porque el profesional está aceptando el horario del usuario, no proponiendo uno nuevo.
+- **`handleAwaitingUserConfirmation` — usuario acepta alternativa (isYes)**: `coordinationStatus` pasa a `SCHEDULED` directamente (antes `AWAITING_LOCATION`). NORA pide dirección en el mismo mensaje (`nextStep: 'AWAITING_LOCATION'`).
+- **Patrones afirmativos ampliados**: se agregaron `yes`, `sure`, `vale`, `claro` a `isAffirmative()` para evitar que respuestas en inglés o variantes comunes queden sin reconocer y se trabe el flujo.
+- **`confirmSchedule` (service) — branch `proposedAt`**: ahora persiste `scheduledAt: parsedProposedAt` en el update, además de `clientAvailability`.
+- **`confirmSchedule` (controller) — notificación al usuario**: cuando el profesional propone alternativa desde el panel, se actualiza la sesión WhatsApp del usuario vía `botRepository.upsert` con `currentStep: 'AWAITING_USER_CONFIRMATION'` y `tempData` con `alternativeScheduledAt`, `professionalName`, `professionalPhone`, `requestId` y `pendingMessage` ("Profesional propone el DD/MM HH:MM. ¿Te viene bien?").
+- **Frontend — `confirmScheduleRequest`**: nueva función en `panel-api.ts` que llama a `POST /requests/:id/confirm-schedule`. El botón "Enviar propuesta" en `ProfessionalInProgress.tsx` la usa en lugar de `confirmVisitRequest`, parseando la fecha a ISO con `toArgentineISO()`.
+- **Frontend — error inline**: estado `confirmVisitError` muestra errores (incluyendo 409 de colisión) como banner rojo dentro del modal. Se limpia al abrir/cerrar el modal y al cambiar de vista.
+- **Logs de debug en `bot.service.ts`**: `processMessage` loguea `phone`, `currentFlow`, `currentStep` al inicio. El bloque `pendingNotification` loguea `targetPhone`, `step` y `tempData` antes del upsert.
+
 **Simulador web (frontend):**
 - Interfaz React + Tailwind en `frontend/src/pages/SimulatorPage.tsx`
 - Input de texto libre para ingresar cualquier numero de telefono + toggle de rol (Usuario / Profesional)

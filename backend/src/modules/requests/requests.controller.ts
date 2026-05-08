@@ -4,6 +4,7 @@ import { RequestsRepository } from './requests.repository';
 import { UsersRepository } from '../users/users.repository';
 import { CoordinationService } from '../bot/coordination.service';
 import { BotRepository } from '../bot/bot.repository';
+import { formatDateTimeArgentina } from '../../utils/date-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -567,8 +568,55 @@ export class RequestsController {
         scheduleText.trim(),
         proposedAt || null,
       );
+
+      if (request.coordinationStatus === 'AWAITING_USER_CONFIRMATION' && proposedAt) {
+        try {
+          const user = (request as unknown as Record<string, unknown>).user as
+            | { phone: string }
+            | undefined;
+          const professional = (request as unknown as Record<string, unknown>).assignedProfessional as
+            | { name: string; phone: string }
+            | undefined;
+
+          if (user?.phone) {
+            const professionalName = professional?.name || 'El profesional';
+            const alternativeText = formatDateTimeArgentina(new Date(proposedAt));
+            const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+
+            const userSession = await botRepository.findByPhone(user.phone);
+            const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+
+            await botRepository.upsert(user.phone, {
+              role: 'USER',
+              currentFlow: 'COORDINATION',
+              currentStep: 'AWAITING_USER_CONFIRMATION',
+              tempData: {
+                ...userTempData,
+                requestId: id,
+                alternativeScheduledAt: new Date(proposedAt).toISOString(),
+                professionalName,
+                professionalPhone: professional?.phone,
+                pendingMessage: userMessage,
+              },
+            });
+          }
+        } catch (err) {
+          console.error('[RequestsController.confirmSchedule] Failed to notify user:', err);
+        }
+      }
+
       res.status(200).json({ data: request });
     } catch (err) {
+      const appErr = err as { statusCode?: number; message?: string };
+
+      if (appErr.statusCode === 409) {
+        res.status(409).json({
+          error: appErr.message || 'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario.',
+          statusCode: 409,
+        });
+        return;
+      }
+
       next(err);
     }
   }

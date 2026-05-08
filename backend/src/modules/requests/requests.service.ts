@@ -1193,9 +1193,25 @@ export class RequestsService {
         throw new AppError('proposedAt must be a valid ISO 8601 date', 400);
       }
 
+      if (request.assignedProfessionalId) {
+        const hasConflict = await this.requestsRepository.findConflictingSchedule(
+          request.assignedProfessionalId,
+          parsedProposedAt,
+          requestId,
+        );
+
+        if (hasConflict) {
+          throw new AppError(
+            'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario.',
+            409,
+          );
+        }
+      }
+
       await this.requestsRepository.update(requestId, {
         coordinationStatus: 'AWAITING_USER_CONFIRMATION',
         clientAvailability: scheduleText,
+        scheduledAt: parsedProposedAt,
       });
     } else {
       const scheduledAt = parseExactDate(scheduleText);
@@ -1210,6 +1226,21 @@ export class RequestsService {
           'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)',
           422,
         );
+      }
+
+      if (request.assignedProfessionalId) {
+        const hasConflict = await this.requestsRepository.findConflictingSchedule(
+          request.assignedProfessionalId,
+          scheduledAt,
+          requestId,
+        );
+
+        if (hasConflict) {
+          throw new AppError(
+            'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario.',
+            409,
+          );
+        }
       }
 
       await this.requestsRepository.update(requestId, {
