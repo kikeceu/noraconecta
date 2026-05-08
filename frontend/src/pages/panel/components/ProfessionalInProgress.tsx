@@ -350,7 +350,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                               Ver detalle
                             </button>
                           )}
-                          {order.status === 'ACCEPTED' && order.coordinationStatus !== 'AWAITING_CONFIRMATION' && order.coordinationStatus !== 'AWAITING_LOCATION' && (
+                          {order.status === 'ACCEPTED' && order.coordinationStatus === 'SCHEDULED' && (
                             <button
                               onClick={() => setFinishOrderId(order.id)}
                               disabled={finishLoading}
