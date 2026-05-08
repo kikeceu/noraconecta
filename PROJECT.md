@@ -632,6 +632,12 @@ POST /bot/message
 - La ventana la abre el usuario/profesional cuando nos escribe; no se abre cuando NORA escribe a ellos
 - El helper es reutilizable desde cualquier módulo — las issues futuras de envío de mensajes lo consumen para decidir entre template y mensaje libre
 
+**Timeout reminder tracking (AUT-177):**
+- `BotSession.reminderSentAt` registra el timestamp del último recordatorio de timeout enviado al profesional
+- `BotRepository.setReminderSent(phone, at)`: marca que se envió recordatorio al profesional
+- `BotRepository.clearReminderSent(phone)`: limpia el timestamp cuando el pedido se reasigna
+- Se usa en `RequestsService.processTimeouts()` para evitar recordatorios duplicados y limpiar tras reasignación
+
 **Validación de colisión de fechas en coordinación (AUT-172):**
 - Antes de procesar una fecha propuesta (usuario o profesional), el sistema verifica que el profesional asignado no tenga otra visita confirmada (`coordinationStatus = SCHEDULED`) en el mismo día y hora exactos (timezone Argentina).
 - `RequestsRepository.findConflictingSchedule(professionalId, scheduledAt, excludeRequestId)`: busca pedidos del profesional con `coordinationStatus = SCHEDULED`, mismo día/mes/hora/minuto en UTC-3, excluyendo el pedido actual.
@@ -691,6 +697,13 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 |-------------------------|-----------------------------------------------------|
 | `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona |
 | `calculateScore()`      | Calcula el score individual de un profesional       |
+
+**Repository (matching.repository.ts) — queries de timeout (AUT-177):**
+
+| Método                          | Descripción                                                    |
+|---------------------------------|----------------------------------------------------------------|
+| `findRequestsForReminder()`     | Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 min atrás (incluye `assignedProfessional.phone`) |
+| `findRequestsForReassignment()` | Busca pedidos ASSIGNED con `updatedAt` > 90 min atrás          |
 
 **Filtros duros**: status ACTIVE, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo 2 pedidos activos, no rechazó el pedido actual.
 
@@ -1152,6 +1165,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | currentStep  | String?  | Paso actual dentro del flujo                     |
 | tempData     | Json?    | Datos temporales de la conversación              |
 | lastInboundAt| DateTime?| Timestamp del último mensaje entrante recibido   |
+| reminderSentAt| DateTime?| Timestamp del recordatorio de timeout enviado (AUT-177) |
 | createdAt    | DateTime | Autogenerado                                     |
 | updatedAt    | DateTime | Autogenerado (on update)                         |
 
@@ -1273,7 +1287,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `confirmCompletion`: (legacy) usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
   - `reportNoncompliance`: (legacy) usuario reporta incumplimiento → NOT_FULFILLED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
-- Timeout job: busca ASSIGNED con `assignmentTimeoutAt < now()`, crea NO_RESPONSE para el profesional, excluye al profesional vencido + rejectores, reasigna
+- Timeout job (dos etapas, AUT-177): 
+  - **Etapa 1 — Recordatorio (entre 60 y 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 minutos atrás cuyo profesional asignado no tenga `reminderSentAt` en su `BotSession`. Registra `reminderSentAt` y loggea el mensaje de recordatorio: "Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo." El envío real por WhatsApp queda pendiente para AUT-134.
+  - **Etapa 2 — Reasignación (más de 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` > 90 minutos atrás. Crea evento `NO_RESPONSE` para el profesional actual y limpia su `reminderSentAt`. Excluye al profesional vencido + rejectores previos y reasigna. Si no hay candidatos → `NO_RESPONSE`. El usuario no recibe ninguna notificación (reasignación silenciosa).
+  - El cron corre cada 15 minutos (`*/15 * * * *`).
 - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía `pendingMessage` a usuario y profesional vía `BotSession`. El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.

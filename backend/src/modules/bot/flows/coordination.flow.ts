@@ -3,7 +3,9 @@ import prisma from '../../../lib/prisma';
 import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
+import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
+import { BotRepository } from '../../bot/bot.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
@@ -489,7 +491,9 @@ export class CoordinationFlow implements FlowHandler {
         if (negotiationRounds >= MAX_NEGOTIATION_ROUNDS) {
           const requestsRepo = new RequestsRepository();
           const usersRepo = new UsersRepository();
-          const requestsService = new RequestsService(requestsRepo, usersRepo);
+          const matchingRepo = new MatchingRepository();
+          const botRepo = new BotRepository();
+          const requestsService = new RequestsService(requestsRepo, usersRepo, matchingRepo, botRepo);
 
           let reassigned = false;
           try {

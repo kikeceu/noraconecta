@@ -3,14 +3,18 @@ import { AdminService } from './admin.service';
 import { AdminRepository } from './admin.repository';
 import { RequestsService } from '../requests/requests.service';
 import { RequestsRepository } from '../requests/requests.repository';
+import { MatchingRepository } from '../matching/matching.repository';
 import { UsersRepository } from '../users/users.repository';
+import { BotRepository } from '../bot/bot.repository';
 
 const adminRepository = new AdminRepository();
 const adminService = new AdminService(adminRepository);
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
-const requestsService = new RequestsService(requestsRepository, usersRepository);
+const matchingRepository = new MatchingRepository();
+const botRepository = new BotRepository();
+const requestsService = new RequestsService(requestsRepository, usersRepository, matchingRepository, botRepository);
 
 export class AdminController {
   async getMetrics(

@@ -314,7 +314,8 @@ model BotSession {
   currentFlow String?
   currentStep String?
   tempData      Json?
-  lastInboundAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  lastInboundAt   DateTime?
+  reminderSentAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

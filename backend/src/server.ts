@@ -21,6 +21,7 @@ import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
 import { RequestsService } from './modules/requests/requests.service';
 import { RequestsRepository } from './modules/requests/requests.repository';
+import { MatchingRepository } from './modules/matching/matching.repository';
 import { UsersRepository } from './modules/users/users.repository';
 import { CoordinationService } from './modules/bot/coordination.service';
 import { BotRepository } from './modules/bot/bot.repository';
@@ -56,7 +57,14 @@ app.use(errorHandler);
 // Runs every 15 minutes
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
-const requestsService = new RequestsService(requestsRepository, usersRepository);
+const matchingRepository = new MatchingRepository();
+const botRepository = new BotRepository();
+const requestsService = new RequestsService(
+  requestsRepository,
+  usersRepository,
+  matchingRepository,
+  botRepository,
+);
 
 cron.schedule('*/15 * * * *', () => {
   void requestsService.processTimeouts();
@@ -68,7 +76,7 @@ cron.schedule('0 * * * *', () => {
 });
 
 // Cron job: send visit reminders 24h before scheduledAt (runs every hour)
-const coordinationService = new CoordinationService(new BotRepository());
+const coordinationService = new CoordinationService(botRepository);
 
 cron.schedule('0 * * * *', () => {
   void coordinationService.sendReminders();

@@ -1,6 +1,7 @@
 import { RequestsRepository } from './requests.repository';
 import { MatchingService } from '../matching/matching.service';
 import { MatchingRepository } from '../matching/matching.repository';
+import { BotRepository } from '../bot/bot.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { UsersRepository } from '../users/users.repository';
 import { ReputationService } from '../reputation/reputation.service';
@@ -43,7 +44,6 @@ export interface PaginatedRequestsResponse {
   };
 }
 
-const matchingRepository = new MatchingRepository();
 const configRepository = new ConfigRepository();
 const reputationRepository = new ReputationRepository();
 const escalationsRepository = new EscalationsRepository();
@@ -54,10 +54,12 @@ export class RequestsService {
   constructor(
     private readonly requestsRepository: RequestsRepository,
     private readonly usersRepository: UsersRepository,
+    private readonly matchingRepository: MatchingRepository,
+    private readonly botRepository: BotRepository,
     private readonly reputationService = new ReputationService(reputationRepository),
     private readonly escalationsService = new EscalationsService(escalationsRepository),
   ) {
-    this.matchingService = new MatchingService(matchingRepository, configRepository);
+    this.matchingService = new MatchingService(this.matchingRepository, configRepository);
   }
 
   async create(input: CreateRequestInput): Promise<Request> {
@@ -824,6 +826,7 @@ export class RequestsService {
     const now = new Date();
     let processed = 0;
 
+    // 1. Process CREATED requests that expired (retry initial matching)
     const expiredCreated = await this.requestsRepository.findExpiredCreated(now);
 
     for (const request of expiredCreated) {
@@ -885,9 +888,38 @@ export class RequestsService {
       }
     }
 
-    const expired = await this.requestsRepository.findExpiredAssignments(now);
+    // Stage 1: Reminder (60-90 minutes without response)
+    const nowMinus60 = new Date(now.getTime() - 60 * 60 * 1000);
+    const nowMinus90 = new Date(now.getTime() - 90 * 60 * 1000);
 
-    for (const request of expired) {
+    const reminderRequests = await this.matchingRepository.findRequestsForReminder(
+      nowMinus60,
+      nowMinus90,
+    );
+
+    for (const request of reminderRequests) {
+      try {
+        const phone = request.assignedProfessional?.phone;
+        if (!phone) continue;
+
+        const session = await this.botRepository.findByPhone(phone);
+        if (session?.reminderSentAt) continue;
+
+        await this.botRepository.setReminderSent(phone, now);
+
+        const message =
+          'Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo.';
+        console.log('[Timeout reminder] phone:', phone, 'message:', message);
+        processed++;
+      } catch {
+        // Continue processing remaining requests
+      }
+    }
+
+    // Stage 2: Reassignment (> 90 minutes without response)
+    const reassignRequests = await this.matchingRepository.findRequestsForReassignment(nowMinus90);
+
+    for (const request of reassignRequests) {
       try {
         if (request.assignedProfessionalId) {
           await this.requestsRepository.createEvent({
@@ -895,6 +927,17 @@ export class RequestsService {
             professionalId: request.assignedProfessionalId,
             type: 'NO_RESPONSE',
           });
+
+          const pro = await prisma.professional.findUnique({
+            where: { id: request.assignedProfessionalId },
+            select: { phone: true },
+          });
+
+          if (pro?.phone) {
+            await this.botRepository.clearReminderSent(pro.phone).catch(() => {
+              // Ignore if session does not exist
+            });
+          }
         }
 
         const rejectorIds = await this.requestsRepository.findRejectorIds(request.id);
