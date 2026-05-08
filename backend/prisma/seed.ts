@@ -118,6 +118,7 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'PROFESSIONAL_RESPONSE_TIMEOUT_HOURS', value: '3' },
     { key: 'REPUTATION_PENALTY_DECAY_DAYS', value: '90' },
     { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '5' },
+    { key: 'MATCHING_MAX_ACTIVE_REQUESTS', value: '5' },
   ];
 
   for (const cfg of configs) {
