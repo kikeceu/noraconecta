@@ -8,7 +8,8 @@ import { BotRepository } from '../bot/bot.repository';
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
 const requestsService = new RequestsService(requestsRepository, usersRepository);
-const coordinationService = new CoordinationService(new BotRepository());
+const botRepository = new BotRepository();
+const coordinationService = new CoordinationService(botRepository);
 
 export class RequestsController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -84,6 +85,7 @@ export class RequestsController {
             categoryName: fullRequest.category?.name || 'el servicio',
             description: fullRequest.description,
           });
+
         }
       } catch (err) {
         console.error('[RequestsController] Failed to init coordination:', err);
@@ -515,11 +517,11 @@ export class RequestsController {
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
       try {
-        const userSession = await new BotRepository().findByPhone(result.userPhone);
+        const userSession = await botRepository.findByPhone(result.userPhone);
         const userTempData =
           (userSession?.tempData as Record<string, unknown>) || {};
 
-        await new BotRepository().upsert(result.userPhone, {
+        await botRepository.upsert(result.userPhone, {
           role: 'USER',
           currentFlow: userSession?.currentFlow,
           currentStep: userSession?.currentStep,

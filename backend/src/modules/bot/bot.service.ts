@@ -63,6 +63,8 @@ export class BotService {
       }
     }
 
+    await this.botRepository.updateLastInboundAt(input.phone, new Date());
+
     const sessionTempData = (session.tempData as Record<string, unknown>) || {};
 
     const hasPendingMessage = !!sessionTempData.pendingMessage;
