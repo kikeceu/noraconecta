@@ -29,6 +29,8 @@ export class BotService {
 
     let session = await this.botRepository.findByPhone(input.phone);
 
+    console.log('[processMessage] phone:', input.phone, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
+
     const role = input.role || (session?.role as 'USER' | 'PROFESSIONAL') || 'USER';
 
     const userIdentity = {
@@ -160,6 +162,8 @@ export class BotService {
     });
 
     if (pendingNotification) {
+      console.log('[pendingNotification] targetPhone:', pendingNotification.targetPhone, 'step:', pendingNotification.step, 'tempData:', JSON.stringify(pendingNotification.tempData));
+
       const targetTempData: Record<string, unknown> = {
         ...pendingNotification.tempData,
         pendingMessage: pendingNotification.message,

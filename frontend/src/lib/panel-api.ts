@@ -146,3 +146,20 @@ export async function confirmVisitRequest(
     throw new Error(err.error || 'Failed to confirm visit');
   }
 }
+
+export async function confirmScheduleRequest(
+  requestId: string,
+  scheduleText: string,
+  proposedAt: string | null,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/requests/${requestId}/confirm-schedule`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scheduleText, proposedAt }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'Failed to confirm schedule' }));
+    throw new Error(err.error || 'Failed to confirm schedule');
+  }
+}

@@ -78,6 +78,31 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
+      const assignedRequest = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { assignedProfessionalId: true },
+      });
+      const professionalId = assignedRequest?.assignedProfessionalId;
+
+      if (professionalId) {
+        const requestsRepo = new RequestsRepository();
+        const hasConflict = await requestsRepo.findConflictingSchedule(
+          professionalId,
+          parsedDate,
+          requestId,
+        );
+
+        if (hasConflict) {
+          return {
+            response: {
+              text: 'Ese horario no está disponible para el profesional. Proponé otro día y hora: DD/MM HH:MM (ejemplo: 20/06 16:00)',
+            },
+            nextStep: 'AWAITING_AVAILABILITY',
+            tempData: { ...tempData, negotiationRounds },
+          };
+        }
+      }
+
       console.log('[CoordinationFlow] handleAwaitingAvailability - updating request:', {
         requestId,
         coordinationStatus: 'AWAITING_CONFIRMATION',
@@ -254,6 +279,27 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
+      const professionalId = tempData.professionalId as string;
+
+      if (professionalId) {
+        const requestsRepo = new RequestsRepository();
+        const hasConflict = await requestsRepo.findConflictingSchedule(
+          professionalId,
+          newScheduledAt,
+          requestId,
+        );
+
+        if (hasConflict) {
+          return {
+            response: {
+              text: 'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)',
+            },
+            nextStep: 'AWAITING_CONFIRMATION',
+            tempData,
+          };
+        }
+      }
+
       const existingScheduledAt = tempData.scheduledAt as string | undefined;
       const existingDate = existingScheduledAt ? new Date(existingScheduledAt) : null;
 
@@ -393,7 +439,7 @@ export class CoordinationFlow implements FlowHandler {
         await prisma.request.update({
           where: { id: requestId },
           data: {
-            coordinationStatus: 'AWAITING_LOCATION',
+            coordinationStatus: 'SCHEDULED',
             scheduledAt: alternativeScheduledAt,
           },
         });
@@ -669,8 +715,9 @@ export class CoordinationFlow implements FlowHandler {
 
   private isAffirmative(text: string): boolean {
     const affirmativePatterns = [
-      'si', 'sí', 'dale', 'ok', 'okey', 'de acuerdo', 'bien', 'bueno',
-      'perfecto', 'genial', 'joya', 'confirmado', 'me viene bien',
+      'si', 'sí', 'yes', 'dale', 'ok', 'okey', 'vale', 'claro', 'sure',
+      'de acuerdo', 'bien', 'bueno', 'perfecto', 'genial', 'joya',
+      'confirmado', 'me viene bien',
       'si,', 'sí,', 'dale,', 'ok,', 'okey,',
     ];
     return affirmativePatterns.some((p) => text.startsWith(p) || text === p);
