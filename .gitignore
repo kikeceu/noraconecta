@@ -5,3 +5,4 @@ dist/
 coverage/
 .cache/
 *.tsbuildinfo
+landing/output.css

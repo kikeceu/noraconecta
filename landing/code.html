@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NORA Conecta | Profesionales de Confianza en Mendoza</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#0B6E4F",
+                    "primary-container": "#0B6E4F",
+                    "on-primary-container": "#FFFFFF",
+                    "background": "#FFFFFF",
+                    "surface": "#FFFFFF",
+                    "on-surface": "#1A1A1A",
+                    "on-background": "#1A1A1A",
+                    "surface-container": "#F5F4F0",
+                    "surface-container-low": "#F5F4F0",
+                    "surface-container-lowest": "#FFFFFF",
+                    "on-surface-variant": "#4B5563",
+                    "outline-variant": "#E5E7EB",
+                    "highlight-amber": "#F59E0B"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "24px",
+                    "stack-gap": "16px",
+                    "section-padding": "120px",
+                    "container-max": "1280px",
+                    "gutter": "24px",
+                    "margin-desktop": "64px"
+            },
+            "fontFamily": {
+                    "display-hero-mobile": ["DM Sans"],
+                    "body-lg": ["DM Sans"],
+                    "headline-lg-mobile": ["DM Sans"],
+                    "label-bold": ["DM Sans"],
+                    "headline-lg": ["DM Sans"],
+                    "display-hero": ["DM Sans"],
+                    "headline-md": ["DM Sans"],
+                    "body-md": ["DM Sans"]
+            },
+            "fontSize": {
+                    "display-hero-mobile": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "body-lg": ["20px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["32px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "label-bold": ["14px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg": ["48px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "display-hero": ["80px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["32px", {"lineHeight": "1.4", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hero-bg {
+            background-color: #111827;
+        }
+        .whatsapp-bubble-user {
+            background-color: #005c4b;
+            border-radius: 12px 0 12px 12px;
+        }
+        .whatsapp-bubble-nora {
+            background-color: #202c33;
+            border-radius: 0 12px 12px 12px;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="sticky top-0 w-full z-50 bg-white/90 backdrop-blur-xl border-b border-gray-100 shadow-sm">
+<nav class="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 max-w-container-max mx-auto">
+<div class="font-headline-md text-headline-md font-bold text-primary">NORA Conecta</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="font-body-md text-body-md font-medium text-primary border-b-2 border-primary pb-1 transition-all duration-200" href="#">Para usuarios</a>
+<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#">Para profesionales</a>
+<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#">Cómo funciona</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-on-surface-variant active:scale-95 transition-transform duration-100" data-icon="chat">chat</button>
+<button class="hidden md:block bg-primary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all">
+                Quiero un profesional
+            </button>
+</div>
+</nav>
+</header>
+<!-- Hero Section -->
+<section class="hero-bg pt-20 pb-section-padding px-margin-mobile md:px-margin-desktop text-white">
+<div class="max-w-container-max mx-auto grid md:grid-cols-2 gap-20 items-center">
+<div class="space-y-8">
+<span class="text-white/60 font-label-bold tracking-widest uppercase">Maipú y Luján de Cuyo, Mendoza</span>
+<h1 class="font-display-hero text-display-hero-mobile md:text-display-hero leading-tight text-white">Tu profesional de confianza, en minutos.</h1>
+<p class="font-body-lg text-body-lg text-white/80 max-w-lg">
+                Escribile a NORA por WhatsApp y en minutos tenés al profesional indicado para tu problema. Verificado, con historial real, sin apps ni formularios.
+            </p>
+<div class="flex flex-col sm:flex-row gap-4 pt-4">
+<button class="bg-primary text-white px-8 py-4 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all active:scale-95 shadow-lg">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">chat</span>
+                    Necesito un profesional
+                </button>
+<button class="border-2 border-white/20 text-white px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all active:scale-95">
+                    Soy profesional
+                </button>
+</div>
+</div>
+<div class="relative">
+<!-- WhatsApp Mockup -->
+<div class="glass-card rounded-[32px] p-6 max-w-sm mx-auto shadow-2xl relative z-10 text-white">
+<div class="flex items-center gap-3 mb-8 pb-4 border-b border-white/10">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">N</div>
+<div>
+<p class="font-bold">NORA Conecta</p>
+<p class="text-xs text-primary font-medium">En línea ahora</p>
+</div>
+</div>
+<div class="space-y-4">
+<div class="whatsapp-bubble-user p-3 ml-auto text-white text-sm max-w-[80%]">
+                        necesito un plomero
+                        <p class="text-[10px] text-right mt-1 opacity-70">10:42</p>
+</div>
+<div class="whatsapp-bubble-nora p-3 mr-auto text-white text-sm max-w-[85%] border border-white/10">
+                        ¡Hola! Buscando al mejor plomero verificado disponible ahora en Luján de Cuyo... 🔍
+                        <p class="text-[10px] mt-1 opacity-70">10:42</p>
+</div>
+<div class="whatsapp-bubble-nora p-3 mr-auto text-white text-sm max-w-[85%] border border-white/10">
+                        Asignando profesional verificado... ✅
+                        <p class="text-[10px] mt-1 opacity-70">10:43</p>
+</div>
+</div>
+</div>
+<!-- Abstract Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-primary/20 blur-[120px] rounded-full -z-0"></div>
+</div>
+</div>
+</section>
+<!-- Rubros Bar -->
+<section class="py-12 bg-white overflow-x-auto whitespace-nowrap border-y border-gray-100">
+<div class="max-w-container-max mx-auto px-margin-mobile flex justify-between gap-12 items-center text-on-surface-variant font-medium">
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="water_drop">water_drop</span> Plomero
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="bolt">bolt</span> Electricista
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined text-highlight-amber" data-icon="verified">verified</span> Gasista matriculado
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="format_paint">format_paint</span> Pintor
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="architecture">architecture</span> Albañil
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="key">key</span> Cerrajero
+        </div>
+<div class="flex items-center gap-2 px-4 py-2 hover:text-primary transition-colors cursor-default">
+<span class="material-symbols-outlined" data-icon="ac_unit">ac_unit</span> Aire acondicionado
+        </div>
+</div>
+</section>
+<!-- Cómo Funciona -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-surface-container">
+<div class="max-w-container-max mx-auto">
+<div class="mb-20">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-4 text-on-surface">Tres pasos. Nada más.</h2>
+<div class="w-24 h-1.5 bg-primary rounded-full"></div>
+</div>
+<div class="grid md:grid-cols-3 gap-8">
+<div class="bg-white border border-gray-200 p-10 rounded-[32px] hover:border-primary transition-all group">
+<div class="text-display-hero text-gray-100 font-bold mb-4 group-hover:text-primary/10 transition-colors">01</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-on-surface">Escribís a NORA</h3>
+<p class="text-on-surface-variant font-body-md leading-relaxed">Solo decile qué necesitás por WhatsApp. Sin apps pesadas ni registros lentos.</p>
+</div>
+<div class="bg-white border border-gray-200 p-10 rounded-[32px] hover:border-primary transition-all group">
+<div class="text-display-hero text-gray-100 font-bold mb-4 group-hover:text-primary/10 transition-colors">02</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-on-surface">NORA elige al indicado</h3>
+<p class="text-on-surface-variant font-body-md leading-relaxed">Nuestro algoritmo busca al profesional verificado con mejor reputación disponible ahora.</p>
+</div>
+<div class="bg-white border border-gray-200 p-10 rounded-[32px] hover:border-primary transition-all group">
+<div class="text-display-hero text-gray-100 font-bold mb-4 group-hover:text-primary/10 transition-colors">03</div>
+<h3 class="font-headline-md text-headline-md mb-4 text-on-surface">El profesional te contacta</h3>
+<p class="text-on-surface-variant font-body-md leading-relaxed">En menos de 3 minutos, el profesional te escribe para coordinar. Así de simple.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Diferencial -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-surface-container">
+<div class="max-w-container-max mx-auto grid md:grid-cols-2 gap-20 items-center">
+<div class="space-y-12">
+<div>
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-6 leading-tight text-on-surface">No es una lista.<br/>Es la recomendación.</h2>
+<p class="text-on-surface-variant text-body-lg">A diferencia de los directorios infinitos, nosotros nos hacemos responsables de a quién mandamos a tu casa.</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+<div class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-highlight-amber" data-icon="verified_user">verified_user</span>
+<div>
+<h4 class="font-bold text-on-surface">Verificación real</h4>
+<p class="text-sm text-on-surface-variant">Validamos identidad y antecedentes.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-highlight-amber" data-icon="star">star</span>
+<div>
+<h4 class="font-bold text-on-surface">Reputación viva</h4>
+<p class="text-sm text-on-surface-variant">Basada en comportamiento real.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-highlight-amber" data-icon="looks_one">looks_one</span>
+<div>
+<h4 class="font-bold text-on-surface">Uno solo</h4>
+<p class="text-sm text-on-surface-variant">Te enviamos al mejor, sin vueltas.</p>
+</div>
+</div>
+<div class="flex gap-4 items-start">
+<span class="material-symbols-outlined text-highlight-amber" data-icon="phone_android">phone_android</span>
+<div>
+<h4 class="font-bold text-on-surface">Sin fricción</h4>
+<p class="text-sm text-on-surface-variant">Todo sucede en WhatsApp.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-white border border-gray-100 rounded-[40px] p-12 space-y-8 shadow-sm">
+<div class="flex justify-between items-center opacity-40">
+<span class="font-bold text-on-surface-variant">❌ Directorios Tradicionales</span>
+<div class="h-px flex-1 mx-4 bg-gray-200"></div>
+</div>
+<p class="text-sm text-on-surface-variant pl-4 border-l-2 border-red-500/30">Cientos de opciones sin filtrar, perfiles falsos, llamadas que nadie atiende.</p>
+<div class="flex justify-between items-center">
+<span class="font-bold text-primary">✅ NORA Conecta</span>
+<div class="h-px flex-1 mx-4 bg-primary/20"></div>
+</div>
+<div class="bg-primary/5 p-6 rounded-2xl border border-primary/20">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="person_search">person_search</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Profesional Asignado</p>
+<p class="text-xs text-primary font-medium">Especialista en Plomería Termofusión</p>
+</div>
+</div>
+<p class="text-sm text-on-surface-variant">"Hola, soy Roberto. NORA me asignó tu caso. Llego en 30 minutos a tu domicilio en Maipú."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Métricas -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-[#064E3B] border-y border-white/10 text-white">
+<div class="max-w-container-max mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
+<div>
+<p class="text-display-hero text-white leading-none font-bold">7</p>
+<p class="text-white/60 font-medium mt-4">Rubros activos</p>
+</div>
+<div>
+<p class="text-display-hero text-white leading-none font-bold">2</p>
+<p class="text-white/60 font-medium mt-4">Zonas prioritarias</p>
+</div>
+<div>
+<p class="text-display-hero text-white leading-none font-bold">100%</p>
+<p class="text-white/60 font-medium mt-4">Verificados</p>
+</div>
+<div>
+<p class="text-display-hero text-white leading-none font-bold">&lt;3m</p>
+<p class="text-white/60 font-medium mt-4">Tiempo de respuesta</p>
+</div>
+</div>
+</section>
+<!-- Para Profesionales -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-white">
+<div class="max-w-container-max mx-auto bg-surface-container rounded-[48px] p-12 md:p-24 overflow-hidden relative border border-gray-100">
+<div class="relative z-10 max-w-2xl">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-8 leading-tight text-on-surface">Recibí pedidos sin salir a buscarlos.</h2>
+<div class="space-y-6 mb-10">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">1</div>
+<p class="text-lg text-on-surface-variant">Tus primeros 5 pedidos son 100% gratis.</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">2</div>
+<p class="text-lg text-on-surface-variant">Recibís solo pedidos en tu zona y rubro.</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">3</div>
+<p class="text-lg text-on-surface-variant">Membresía transparente sin comisiones ocultas.</p>
+</div>
+</div>
+<button class="bg-primary text-white px-10 py-5 rounded-2xl font-bold text-lg hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-primary/20">
+                Quiero registrarme como profesional
+            </button>
+</div>
+<!-- Decorative Visual -->
+<div class="absolute right-[-10%] top-[-10%] w-[60%] h-[120%] hidden lg:block opacity-50">
+<img alt="Profesional trabajando" class="w-full h-full object-cover rounded-full grayscale mix-blend-multiply" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAa6P5K6TeLb3gj_XIhNejiptfbFjH9oF3UaMmGyD5gAUqZjQ5OAC4vBMo96PaGY9AdvpX9cb8oIT7KbyFyMekxiEvJh0ctprttQtBX63LVoatUbkjCs1ckJcNW2iYnHqijEEOjpaNlDicqpK-VUmlEtpPhtMQ5nJrZ2k9i6Ras2Fknc-OcdmxLEVNbIvOS9sdyj-QjEf93Cq96u6NG3N4T1MHKiR_5bwcDWgHg0-8bJQQhoI6npXlL4b23tJVsDijCa0Ly4s6vAI_"/>
+</div>
+</div>
+</section>
+<!-- Testimonios -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-white">
+<div class="max-w-container-max mx-auto">
+<h2 class="font-headline-lg text-center mb-20 text-on-surface">Lo que dicen en el barrio</h2>
+<div class="grid md:grid-cols-3 gap-8">
+<div class="bg-surface-container p-10 rounded-3xl border border-gray-100">
+<div class="flex text-highlight-amber mb-6">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-lg italic mb-8 text-on-surface-variant">"Increíble. Le escribí a NORA por una pérdida de agua un domingo y en 15 minutos estaba el plomero en casa. Roberto fue muy profesional."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+<img alt="User 1" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCODmwkAGw5A4KtfC3wsNOOvofg6BKw80K8obaQTnKUqbNbKtvay7r_IytZgmWA7BKscwBygbaqL3HqEK7IltFfIklJ6RKi6rQ3ljrSkt2NT7qheURy8V7aifZ_Koad2xcAkwmvaD5e0Gl1oJIuFXUGFeagxwEnDTfEJqmpZaJ7_3C9_17bIwBVcl5dGyfQIr8jt4EXMhZIXbuUF8XQrI3omYmuOfWxIxRoqm7AgQQSyu9Fwc3L82Y73K3BvXLEzG77YULttb9a1vky"/>
+</div>
+<div>
+<p class="font-bold text-on-surface">Laura M.</p>
+<p class="text-xs text-on-surface-variant">Luján de Cuyo</p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container p-10 rounded-3xl border border-gray-100">
+<div class="flex text-highlight-amber mb-6">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-lg italic mb-8 text-on-surface-variant">"Como profesional me cambió la vida. Ya no tengo que andar pagando publicidad en redes que no sirve. NORA me manda trabajo directo."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+<img alt="Pro 1" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAU4LaKC9vDtXD8pfJ2aUj1hLPJS5wq9JT2Bf_3I_9G0mw_Ya8l-Om2evGRHG8rkPacdIr8RsWJRWGNG-HbK30afBvpsuTF3Q3zc7CJF7tVmLt2ajTB2qHQDveaK3TN4teVbDPApihvCGSyrvKrAtG-dQXyd_lE9odp0c9P4nWtELnlQRUQrNuoo1fCD4bC63YPyw4mA7Z1ORcFXpa-A1cPJ3QNkYzqCSvfKRE-rC_U_EpTtnAn6JNZcWMzLD1YW6CBmysdrenZ1xGx"/>
+</div>
+<div>
+<p class="font-bold text-on-surface">Carlos S.</p>
+<p class="text-xs text-on-surface-variant">Electricista, Maipú</p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container p-10 rounded-3xl border border-gray-100">
+<div class="flex text-highlight-amber mb-6">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-lg italic mb-8 text-on-surface-variant">"Lo que más valoro es que los profesionales están verificados. Me da tranquilidad saber quién entra a mi casa."</p>
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-gray-200 overflow-hidden">
+<img alt="User 2" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUzfFgYveHP3EsuydF6PsHMWeKVzwWfjzZcusDByNd41uwMmRuasptP0UV3jk7kMrwlRPi2_HUYNipuJuG9DnQA-ka9UzvIE3UbyAkPcol_IiV1Pa6BHjgLmCym5XRIIxM9LMH7SAghw5412MJfdIXUZmAAVguTn4O1AQg_KsVbiUf2gCtYqdBBFucD-uCt6kZS_s__I36FuLDDHUU1F-OTiX91H0fBJxkjEIn_v-8XqBx_G4DyuBWji7DZiXws2hsXt4ENJfx_LwM"/>
+</div>
+<div>
+<p class="font-bold text-on-surface">Sofía R.</p>
+<p class="text-xs text-on-surface-variant">Maipú</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Final Dual CTA -->
+<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-white">
+<div class="max-w-container-max mx-auto grid md:grid-cols-2 gap-px bg-gray-100 rounded-[48px] overflow-hidden border border-gray-100">
+<div class="bg-white p-16 md:p-24 text-center space-y-8 hover:bg-surface-container transition-colors group">
+<h3 class="font-headline-lg text-on-surface">¿Necesitás ayuda?</h3>
+<p class="text-on-surface-variant text-lg">Solucioná tu problema hoy mismo con un profesional verificado.</p>
+<button class="w-full sm:w-auto bg-primary text-white px-10 py-5 rounded-2xl font-bold text-lg hover:brightness-110 active:scale-95 transition-all">
+                Chatear con NORA
+            </button>
+</div>
+<div class="bg-white p-16 md:p-24 text-center space-y-8 hover:bg-surface-container transition-colors group">
+<h3 class="font-headline-lg text-on-surface">¿Querés trabajar?</h3>
+<p class="text-on-surface-variant text-lg">Sumate a la red de profesionales más confiable de Mendoza.</p>
+<button class="w-full sm:w-auto border-2 border-primary text-primary px-10 py-5 rounded-2xl font-bold text-lg hover:bg-primary/5 active:scale-95 transition-all">
+                Registrarme ahora
+            </button>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="w-full bg-white border-t border-gray-100">
+<div class="flex flex-col md:flex-row justify-between items-start gap-stack-gap px-margin-mobile md:px-margin-desktop py-section-padding max-w-container-max mx-auto">
+<div class="space-y-6">
+<div class="font-headline-md text-headline-md font-bold text-primary">NORA Conecta</div>
+<p class="text-on-surface-variant max-w-xs font-body-md text-body-md">
+                © 2024 NORA Conecta. Maipú y Luján de Cuyo, Mendoza.
+            </p>
+</div>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-12">
+<div class="flex flex-col gap-4">
+<p class="font-bold text-on-surface">Plataforma</p>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Para usuarios</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Para profesionales</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Cómo funciona</a>
+</div>
+<div class="flex flex-col gap-4">
+<p class="font-bold text-on-surface">Legal</p>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Términos y condiciones</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacidad</a>
+</div>
+<div class="flex flex-col gap-4">
+<p class="font-bold text-on-surface">Redes</p>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Instagram</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">WhatsApp</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>
