@@ -67,6 +67,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
   const [ratingOrderId, setRatingOrderId] = useState<string | null>(null);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingSuccess, setRatingSuccess] = useState<string | null>(null);
+  const [ratingDetailOrder, setRatingDetailOrder] = useState<PanelOrder | null>(null);
 
   useEffect(() => {
     loadOrders();
@@ -100,7 +101,8 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
       const q = search.toLowerCase();
       const categoryName = order.category?.name?.toLowerCase() || '';
       const zoneName = order.geoNode?.name?.toLowerCase() || '';
-      return categoryName.includes(q) || zoneName.includes(q);
+      const userName = order.userName?.toLowerCase() || '';
+      return categoryName.includes(q) || zoneName.includes(q) || userName.includes(q);
     }
     return true;
   });
@@ -185,7 +187,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
               </svg>
               <input
                 type="text"
-                placeholder="Buscar por rubro o zona..."
+                placeholder="Buscar por rubro, zona o usuario..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0B6E4F]/40 focus:border-[#0B6E4F]"
@@ -226,19 +228,25 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]"
                       style={{ fontFamily: 'DM Sans' }}
                     >
-                      Rubro
+                      Zona
                     </th>
                     <th
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7280]"
                       style={{ fontFamily: 'DM Sans' }}
                     >
-                      Zona
+                      Usuario
                     </th>
                     <th
                       className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[#6B7280]"
                       style={{ fontFamily: 'DM Sans' }}
                     >
                       Estado
+                    </th>
+                    <th
+                      className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[#6B7280]"
+                      style={{ fontFamily: 'DM Sans' }}
+                    >
+                      Calificación
                     </th>
                     <th
                       className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[#6B7280]"
@@ -264,13 +272,18 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                           className="px-4 py-3 text-[#374151]"
                           style={{ fontFamily: 'DM Sans' }}
                         >
-                          {order.category?.name || '—'}
-                        </td>
-                        <td
-                          className="px-4 py-3 text-[#374151]"
-                          style={{ fontFamily: 'DM Sans' }}
-                        >
                           {order.geoNode?.name || '—'}
+                        </td>
+                        <td className="px-4 py-3">
+                          {order.userName ? (
+                            <span className="text-sm text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+                              {order.userName}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
+                              —
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span
@@ -285,6 +298,29 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
+                          {order.professionalEventType === 'COMPLETED' ? (
+                            order.userRatingAvg !== null && order.userRatingAvg !== undefined ? (
+                              <button
+                                onClick={() => setRatingDetailOrder(order)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm cursor-pointer bg-[#ECFDF5] hover:bg-[#D1FAE5] transition-colors"
+                              >
+                                <span className="text-[#F59E0B]">⭐</span>
+                                <span className="font-medium text-[#0B6E4F]" style={{ fontFamily: 'JetBrains Mono' }}>
+                                  {order.userRatingAvg}
+                                </span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
+                                Sin calificación
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-xs text-[#D1D5DB]" style={{ fontFamily: 'DM Sans' }}>
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           {order.professionalEventType === 'COMPLETED' && !order.ratedByProfessional && (
                             <button
                               onClick={() => setRatingOrderId(order.id)}
@@ -296,14 +332,6 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                               </svg>
                               Calificar
                             </button>
-                          )}
-                          {order.ratedByProfessional && (
-                            <span
-                              className="text-xs text-[#6B7280]"
-                              style={{ fontFamily: 'DM Sans' }}
-                            >
-                              Calificado
-                            </span>
                           )}
                         </td>
                       </tr>
@@ -397,6 +425,17 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
             </button>
           </div>
         </div>
+      )}
+
+      {ratingDetailOrder && (
+        <RatingDetailModal
+          order={ratingDetailOrder}
+          onClose={() => setRatingDetailOrder(null)}
+          onRateUser={() => {
+            setRatingOrderId(ratingDetailOrder.id);
+            setRatingDetailOrder(null);
+          }}
+        />
       )}
     </div>
   );
@@ -583,6 +622,153 @@ function RateUserModal({
   );
 }
 
+function RatingDetailModal({
+  order,
+  onClose,
+  onRateUser,
+}: {
+  order: PanelOrder;
+  onClose: () => void;
+  onRateUser: () => void;
+}) {
+  const userDetail = order.userRatingDetail;
+  const professionalDetail = order.professionalRatingDetail;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="rounded-xl bg-white shadow-lg max-w-md w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="p-5 border-b border-[#E5E7EB] flex items-center justify-between">
+          <h2
+            className="text-base font-semibold text-[#111827]"
+            style={{ fontFamily: 'DM Sans' }}
+          >
+            Detalle de calificación
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-md text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-6">
+          <div>
+            <h3
+              className="text-sm font-semibold text-[#111827] mb-3"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Lo que el usuario opinó de vos
+            </h3>
+            {userDetail ? (
+              <div className="space-y-3">
+                <RatingRow label="Puntualidad" value={userDetail.punctualityRating} />
+                <RatingRow label="Calidad" value={userDetail.qualityRating} />
+                <RatingRow label="Comunicación" value={userDetail.communicationRating} />
+                <RatingRow label="Precio justo" value={userDetail.priceFairnessRating} />
+                <div className="flex items-center justify-between pt-2 border-t border-[#F3F4F6]">
+                  <span className="text-sm font-medium text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+                    Promedio general
+                  </span>
+                  <div className="inline-flex items-center gap-1">
+                    <span className="text-[#F59E0B]">⭐</span>
+                    <span className="text-sm font-bold text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
+                      {order.userRatingAvg}
+                    </span>
+                  </div>
+                </div>
+                {userDetail.userComment && (
+                  <div className="pt-2 border-t border-[#F3F4F6]">
+                    <p className="text-xs text-[#6B7280] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Comentario
+                    </p>
+                    <p className="text-sm text-[#374151] italic" style={{ fontFamily: 'DM Sans' }}>
+                      &ldquo;{userDetail.userComment}&rdquo;
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
+                El usuario aún no te calificó.
+              </p>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-[#E5E7EB]">
+            <h3
+              className="text-sm font-semibold text-[#111827] mb-3"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Tu evaluación del usuario
+            </h3>
+            {professionalDetail ? (
+              <div className="space-y-3">
+                <RatingRow label="Claridad" value={professionalDetail.requestClarityRating} />
+                <RatingRow label="Disponibilidad" value={professionalDetail.userAvailabilityRating} />
+                <RatingRow label="Trato" value={professionalDetail.userTreatmentRating} />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                    ¿Volverías a atenderlo?
+                  </span>
+                  <span
+                    className={`text-sm font-medium ${
+                      professionalDetail.wouldServeAgain ? 'text-[#059669]' : 'text-[#DC2626]'
+                    }`}
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    {professionalDetail.wouldServeAgain ? 'Sí' : 'No'}
+                  </span>
+                </div>
+                {professionalDetail.professionalComment && (
+                  <div className="pt-2 border-t border-[#F3F4F6]">
+                    <p className="text-xs text-[#6B7280] mb-1" style={{ fontFamily: 'DM Sans' }}>
+                      Comentario
+                    </p>
+                    <p className="text-sm text-[#374151] italic" style={{ fontFamily: 'DM Sans' }}>
+                      &ldquo;{professionalDetail.professionalComment}&rdquo;
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={onRateUser}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors cursor-pointer"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                Calificar al usuario
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RatingRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+        {label}
+      </span>
+      <div className="inline-flex items-center gap-1.5">
+        <StarRatingReadOnly value={value} />
+        <span className="text-xs font-medium text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
+          {value}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex justify-center gap-2">
@@ -611,3 +797,28 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
     </div>
   );
 }
+
+function StarRatingReadOnly({ value }: { value: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: 5 }, (_, i) => {
+        const star = i + 1;
+        const filled = star <= value;
+        return (
+          <svg
+            key={star}
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill={filled ? '#F59E0B' : '#E5E7EB'}
+            stroke={filled ? '#F59E0B' : '#E5E7EB'}
+            strokeWidth="1"
+          >
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
+
