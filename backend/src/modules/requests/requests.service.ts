@@ -729,8 +729,12 @@ export class RequestsService {
       throw new AppError('User has already rated this request', 409);
     }
 
+    const calculatedRating = Math.round(
+      (data.punctualityRating + data.qualityRating + data.communicationRating + data.priceFairnessRating) / 4,
+    );
+
     return this.requestsRepository.upsertFeedback(requestId, {
-      rating: data.rating,
+      rating: calculatedRating,
       punctualityRating: data.punctualityRating,
       qualityRating: data.qualityRating,
       communicationRating: data.communicationRating,

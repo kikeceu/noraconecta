@@ -109,7 +109,13 @@ export class ReputationRepository {
     const recommendCount = feedbacks.filter((f) => f.wouldRecommend === true).length;
 
     return {
-      averageRating: avg(feedbacks.map((f) => f.rating)),
+      averageRating: avg(
+        feedbacks.map((f) => {
+          const vals = [f.punctualityRating, f.qualityRating, f.communicationRating, f.priceFairnessRating].filter((v): v is number => v !== null);
+          if (vals.length === 0) return null;
+          return vals.reduce((s, v) => s + v, 0) / vals.length;
+        }),
+      ),
       averagePunctuality: avg(feedbacks.map((f) => f.punctualityRating)),
       averageQuality: avg(feedbacks.map((f) => f.qualityRating)),
       averageCommunication: avg(feedbacks.map((f) => f.communicationRating)),
