@@ -74,7 +74,7 @@ export function ProfessionalPanelPage() {
       professionalStatus={data.professional.status}
     >
       {activeTab === 'dashboard' && (
-        <ProfessionalDashboard data={data} onTabChange={setActiveTab} />
+        <ProfessionalDashboard data={data} onTabChange={setActiveTab} sessionToken={sessionToken!} />
       )}
       {activeTab === 'profile' && <ProfessionalProfile professional={data.professional} />}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}

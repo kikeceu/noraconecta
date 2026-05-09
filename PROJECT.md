@@ -10,7 +10,7 @@
 | ORM           | Prisma               |
 | Base de datos | PostgreSQL           |
 | Auth          | JWT                  |
-| Frontend      | Vite + React 19 + Tailwind CSS 4 + react-router-dom |
+| Frontend      | Vite + React 19 + Tailwind CSS 4 + react-router-dom + Recharts |
 | Linter        | ESLint + Prettier    |
 
 ## Architecture
@@ -210,7 +210,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       └── components/
 │   │   │           ├── PanelCard.tsx               # Shared card component: rounded-2xl shadow-sm p-6 (AUT-181)
 │   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active, bg-[#F0FDF4] active) + header mobile con hamburguesa + drawer lateral (w-72, 7 tabs, overlay bg-black/40) (AUT-181, AUT-183, AUT-184)
-│   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas (text-4xl JetBrains Mono, w-12 icon), desglose ratings (ProgressBar unificada #0B6E4F), accesos rápidos, max-w-5xl (AUT-178, AUT-181, AUT-183)
+│   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas (text-4xl JetBrains Mono, w-12 icon), gráficos de actividad (BarChart 7d + LineChart 8w con Recharts, skeleton loading), desglose ratings (ProgressBar unificada #0B6E4F), accesos rápidos, max-w-5xl (AUT-178, AUT-181, AUT-182, AUT-183)
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge (px-4 py-1.5 text-sm), excellence badge (text-sm), availability, personal data (py-4 rows, text-base font-semibold values), docs (read-only), max-w-5xl (AUT-181, AUT-183)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
 │   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): StatCards (text-4xl JetBrains Mono, min-h-[100px], uppercase tracking-wide labels), coordination status, confirm visit, mark finished, view detail modal, mobile cards, space-y-5, max-w-5xl (AUT-156, AUT-168, AUT-181, AUT-183)
@@ -452,6 +452,7 @@ Response shape:
 | `/professionals/session/:token/panel`  | GET    | Datos consolidados del panel (perfil + membresía + reputación) | Sin auth |
 | `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, incluye nombre/teléfono del usuario y calificación recibida) | Sin auth |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante | Sin auth |
+| `/professionals/session/:token/stats` | GET | Estadísticas de actividad temporal: pedidos por día (7d) + evolución de calificación (8w) | Sin auth |
 | `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
 | `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
 | `/professionals/:id/approve`           | POST   | Aprobar profesional (UNDER_REVIEW → ACTIVE)     | SUPERADMIN|
@@ -857,7 +858,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 
 | Tab | Componente | Descripción |
 |---|---|---|---|
-| Inicio | `ProfessionalDashboard` | Saludo "Hola, {nombre}" + badge de membresía (activa/trial/sin), 4 métricas principales (completados, calificación promedio, % recomendación, score cumplimiento), desglose de ratings con barras de progreso (solo si `totalRated > 0`), accesos rápidos a Pedidos pendientes y En curso (AUT-178) |
+| Inicio | `ProfessionalDashboard` | Saludo "Hola, {nombre}" + badge de membresía (activa/trial/sin), 4 métricas principales (completados, calificación promedio, % recomendación, score cumplimiento), gráficos de actividad temporal: BarChart de pedidos por día (últimos 7 días, completados/cancelados/no cumplidos) y LineChart de evolución de calificación promedio (últimas 8 semanas) con Recharts, desglose de ratings con barras de progreso (solo si `totalRated > 0`), accesos rápidos a Pedidos pendientes y En curso (AUT-178, AUT-182) |
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
 | En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando ubicación del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado, Cancelar pedido con modal de confirmación). Botón "Marcar finalizado" (AUT-176): solo visible cuando `coordinationStatus = SCHEDULED` (la visita ya tiene fecha y hora confirmadas). Modal "Confirmar visita": al proponer horario alternativo, el campo se prellena con `clientAvailability` del pedido (AUT-168). Botón "Cancelar pedido" (AUT-170): visible para todo pedido ACCEPTED, modal de confirmación "¿Confirmás que querés cancelar este pedido? Esta acción no se puede deshacer." (AUT-170) |

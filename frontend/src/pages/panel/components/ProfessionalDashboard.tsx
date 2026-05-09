@@ -1,10 +1,23 @@
+import { useEffect, useState } from 'react';
 import { CheckCircle, Star, ThumbsUp, Shield } from 'lucide-react';
-import type { PanelData, PanelTab } from '../../../types/panel';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+} from 'recharts';
+import type { PanelData, PanelTab, WeeklyActivityItem, RatingEvolutionItem } from '../../../types/panel';
+import { getPanelStats } from '../../../lib/panel-api';
 import { PanelCard } from './PanelCard';
 
 interface ProfessionalDashboardProps {
   data: PanelData;
   onTabChange: (tab: PanelTab) => void;
+  sessionToken: string;
 }
 
 function MetricCard({
@@ -107,7 +120,77 @@ function RatingBreakdown({
   );
 }
 
-export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboardProps) {
+function formatShortDate(dateStr: string): string {
+  const parts = dateStr.split('-');
+  return `${parts[2]}/${parts[1]}`;
+}
+
+function ActivityCharts({ sessionToken }: { sessionToken: string }) {
+  const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityItem[] | null>(null);
+  const [ratingEvolution, setRatingEvolution] = useState<RatingEvolutionItem[] | null>(null);
+
+  useEffect(() => {
+    getPanelStats(sessionToken)
+      .then((res) => {
+        setWeeklyActivity(res.data.weeklyActivity);
+        setRatingEvolution(res.data.ratingEvolution);
+      })
+      .catch(() => {});
+  }, [sessionToken]);
+
+  if (!weeklyActivity || !ratingEvolution) {
+    return (
+      <>
+        <div className="h-[228px] animate-pulse rounded-2xl bg-[#F3F4F6]" />
+        <div className="h-[228px] animate-pulse rounded-2xl bg-[#F3F4F6]" />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <PanelCard>
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-[#6B7280] mb-4">
+          Actividad — últimos 7 días
+        </h3>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart data={weeklyActivity}>
+            <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={24} />
+            <Tooltip />
+            <Bar dataKey="completed" name="Completados" fill="#0B6E4F" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="cancelled" name="Cancelados" fill="#DC2626" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="notFulfilled" name="No cumplidos" fill="#D97706" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </PanelCard>
+
+      <PanelCard>
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-[#6B7280] mb-4">
+          Calificación promedio — últimas 8 semanas
+        </h3>
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={ratingEvolution}>
+            <XAxis dataKey="weekLabel" tick={{ fontSize: 11 }} />
+            <YAxis domain={[0, 5]} ticks={[0, 1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} width={24} />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="averageRating"
+              name="Calificación"
+              stroke="#0B6E4F"
+              strokeWidth={2}
+              dot={{ r: 4, fill: '#0B6E4F' }}
+              connectNulls={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </PanelCard>
+    </>
+  );
+}
+
+export function ProfessionalDashboard({ data, onTabChange, sessionToken }: ProfessionalDashboardProps) {
   const { professional, membership, reputation } = data;
 
   let membershipBadge: { text: string; color: string; bg: string } | null = null;
@@ -182,6 +265,8 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
           color="#0B6E4F"
         />
       </div>
+
+      <ActivityCharts sessionToken={sessionToken} />
 
       {reputation.totalRated > 0 ? (
         <RatingBreakdown

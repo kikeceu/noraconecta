@@ -494,6 +494,95 @@ export class ProfessionalsService {
     };
   }
 
+  async getActivityStats(token: string) {
+    const professional = await this.getSessionByToken(token);
+
+    const { recentEvents, recentFeedback } =
+      await this.professionalsRepository.findActivityStats(professional.id);
+
+    const days: {
+      date: string;
+      completed: number;
+      cancelled: number;
+      notFulfilled: number;
+    }[] = [];
+
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      days.push({ date: dateStr, completed: 0, cancelled: 0, notFulfilled: 0 });
+    }
+
+    for (const event of recentEvents) {
+      const dateStr = event.createdAt.toISOString().slice(0, 10);
+      const day = days.find((d) => d.date === dateStr);
+      if (!day) continue;
+
+      if (event.type === 'COMPLETED') day.completed++;
+      else if (event.type === 'CANCELLED') day.cancelled++;
+      else if (event.type === 'NOT_FULFILLED') day.notFulfilled++;
+    }
+
+    const weeks: { start: Date; end: Date }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const weekEnd = new Date(now);
+      weekEnd.setDate(weekEnd.getDate() - i * 7);
+      const weekStart = new Date(weekEnd);
+      weekStart.setDate(weekStart.getDate() - 6);
+      weeks.push({ start: weekStart, end: weekEnd });
+    }
+
+    const ratingEvolution = weeks.map((week, idx) => {
+      const weekFeedbacks = recentFeedback.filter((fb) => {
+        if (!fb.ratedByUserAt) return false;
+        const fbDate = new Date(fb.ratedByUserAt);
+        return fbDate >= week.start && fbDate <= week.end;
+      });
+
+      const rated = weekFeedbacks.filter(
+        (fb) =>
+          fb.punctualityRating != null &&
+          fb.qualityRating != null &&
+          fb.communicationRating != null &&
+          fb.priceFairnessRating != null,
+      );
+
+      const totalRated = rated.length;
+
+      let averageRating: number | null = null;
+
+      if (totalRated > 0) {
+        const sum = rated.reduce(
+          (acc, fb) =>
+            acc +
+            (fb.punctualityRating! +
+              fb.qualityRating! +
+              fb.communicationRating! +
+              fb.priceFairnessRating!) /
+              4,
+          0,
+        );
+        averageRating = parseFloat((sum / totalRated).toFixed(1));
+      }
+
+      return {
+        weekLabel: `Sem ${idx + 1}`,
+        averageRating,
+        totalRated,
+      };
+    });
+
+    return {
+      data: {
+        weeklyActivity: days,
+        ratingEvolution,
+      },
+    };
+  }
+
   async getById(id: string): Promise<Professional> {
     const professional = await this.professionalsRepository.findById(id);
 
