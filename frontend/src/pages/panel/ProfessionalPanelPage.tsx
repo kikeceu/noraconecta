@@ -4,6 +4,7 @@ import { getPanelData } from '../../lib/panel-api';
 import type { PanelData, PanelTab } from '../../types/panel';
 import { SessionErrorScreen } from './components/SessionErrorScreen';
 import { ProfessionalLayout } from './components/ProfessionalLayout';
+import { ProfessionalDashboard } from './components/ProfessionalDashboard';
 import { ProfessionalProfile } from './components/ProfessionalProfile';
 import { ProfessionalMembership } from './components/ProfessionalMembership';
 import { ProfessionalOrders } from './components/ProfessionalOrders';
@@ -19,7 +20,7 @@ type PageState =
 export function ProfessionalPanelPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const [state, setState] = useState<PageState>({ status: 'loading' });
-  const [activeTab, setActiveTab] = useState<PanelTab>('profile');
+  const [activeTab, setActiveTab] = useState<PanelTab>('dashboard');
 
   useEffect(() => {
     if (!sessionToken) {
@@ -72,6 +73,9 @@ export function ProfessionalPanelPage() {
       professionalName={data.professional.name}
       professionalStatus={data.professional.status}
     >
+      {activeTab === 'dashboard' && (
+        <ProfessionalDashboard data={data} onTabChange={setActiveTab} />
+      )}
       {activeTab === 'profile' && <ProfessionalProfile professional={data.professional} />}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}
       {activeTab === 'in-progress' && (

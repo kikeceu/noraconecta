@@ -122,7 +122,7 @@ export interface PanelOrdersResponse {
   };
 }
 
-export type PanelTab = 'profile' | 'membership' | 'orders' | 'reputation' | 'pending' | 'in-progress';
+export type PanelTab = 'dashboard' | 'profile' | 'membership' | 'orders' | 'reputation' | 'pending' | 'in-progress';
 
 export interface PendingRequest {
   id: string;

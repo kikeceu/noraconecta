@@ -206,9 +206,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
-│   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing
+│   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
-│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop) + bottom nav bar (mobile) with 6 tabs
+│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop, 7 tabs) + header mobile + bottom nav (7 tabs, h-16)
+│   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas, desglose ratings, accesos rápidos (AUT-178)
 │   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
@@ -844,15 +845,18 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`app.noraconecta.com.ar/panel/:sessionToken`), sin login con credenciales. El sessionToken (UUID, 30 días de validez) se genera desde el panel admin.
 
 **Arquitectura frontend:**
-- Desktop: sidebar fijo 240px con 6 tabs (Perfil, Pedidos pendientes, En curso, Historial, Membresía, Reputación) (AUT-156)
-- Mobile: bottom navigation bar con los mismos 6 tabs
+- Desktop: sidebar fijo 240px con 7 tabs (Inicio, Perfil, Pedidos pendientes, En curso, Historial, Membresía, Reputación). Incluye logo NORA, tagline "Panel del Profesional" y nombre del profesional visible (AUT-178)
+- Mobile: bottom navigation bar con los mismos 7 tabs (altura h-16, labels text-[11px]) + header fijo (h-14) con nombre del profesional y tab activo (AUT-178)
+- Tab activo por defecto: Inicio (dashboard)
 - Sin header; diseño light mode con NORA Green #0B6E4F, DM Sans, JetBrains Mono para números
 - Mismo design system que AUT-131/132 (assets/9140616588152080241)
+- Cards: `rounded-2xl bg-white border border-[#E5E7EB] shadow-sm p-6`
 
 **Tabs:**
 
 | Tab | Componente | Descripción |
-|---|---|---|
+|---|---|---|---|
+| Inicio | `ProfessionalDashboard` | Saludo "Hola, {nombre}" + badge de membresía (activa/trial/sin), 4 métricas principales (completados, calificación promedio, % recomendación, score cumplimiento), desglose de ratings con barras de progreso (solo si `totalRated > 0`), accesos rápidos a Pedidos pendientes y En curso (AUT-178) |
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
 | En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando ubicación del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado, Cancelar pedido con modal de confirmación). Botón "Marcar finalizado" (AUT-176): solo visible cuando `coordinationStatus = SCHEDULED` (la visita ya tiene fecha y hora confirmadas). Modal "Confirmar visita": al proponer horario alternativo, el campo se prellena con `clientAvailability` del pedido (AUT-168). Botón "Cancelar pedido" (AUT-170): visible para todo pedido ACCEPTED, modal de confirmación "¿Confirmás que querés cancelar este pedido? Esta acción no se puede deshacer." (AUT-170) |
@@ -977,7 +981,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 2. Admin copia `panelUrl` y la envía al profesional por WhatsApp
 3. Profesional abre el enlace → `ProfessionalPanelPage` valida el token
 4. Si es inválido/expirado → `SessionErrorScreen` con instrucción de WhatsApp
-5. Si es válido → `ProfessionalLayout` con los 4 tabs
+5. Si es válido → `ProfessionalLayout` con los 7 tabs (Inicio por defecto, AUT-178)
 
 **Diseño Stitch:** Pantallas generadas en proyecto `projects/1505486100227666482`, screenshots en `.stitch/professional/`.
 
