@@ -40,11 +40,11 @@ function formatDate(dateStr: string): string {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <PanelCard className="!p-4">
-      <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+    <PanelCard className="!p-4 min-h-[100px] flex flex-col justify-center">
+      <p className="text-sm font-medium text-[#6B7280] uppercase tracking-wide" style={{ fontFamily: 'DM Sans' }}>
         {label}
       </p>
-      <p className="text-4xl font-bold mt-1" style={{ fontFamily: 'JetBrains Mono', color }}>
+      <p className="text-4xl font-bold mt-2" style={{ fontFamily: 'JetBrains Mono', color }}>
         {value}
       </p>
     </PanelCard>
@@ -112,7 +112,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
 
   if (loading) {
     return (
-      <div className="max-w-5xl space-y-8">
+      <div className="max-w-5xl space-y-5">
         <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -125,7 +125,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
 
   if (error) {
     return (
-      <div className="max-w-5xl space-y-8">
+      <div className="max-w-5xl space-y-5">
         <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
         <PanelCard>
           <p className="text-sm text-[#DC2626]" style={{ fontFamily: 'DM Sans' }}>{error}</p>
@@ -135,7 +135,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
   }
 
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="max-w-5xl space-y-5">
       <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
         En curso
       </h1>
