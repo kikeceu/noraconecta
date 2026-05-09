@@ -126,21 +126,51 @@ function formatShortDate(dateStr: string): string {
 }
 
 function ActivityCharts({ sessionToken }: { sessionToken: string }) {
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(7);
   const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityItem[] | null>(null);
   const [ratingEvolution, setRatingEvolution] = useState<RatingEvolutionItem[] | null>(null);
+  const [weekCount, setWeekCount] = useState(8);
 
   useEffect(() => {
-    getPanelStats(sessionToken)
+    setWeeklyActivity(null);
+    setRatingEvolution(null);
+
+    getPanelStats(sessionToken, rangeDays)
       .then((res) => {
         setWeeklyActivity(res.data.weeklyActivity);
         setRatingEvolution(res.data.ratingEvolution);
+        setWeekCount(res.data.weekCount);
       })
       .catch(() => {});
-  }, [sessionToken]);
+  }, [sessionToken, rangeDays]);
+
+  const RANGE_OPTIONS: { label: string; value: 7 | 30 | 90 }[] = [
+    { label: '7 días', value: 7 },
+    { label: '30 días', value: 30 },
+    { label: '90 días', value: 90 },
+  ];
 
   if (!weeklyActivity || !ratingEvolution) {
     return (
       <>
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
+            {RANGE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setRangeDays(opt.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                  rangeDays === opt.value
+                    ? 'bg-[#0B6E4F] text-white'
+                    : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'
+                }`}
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="h-[228px] animate-pulse rounded-2xl bg-[#F3F4F6]" />
         <div className="h-[228px] animate-pulse rounded-2xl bg-[#F3F4F6]" />
       </>
@@ -149,9 +179,28 @@ function ActivityCharts({ sessionToken }: { sessionToken: string }) {
 
   return (
     <>
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          {RANGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setRangeDays(opt.value)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
+                rangeDays === opt.value
+                  ? 'bg-[#0B6E4F] text-white'
+                  : 'bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB]'
+              }`}
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <PanelCard>
         <h3 className="text-sm font-semibold uppercase tracking-widest text-[#6B7280] mb-4">
-          Actividad — últimos 7 días
+          Actividad — últimos {rangeDays} días
         </h3>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={weeklyActivity}>
@@ -167,7 +216,7 @@ function ActivityCharts({ sessionToken }: { sessionToken: string }) {
 
       <PanelCard>
         <h3 className="text-sm font-semibold uppercase tracking-widest text-[#6B7280] mb-4">
-          Calificación promedio — últimas 8 semanas
+          Calificación promedio — últimas {weekCount} semanas
         </h3>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={ratingEvolution}>

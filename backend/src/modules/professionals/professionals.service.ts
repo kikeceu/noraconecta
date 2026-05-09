@@ -494,13 +494,13 @@ export class ProfessionalsService {
     };
   }
 
-  async getActivityStats(token: string) {
+  async getActivityStats(token: string, days: number) {
     const professional = await this.getSessionByToken(token);
 
     const { recentEvents, recentFeedback } =
-      await this.professionalsRepository.findActivityStats(professional.id);
+      await this.professionalsRepository.findActivityStats(professional.id, days);
 
-    const days: {
+    const dailyActivity: {
       date: string;
       completed: number;
       cancelled: number;
@@ -509,16 +509,16 @@ export class ProfessionalsService {
 
     const now = new Date();
 
-    for (let i = 6; i >= 0; i--) {
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().slice(0, 10);
-      days.push({ date: dateStr, completed: 0, cancelled: 0, notFulfilled: 0 });
+      dailyActivity.push({ date: dateStr, completed: 0, cancelled: 0, notFulfilled: 0 });
     }
 
     for (const event of recentEvents) {
       const dateStr = event.createdAt.toISOString().slice(0, 10);
-      const day = days.find((d) => d.date === dateStr);
+      const day = dailyActivity.find((d) => d.date === dateStr);
       if (!day) continue;
 
       if (event.type === 'COMPLETED') day.completed++;
@@ -526,8 +526,10 @@ export class ProfessionalsService {
       else if (event.type === 'NOT_FULFILLED') day.notFulfilled++;
     }
 
+    const weekCount = Math.ceil(days / 7);
+
     const weeks: { start: Date; end: Date }[] = [];
-    for (let i = 7; i >= 0; i--) {
+    for (let i = weekCount - 1; i >= 0; i--) {
       const weekEnd = new Date(now);
       weekEnd.setDate(weekEnd.getDate() - i * 7);
       const weekStart = new Date(weekEnd);
@@ -577,8 +579,9 @@ export class ProfessionalsService {
 
     return {
       data: {
-        weeklyActivity: days,
+        weeklyActivity: dailyActivity,
         ratingEvolution,
+        weekCount,
       },
     };
   }
