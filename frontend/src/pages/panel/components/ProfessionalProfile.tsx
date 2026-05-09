@@ -36,7 +36,7 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
   const status = STATUS_CONFIG[professional.status] || STATUS_CONFIG.PENDING;
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <h1
         className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
@@ -52,7 +52,7 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
             Estado:
           </span>
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium"
             style={{
               backgroundColor: status.bg,
               color: status.text,
@@ -68,7 +68,7 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
 
           {professional.hasBadge && (
             <span
-              className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-medium"
+              className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-sm font-medium"
               style={{
                 backgroundColor: '#FEF3C7',
                 color: '#92400E',
@@ -204,15 +204,15 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
 
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-3.5">
+    <div className="flex items-center justify-between py-4">
       <span
-        className="text-sm text-[#6B7280]"
+        className="text-sm font-medium text-[#6B7280]"
         style={{ fontFamily: 'DM Sans' }}
       >
         {label}
       </span>
       <span
-        className="text-sm font-medium text-[#111827] text-right ml-4"
+        className="text-base font-semibold text-[#111827] text-right ml-4"
         style={{ fontFamily: 'DM Sans' }}
       >
         {value}

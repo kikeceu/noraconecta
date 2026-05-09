@@ -138,7 +138,7 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
   };
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <div>
         <h1
           className="text-4xl font-bold text-[#111827]"

@@ -21,7 +21,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
   const trialRemaining = Math.max(0, membership.trialRequestsLimit - membership.trialRequestsUsed);
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <h1
         className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
@@ -157,9 +157,10 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
         </>
       ) : trialRemaining > 0 ? (
         <PanelCard>
+          <div className="min-h-[200px] flex flex-col justify-center">
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <h2
-              className="text-xl font-bold text-[#111827]"
+              className="text-2xl font-bold text-[#111827]"
               style={{ fontFamily: 'DM Sans' }}
             >
               Plan de prueba
@@ -177,12 +178,16 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
           </div>
 
           <p
-            className="text-sm text-[#6B7280] mb-3"
+            className="text-base text-[#6B7280] mb-3"
             style={{ fontFamily: 'DM Sans' }}
           >
             Te quedan{' '}
-            <span className="font-semibold text-[#111827]">
-              {trialRemaining} de {membership.trialRequestsLimit}
+            <span className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
+              {trialRemaining}
+            </span>{' '}
+            de{' '}
+            <span className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
+              {membership.trialRequestsLimit}
             </span>{' '}
             pedidos gratuitos.
           </p>
@@ -203,6 +208,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
             Cuando termines tus pedidos de prueba, necesitarás activar una membresía para seguir
             recibiendo solicitudes.
           </p>
+          </div>
         </PanelCard>
       ) : (
         <PanelCard>

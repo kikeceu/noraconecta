@@ -25,7 +25,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
   const strokeDashoffset = circumference - (complianceScore / 100) * circumference;
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <h1
         className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
@@ -75,12 +75,12 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <div>
-                <span
-                  className="text-lg font-bold text-[#059669]"
-                  style={{ fontFamily: 'JetBrains Mono' }}
-                >
-                  {completedRequests}
-                </span>
+              <span
+                className="text-2xl font-bold text-[#059669]"
+                style={{ fontFamily: 'JetBrains Mono' }}
+              >
+                {completedRequests}
+              </span>
                 <span
                   className="text-sm text-[#6B7280] ml-2"
                   style={{ fontFamily: 'DM Sans' }}
@@ -95,12 +95,12 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
               <div>
-                <span
-                  className="text-lg font-bold text-[#DC2626]"
-                  style={{ fontFamily: 'JetBrains Mono' }}
-                >
-                  {rejectedRequests}
-                </span>
+              <span
+                className="text-2xl font-bold text-[#DC2626]"
+                style={{ fontFamily: 'JetBrains Mono' }}
+              >
+                {rejectedRequests}
+              </span>
                 <span
                   className="text-sm text-[#6B7280] ml-2"
                   style={{ fontFamily: 'DM Sans' }}
@@ -116,12 +116,12 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
               <div>
-                <span
-                  className="text-lg font-bold text-[#D97706]"
-                  style={{ fontFamily: 'JetBrains Mono' }}
-                >
-                  {notFulfilledRequests}
-                </span>
+              <span
+                className="text-2xl font-bold text-[#D97706]"
+                style={{ fontFamily: 'JetBrains Mono' }}
+              >
+                {notFulfilledRequests}
+              </span>
                 <span
                   className="text-sm text-[#6B7280] ml-2"
                   style={{ fontFamily: 'DM Sans' }}
@@ -142,7 +142,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
       </PanelCard>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <PanelCard>
+        <PanelCard className="min-h-[120px] flex flex-col justify-center">
           <p
             className="text-4xl font-bold text-[#0B6E4F]"
             style={{ fontFamily: 'JetBrains Mono' }}
@@ -157,7 +157,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           </p>
         </PanelCard>
 
-        <PanelCard>
+        <PanelCard className="min-h-[120px] flex flex-col justify-center">
           <p
             className="text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
@@ -172,7 +172,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           </p>
         </PanelCard>
 
-        <PanelCard>
+        <PanelCard className="min-h-[120px] flex flex-col justify-center">
           <p
             className="text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}

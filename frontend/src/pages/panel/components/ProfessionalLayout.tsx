@@ -31,7 +31,7 @@ function DesktopSidebar({
 }) {
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-[#D1D5DB]">
-      <div className="flex flex-col px-4 pt-4 pb-3 border-b border-[#E5E7EB]">
+      <div className="flex flex-col px-4 pt-4 pb-4 border-b border-[#E5E7EB]">
         <span
           className="text-2xl font-bold text-[#0B6E4F]"
           style={{ fontFamily: 'DM Sans' }}
@@ -45,7 +45,7 @@ function DesktopSidebar({
           Panel del Profesional
         </span>
         <span
-          className="text-sm font-semibold text-[#374151] mt-2 truncate"
+          className="text-sm font-semibold text-[#374151] mt-3 truncate block"
           style={{ fontFamily: 'DM Sans' }}
         >
           {professionalName}
@@ -61,7 +61,7 @@ function DesktopSidebar({
               onClick={() => onTabChange(tab.key)}
               className={`flex w-full items-center gap-3 px-3 py-3.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                 isActive
-                  ? 'bg-[#ECFDF5] text-[#0B6E4F] border-l-4 border-[#0B6E4F]'
+                  ? 'bg-[#F0FDF4] text-[#0B6E4F] border-l-4 border-[#0B6E4F]'
                   : 'text-[#374151] hover:bg-[#F9FAFB] border-l-4 border-transparent'
               }`}
               style={{ fontFamily: 'DM Sans' }}
