@@ -45,9 +45,15 @@ interface ScheduleConfirmationState {
 }
 
 const STATUS_MESSAGES: Record<string, string> = {
-  ASSIGNED: 'Encontramos un profesional, esperando confirmación...',
   NO_RESPONSE: 'No encontramos profesionales disponibles en este momento.',
   CANCELLED: 'El pedido fue cancelado.',
+};
+
+const REASSIGNMENT_MESSAGES: Record<string, string> = {
+  PROFESSIONAL_CANCELLED:
+    'Lamentablemente el profesional canceló. Estamos buscando uno nuevo.',
+  TIMEOUT:
+    'El profesional no respondió a tiempo. Estamos buscando uno nuevo.',
 };
 
 const FINAL_STATUSES = new Set(['CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE']);
@@ -92,6 +98,12 @@ function getStatusMessage(data: RequestData): string | null {
     const categoryName = data.category?.name || 'el servicio';
     return `¡Buenas noticias! ${data.assignedProfessional.name} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar el pedido, escribí cancelar en cualquier momento.`;
   }
+  if (data.status === 'ASSIGNED') {
+    if ((data.reassignmentCount ?? 0) > 0) {
+      return 'Estamos buscando un nuevo profesional para tu pedido. Te avisamos cuando confirme.';
+    }
+    return 'Encontramos un profesional, esperando confirmación...';
+  }
   return STATUS_MESSAGES[data.status] ?? null;
 }
 
@@ -105,6 +117,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const pollIntervalRef = useRef<number | null>(null);
   const lastStatusRef = useRef<string | null>(null);
   const lastCoordinationRef = useRef<string | null>(null);
+  const lastReassignmentCountRef = useRef<number>(0);
   const ratingRef = useRef<RatingState | null>(null);
   const confirmationRef = useRef<ConfirmationState | null>(null);
   const scheduleConfirmationRef = useRef<ScheduleConfirmationState | null>(null);
@@ -147,6 +160,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     }
     activeRequestIdRef.current = null;
     scheduleConfirmationRef.current = null;
+    lastReassignmentCountRef.current = 0;
   }, []);
 
   const startPolling = useCallback(
@@ -159,6 +173,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           const data = await getRequest(requestId);
           lastStatusRef.current = data.status;
           lastCoordinationRef.current = data.coordinationStatus || null;
+          lastReassignmentCountRef.current = data.reassignmentCount ?? 0;
         } catch {
           // silently fail, refs will be set on next poll
         }
@@ -169,9 +184,14 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           const data = await getRequest(requestId);
           const newStatus = data.status;
           const newCoordination = data.coordinationStatus || null;
+          const newReassignmentCount = data.reassignmentCount ?? 0;
 
           const statusChanged = newStatus !== lastStatusRef.current;
           const coordinationChanged = newCoordination !== lastCoordinationRef.current;
+          const reassignmentCountIncreased =
+            newReassignmentCount > lastReassignmentCountRef.current;
+
+          lastReassignmentCountRef.current = newReassignmentCount;
 
           if (statusChanged || coordinationChanged) {
             lastStatusRef.current = newStatus;
@@ -187,9 +207,19 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
               scheduleConfirmationRef.current = null;
             }
 
-            const statusMessage = getStatusMessage(data);
+            if (reassignmentCountIncreased && data.lastReassignmentReason) {
+              const reassignmentMsg =
+                REASSIGNMENT_MESSAGES[data.lastReassignmentReason];
+              if (reassignmentMsg) {
+                addMessage('nora', reassignmentMsg);
+              }
+            }
 
-            if (statusMessage && newStatus !== 'COMPLETED') {
+            const statusMessage = getStatusMessage(data);
+            const showedReassignmentContext =
+              reassignmentCountIncreased && !!data.lastReassignmentReason;
+
+            if (statusMessage && newStatus !== 'COMPLETED' && !showedReassignmentContext) {
               addMessage('nora', statusMessage);
             }
 
@@ -588,6 +618,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
             const data = await getRequest(activeRequestIdRef.current);
             lastStatusRef.current = data.status;
             lastCoordinationRef.current = data.coordinationStatus || null;
+            lastReassignmentCountRef.current = data.reassignmentCount ?? 0;
           } catch {
             // silently sync refs to prevent duplicate messages
           }
@@ -636,6 +667,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
             const data = await getRequest(activeRequestIdRef.current);
             lastStatusRef.current = data.status;
             lastCoordinationRef.current = data.coordinationStatus || null;
+            lastReassignmentCountRef.current = data.reassignmentCount ?? 0;
           } catch {
             // silently sync refs to prevent duplicate messages
           }

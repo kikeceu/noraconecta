@@ -669,7 +669,8 @@ POST /bot/message
   - `coordinationStatus = AWAITING_USER_CONFIRMATION` → "{nombre} no puede en ese horario. Propone el {horario alternativo}. ¿Te viene bien? (Sí / No)". El `scheduleConfirmationRef` trackea este estado para interceptar la respuesta Sí/No del usuario y enviarla al bot para que procese la confirmación o rechazo de la alternativa vía el coordination flow (AUT-164, AUT-165)
   - `coordinationStatus = AWAITING_LOCATION` → "{nombre} ya confirmó el horario. Respondé con tu dirección..."
   - `coordinationStatus = SCHEDULED` → "¡Todo listo! La visita quedó coordinada..."
-  - `ASSIGNED` → "Encontramos un profesional..."
+   - `ASSIGNED` (primera asignación) → "Encontramos un profesional..."
+   - `ASSIGNED` (reasignación, `reassignmentCount > 0`): si `lastReassignmentReason` es `PROFESSIONAL_CANCELLED` → "Lamentablemente el profesional canceló. Estamos buscando uno nuevo."; si es `TIMEOUT` → "El profesional no respondió a tiempo. Estamos buscando uno nuevo."; sin `lastReassignmentReason` → "Estamos buscando un nuevo profesional para tu pedido. Te avisamos cuando confirme." (AUT-174)
   - `ACCEPTED` + `coordinationStatus = AWAITING_AVAILABILITY` → "¡Buenas noticias! {nombre} aceptó tu pedido..."
   - `NO_RESPONSE` → "No encontramos profesionales disponibles..."
   - `CANCELLED` → "El pedido fue cancelado."
@@ -741,6 +742,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 - `events` → historial de eventos
 - `feedback` → feedback del usuario
 - `coordination` → (solo si `coordinationStatus !== 'SCHEDULED'`) `{ status, scheduledAt, clientAvailability, clientAddress, hasLocation }` para que el frontend muestre el estado de coordinación
+- `reassignmentCount` → cantidad de eventos `ASSIGNED` menos 1 (0 = primera asignación, > 0 = reasignación). Calculado on-the-fly desde los eventos del pedido (AUT-174)
+- `lastReassignmentReason` → `'PROFESSIONAL_CANCELLED'` (cuando el profesional cancela), `'TIMEOUT'` (cuando el profesional no responde), o `null`. Derivado del evento previo al último ASSIGNED (AUT-174)
 
 **GET /requests (admin):** El endpoint incluye datos relacionados (`include`) para poblar la tabla de pedidos:
 - `user` → nombre del cliente

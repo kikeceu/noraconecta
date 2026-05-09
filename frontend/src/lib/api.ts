@@ -98,6 +98,8 @@ export interface RequestData {
     clientAddress?: string | null;
     hasLocation: boolean;
   } | null;
+  reassignmentCount?: number;
+  lastReassignmentReason?: 'PROFESSIONAL_CANCELLED' | 'TIMEOUT' | null;
 }
 
 export async function getRequest(id: string): Promise<RequestData> {

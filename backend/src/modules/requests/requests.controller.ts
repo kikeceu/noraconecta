@@ -14,6 +14,70 @@ const botRepository = new BotRepository();
 const requestsService = new RequestsService(requestsRepository, usersRepository, matchingRepository, botRepository);
 const coordinationService = new CoordinationService(botRepository);
 
+type ReassignmentReason = 'PROFESSIONAL_CANCELLED' | 'TIMEOUT';
+
+interface ReassignmentInfo {
+  reassignmentCount: number;
+  lastReassignmentReason: ReassignmentReason | null;
+}
+
+interface RequestEventLike {
+  type: string;
+  createdAt: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+function computeReassignmentInfo(events: RequestEventLike[]): ReassignmentInfo {
+  const sorted = [...events].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+
+  const assignedEvents = sorted.filter((e) => e.type === 'ASSIGNED');
+
+  if (assignedEvents.length === 0) {
+    return { reassignmentCount: 0, lastReassignmentReason: null };
+  }
+
+  const reassignmentCount = Math.max(0, assignedEvents.length - 1);
+
+  if (reassignmentCount === 0) {
+    return { reassignmentCount: 0, lastReassignmentReason: null };
+  }
+
+  let lastAssignedIndex = -1;
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].type === 'ASSIGNED') {
+      lastAssignedIndex = i;
+      break;
+    }
+  }
+
+  let prevEvent: RequestEventLike | undefined;
+  for (let i = lastAssignedIndex - 1; i >= 0; i--) {
+    if (sorted[i].type !== 'ASSIGNED') {
+      prevEvent = sorted[i];
+      break;
+    }
+  }
+
+  if (!prevEvent) {
+    return { reassignmentCount, lastReassignmentReason: null };
+  }
+
+  if (prevEvent.type === 'CANCELLED') {
+    const cancelledBy = prevEvent.metadata?.cancelledBy;
+    if (cancelledBy === 'PROFESSIONAL') {
+      return { reassignmentCount, lastReassignmentReason: 'PROFESSIONAL_CANCELLED' };
+    }
+  }
+
+  if (prevEvent.type === 'NO_RESPONSE') {
+    return { reassignmentCount, lastReassignmentReason: 'TIMEOUT' };
+  }
+
+  return { reassignmentCount, lastReassignmentReason: null };
+}
+
 export class RequestsController {
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -455,6 +519,21 @@ export class RequestsController {
       const request = await requestsService.getById(id);
 
       const response: Record<string, unknown> = { ...request as Record<string, unknown> };
+
+      const events = (request as Record<string, unknown>).events as
+        | Array<{ type: string; createdAt: string; metadata?: Record<string, unknown> | null }>
+        | undefined;
+
+      if (events) {
+        const { reassignmentCount, lastReassignmentReason } =
+          computeReassignmentInfo(events);
+
+        response.reassignmentCount = reassignmentCount;
+        response.lastReassignmentReason = lastReassignmentReason;
+      } else {
+        response.reassignmentCount = 0;
+        response.lastReassignmentReason = null;
+      }
 
       if (request.coordinationStatus && request.coordinationStatus !== 'SCHEDULED') {
         response.coordination = {
