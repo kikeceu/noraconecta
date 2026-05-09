@@ -18,42 +18,48 @@ interface ConfigField {
 
 const CONFIG_GROUPS: ConfigGroup[] = [
   {
-    title: 'Parámetros de Matching',
+    title: 'Matching: Pesos del algoritmo',
     description:
-      'Configuración del algoritmo de asignación de profesionales a pedidos',
+      'Pesos que determinan la importancia de cada factor en el score de recomendación. Deben sumar 1.0',
     keys: [
-      { key: 'MATCHING_RADIUS_KM', label: 'Radio máximo de búsqueda (km)', type: 'number', value: '' },
-      { key: 'MATCHING_RESPONSE_TIMEOUT_MIN', label: 'Tiempo máximo de respuesta (minutos)', type: 'number', value: '' },
-      { key: 'MATCHING_MAX_PROFESSIONALS', label: 'Cantidad máxima de profesionales a notificar', type: 'number', value: '' },
-      { key: 'MATCHING_REJECTION_PENALTY_PCT', label: 'Penalización por rechazo (% reducción score)', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_COMPLIANCE', label: 'Peso: Cumplimiento', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_RESPONSE_RATE', label: 'Peso: Tasa de respuesta', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_QUALITY_RATING', label: 'Peso: Calificación de calidad', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_RECOMMENDATION', label: 'Peso: Recomendación', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_DISTRIBUTION', label: 'Peso: Distribución equitativa', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_PLAN', label: 'Peso: Plan del profesional', type: 'number', value: '' },
     ],
   },
   {
-    title: 'Límites y restricciones',
-    description: 'Reglas operativas para profesionales',
+    title: 'Matching: Penalizaciones y bonificaciones',
+    description:
+      'Valores que penalizan o bonifican el score según el comportamiento del profesional',
     keys: [
-      { key: 'MAX_ACTIVE_REQUESTS_PER_PROFESSIONAL', label: 'Pedidos activos máximos por profesional', type: 'number', value: '' },
-      { key: 'MAX_ESCALATIONS_BEFORE_SUSPENSION', label: 'Escaladas máximas antes de suspensión', type: 'number', value: '' },
-      { key: 'MIN_RATING_FOR_REQUESTS', label: 'Calificación mínima para recibir pedidos', type: 'number', value: '' },
-      { key: 'INACTIVITY_DAYS_THRESHOLD', label: 'Días de inactividad para marcar como inactivo', type: 'number', value: '' },
+      { key: 'MATCHING_COMPLIANCE_PENALTY', label: 'Penalización por incumplimiento', type: 'number', value: '' },
+      { key: 'MATCHING_RESPONSE_PENALTY', label: 'Penalización por no respuesta', type: 'number', value: '' },
+      { key: 'MATCHING_REJECTION_PENALTY', label: 'Penalización por rechazo', type: 'number', value: '' },
+      { key: 'MATCHING_BADGE_BONUS', label: 'Bonus por badge de excelencia', type: 'number', value: '' },
+      { key: 'MATCHING_DISTRIBUTION_DAILY_BONUS', label: 'Bonus diario por distribución', type: 'number', value: '' },
+      { key: 'MATCHING_TENDENCY_WEIGHT', label: 'Peso de tendencia de reputación', type: 'number', value: '' },
     ],
   },
   {
-    title: 'Integraciones',
-    description: 'Credenciales de servicios externos',
+    title: 'Matching: Límites y timeouts',
+    description: 'Reglas operativas del motor de matching',
     keys: [
-      { key: 'WHATSAPP_API_KEY', label: 'WhatsApp API Key', type: 'text', value: '' },
-      { key: 'AWS_S3_BUCKET', label: 'AWS S3 Bucket', type: 'text', value: '' },
+      { key: 'MATCHING_MAX_ACTIVE_REQUESTS', label: 'Pedidos activos máximos por profesional', type: 'number', value: '' },
+      { key: 'MATCHING_REPUTATION_DECAY_DAYS', label: 'Días de decay de penalizaciones', type: 'number', value: '' },
+      { key: 'PROFESSIONAL_RESPONSE_TIMEOUT_HOURS', label: 'Timeout de respuesta del profesional (horas)', type: 'number', value: '' },
     ],
   },
-];
-
-const TOGGLE_KEYS = [
-  { key: 'NOTIFY_WHATSAPP_NEW_REQUEST', label: 'Notificar nuevo pedido por WhatsApp' },
-  { key: 'NOTIFY_EMAIL_NEW_REQUEST', label: 'Notificar nuevo pedido por email' },
-  { key: 'NOTIFY_ESCALATION_ADMINS', label: 'Notificar escalada a administradores' },
-  { key: 'NOTIFY_REMINDER_PENDING', label: 'Recordatorio de pedido pendiente' },
-  { key: 'NOTIFY_DAILY_SUMMARY', label: 'Resumen diario de actividad' },
+  {
+    title: 'Sistema general',
+    description: 'Parámetros generales de la plataforma',
+    keys: [
+      { key: 'TRIAL_REQUESTS_LIMIT', label: 'Límite de pedidos en período de prueba', type: 'number', value: '' },
+      { key: 'BADGE_MIN_COMPLETED_REQUESTS', label: 'Pedidos mínimos para badge de excelencia', type: 'number', value: '' },
+    ],
+  },
 ];
 
 export function SettingsPage() {
@@ -165,51 +171,6 @@ export function SettingsPage() {
           </div>
         </div>
       ))}
-
-      {/* Notification toggles */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">
-          Notificaciones
-        </h2>
-        <p className="text-xs text-gray-500 mb-5">
-          Control de notificaciones automáticas
-        </p>
-
-        <div className="space-y-3">
-          {TOGGLE_KEYS.map((t) => {
-            const isOn = getValue(t.key) === 'true';
-            return (
-              <div
-                key={t.key}
-                className="flex items-center justify-between py-2"
-              >
-                <span className="text-sm text-gray-700">{t.label}</span>
-                <button
-                  onClick={() => {
-                    const newVal = isOn ? 'false' : 'true';
-                    setValue(t.key, newVal);
-                    handleSave(t.key);
-                  }}
-                  disabled={saving === t.key}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
-                    isOn ? 'bg-green-600' : 'bg-gray-200'
-                  } disabled:opacity-50`}
-                >
-                  {saving === t.key ? (
-                    <Loader2 className="w-3 h-3 text-white animate-spin ml-1" />
-                  ) : (
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                        isOn ? 'translate-x-[18px]' : 'translate-x-[3px]'
-                      }`}
-                    />
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

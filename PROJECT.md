@@ -185,7 +185,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
 │   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal
 │   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
-│   │   │   │   └── SettingsPage.tsx             # Config form (matching, limits, integrations, notification toggles)
+│   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params)
 │   │   │   └── onboarding/
 │   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook
 │   │   │       ├── DESIGN.md           # Design system document (source of truth for visual design)
