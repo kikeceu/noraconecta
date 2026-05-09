@@ -209,7 +209,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
 │   │   │           ├── PanelCard.tsx               # Shared card component: rounded-2xl shadow-sm p-6 (AUT-181)
-│   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active, bg-[#F0FDF4] active) + header mobile + bottom nav (7 tabs, h-16) (AUT-181, AUT-183)
+│   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active, bg-[#F0FDF4] active) + header mobile con hamburguesa + drawer lateral (w-72, 7 tabs, overlay bg-black/40) (AUT-181, AUT-183, AUT-184)
 │   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas (text-4xl JetBrains Mono, w-12 icon), desglose ratings (ProgressBar unificada #0B6E4F), accesos rápidos, max-w-5xl (AUT-178, AUT-181, AUT-183)
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge (px-4 py-1.5 text-sm), excellence badge (text-sm), availability, personal data (py-4 rows, text-base font-semibold values), docs (read-only), max-w-5xl (AUT-181, AUT-183)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state

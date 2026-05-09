@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { Home, User, CreditCard, ClipboardList, Star, Clock, Activity } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Home, User, CreditCard, ClipboardList, Star, Clock, Activity, Menu, X } from 'lucide-react';
 import type { PanelTab, ProfessionalStatus } from '../../../types/panel';
 
 interface ProfessionalLayoutProps {
@@ -79,14 +79,22 @@ function DesktopSidebar({
 function MobileHeader({
   activeTab,
   professionalName,
+  onMenuClick,
 }: {
   activeTab: PanelTab;
   professionalName: string;
+  onMenuClick: () => void;
 }) {
   const activeTabLabel = tabs.find((t) => t.key === activeTab)?.label ?? '';
 
   return (
     <header className="lg:hidden fixed top-0 inset-x-0 z-30 h-14 bg-white border-b border-[#E5E7EB] flex items-center px-4 gap-3">
+      <button
+        onClick={onMenuClick}
+        className="p-2 rounded-lg text-[#374151] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
       <div className="flex-1 min-w-0">
         <p
           className="text-sm font-medium text-[#111827] truncate"
@@ -111,40 +119,6 @@ function MobileHeader({
   );
 }
 
-function MobileBottomNav({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: PanelTab;
-  onTabChange: (tab: PanelTab) => void;
-}) {
-  return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-[#E5E7EB] pb-[env(safe-area-inset-bottom)]">
-      <div className="flex h-16">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => onTabChange(tab.key)}
-              className={`flex flex-1 flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
-                isActive ? 'text-[#0B6E4F]' : 'text-[#6B7280]'
-              }`}
-            >
-              <tab.icon className="w-5 h-5" />
-              <span
-                className="text-[11px] font-medium"
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
-  );
-}
 
 export function ProfessionalLayout({
   activeTab,
@@ -152,6 +126,8 @@ export function ProfessionalLayout({
   professionalName,
   children,
 }: ProfessionalLayoutProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
     <div className="flex min-h-[100dvh] bg-[#F9FAFB]">
       <DesktopSidebar
@@ -164,14 +140,82 @@ export function ProfessionalLayout({
         <MobileHeader
           activeTab={activeTab}
           professionalName={professionalName}
+          onMenuClick={() => setDrawerOpen(true)}
         />
 
-        <main className="flex-1 px-4 pt-20 pb-24 md:px-8 lg:pt-6 lg:pb-8">
+        <main className="flex-1 px-4 pt-20 pb-8 md:px-8 lg:pt-6 lg:pb-8">
           {children}
         </main>
       </div>
 
-      <MobileBottomNav activeTab={activeTab} onTabChange={onTabChange} />
+      {/* Overlay */}
+      {drawerOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/40"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* Drawer */}
+      <div
+        className={`lg:hidden fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-xl transform transition-transform duration-300 ${
+          drawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-[#E5E7EB]">
+            <div>
+              <span
+                className="text-xl font-bold text-[#0B6E4F]"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                NORA
+              </span>
+              <p
+                className="text-xs text-[#9CA3AF] mt-0.5"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                Panel del Profesional
+              </p>
+              <p
+                className="text-sm font-semibold text-[#374151] mt-1"
+                style={{ fontFamily: 'DM Sans' }}
+              >
+                {professionalName}
+              </p>
+            </div>
+            <button
+              onClick={() => setDrawerOpen(false)}
+              className="p-2 rounded-lg text-[#6B7280] hover:bg-[#F3F4F6] transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    onTabChange(tab.key);
+                    setDrawerOpen(false);
+                  }}
+                  className={`flex w-full items-center gap-3 px-3 py-3.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'bg-[#F0FDF4] text-[#0B6E4F] border-l-4 border-[#0B6E4F]'
+                      : 'text-[#374151] hover:bg-[#F9FAFB] border-l-4 border-transparent'
+                  }`}
+                  style={{ fontFamily: 'DM Sans' }}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
     </div>
   );
 }
