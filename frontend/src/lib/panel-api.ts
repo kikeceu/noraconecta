@@ -1,4 +1,4 @@
-import type { PanelData, PanelOrdersResponse, PendingRequestsResponse } from '../types/panel';
+import type { PanelData, PanelOrdersResponse, PendingRequestsResponse, ActivityStatsResponse } from '../types/panel';
 
 const API_BASE = '/api';
 
@@ -47,6 +47,15 @@ export async function getPendingRequests(
 ): Promise<PendingRequestsResponse> {
   const res = await request<PendingRequestsResponse>(
     `/professionals/session/${encodeURIComponent(sessionToken)}/pending-requests`,
+  );
+  return res;
+}
+
+export async function getPanelStats(
+  sessionToken: string,
+): Promise<ActivityStatsResponse> {
+  const res = await request<ActivityStatsResponse>(
+    `/professionals/session/${encodeURIComponent(sessionToken)}/stats`,
   );
   return res;
 }

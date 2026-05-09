@@ -34,6 +34,10 @@ router.get('/session/:token/pending-requests', (req, res, next) => {
   void professionalsController.getPendingRequests(req, res, next);
 });
 
+router.get('/session/:token/stats', (req, res, next) => {
+  void professionalsController.getActivityStats(req, res, next);
+});
+
 // Auth required — OPERATOR+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);

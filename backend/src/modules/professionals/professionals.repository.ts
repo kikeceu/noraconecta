@@ -270,6 +270,42 @@ export class ProfessionalsRepository {
     });
   }
 
+  async findActivityStats(professionalId: string) {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const eightWeeksAgo = new Date();
+    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+
+    const [recentEvents, recentFeedback] = await Promise.all([
+      prisma.requestEvent.findMany({
+        where: {
+          professionalId,
+          type: { in: ['COMPLETED', 'CANCELLED', 'NOT_FULFILLED'] },
+          createdAt: { gte: sevenDaysAgo },
+        },
+        select: { type: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.feedback.findMany({
+        where: {
+          request: { assignedProfessionalId: professionalId },
+          ratedByUserAt: { gte: eightWeeksAgo },
+        },
+        select: {
+          punctualityRating: true,
+          qualityRating: true,
+          communicationRating: true,
+          priceFairnessRating: true,
+          ratedByUserAt: true,
+        },
+        orderBy: { ratedByUserAt: 'asc' },
+      }),
+    ]);
+
+    return { recentEvents, recentFeedback };
+  }
+
   async findZones(professionalId: string): Promise<ProfessionalZone[]> {
     return prisma.professionalZone.findMany({
       where: { professionalId },

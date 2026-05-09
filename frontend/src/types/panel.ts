@@ -139,3 +139,23 @@ export interface PendingRequest {
 export interface PendingRequestsResponse {
   data: PendingRequest[];
 }
+
+export interface WeeklyActivityItem {
+  date: string;
+  completed: number;
+  cancelled: number;
+  notFulfilled: number;
+}
+
+export interface RatingEvolutionItem {
+  weekLabel: string;
+  averageRating: number | null;
+  totalRated: number;
+}
+
+export interface ActivityStatsResponse {
+  data: {
+    weeklyActivity: WeeklyActivityItem[];
+    ratingEvolution: RatingEvolutionItem[];
+  };
+}

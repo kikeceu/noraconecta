@@ -327,6 +327,26 @@ export class ProfessionalsController {
       next(err);
     }
   }
+
+  async getActivityStats(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+
+      if (!token) {
+        res.status(400).json({ error: 'Session token is required', statusCode: 400 });
+        return;
+      }
+
+      const data = await professionalsService.getActivityStats(token);
+      res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const professionalsController = new ProfessionalsController();
