@@ -1,0 +1,12 @@
+{
+  "name": "noraconecta-landing",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i input.css -o output.css --minify",
+    "watch:css": "npx @tailwindcss/cli -i input.css -o output.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.4"
+  }
+}

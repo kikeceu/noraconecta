@@ -228,6 +228,13 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
 │   ├── tsconfig.json                   # React + TypeScript strict config
 │   └── vite.config.ts                  # Vite + React + Tailwind + API proxy (supports BUILD_TARGET)
+├── landing/                           # Landing page estática (AUT-135)
+│   ├── index.html                      # HTML estático optimizado SEO/GEO
+│   ├── input.css                       # Tailwind v4 source + tokens
+│   ├── output.css                      # CSS compilado (no commiteado)
+│   ├── robots.txt                      # SEO
+│   ├── sitemap.xml                     # SEO
+│   └── DESIGN.md                       # Sistema de diseño
 ├── package.json                 # Root workspace config
 ├── .gitignore
 ├── PROJECT.md
@@ -374,6 +381,41 @@ server {
   server_name noraconecta.com.ar;
   root /var/www/nora/landing;
 }
+```
+
+## Landing Page (Static HTML) (AUT-135)
+
+Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React.
+
+| Archivo | Descripción |
+|---------|-------------|
+| `landing/index.html` | Landing page completa con SEO, JSON-LD, FAQ y links de WhatsApp |
+| `landing/input.css` | Tailwind v4 source con `@theme` tokens + custom CSS |
+| `landing/output.css` | CSS compilado (minificado, no commiteado) |
+| `landing/package.json` | Dependencia: `@tailwindcss/cli` para compilación |
+| `landing/robots.txt` | Allow all, sitemap |
+| `landing/sitemap.xml` | URL canónica mensual |
+| `landing/DESIGN.md` | Sistema de diseño visual (dark organic minimalism) |
+
+### SEO implementado
+
+- **Meta tags:** description, keywords (locales), robots, canonical
+- **Open Graph:** og:type, og:title, og:description, og:url, og:locale, og:site_name
+- **Twitter Card:** summary_large_image con title y description
+- **Structured Data:** JSON-LD `LocalBusiness` (con areaServed y hasOfferCatalog) + `FAQPage` (5 preguntas)
+- **GEO:** keywords geográficas en contenido visible (Maipú, Luján de Cuyo, Mendoza)
+
+### Performance
+
+- Tailwind CSS compilado estáticamente (sin CDN), ~26KB minificado
+- Google Fonts con preconnect y `display=swap`
+- Imágenes reemplazadas por SVG inline (sin requests externos)
+- Sin JavaScript — 100% HTML + CSS
+
+### Build
+
+```bash
+cd landing && npm install && npm run build:css
 ```
 
 ## Modules
