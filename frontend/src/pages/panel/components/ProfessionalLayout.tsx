@@ -30,7 +30,7 @@ function DesktopSidebar({
   professionalName: string;
 }) {
   return (
-    <aside className="hidden lg:flex lg:w-60 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-[#D1D5DB]">
+    <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-[#D1D5DB]">
       <div className="flex flex-col px-4 pt-4 pb-3 border-b border-[#E5E7EB]">
         <span
           className="text-2xl font-bold text-[#0B6E4F]"
@@ -45,7 +45,7 @@ function DesktopSidebar({
           Panel del Profesional
         </span>
         <span
-          className="text-sm font-medium text-[#374151] mt-2 truncate"
+          className="text-sm font-semibold text-[#374151] mt-2 truncate"
           style={{ fontFamily: 'DM Sans' }}
         >
           {professionalName}
@@ -59,10 +59,10 @@ function DesktopSidebar({
             <button
               key={tab.key}
               onClick={() => onTabChange(tab.key)}
-              className={`flex w-full items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              className={`flex w-full items-center gap-3 px-3 py-3.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                 isActive
-                  ? 'bg-[#ECFDF5] text-[#0B6E4F] border-l-[3px] border-[#0B6E4F]'
-                  : 'text-[#374151] hover:bg-[#F9FAFB] border-l-[3px] border-transparent'
+                  ? 'bg-[#ECFDF5] text-[#0B6E4F] border-l-4 border-[#0B6E4F]'
+                  : 'text-[#374151] hover:bg-[#F9FAFB] border-l-4 border-transparent'
               }`}
               style={{ fontFamily: 'DM Sans' }}
             >
@@ -160,7 +160,7 @@ export function ProfessionalLayout({
         professionalName={professionalName}
       />
 
-      <div className="flex-1 flex flex-col lg:pl-60">
+      <div className="flex-1 flex flex-col lg:pl-64">
         <MobileHeader
           activeTab={activeTab}
           professionalName={professionalName}

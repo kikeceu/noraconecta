@@ -1,21 +1,14 @@
 import type { PanelMembershipData } from '../../../types/panel';
+import { PanelCard } from './PanelCard';
 
 interface ProfessionalMembershipProps {
   membership: PanelMembershipData;
 }
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl bg-white border border-[#E5E7EB] p-5 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <h3
-      className="text-xs font-semibold uppercase tracking-wide text-[#6B7280] mb-3 pb-2 border-b border-[#F3F4F6]"
+      className="text-xs font-semibold uppercase tracking-widest text-[#6B7280] mb-3 pb-2 border-b border-[#F3F4F6]"
       style={{ fontFamily: 'DM Sans' }}
     >
       {children}
@@ -28,9 +21,9 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
   const trialRemaining = Math.max(0, membership.trialRequestsLimit - membership.trialRequestsUsed);
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-8">
       <h1
-        className="text-2xl font-bold text-[#111827]"
+        className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
       >
         Mi Membresía
@@ -38,7 +31,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
 
       {hasActiveMembership && membership.activeMembership ? (
         <>
-          <Card>
+          <PanelCard>
             <SectionHeader>Plan Actual</SectionHeader>
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -70,7 +63,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <span
                   className="text-xs text-[#6B7280] block"
@@ -140,9 +133,9 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
               {membership.activeMembership.type === 'MONTHLY' ? 'mes' : 'año'}. Podés cancelar
               cuando quieras.
             </p>
-          </Card>
+          </PanelCard>
 
-          <Card>
+          <PanelCard>
             <SectionHeader>Tus Beneficios</SectionHeader>
             <div className="divide-y divide-[#F3F4F6]">
               {BENEFITS.map((benefit) => (
@@ -160,10 +153,10 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
                 </div>
               ))}
             </div>
-          </Card>
+          </PanelCard>
         </>
       ) : trialRemaining > 0 ? (
-        <Card>
+        <PanelCard>
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <h2
               className="text-xl font-bold text-[#111827]"
@@ -194,7 +187,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
             pedidos gratuitos.
           </p>
 
-          <div className="w-full h-2 rounded-full bg-[#E5E7EB] overflow-hidden">
+          <div className="w-full h-3 rounded-full bg-[#E5E7EB] overflow-hidden">
             <div
               className="h-full rounded-full bg-[#0B6E4F] transition-all"
               style={{
@@ -210,9 +203,9 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
             Cuando termines tus pedidos de prueba, necesitarás activar una membresía para seguir
             recibiendo solicitudes.
           </p>
-        </Card>
+        </PanelCard>
       ) : (
-        <Card>
+        <PanelCard>
           <div className="flex items-start gap-3 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FEF3C7] shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -272,15 +265,15 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
             </svg>
             Enviar comprobante por WhatsApp
           </button>
-        </Card>
+        </PanelCard>
       )}
 
       {hasActiveMembership && membership.activeMembership && (
-        <Card>
+        <PanelCard>
           <SectionHeader>Precio</SectionHeader>
           <div className="flex items-baseline gap-1">
             <span
-              className="text-2xl font-bold text-[#111827]"
+              className="text-4xl font-bold text-[#111827]"
               style={{ fontFamily: 'JetBrains Mono' }}
             >
               ${membership.activeMembership.plan.monthlyPrice.toLocaleString('es-AR')}
@@ -301,7 +294,7 @@ export function ProfessionalMembership({ membership }: ProfessionalMembershipPro
                 {membership.activeMembership.plan.annualDiscountPct}% de descuento por plan anual
               </p>
             )}
-        </Card>
+        </PanelCard>
       )}
     </div>
   );

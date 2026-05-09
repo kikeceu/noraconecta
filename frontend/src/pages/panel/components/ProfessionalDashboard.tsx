@@ -1,17 +1,10 @@
 import { CheckCircle, Star, ThumbsUp, Shield } from 'lucide-react';
 import type { PanelData, PanelTab } from '../../../types/panel';
+import { PanelCard } from './PanelCard';
 
 interface ProfessionalDashboardProps {
   data: PanelData;
   onTabChange: (tab: PanelTab) => void;
-}
-
-function DashboardCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-2xl bg-white border border-[#E5E7EB] shadow-sm p-6 ${className}`}>
-      {children}
-    </div>
-  );
 }
 
 function MetricCard({
@@ -26,40 +19,40 @@ function MetricCard({
   color?: string;
 }) {
   return (
-    <DashboardCard>
+    <PanelCard>
       <div className="flex items-start gap-4">
         <div
-          className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
+          className="flex items-center justify-center w-12 h-12 rounded-full shrink-0"
           style={{ backgroundColor: `${color}13` }}
         >
-          <Icon className="w-5 h-5" style={{ color }} />
+          <Icon className="w-6 h-6" style={{ color }} />
         </div>
         <div className="min-w-0">
           <p
-            className="text-3xl font-bold text-[#111827]"
+            className="text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
             {value}
           </p>
           <p
-            className="text-xs text-[#6B7280] uppercase tracking-wide mt-1"
+            className="text-xs font-semibold uppercase tracking-widest text-[#6B7280] mt-1"
             style={{ fontFamily: 'DM Sans' }}
           >
             {label}
           </p>
         </div>
       </div>
-    </DashboardCard>
+    </PanelCard>
   );
 }
 
-function ProgressBar({ value, color = '#0B6E4F' }: { value: number; color?: string }) {
+function ProgressBar({ value }: { value: number }) {
   const pct = Math.min(100, Math.max(0, (value / 5) * 100));
   return (
     <div className="w-full h-2 bg-[#F3F4F6] rounded-full overflow-hidden">
       <div
         className="h-full rounded-full transition-all duration-500"
-        style={{ width: `${pct}%`, backgroundColor: color }}
+        style={{ width: `${pct}%`, backgroundColor: '#0B6E4F' }}
       />
     </div>
   );
@@ -77,16 +70,16 @@ function RatingBreakdown({
   priceFairness: number;
 }) {
   const items = [
-    { label: 'Puntualidad', value: punctuality, color: '#0B6E4F' },
-    { label: 'Calidad', value: quality, color: '#2563EB' },
-    { label: 'Comunicación', value: communication, color: '#7C3AED' },
-    { label: 'Precio justo', value: priceFairness, color: '#D97706' },
+    { label: 'Puntualidad', value: punctuality },
+    { label: 'Calidad', value: quality },
+    { label: 'Comunicación', value: communication },
+    { label: 'Precio justo', value: priceFairness },
   ];
 
   return (
-    <DashboardCard>
+    <PanelCard>
       <h3
-        className="text-sm font-semibold text-[#374151] mb-4"
+        className="text-lg font-semibold text-[#111827] mb-4"
         style={{ fontFamily: 'DM Sans' }}
       >
         Desglose de calificaciones
@@ -100,7 +93,7 @@ function RatingBreakdown({
             >
               {item.label}
             </span>
-            <ProgressBar value={item.value} color={item.color} />
+            <ProgressBar value={item.value} />
             <span
               className="w-8 text-right text-sm font-bold text-[#111827] shrink-0"
               style={{ fontFamily: 'JetBrains Mono' }}
@@ -110,7 +103,7 @@ function RatingBreakdown({
           </div>
         ))}
       </div>
-    </DashboardCard>
+    </PanelCard>
   );
 }
 
@@ -144,38 +137,11 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
     return val.toFixed(1);
   };
 
-  const renderStars = (rating: number) => {
-    const full = Math.floor(rating);
-    const hasPartial = rating - full >= 0.5;
-    const empty = 5 - full - (hasPartial ? 1 : 0);
-
-    return (
-      <div className="flex items-center gap-0.5">
-        {Array.from({ length: full }, (_, i) => (
-          <svg key={`f-${i}`} width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="1">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        ))}
-        {hasPartial && (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="#FDE68A" stroke="#F59E0B" strokeWidth="1">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        )}
-        {Array.from({ length: empty }, (_, i) => (
-          <svg key={`e-${i}`} width="14" height="14" viewBox="0 0 24 24" fill="#E5E7EB" stroke="#E5E7EB" strokeWidth="1">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        ))}
-      </div>
-    );
-  };
-
   return (
-    <div className="max-w-4xl space-y-6">
-      {/* Block 1 — Greeting and status */}
+    <div className="max-w-4xl space-y-8">
       <div>
         <h1
-          className="text-3xl font-bold text-[#111827]"
+          className="text-4xl font-bold text-[#111827]"
           style={{ fontFamily: 'DM Sans' }}
         >
           Hola, {professional.name}
@@ -190,14 +156,7 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
         )}
       </div>
 
-      {/* Block 2 — Main metrics */}
-      <h2
-        className="text-2xl font-bold text-[#111827]"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        Métricas principales
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={CheckCircle}
           value={String(reputation.completedRequests)}
@@ -224,13 +183,6 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
         />
       </div>
 
-      {/* Block 3 — Rating breakdown */}
-      <h2
-        className="text-2xl font-bold text-[#111827]"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        Desglose de ratings
-      </h2>
       {reputation.totalRated > 0 ? (
         <RatingBreakdown
           punctuality={reputation.averagePunctuality}
@@ -239,31 +191,24 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
           priceFairness={reputation.averagePriceFairness}
         />
       ) : (
-        <DashboardCard>
+        <PanelCard>
           <p
             className="text-sm text-[#9CA3AF]"
             style={{ fontFamily: 'DM Sans' }}
           >
             Aún no recibiste calificaciones
           </p>
-        </DashboardCard>
+        </PanelCard>
       )}
 
-      {/* Block 4 — Quick access */}
-      <h2
-        className="text-2xl font-bold text-[#111827]"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        Accesos rápidos
-      </h2>
       <div className="flex flex-wrap gap-4">
         <button
           onClick={() => onTabChange('pending')}
-          className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:border-[#0B6E4F] hover:bg-[#F0FDF4] transition-colors cursor-pointer"
+          className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:border-[#0B6E4F] hover:bg-[#F0FDF4] transition-colors cursor-pointer"
         >
           <ClockIcon />
           <span
-            className="text-sm font-medium text-[#374151]"
+            className="text-sm font-semibold text-[#374151]"
             style={{ fontFamily: 'DM Sans' }}
           >
             Ver pedidos pendientes
@@ -271,11 +216,11 @@ export function ProfessionalDashboard({ data, onTabChange }: ProfessionalDashboa
         </button>
         <button
           onClick={() => onTabChange('in-progress')}
-          className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:border-[#0B6E4F] hover:bg-[#F0FDF4] transition-colors cursor-pointer"
+          className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-[#E5E7EB] shadow-sm hover:border-[#0B6E4F] hover:bg-[#F0FDF4] transition-colors cursor-pointer"
         >
           <ActivityIcon />
           <span
-            className="text-sm font-medium text-[#374151]"
+            className="text-sm font-semibold text-[#374151]"
             style={{ fontFamily: 'DM Sans' }}
           >
             Ver en curso

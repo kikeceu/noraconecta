@@ -1,15 +1,8 @@
 import type { PanelReputation } from '../../../types/panel';
+import { PanelCard } from './PanelCard';
 
 interface ProfessionalReputationProps {
   reputation: PanelReputation;
-}
-
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl bg-white border border-[#E5E7EB] p-5 ${className}`}>
-      {children}
-    </div>
-  );
 }
 
 export function ProfessionalReputation({ reputation }: ProfessionalReputationProps) {
@@ -28,47 +21,47 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
     totalRated,
   } = reputation;
 
-  const circumference = 2 * Math.PI * 54;
+  const circumference = 2 * Math.PI * 68;
   const strokeDashoffset = circumference - (complianceScore / 100) * circumference;
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-8">
       <h1
-        className="text-2xl font-bold text-[#111827]"
+        className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
       >
         Mi Reputación
       </h1>
 
-      <Card>
+      <PanelCard>
         <div className="flex flex-col md:flex-row items-center gap-6">
           <div className="relative flex items-center justify-center shrink-0">
-            <svg width="128" height="128" viewBox="0 0 128 128">
+            <svg width="160" height="160" viewBox="0 0 160 160">
               <circle
-                cx="64"
-                cy="64"
-                r="54"
+                cx="80"
+                cy="80"
+                r="68"
                 fill="none"
                 stroke="#E5E7EB"
-                strokeWidth="8"
+                strokeWidth="10"
               />
               <circle
-                cx="64"
-                cy="64"
-                r="54"
+                cx="80"
+                cy="80"
+                r="68"
                 fill="none"
                 stroke="#0B6E4F"
-                strokeWidth="8"
+                strokeWidth="10"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
-                transform="rotate(-90 64 64)"
+                transform="rotate(-90 80 80)"
                 style={{ transition: 'stroke-dashoffset 0.6s ease' }}
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span
-                className="text-3xl font-bold text-[#111827]"
+                className="text-4xl font-bold text-[#111827]"
                 style={{ fontFamily: 'JetBrains Mono' }}
               >
                 {complianceScore}%
@@ -146,12 +139,12 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
         >
           Score de cumplimiento
         </p>
-      </Card>
+      </PanelCard>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
+        <PanelCard>
           <p
-            className="text-2xl font-bold text-[#0B6E4F]"
+            className="text-4xl font-bold text-[#0B6E4F]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
             {wouldRecommendPct}%
@@ -162,11 +155,11 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           >
             Clientes que te recomendarían
           </p>
-        </Card>
+        </PanelCard>
 
-        <Card>
+        <PanelCard>
           <p
-            className="text-2xl font-bold text-[#111827]"
+            className="text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
             {totalRated > 0 ? averageRating : '—'}
@@ -177,11 +170,11 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           >
             Calificación promedio
           </p>
-        </Card>
+        </PanelCard>
 
-        <Card>
+        <PanelCard>
           <p
-            className="text-2xl font-bold text-[#111827]"
+            className="text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
             {totalRated}
@@ -192,17 +185,17 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           >
             Pedidos calificados
           </p>
-        </Card>
+        </PanelCard>
       </div>
 
       <h2
-        className="text-lg font-bold text-[#111827] mt-2"
+        className="text-lg font-semibold text-[#111827] mt-2"
         style={{ fontFamily: 'DM Sans' }}
       >
         Desglose por eje
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <MiniAxisCard label="Puntualidad" value={averagePunctuality} hasData={totalRated > 0} />
         <MiniAxisCard label="Calidad" value={averageQuality} hasData={totalRated > 0} />
         <MiniAxisCard label="Comunicación" value={averageCommunication} hasData={totalRated > 0} />
@@ -210,7 +203,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
         <MiniAxisCard label="General" value={averageRating} hasData={totalRated > 0} />
       </div>
 
-      <Card className="!border-[#A7F3D0] !bg-[#F0FDF4]">
+      <PanelCard className="!border-[#A7F3D0] !bg-[#F0FDF4]">
         <div className="flex items-start gap-3">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B6E4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
             <path d="M9 18V5l12-2v13" />
@@ -249,7 +242,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
             </ul>
           </div>
         </div>
-      </Card>
+      </PanelCard>
     </div>
   );
 }
@@ -258,9 +251,9 @@ function MiniAxisCard({ label, value, hasData }: { label: string; value: number;
   const stars = hasData ? Math.round(value) : 0;
 
   return (
-    <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 text-center">
+    <div className="rounded-2xl bg-white border border-[#E5E7EB] shadow-sm p-4 text-center">
       <p
-        className="text-2xl font-bold text-[#111827]"
+        className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'JetBrains Mono' }}
       >
         {hasData ? value : '—'}
