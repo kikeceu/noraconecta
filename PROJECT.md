@@ -208,14 +208,16 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
-│   │   │           ├── ProfessionalLayout.tsx     # 240px sidebar (desktop, 7 tabs) + header mobile + bottom nav (7 tabs, h-16)
-│   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas, desglose ratings, accesos rápidos (AUT-178)
+│   │   │           ├── PanelCard.tsx               # Shared card component: rounded-2xl shadow-sm p-6 (AUT-181)
+│   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active) + header mobile + bottom nav (7 tabs, h-16) (AUT-181)
+│   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas (text-4xl JetBrains Mono, w-12 icon), desglose ratings (ProgressBar unificada #0B6E4F), accesos rápidos (AUT-178, AUT-181)
 │   │   │           ├── SessionErrorScreen.tsx     # Token invalid/expired screen with WhatsApp CTA
-│   │   │           ├── ProfessionalProfile.tsx    # Status badge, excellence badge, availability, personal data, docs (read-only)
+│   │   │           ├── ProfessionalProfile.tsx    # Status badge (px-4 py-1.5), excellence badge, availability, personal data (py-3.5 rows), docs (read-only) (AUT-181)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
-│   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): coordination status, confirm visit (prefilled alternative schedule from clientAvailability), mark finished, view detail modal (AUT-156, AUT-168)
-│   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders, stats cards, filters, search, table (Fecha/Zona/Usuario/Estado/Calificación/Acción), RatingDetailModal, rate user (AUT-156, AUT-179)
-│   │   │           └── ProfessionalReputation.tsx # Donut chart, compliance metrics, recommendation %, tips
+│   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): StatCards (text-3xl), coordination status, confirm visit, mark finished, view detail modal, mobile cards (AUT-156, AUT-168, AUT-181)
+│   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders, StatCards (text-3xl), filters, search, table desktop + mobile cards, RatingDetailModal, rate user (AUT-156, AUT-179, AUT-181)
+│   │   │           ├── ProfessionalMembership.tsx # Membership status: active/trial (h-3 progress bar)/expired, precio (text-4xl), beneficios (AUT-181)
+│   │   │           └── ProfessionalReputation.tsx # Donut chart (160x160, r=68), compliance metrics (text-4xl), MiniAxisCard (text-3xl, p-4), recomendación %, tips (AUT-181)
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
 │   ├── index-admin.html                 # Vite entry HTML (admin build)

@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import type { PanelOrder } from '../../../types/panel';
 import { getPanelOrders, finishRequest, confirmVisitRequest, confirmScheduleRequest, cancelByProfessionalRequest } from '../../../lib/panel-api';
+import { PanelCard } from './PanelCard';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold uppercase tracking-wide text-[#0B6E4F] mb-2" style={{ fontFamily: 'DM Sans' }}>
+    <p className="text-xs font-semibold uppercase tracking-widest text-[#0B6E4F] mb-2" style={{ fontFamily: 'DM Sans' }}>
       {children}
     </p>
   );
@@ -39,14 +40,14 @@ function formatDate(dateStr: string): string {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-xl bg-white border border-[#E5E7EB] p-4">
+    <PanelCard className="!p-4">
       <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
         {label}
       </p>
-      <p className="text-2xl font-bold mt-1" style={{ fontFamily: 'JetBrains Mono', color }}>
+      <p className="text-4xl font-bold mt-1" style={{ fontFamily: 'JetBrains Mono', color }}>
         {value}
       </p>
-    </div>
+    </PanelCard>
   );
 }
 
@@ -111,11 +112,11 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
 
   if (loading) {
     return (
-      <div className="max-w-5xl space-y-5">
-        <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
+      <div className="max-w-5xl space-y-8">
+        <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-12 rounded-xl bg-white border border-[#E5E7EB] animate-pulse" />
+            <div key={i} className="h-12 rounded-2xl bg-white border border-[#E5E7EB] animate-pulse" />
           ))}
         </div>
       </div>
@@ -124,23 +125,23 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
 
   if (error) {
     return (
-      <div className="max-w-5xl space-y-5">
-        <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
-        <div className="rounded-xl bg-white border border-[#E5E7EB] p-5">
+      <div className="max-w-5xl space-y-8">
+        <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>En curso</h1>
+        <PanelCard>
           <p className="text-sm text-[#DC2626]" style={{ fontFamily: 'DM Sans' }}>{error}</p>
-        </div>
+        </PanelCard>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
-      <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+    <div className="max-w-5xl space-y-8">
+      <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
         En curso
       </h1>
 
       {orders.length === 0 ? (
-        <div className="rounded-xl bg-white border border-[#E5E7EB] p-5">
+        <PanelCard>
           <div className="flex flex-col items-center py-10">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#F3F4F6] mb-4">
               <Inbox className="w-8 h-8 text-[#9CA3AF]" />
@@ -152,7 +153,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
               Los pedidos que aceptes y estén en proceso de coordinación aparecerán acá.
             </p>
           </div>
-        </div>
+        </PanelCard>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -186,7 +187,8 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
             />
           </div>
 
-          <div className="rounded-xl bg-white border border-[#E5E7EB] overflow-hidden">
+          {/* Desktop: table */}
+          <div className="hidden lg:block rounded-2xl bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -232,24 +234,24 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                     return (
                       <tr key={order.id} className="hover:bg-[#F9FAFB] transition-colors">
                         <td
-                          className="px-4 py-3 text-[#111827] whitespace-nowrap"
+                          className="px-4 py-4 text-[#111827] whitespace-nowrap"
                           style={{ fontFamily: 'DM Sans' }}
                         >
                           {formatDate(order.createdAt)}
                         </td>
                         <td
-                          className="px-4 py-3 text-[#374151]"
+                          className="px-4 py-4 text-[#374151]"
                           style={{ fontFamily: 'DM Sans' }}
                         >
                           {order.category?.name || '—'}
                         </td>
                         <td
-                          className="px-4 py-3 text-[#374151]"
+                          className="px-4 py-4 text-[#374151]"
                           style={{ fontFamily: 'DM Sans' }}
                         >
                           {order.geoNode?.name || '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           <div className="space-y-1">
                             {order.status === 'PENDING_CONFIRMATION' ? (
                               <span
@@ -287,7 +289,7 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-4 text-right">
                           {order.status === 'ACCEPTED' && (
                             <button
                               onClick={() => setCancelOrderId(order.id)}
@@ -383,6 +385,167 @@ export function ProfessionalInProgress({ sessionToken, professionalId }: Profess
               <div className="px-4 py-8 text-center text-sm text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
                 No se encontraron pedidos con ese filtro.
               </div>
+            )}
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="lg:hidden space-y-3">
+            {filteredOrders.map((order) => {
+              const coordLabel = order.coordinationStatus
+                ? COORDINATION_LABEL[order.coordinationStatus]
+                : null;
+
+              return (
+                <PanelCard key={order.id} className="!p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+                        {order.category?.name || '—'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+                        {formatDate(order.createdAt)}
+                      </p>
+                    </div>
+                    {order.status === 'PENDING_CONFIRMATION' ? (
+                      <span
+                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          backgroundColor: '#FEF3C7',
+                          color: '#B45309',
+                          fontFamily: 'DM Sans',
+                        }}
+                      >
+                        Esperando confirmación
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          backgroundColor: '#EFF6FF',
+                          color: '#2563EB',
+                          fontFamily: 'DM Sans',
+                        }}
+                      >
+                        Aceptado
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-[#6B7280]">
+                    <div>
+                      <span className="block font-medium text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                        Zona
+                      </span>
+                      <span style={{ fontFamily: 'DM Sans' }}>{order.geoNode?.name || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block font-medium text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                        Estado coord.
+                      </span>
+                      {coordLabel ? (
+                        <span className="block" style={{ color: coordLabel.color, fontFamily: 'DM Sans' }}>
+                          {coordLabel.label}
+                          {order.coordinationStatus === 'SCHEDULED' && order.scheduledAt && (
+                            <> · {formatScheduledDate(order.scheduledAt)}</>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>—</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-[#F3F4F6] flex flex-wrap items-center justify-between gap-2">
+                    {order.status === 'ACCEPTED' && (
+                      <button
+                        onClick={() => setCancelOrderId(order.id)}
+                        disabled={cancelLoading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#DC2626] text-[#DC2626] hover:bg-[#FEF2F2] transition-colors disabled:opacity-50 cursor-pointer"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="15" y1="9" x2="9" y2="15" />
+                          <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                        Cancelar pedido
+                      </button>
+                    )}
+                    {order.coordinationStatus === 'AWAITING_CONFIRMATION' && (
+                      <button
+                        onClick={() => {
+                          setConfirmVisitOrderId(order.id);
+                          setProposingAlternative(false);
+                          setAlternativeText('');
+                          setConfirmVisitError(null);
+                        }}
+                        disabled={confirmVisitLoading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors disabled:opacity-50 cursor-pointer"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                        Confirmar visita
+                      </button>
+                    )}
+                    {order.coordinationStatus === 'AWAITING_LOCATION' && (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs text-[#2563EB]"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        Esperando ubicación
+                      </span>
+                    )}
+                    {order.coordinationStatus === 'SCHEDULED' && (
+                      <button
+                        onClick={() => setViewAddressOrderId(order.id)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border border-[#0B6E4F] text-[#0B6E4F] hover:bg-[#0B6E4F]/5 transition-colors cursor-pointer"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        Ver detalle
+                      </button>
+                    )}
+                    {order.status === 'ACCEPTED' && order.coordinationStatus === 'SCHEDULED' && (
+                      <button
+                        onClick={() => setFinishOrderId(order.id)}
+                        disabled={finishLoading}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors disabled:opacity-50 cursor-pointer"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        Marcar finalizado
+                      </button>
+                    )}
+                    {order.status === 'PENDING_CONFIRMATION' && (
+                      <span
+                        className="text-xs text-[#B45309]"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        Esperando confirmación
+                      </span>
+                    )}
+                  </div>
+                </PanelCard>
+              );
+            })}
+            {filteredOrders.length === 0 && search && (
+              <PanelCard className="!p-4">
+                <p className="text-sm text-[#6B7280] text-center" style={{ fontFamily: 'DM Sans' }}>
+                  No se encontraron pedidos con ese filtro.
+                </p>
+              </PanelCard>
             )}
           </div>
         </>

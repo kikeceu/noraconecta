@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { PanelOrder, OrderStatus } from '../../../types/panel';
 import { getPanelOrders, rateUser } from '../../../lib/panel-api';
+import { PanelCard } from './PanelCard';
 
 interface ProfessionalOrdersProps {
   sessionToken: string;
@@ -27,24 +28,16 @@ const FILTER_CHIPS = [
 
 const TERMINAL_EVENT_TYPES = ['CANCELLED', 'COMPLETED', 'NOT_FULFILLED', 'NO_RESPONSE'];
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl bg-white border border-[#E5E7EB] p-5 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-xl bg-white border border-[#E5E7EB] p-4">
+    <PanelCard className="!p-4">
       <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
         {label}
       </p>
-      <p className="text-2xl font-bold mt-1" style={{ fontFamily: 'JetBrains Mono', color }}>
+      <p className="text-4xl font-bold mt-1" style={{ fontFamily: 'JetBrains Mono', color }}>
         {value}
       </p>
-    </div>
+    </PanelCard>
   );
 }
 
@@ -55,6 +48,22 @@ function formatDate(dateStr: string): string {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function StatusBadge({ statusKey }: { statusKey: OrderStatus }) {
+  const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.CREATED;
+  return (
+    <span
+      className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
+      style={{
+        backgroundColor: status.bg,
+        color: status.text,
+        fontFamily: 'DM Sans',
+      }}
+    >
+      {status.label}
+    </span>
+  );
 }
 
 export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
@@ -117,11 +126,11 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
 
   if (loading) {
     return (
-      <div className="max-w-5xl space-y-5">
-        <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>Historial</h1>
+      <div className="max-w-5xl space-y-8">
+        <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>Historial</h1>
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-12 rounded-xl bg-white border border-[#E5E7EB] animate-pulse" />
+            <div key={i} className="h-12 rounded-2xl bg-white border border-[#E5E7EB] animate-pulse" />
           ))}
         </div>
       </div>
@@ -130,23 +139,23 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
 
   if (error) {
     return (
-      <div className="max-w-5xl space-y-5">
-        <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>Historial</h1>
-        <Card>
+      <div className="max-w-5xl space-y-8">
+        <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>Historial</h1>
+        <PanelCard>
           <p className="text-sm text-[#DC2626]" style={{ fontFamily: 'DM Sans' }}>{error}</p>
-        </Card>
+        </PanelCard>
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl space-y-5">
-      <h1 className="text-2xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+    <div className="max-w-5xl space-y-8">
+      <h1 className="text-3xl font-bold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
         Historial
       </h1>
 
       {orders.length === 0 ? (
-        <Card>
+        <PanelCard>
           <div className="flex flex-col items-center py-10">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -159,10 +168,10 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
               Los pedidos completados, cancelados o no cumplidos aparecerán acá.
             </p>
           </div>
-        </Card>
+        </PanelCard>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatCard label="Total" value={stats.total} color="#111827" />
             <StatCard label="Completados" value={stats.completed} color="#059669" />
             <StatCard label="Cancelados" value={stats.cancelled} color="#DC2626" />
@@ -213,7 +222,8 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
             ))}
           </div>
 
-          <Card className="overflow-hidden !p-0">
+          {/* Desktop: table */}
+          <div className="hidden lg:block rounded-2xl bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -259,22 +269,21 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                 <tbody className="divide-y divide-[#F3F4F6]">
                   {filteredOrders.map((order) => {
                     const statusKey = (order.professionalEventType || order.status) as OrderStatus;
-                    const status = STATUS_CONFIG[statusKey] || STATUS_CONFIG.CREATED;
                     return (
                       <tr key={order.id} className="hover:bg-[#F9FAFB] transition-colors">
                         <td
-                          className="px-4 py-3 text-[#111827] whitespace-nowrap"
+                          className="px-4 py-4 text-[#111827] whitespace-nowrap"
                           style={{ fontFamily: 'DM Sans' }}
                         >
                           {formatDate(order.createdAt)}
                         </td>
                         <td
-                          className="px-4 py-3 text-[#374151]"
+                          className="px-4 py-4 text-[#374151]"
                           style={{ fontFamily: 'DM Sans' }}
                         >
                           {order.geoNode?.name || '—'}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           {order.userName ? (
                             <span className="text-sm text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
                               {order.userName}
@@ -285,19 +294,10 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          <span
-                            className="inline-flex rounded-full px-2.5 py-1 text-xs font-medium"
-                            style={{
-                              backgroundColor: status.bg,
-                              color: status.text,
-                              fontFamily: 'DM Sans',
-                            }}
-                          >
-                            {status.label}
-                          </span>
+                        <td className="px-4 py-4 text-right">
+                          <StatusBadge statusKey={statusKey} />
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-4 text-right">
                           {order.professionalEventType === 'COMPLETED' ? (
                             order.userRatingAvg !== null && order.userRatingAvg !== undefined ? (
                               <button
@@ -320,7 +320,7 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-4 py-4 text-right">
                           {order.professionalEventType === 'COMPLETED' && !order.ratedByProfessional && (
                             <button
                               onClick={() => setRatingOrderId(order.id)}
@@ -345,7 +345,85 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                 No se encontraron pedidos con ese filtro.
               </div>
             )}
-          </Card>
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="lg:hidden space-y-3">
+            {filteredOrders.map((order) => {
+              const statusKey = (order.professionalEventType || order.status) as OrderStatus;
+              return (
+                <PanelCard key={order.id} className="!p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-sm font-semibold text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
+                        {order.userName || 'Usuario'}
+                      </p>
+                      <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+                        {order.userPhone || ''}
+                      </p>
+                    </div>
+                    <StatusBadge statusKey={statusKey} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-[#6B7280]">
+                    <div>
+                      <span className="block font-medium text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                        Fecha
+                      </span>
+                      <span style={{ fontFamily: 'DM Sans' }}>{formatDate(order.createdAt)}</span>
+                    </div>
+                    <div>
+                      <span className="block font-medium text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+                        Zona
+                      </span>
+                      <span style={{ fontFamily: 'DM Sans' }}>{order.geoNode?.name || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-[#F3F4F6] flex items-center justify-between">
+                    <div>
+                      {order.professionalEventType === 'COMPLETED' ? (
+                        order.userRatingAvg !== null && order.userRatingAvg !== undefined ? (
+                          <button
+                            onClick={() => setRatingDetailOrder(order)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm cursor-pointer bg-[#ECFDF5] hover:bg-[#D1FAE5] transition-colors"
+                          >
+                            <span className="text-[#F59E0B]">⭐</span>
+                            <span className="font-medium text-[#0B6E4F]" style={{ fontFamily: 'JetBrains Mono' }}>
+                              {order.userRatingAvg}
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="text-xs text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
+                            Sin calificación
+                          </span>
+                        )
+                      ) : (
+                        <span />
+                      )}
+                    </div>
+                    {order.professionalEventType === 'COMPLETED' && !order.ratedByProfessional && (
+                      <button
+                        onClick={() => setRatingOrderId(order.id)}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#085D42] transition-colors cursor-pointer"
+                        style={{ fontFamily: 'DM Sans' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                        Calificar
+                      </button>
+                    )}
+                  </div>
+                </PanelCard>
+              );
+            })}
+            {filteredOrders.length === 0 && (
+              <PanelCard className="!p-4">
+                <p className="text-sm text-[#6B7280] text-center" style={{ fontFamily: 'DM Sans' }}>
+                  No se encontraron pedidos con ese filtro.
+                </p>
+              </PanelCard>
+            )}
+          </div>
 
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-between text-sm">
@@ -821,4 +899,3 @@ function StarRatingReadOnly({ value }: { value: number }) {
     </div>
   );
 }
-

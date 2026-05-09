@@ -1,4 +1,5 @@
 import type { PanelProfessional, ProfessionalStatus } from '../../../types/panel';
+import { PanelCard } from './PanelCard';
 
 interface ProfessionalProfileProps {
   professional: PanelProfessional;
@@ -20,18 +21,10 @@ const DOCS: { key: string; label: string; url: string | null | undefined }[] = [
   { key: 'criminalRecord', label: 'Certificado de antecedentes.pdf', url: 'criminalRecordUrl' },
 ];
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`rounded-xl bg-white border border-[#E5E7EB] p-5 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <h3
-      className="text-xs font-semibold uppercase tracking-wide text-[#6B7280] mb-3 pb-2 border-b border-[#F3F4F6]"
+      className="text-xs font-semibold uppercase tracking-widest text-[#6B7280] mb-3 pb-2 border-b border-[#F3F4F6]"
       style={{ fontFamily: 'DM Sans' }}
     >
       {children}
@@ -43,15 +36,15 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
   const status = STATUS_CONFIG[professional.status] || STATUS_CONFIG.PENDING;
 
   return (
-    <div className="max-w-3xl space-y-5">
+    <div className="max-w-3xl space-y-8">
       <h1
-        className="text-2xl font-bold text-[#111827]"
+        className="text-3xl font-bold text-[#111827]"
         style={{ fontFamily: 'DM Sans' }}
       >
         Mi Perfil
       </h1>
 
-      <Card>
+      <PanelCard>
         <SectionHeader>Estado del Profesional</SectionHeader>
 
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -59,7 +52,7 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
             Estado:
           </span>
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-medium"
             style={{
               backgroundColor: status.bg,
               color: status.text,
@@ -75,7 +68,7 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
 
           {professional.hasBadge && (
             <span
-              className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
+              className="inline-flex items-center gap-1 rounded-full px-4 py-1.5 text-xs font-medium"
               style={{
                 backgroundColor: '#FEF3C7',
                 color: '#92400E',
@@ -122,9 +115,9 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
             </p>
           )}
         </div>
-      </Card>
+      </PanelCard>
 
-      <Card>
+      <PanelCard>
         <SectionHeader>Datos Personales</SectionHeader>
         <div className="divide-y divide-[#F3F4F6]">
           <FieldRow label="Nombre completo" value={professional.name} />
@@ -143,16 +136,16 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
           />
           {professional.cuil && <FieldRow label="CUIL" value={professional.cuil} />}
         </div>
-      </Card>
+      </PanelCard>
 
-      <Card>
+      <PanelCard>
         <SectionHeader>Documentación Enviada</SectionHeader>
         <div className="divide-y divide-[#F3F4F6]">
           {DOCS.map((doc) => {
             const url = professional[doc.url as keyof PanelProfessional] as string | null;
             if (!url) return null;
             return (
-              <div key={doc.key} className="flex items-center justify-between py-2.5">
+              <div key={doc.key} className="flex items-center justify-between py-3.5">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <svg
                     width="16"
@@ -204,14 +197,14 @@ export function ProfessionalProfile({ professional }: ProfessionalProfileProps) 
             </div>
           )}
         </div>
-      </Card>
+      </PanelCard>
     </div>
   );
 }
 
 function FieldRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-2.5">
+    <div className="flex items-center justify-between py-3.5">
       <span
         className="text-sm text-[#6B7280]"
         style={{ fontFamily: 'DM Sans' }}
