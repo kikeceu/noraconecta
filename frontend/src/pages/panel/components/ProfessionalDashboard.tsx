@@ -20,16 +20,16 @@ function MetricCard({
 }) {
   return (
     <PanelCard>
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col items-start gap-2">
         <div
-          className="flex items-center justify-center w-12 h-12 rounded-full shrink-0"
+          className="flex items-center justify-center w-10 h-10 rounded-full shrink-0"
           style={{ backgroundColor: `${color}13` }}
         >
           <Icon className="w-6 h-6" style={{ color }} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 w-full">
           <p
-            className="text-4xl font-bold text-[#111827]"
+            className="text-3xl lg:text-4xl font-bold text-[#111827]"
             style={{ fontFamily: 'JetBrains Mono' }}
           >
             {value}
