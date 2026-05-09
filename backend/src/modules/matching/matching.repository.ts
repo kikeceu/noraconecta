@@ -202,6 +202,124 @@ export class MatchingRepository {
     return map;
   }
 
+  async getAverageRatings(
+    professionalIds: string[],
+  ): Promise<Map<string, number | null>> {
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        request: { assignedProfessionalId: { in: professionalIds } },
+        ratedByUserAt: { not: null },
+        punctualityRating: { not: null },
+      },
+      select: {
+        punctualityRating: true,
+        qualityRating: true,
+        communicationRating: true,
+        priceFairnessRating: true,
+        request: { select: { assignedProfessionalId: true } },
+      },
+    });
+
+    const accumulator = new Map<string, { sum: number; count: number }>();
+    for (const f of feedbacks) {
+      const profId = f.request.assignedProfessionalId;
+      if (!profId) continue;
+      const avg =
+        ((f.punctualityRating ?? 0) +
+          (f.qualityRating ?? 0) +
+          (f.communicationRating ?? 0) +
+          (f.priceFairnessRating ?? 0)) /
+        4;
+      const entry = accumulator.get(profId) ?? { sum: 0, count: 0 };
+      entry.sum += avg;
+      entry.count++;
+      accumulator.set(profId, entry);
+    }
+
+    const result = new Map<string, number | null>();
+    for (const profId of professionalIds) {
+      const entry = accumulator.get(profId);
+      result.set(profId, entry ? entry.sum / entry.count : null);
+    }
+    return result;
+  }
+
+  async getRecentAverageRatings(
+    professionalIds: string[],
+  ): Promise<Map<string, number | null>> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        request: { assignedProfessionalId: { in: professionalIds } },
+        ratedByUserAt: { gte: thirtyDaysAgo },
+        punctualityRating: { not: null },
+      },
+      select: {
+        punctualityRating: true,
+        qualityRating: true,
+        communicationRating: true,
+        priceFairnessRating: true,
+        request: { select: { assignedProfessionalId: true } },
+      },
+    });
+
+    const accumulator = new Map<string, { sum: number; count: number }>();
+    for (const f of feedbacks) {
+      const profId = f.request.assignedProfessionalId;
+      if (!profId) continue;
+      const avg =
+        ((f.punctualityRating ?? 0) +
+          (f.qualityRating ?? 0) +
+          (f.communicationRating ?? 0) +
+          (f.priceFairnessRating ?? 0)) /
+        4;
+      const entry = accumulator.get(profId) ?? { sum: 0, count: 0 };
+      entry.sum += avg;
+      entry.count++;
+      accumulator.set(profId, entry);
+    }
+
+    const result = new Map<string, number | null>();
+    for (const profId of professionalIds) {
+      const entry = accumulator.get(profId);
+      result.set(profId, entry ? entry.sum / entry.count : null);
+    }
+    return result;
+  }
+
+  async countRejectedEvents(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const results = await prisma.requestEvent.groupBy({
+      by: ['professionalId'],
+      where: {
+        professionalId: { in: professionalIds },
+        type: 'REJECTED',
+      },
+      _count: { id: true },
+    });
+
+    const map = new Map<string, number>();
+    for (const r of results) {
+      if (r.professionalId) map.set(r.professionalId, r._count.id);
+    }
+    return map;
+  }
+
+  async getBadgeStatus(
+    professionalIds: string[],
+  ): Promise<Map<string, boolean>> {
+    const professionals = await prisma.professional.findMany({
+      where: { id: { in: professionalIds } },
+      select: { id: true, hasBadge: true },
+    });
+
+    const map = new Map<string, boolean>();
+    for (const p of professionals) map.set(p.id, p.hasBadge);
+    return map;
+  }
+
   async findRequestsForReminder(
     nowMinus60: Date,
     nowMinus90: Date,

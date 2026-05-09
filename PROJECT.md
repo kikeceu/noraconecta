@@ -686,11 +686,29 @@ POST /bot/message
   - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
-### Config (actualizado)
+### Config (ACTUALIZADO AUT-186)
 
 | Key                            | Default | Descripción                              |
 |-------------------------------|---------|------------------------------------------|
 | `BADGE_MIN_COMPLETED_REQUESTS` | 10     | Mínimo de pedidos completados para badge |
+| `TRIAL_REQUESTS_LIMIT`         | 3      | Máximo de pedidos de prueba por profesional |
+| `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` | 2 | Timeout de respuesta del profesional |
+| `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
+| `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
+| `MATCHING_WEIGHT_COMPLIANCE`   | 0.35   | Peso de compliance en el score |
+| `MATCHING_WEIGHT_RESPONSE_RATE` | 0.25  | Peso de response rate en el score |
+| `MATCHING_WEIGHT_RECOMMENDATION` | 0.10 | Peso de wouldRecommend en el score |
+| `MATCHING_WEIGHT_DISTRIBUTION` | 0.05   | Peso de distribución en el score |
+| `MATCHING_WEIGHT_QUALITY_RATING` | 0.20 | Peso de quality rating (4 ejes) en el score |
+| `MATCHING_WEIGHT_PLAN`         | 0.05   | Peso de plan priority en el score |
+| `MATCHING_BADGE_BONUS`         | 5      | Bonus fijo por hasBadge (no ponderado) |
+| `MATCHING_REJECTION_PENALTY`   | 10     | Penalización por cada REJECTED event en distribución |
+| `MATCHING_TENDENCY_WEIGHT`     | 0.15   | Peso de tendencia reciente dentro de qualityRating |
+| `MATCHING_COMPLIANCE_PENALTY`  | 50     | Penalización por NOT_FULFILLED |
+| `MATCHING_RESPONSE_PENALTY`    | 25     | Penalización por NO_RESPONSE |
+| `MATCHING_REPUTATION_DECAY_DAYS` | 90  | Días de decaimiento de penalizaciones |
+| `MATCHING_MAX_ACTIVE_REQUESTS` | 2      | Máximo de pedidos activos simultáneos |
+| `MATCHING_DISTRIBUTION_DAILY_BONUS` | 10 | Bonus diario por tiempo desde última asignación |
 
 | Endpoint         | Método | Descripción                      | Rol mínimo |
 |-----------------|--------|----------------------------------|-----------|
@@ -742,7 +760,7 @@ const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
 
 **Sin variables configuradas:** Si `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
-### Matching
+### Matching (ACTUALIZADO AUT-186)
 
 Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
@@ -751,20 +769,47 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona |
 | `calculateScore()`      | Calcula el score individual de un profesional       |
 
-**Repository (matching.repository.ts) — queries de timeout (AUT-177):**
+**Repository (matching.repository.ts) — queries de scoring:**
 
 | Método                          | Descripción                                                    |
 |---------------------------------|----------------------------------------------------------------|
+| `getAverageRatings()`           | Promedio de los 4 ejes de rating (puntualidad, calidad, comunicación, precio justo) por profesional |
+| `getRecentAverageRatings()`     | Igual que `getAverageRatings` pero filtrado a últimos 30 días para calcular tendencia |
+| `countRejectedEvents()`         | Cantidad de eventos REJECTED por profesional (para penalización en distribución) |
+| `getBadgeStatus()`              | Si el profesional tiene badge de excelencia activo            |
 | `findRequestsForReminder()`     | Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 min atrás (incluye `assignedProfessional.phone`) |
 | `findRequestsForReassignment()` | Busca pedidos ASSIGNED con `updatedAt` > 90 min atrás          |
 
-**Filtros duros**: status ACTIVE, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo 2 pedidos activos, no rechazó el pedido actual.
+**Filtros duros**: status ACTIVE | OBSERVATION, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo de pedidos activos configurable, no rechazó el pedido actual.
 
-**Scoring** (calculado en tiempo real, no almacenado): Cumplimiento (50%) + TasaRespuesta (30%) + Recomendación (10%) + Distribución (10%). Parámetros configurables vía `SystemConfig` con defaults.
+**Fórmula de scoring (AUT-186):**
+```
+score_final = compliance        × 0.35
+            + responseRate      × 0.25
+            + qualityRating     × 0.20   (promedio 4 ejes, reemplaza wouldRecommend como componente principal)
+            + recommendation    × 0.10   (wouldRecommend se mantiene con menos peso)
+            + distribution      × 0.05   (reducido, penaliza rechazos)
+            + planScore         × 0.05   (nuevo con peso real: Básico=33, Profesional=66, Premium=100)
+            + badgeBonus        (fijo +5 si hasBadge, configurable)
+            ± tendencyBonus     (mejora reciente en ratings, máx ±15 puntos)
+```
 
-**Desempate por plan**: Cuando dos profesionales tienen score similar (diferencia < 5 puntos), el de mayor `plan.priority` gana la posición. Premium (3) > Profesional (2) > Básico (1). Si no tiene membresía activa, se trata como priority=1.
+**Pesos**: 0.35 + 0.25 + 0.20 + 0.10 + 0.05 + 0.05 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
 
-**Logs de diagnóstico**: `applyHardFilters()` loguea cada profesional excluido con su motivo (cannot receive requests con membership/trialUsed/limit, o max active requests alcanzado). `findEligibleProfessionals()` loguea los resultados crudos de la query y los filtros aplicados.
+**Componentes del scoring:**
+- **Compliance (35%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
+- **ResponseRate (25%)**: base 100, penalización por NO_RESPONSE
+- **QualityRating (20%)**: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5 → 0-100). Sin datos → 60 (score neutro, para no penalizar nuevos). Con datos recientes → bonus/penalización de tendencia (máx ±15)
+- **Recommendation (10%)**: % de feedbacks con wouldRecommend = true. Sin feedbacks → 50
+- **Distribution (5%)**: bonus por tiempo desde última asignación, penalizado por rechazos (REJECTED events)
+- **PlanScore (5%)**: priority 1 (Básico) → 33, 2 (Profesional) → 66, 3 (Premium) → 100. El plan NUNCA puede hacer que un profesional con mala reputación supere a uno con buena (diferencia máxima por plan: ~5 puntos)
+- **BadgeBonus**: +5 fijo si hasBadge = true (configurable vía MATCHING_BADGE_BONUS)
+
+**Parámetros configurables vía `SystemConfig` con defaults: `MATCHING_*` keys.**
+
+**Ordenamiento**: por score descendente simple (sin desempate manual por plan — el plan ya está en el score).
+
+**Logs de diagnóstico**: `applyHardFilters()` loguea cada profesional excluido con su motivo. `findEligibleProfessionals()` loguea los resultados crudos y filtrados.
 
 ### Requests
 
@@ -1323,17 +1368,22 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` define el timeout de respuesta del profesional asignado (default: 2)
   - `AUTO_COMPLETE_HOURS` define las horas sin confirmación para auto-completar un pedido (default: 24)
   - Las claves de configuración se crean/actualizan vía upsert
-- Motor de matching:
+- Motor de matching (ACTUALIZADO AUT-186):
   - Scoring en tiempo real, no persistido en DB
-  - Filtros duros: status ACTIVE, zona, categoría, canReceiveRequests, máximo 2 activos, no rechazó el pedido
-  - Score = Cumplimiento × 0.50 + TasaRespuesta × 0.30 + Recomendación × 0.10 + Distribución × 0.10
-  - Cumplimiento: base 100, -50 por NOT_FULFILLED atenuado linealmente hasta `REPUTATION_DECAY_DAYS` (default: 90). Mín 0.
-  - TasaRespuesta: base 100, -25 por NO_RESPONSE. Mín 0.
-  - Recomendación: % feedbacks con `wouldRecommend = true`. Sin feedbacks → 50.
-  - Distribución: `min(100, días × 10)`. Sin pedidos previos → 100.
+  - Filtros duros: status ACTIVE | OBSERVATION, zona, categoría, canReceiveRequests, máximo activos configurable, no rechazó el pedido
+  - Fórmula: Compliance × 0.35 + ResponseRate × 0.25 + QualityRating × 0.20 + Recommendation × 0.10 + Distribution × 0.05 + PlanScore × 0.05 + BadgeBonus (fijo) + TendencyBonus (máx ±15)
+  - Compliance: base 100, -50 por NOT_FULFILLED atenuado linealmente hasta `REPUTATION_DECAY_DAYS` (default: 90). Mín 0.
+  - ResponseRate: base 100, -25 por NO_RESPONSE. Mín 0.
+  - QualityRating: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5). Sin datos → 60 (score neutro). Con datos recientes (30d) → bonus/penalización de tendencia (máx ±15).
+  - Recommendation: % feedbacks con `wouldRecommend = true`. Sin feedbacks → 50.
+  - Distribution: bonus por tiempo desde última asignación (días × dailyBonus). Penalizado por rechazos (REJECTED events, -10 c/u por default).
+  - PlanScore: Básico=33, Profesional=66, Premium=100. Con peso 0.05, la diferencia máxima por plan es ~3 puntos.
+  - BadgeBonus: +5 fijo si hasBadge = true (configurable). No ponderado — se agrega al final.
+  - Ordenamiento por score descendente simple (sin desempate manual por plan).
+  - El plan NUNCA puede compensar mala reputación.
   - Todos los pesos, penalizaciones y límites son configurables vía `SystemConfig` con defaults en `MATCHING_*` keys.
-   - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
-   - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
+  - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
+  - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
 - Pedidos:
   - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION) no puede crear otro → 409
   - Usuario bloqueado no puede crear pedidos → 403

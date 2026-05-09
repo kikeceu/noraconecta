@@ -119,6 +119,19 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'REPUTATION_PENALTY_DECAY_DAYS', value: '90' },
     { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '5' },
     { key: 'MATCHING_MAX_ACTIVE_REQUESTS', value: '5' },
+    { key: 'MATCHING_WEIGHT_COMPLIANCE', value: '0.35' },
+    { key: 'MATCHING_WEIGHT_RESPONSE_RATE', value: '0.25' },
+    { key: 'MATCHING_WEIGHT_RECOMMENDATION', value: '0.10' },
+    { key: 'MATCHING_WEIGHT_DISTRIBUTION', value: '0.05' },
+    { key: 'MATCHING_WEIGHT_QUALITY_RATING', value: '0.20' },
+    { key: 'MATCHING_WEIGHT_PLAN', value: '0.05' },
+    { key: 'MATCHING_BADGE_BONUS', value: '5' },
+    { key: 'MATCHING_REJECTION_PENALTY', value: '10' },
+    { key: 'MATCHING_TENDENCY_WEIGHT', value: '0.15' },
+    { key: 'MATCHING_COMPLIANCE_PENALTY', value: '50' },
+    { key: 'MATCHING_RESPONSE_PENALTY', value: '25' },
+    { key: 'MATCHING_REPUTATION_DECAY_DAYS', value: '90' },
+    { key: 'MATCHING_DISTRIBUTION_DAILY_BONUS', value: '10' },
   ];
 
   for (const cfg of configs) {

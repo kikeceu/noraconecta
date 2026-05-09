@@ -12,36 +12,51 @@ interface ScoringConfig {
   weightResponseRate: number;
   weightRecommendation: number;
   weightDistribution: number;
+  weightQualityRating: number;
+  weightPlan: number;
   compliancePenalty: number;
   responsePenalty: number;
   reputationDecayDays: number;
   maxActiveRequests: number;
   distributionDailyBonus: number;
   trialRequestsLimit: number;
+  badgeBonus: number;
+  rejectionPenalty: number;
+  tendencyWeight: number;
 }
 
-const DEFAULT_WEIGHT_COMPLIANCE = 0.5;
-const DEFAULT_WEIGHT_RESPONSE_RATE = 0.3;
-const DEFAULT_WEIGHT_RECOMMENDATION = 0.1;
-const DEFAULT_WEIGHT_DISTRIBUTION = 0.1;
+const DEFAULT_WEIGHT_COMPLIANCE = 0.35;
+const DEFAULT_WEIGHT_RESPONSE_RATE = 0.25;
+const DEFAULT_WEIGHT_RECOMMENDATION = 0.10;
+const DEFAULT_WEIGHT_DISTRIBUTION = 0.05;
+const DEFAULT_WEIGHT_QUALITY_RATING = 0.20;
+const DEFAULT_WEIGHT_PLAN = 0.05;
 const DEFAULT_COMPLIANCE_PENALTY = 50;
 const DEFAULT_RESPONSE_PENALTY = 25;
 const DEFAULT_REPUTATION_DECAY_DAYS = 90;
 const DEFAULT_MAX_ACTIVE_REQUESTS = 2;
 const DEFAULT_DISTRIBUTION_DAILY_BONUS = 10;
 const DEFAULT_TRIAL_REQUESTS_LIMIT = 3;
+const DEFAULT_BADGE_BONUS = 5;
+const DEFAULT_REJECTION_PENALTY = 10;
+const DEFAULT_TENDENCY_WEIGHT = 0.15;
 
 const CONFIG_KEYS = {
   WEIGHT_COMPLIANCE: 'MATCHING_WEIGHT_COMPLIANCE',
   WEIGHT_RESPONSE_RATE: 'MATCHING_WEIGHT_RESPONSE_RATE',
   WEIGHT_RECOMMENDATION: 'MATCHING_WEIGHT_RECOMMENDATION',
   WEIGHT_DISTRIBUTION: 'MATCHING_WEIGHT_DISTRIBUTION',
+  WEIGHT_QUALITY_RATING: 'MATCHING_WEIGHT_QUALITY_RATING',
+  WEIGHT_PLAN: 'MATCHING_WEIGHT_PLAN',
   COMPLIANCE_PENALTY: 'MATCHING_COMPLIANCE_PENALTY',
   RESPONSE_PENALTY: 'MATCHING_RESPONSE_PENALTY',
   REPUTATION_DECAY_DAYS: 'MATCHING_REPUTATION_DECAY_DAYS',
   MAX_ACTIVE_REQUESTS: 'MATCHING_MAX_ACTIVE_REQUESTS',
   DISTRIBUTION_DAILY_BONUS: 'MATCHING_DISTRIBUTION_DAILY_BONUS',
   TRIAL_REQUESTS_LIMIT: 'TRIAL_REQUESTS_LIMIT',
+  BADGE_BONUS: 'MATCHING_BADGE_BONUS',
+  REJECTION_PENALTY: 'MATCHING_REJECTION_PENALTY',
+  TENDENCY_WEIGHT: 'MATCHING_TENDENCY_WEIGHT',
 } as const;
 
 export class MatchingService {
@@ -102,19 +117,7 @@ export class MatchingService {
       return null;
     }
 
-    const planPriorities = await this.matchingRepository.getPlanPriorities(
-      scored.map((s) => s.professionalId),
-    );
-
-    scored.sort((a, b) => {
-      const scoreDiff = b.score - a.score;
-      if (Math.abs(scoreDiff) < 5) {
-        const aPriority = planPriorities.get(a.professionalId) ?? 1;
-        const bPriority = planPriorities.get(b.professionalId) ?? 1;
-        return bPriority - aPriority;
-      }
-      return scoreDiff;
-    });
+    scored.sort((a, b) => b.score - a.score);
 
     return scored[0];
   }
@@ -179,13 +182,27 @@ export class MatchingService {
     ids: string[],
     config: ScoringConfig,
   ): Promise<MatchResult[]> {
-    const [notFulfilled, noResponseCounts, feedbackStats, lastAssignedDates] =
-      await Promise.all([
-        this.matchingRepository.findNotFulfilledEvents(ids),
-        this.matchingRepository.countNoResponseEvents(ids),
-        this.matchingRepository.getFeedbackStats(ids),
-        this.matchingRepository.getLastAssignedDates(ids),
-      ]);
+    const [
+      notFulfilled,
+      noResponseCounts,
+      feedbackStats,
+      lastAssignedDates,
+      averageRatings,
+      recentRatings,
+      rejectedCounts,
+      badgeStatus,
+      planPriorities,
+    ] = await Promise.all([
+      this.matchingRepository.findNotFulfilledEvents(ids),
+      this.matchingRepository.countNoResponseEvents(ids),
+      this.matchingRepository.getFeedbackStats(ids),
+      this.matchingRepository.getLastAssignedDates(ids),
+      this.matchingRepository.getAverageRatings(ids),
+      this.matchingRepository.getRecentAverageRatings(ids),
+      this.matchingRepository.countRejectedEvents(ids),
+      this.matchingRepository.getBadgeStatus(ids),
+      this.matchingRepository.getPlanPriorities(ids),
+    ]);
 
     return ids.map((id) => ({
       professionalId: id,
@@ -195,6 +212,11 @@ export class MatchingService {
         noResponseCounts,
         feedbackStats,
         lastAssignedDates,
+        averageRatings,
+        recentRatings,
+        rejectedCounts,
+        badgeStatus,
+        planPriorities,
         config,
       ),
     }));
@@ -204,13 +226,27 @@ export class MatchingService {
     professionalId: string,
     config: ScoringConfig,
   ): Promise<number> {
-    const [notFulfilled, noResponseCounts, feedbackStats, lastAssignedDates] =
-      await Promise.all([
-        this.matchingRepository.findNotFulfilledEvents([professionalId]),
-        this.matchingRepository.countNoResponseEvents([professionalId]),
-        this.matchingRepository.getFeedbackStats([professionalId]),
-        this.matchingRepository.getLastAssignedDates([professionalId]),
-      ]);
+    const [
+      notFulfilled,
+      noResponseCounts,
+      feedbackStats,
+      lastAssignedDates,
+      averageRatings,
+      recentRatings,
+      rejectedCounts,
+      badgeStatus,
+      planPriorities,
+    ] = await Promise.all([
+      this.matchingRepository.findNotFulfilledEvents([professionalId]),
+      this.matchingRepository.countNoResponseEvents([professionalId]),
+      this.matchingRepository.getFeedbackStats([professionalId]),
+      this.matchingRepository.getLastAssignedDates([professionalId]),
+      this.matchingRepository.getAverageRatings([professionalId]),
+      this.matchingRepository.getRecentAverageRatings([professionalId]),
+      this.matchingRepository.countRejectedEvents([professionalId]),
+      this.matchingRepository.getBadgeStatus([professionalId]),
+      this.matchingRepository.getPlanPriorities([professionalId]),
+    ]);
 
     return this.computeScoreFromData(
       professionalId,
@@ -218,6 +254,11 @@ export class MatchingService {
       noResponseCounts,
       feedbackStats,
       lastAssignedDates,
+      averageRatings,
+      recentRatings,
+      rejectedCounts,
+      badgeStatus,
+      planPriorities,
       config,
     );
   }
@@ -228,19 +269,42 @@ export class MatchingService {
     noResponseCounts: Map<string, number>,
     feedbackStats: Map<string, { total: number; wouldRecommend: number }>,
     lastAssignedDates: Map<string, Date | null>,
+    averageRatings: Map<string, number | null>,
+    recentRatings: Map<string, number | null>,
+    rejectedCounts: Map<string, number>,
+    badgeStatus: Map<string, boolean>,
+    planPriorities: Map<string, number>,
     config: ScoringConfig,
   ): number {
     const compliance = this.computeCompliance(professionalId, notFulfilled, config);
     const response = this.computeResponseRate(professionalId, noResponseCounts, config);
     const recommendation = this.computeRecommendation(professionalId, feedbackStats);
-    const distribution = this.computeDistribution(professionalId, lastAssignedDates, config);
+    const distribution = this.computeDistribution(
+      professionalId,
+      lastAssignedDates,
+      rejectedCounts,
+      config,
+    );
+    const qualityRating = this.computeQualityRating(
+      professionalId,
+      averageRatings,
+      recentRatings,
+      config,
+    );
+    const planScore = this.computePlanScore(professionalId, planPriorities);
+    const hasBadge = badgeStatus.get(professionalId) ?? false;
 
-    return (
+    const baseScore =
       compliance * config.weightCompliance +
       response * config.weightResponseRate +
       recommendation * config.weightRecommendation +
-      distribution * config.weightDistribution
-    );
+      distribution * config.weightDistribution +
+      qualityRating * config.weightQualityRating +
+      planScore * config.weightPlan;
+
+    const badgeBonus = hasBadge ? config.badgeBonus : 0;
+
+    return Math.min(100, baseScore + badgeBonus);
   }
 
   private computeCompliance(
@@ -291,19 +355,53 @@ export class MatchingService {
   private computeDistribution(
     professionalId: string,
     lastAssignedDates: Map<string, Date | null>,
+    rejectedCounts: Map<string, number>,
     config: ScoringConfig,
   ): number {
     const lastAssignedAt = lastAssignedDates.get(professionalId);
+    const rejections = rejectedCounts.get(professionalId) ?? 0;
 
-    if (!lastAssignedAt) {
-      return 100;
+    let base = 100;
+    if (lastAssignedAt) {
+      const daysSince = Math.floor(
+        (Date.now() - lastAssignedAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      base = Math.min(100, daysSince * config.distributionDailyBonus);
     }
 
-    const daysSince = Math.floor(
-      (Date.now() - lastAssignedAt.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const rejectionPenalty = rejections * config.rejectionPenalty;
+    return Math.max(0, base - rejectionPenalty);
+  }
 
-    return Math.min(100, daysSince * config.distributionDailyBonus);
+  private computeQualityRating(
+    professionalId: string,
+    averageRatings: Map<string, number | null>,
+    recentRatings: Map<string, number | null>,
+    config: ScoringConfig,
+  ): number {
+    const historicAvg = averageRatings.get(professionalId) ?? null;
+    const recentAvg = recentRatings.get(professionalId) ?? null;
+
+    if (historicAvg === null) return 60;
+
+    const normalizedHistoric = ((historicAvg - 1) / 4) * 100;
+
+    if (recentAvg !== null) {
+      const normalizedRecent = ((recentAvg - 1) / 4) * 100;
+      const tendency = normalizedRecent - normalizedHistoric;
+      const tendencyBonus = Math.max(-15, Math.min(15, tendency * config.tendencyWeight));
+      return Math.max(0, Math.min(100, normalizedHistoric + tendencyBonus));
+    }
+
+    return normalizedHistoric;
+  }
+
+  private computePlanScore(
+    professionalId: string,
+    planPriorities: Map<string, number>,
+  ): number {
+    const priority = planPriorities.get(professionalId) ?? 0;
+    return Math.min(100, (priority / 3) * 100);
   }
 
   // --- Config ---
@@ -331,12 +429,17 @@ export class MatchingService {
       weightResponseRate: getFloat(CONFIG_KEYS.WEIGHT_RESPONSE_RATE, DEFAULT_WEIGHT_RESPONSE_RATE),
       weightRecommendation: getFloat(CONFIG_KEYS.WEIGHT_RECOMMENDATION, DEFAULT_WEIGHT_RECOMMENDATION),
       weightDistribution: getFloat(CONFIG_KEYS.WEIGHT_DISTRIBUTION, DEFAULT_WEIGHT_DISTRIBUTION),
+      weightQualityRating: getFloat(CONFIG_KEYS.WEIGHT_QUALITY_RATING, DEFAULT_WEIGHT_QUALITY_RATING),
+      weightPlan: getFloat(CONFIG_KEYS.WEIGHT_PLAN, DEFAULT_WEIGHT_PLAN),
       compliancePenalty: getInt(CONFIG_KEYS.COMPLIANCE_PENALTY, DEFAULT_COMPLIANCE_PENALTY),
       responsePenalty: getInt(CONFIG_KEYS.RESPONSE_PENALTY, DEFAULT_RESPONSE_PENALTY),
       reputationDecayDays: getInt(CONFIG_KEYS.REPUTATION_DECAY_DAYS, DEFAULT_REPUTATION_DECAY_DAYS),
       maxActiveRequests: getInt(CONFIG_KEYS.MAX_ACTIVE_REQUESTS, DEFAULT_MAX_ACTIVE_REQUESTS),
       distributionDailyBonus: getInt(CONFIG_KEYS.DISTRIBUTION_DAILY_BONUS, DEFAULT_DISTRIBUTION_DAILY_BONUS),
       trialRequestsLimit: getInt(CONFIG_KEYS.TRIAL_REQUESTS_LIMIT, DEFAULT_TRIAL_REQUESTS_LIMIT),
+      badgeBonus: getFloat(CONFIG_KEYS.BADGE_BONUS, DEFAULT_BADGE_BONUS),
+      rejectionPenalty: getFloat(CONFIG_KEYS.REJECTION_PENALTY, DEFAULT_REJECTION_PENALTY),
+      tendencyWeight: getFloat(CONFIG_KEYS.TENDENCY_WEIGHT, DEFAULT_TENDENCY_WEIGHT),
     };
   }
 }
