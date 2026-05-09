@@ -386,6 +386,38 @@ export class ProfessionalsService {
           order as { events?: Array<{ type: string }> }
         ).events?.[0];
 
+        const feedback = order.feedback;
+        const userRatingAvg = feedback?.ratedByUserAt
+          ? parseFloat(
+              (
+                ((feedback.punctualityRating ?? 0) +
+                  (feedback.qualityRating ?? 0) +
+                  (feedback.communicationRating ?? 0) +
+                  (feedback.priceFairnessRating ?? 0)) / 4
+              ).toFixed(1)
+            )
+          : null;
+
+        const userRatingDetail = feedback?.ratedByUserAt
+          ? {
+              punctualityRating: feedback.punctualityRating!,
+              qualityRating: feedback.qualityRating!,
+              communicationRating: feedback.communicationRating!,
+              priceFairnessRating: feedback.priceFairnessRating!,
+              userComment: feedback.userComment ?? null,
+            }
+          : null;
+
+        const professionalRatingDetail = feedback?.ratedByProfessionalAt
+          ? {
+              requestClarityRating: feedback.requestClarityRating!,
+              userAvailabilityRating: feedback.userAvailabilityRating!,
+              userTreatmentRating: feedback.userTreatmentRating!,
+              wouldServeAgain: feedback.wouldServeAgain!,
+              professionalComment: feedback.professionalComment ?? null,
+            }
+          : null;
+
         return {
           id: order.id,
           createdAt: order.createdAt,
@@ -402,6 +434,9 @@ export class ProfessionalsService {
           ratedByUser:
             order.feedback?.ratedByUserAt !== null
             && order.feedback?.ratedByUserAt !== undefined,
+          userRatingAvg,
+          userRatingDetail,
+          professionalRatingDetail,
           coordinationStatus: order.coordinationStatus,
           clientAvailability: order.clientAvailability,
           clientAddress: order.clientAddress,

@@ -203,7 +203,20 @@ export class ProfessionalsRepository {
           geoNode: true,
           user: { select: { name: true, phone: true } },
           feedback: {
-            select: { ratedByProfessionalAt: true, ratedByUserAt: true },
+            select: {
+              ratedByProfessionalAt: true,
+              ratedByUserAt: true,
+              punctualityRating: true,
+              qualityRating: true,
+              communicationRating: true,
+              priceFairnessRating: true,
+              userComment: true,
+              requestClarityRating: true,
+              userAvailabilityRating: true,
+              userTreatmentRating: true,
+              wouldServeAgain: true,
+              professionalComment: true,
+            },
           },
           events: {
             where: { professionalId },

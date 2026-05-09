@@ -77,6 +77,21 @@ export interface PanelOrder {
   geoNode: { id: string; name: string } | null;
   ratedByProfessional: boolean;
   ratedByUser: boolean;
+  userRatingAvg: number | null;
+  userRatingDetail: {
+    punctualityRating: number;
+    qualityRating: number;
+    communicationRating: number;
+    priceFairnessRating: number;
+    userComment: string | null;
+  } | null;
+  professionalRatingDetail: {
+    requestClarityRating: number;
+    userAvailabilityRating: number;
+    userTreatmentRating: number;
+    wouldServeAgain: boolean;
+    professionalComment: string | null;
+  } | null;
   coordinationStatus?: string | null;
   clientAvailability?: string | null;
   clientAddress?: string | null;
