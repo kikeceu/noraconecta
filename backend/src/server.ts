@@ -19,6 +19,7 @@ import escalationsRoutes from './modules/escalations/escalations.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
+import webhooksRoutes from './routes/webhooks.routes';
 import { RequestsService } from './modules/requests/requests.service';
 import { RequestsRepository } from './modules/requests/requests.repository';
 import { MatchingRepository } from './modules/matching/matching.repository';
@@ -31,7 +32,24 @@ const app = express();
 app.use(helmet());
 app.use(cors());
 app.use(morgan('dev'));
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (req, _res, buf) => {
+      (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
+
+const whatsappToken = process.env.WHATSAPP_API_TOKEN;
+const phoneIdUser = process.env.WHATSAPP_PHONE_NUMBER_ID_USER;
+const phoneIdProfessional = process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL;
+
+if (!whatsappToken || !phoneIdUser || !phoneIdProfessional) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[server] WhatsApp API not fully configured. Webhook endpoint will respond 503. Simulator remains operational.',
+  );
+}
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -50,6 +68,7 @@ app.use('/escalations', escalationsRoutes);
 app.use('/admin', adminRoutes);
 app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
+app.use('/webhooks', webhooksRoutes);
 
 app.use(errorHandler);
 
