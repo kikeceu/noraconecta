@@ -341,7 +341,10 @@ export class ProfessionalsController {
         return;
       }
 
-      const data = await professionalsService.getActivityStats(token);
+      const days = parseInt(req.query.days as string) || 7;
+      const validDays = [7, 30, 90].includes(days) ? days : 7;
+
+      const data = await professionalsService.getActivityStats(token, validDays);
       res.status(200).json(data);
     } catch (err) {
       next(err);

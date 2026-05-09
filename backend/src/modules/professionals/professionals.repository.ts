@@ -270,19 +270,16 @@ export class ProfessionalsRepository {
     });
   }
 
-  async findActivityStats(professionalId: string) {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const eightWeeksAgo = new Date();
-    eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
+  async findActivityStats(professionalId: string, days: number) {
+    const rangeStart = new Date();
+    rangeStart.setDate(rangeStart.getDate() - days);
 
     const [recentEvents, recentFeedback] = await Promise.all([
       prisma.requestEvent.findMany({
         where: {
           professionalId,
           type: { in: ['COMPLETED', 'CANCELLED', 'NOT_FULFILLED'] },
-          createdAt: { gte: sevenDaysAgo },
+          createdAt: { gte: rangeStart },
         },
         select: { type: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
@@ -290,7 +287,7 @@ export class ProfessionalsRepository {
       prisma.feedback.findMany({
         where: {
           request: { assignedProfessionalId: professionalId },
-          ratedByUserAt: { gte: eightWeeksAgo },
+          ratedByUserAt: { gte: rangeStart },
         },
         select: {
           punctualityRating: true,

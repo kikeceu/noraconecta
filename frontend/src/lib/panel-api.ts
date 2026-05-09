@@ -53,9 +53,10 @@ export async function getPendingRequests(
 
 export async function getPanelStats(
   sessionToken: string,
+  days: number = 7,
 ): Promise<ActivityStatsResponse> {
   const res = await request<ActivityStatsResponse>(
-    `/professionals/session/${encodeURIComponent(sessionToken)}/stats`,
+    `/professionals/session/${encodeURIComponent(sessionToken)}/stats?days=${days}`,
   );
   return res;
 }
