@@ -22,8 +22,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── server.ts                  # Entry point: Express app bootstrap
 │   │   ├── lib/
 │   │   │   ├── prisma.ts              # Prisma client singleton
-│   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs)
-│   │   │   └── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
+│   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
+│   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
+│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes (AUT-134)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -115,6 +116,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   ├── routes/                    # (placeholder for future shared routes)
+│   │   │   └── webhooks.routes.ts      # WhatsApp webhook endpoint (verification + inbound messages) (AUT-134)
 │   │   ├── controllers/               # (placeholder for future shared controllers)
 │   │   ├── services/                  # (placeholder for future shared services)
 │   │   └── repositories/              # (placeholder for future shared repositories)
@@ -233,6 +235,8 @@ src/
 ├── server.ts                  # Entry point: Express app bootstrap
 ├── lib/
 │   └── prisma.ts              # Prisma client singleton
+│   └── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
+│   └── whatsapp-adapter.ts    # WhatsApp Business API adapter (AUT-134)
 ├── middleware/
 │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   ├── require-auth.ts        # JWT validation middleware
@@ -274,8 +278,8 @@ src/
 │   └── matching/
 │       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
 │       └── matching.repository.ts # Prisma queries para motor de matching
-├── routes/                    # (placeholder for future shared routes)
-├── controllers/               # (placeholder for future shared controllers)
+├── routes/                    # Webhook endpoints
+│   └── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
 ├── services/                  # (placeholder for future shared services)
 └── repositories/              # (placeholder for future shared repositories)
 ```
@@ -689,6 +693,51 @@ POST /bot/message
 |-----------------|--------|----------------------------------|-----------|
 | `/config`       | GET    | Ver toda la configuración        | SUPERADMIN|
 | `/config/:key`  | PATCH  | Actualizar un parámetro          | SUPERADMIN|
+
+### Webhooks (AUT-134)
+
+Endpoints de webhook para WhatsApp Cloud API de Meta. Reciben mensajes entrantes y coordinan el flujo con el BotService existente.
+
+| Endpoint               | Método | Descripción                                          | Auth      |
+|-----------------------|--------|------------------------------------------------------|-----------|
+| `/webhooks/whatsapp`   | GET    | Verificación de webhook (handshake inicial con Meta) | HMAC      |
+| `/webhooks/whatsapp`   | POST   | Recepción de mensajes entrantes de WhatsApp          | HMAC      |
+
+**Arquitectura:**
+```
+WhatsApp (Meta) → POST /webhooks/whatsapp
+  → Validación HMAC-SHA256 (X-Hub-Signature-256)
+  → Responder 200 inmediatamente a Meta
+  → Procesamiento asincrónico:
+    → WhatsAppAdapter.parseWebhook(payload)
+      → Determinar rol (USER/PROFESSIONAL) según phone_number_id
+      → Para imágenes/audio: descargar de Meta → subir a R2
+      → Retornar IncomingMessage normalizado
+    → BotService.processMessage(phone, message)
+    → WhatsAppAdapter.sendText() / sendImage() (usa shouldUseTemplate() antes de enviar)
+```
+
+**WhatsAppAdapter (`src/lib/whatsapp-adapter.ts`):**
+
+| Método                 | Descripción                                                                |
+|-----------------------|----------------------------------------------------------------------------|
+| `isConfigured()`      | Verifica que las variables de entorno de WhatsApp estén configuradas        |
+| `parseWebhook()`      | Parsea el payload del webhook → `{ message: IncomingMessage, role }`       |
+| `sendText()`          | Envía texto libre (o template si fuera de ventana de 24hs)                 |
+| `sendImage()`         | Envía imagen por URL pública                                              |
+| `sendTemplate()`      | Envía mensaje de template con parámetros                                  |
+| `downloadAndUploadToR2()` | Descarga archivo de Meta → sube a R2 → retorna URL pública           |
+
+**Determinación del rol:**
+```typescript
+const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
+  ? 'PROFESSIONAL'
+  : 'USER';
+```
+
+**Coexistencia con el simulador:** El endpoint `/webhooks/whatsapp` y el simulador (`/bot/message`) son completamente independientes. Ambos llaman al mismo `BotService` pero tienen entrada y salida propias. El simulador siempre está activo.
+
+**Sin variables configuradas:** Si `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
 ### Matching
 
@@ -1206,6 +1255,11 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `OPENAI_API_KEY`    | No        | API key de OpenAI (obsoleta para parseo de fechas desde AUT-166; conservada para usos futuros) |
 | `OPENAI_BASE_URL`   | No        | URL base alternativa de la API de OpenAI (default: https://api.openai.com/v1) |
 | `LLM_MODEL`         | No        | Modelo LLM a usar (default: gpt-4o-mini). Sin uso activo en coordinación desde AUT-166 |
+| `WHATSAPP_API_TOKEN`| No        | Token de la app de Meta (compartido entre ambos números) |
+| `WHATSAPP_PHONE_NUMBER_ID_USER`| No | Phone Number ID del número de WhatsApp para usuarios |
+| `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL`| No | Phone Number ID del número de WhatsApp para profesionales |
+| `WHATSAPP_WEBHOOK_SECRET`| No | Secret para validación HMAC-SHA256 del webhook |
+| `WHATSAPP_API_VERSION`| No (v19.0) | Versión de la API de Meta |
 
 ## Business Rules
 
@@ -1336,6 +1390,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - La URL pre-firmada expira después de un tiempo configurable (default: 3600 segundos)
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
 - Ventana de conversación de WhatsApp (24hs): el sistema registra `lastInboundAt` en cada mensaje entrante. Si el último mensaje recibido fue hace menos de 24hs, NORA puede responder con mensaje libre; si pasaron más de 24hs o nunca hubo mensaje, NORA debe usar una plantilla aprobada. La ventana la abre el usuario/profesional cuando escribe, no cuando NORA escribe. El helper `shouldUseTemplate()` en `utils/whatsapp-utils.ts` encapsula esta decisión para todos los módulos.
+- **Dos números de WhatsApp (AUT-134):** NORA opera con dos números distintos: uno para usuarios y otro para profesionales. El rol se determina automáticamente por el `phone_number_id` del webhook de Meta, sin consultar DB.
+- **Webhook WhatsApp (AUT-134):** El endpoint `/webhooks/whatsapp` valida HMAC-SHA256 con `WHATSAPP_WEBHOOK_SECRET` y responde 401 si la firma no es válida. Responde 200 inmediatamente a Meta y procesa el mensaje de forma asincrónica. Recibe mensajes de texto, imagen, audio y ubicación.
+- **Archivos entrantes de WhatsApp (AUT-134):** Imágenes y audio enviados por usuarios/profesionales se descargan de la URL temporal de Meta y se suben a R2. La URL pública de R2 se pasa al `IncomingMessage` para que el bot la procese.
+- **shouldUseTemplate() en envíos salientes (AUT-134):** El `WhatsAppAdapter.sendText()` consulta `shouldUseTemplate()` antes de enviar. Si se necesita template (fuera de ventana de 24hs), usa el template `nora_notification` con el texto como parámetro.
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
 - `resolve` requiere texto de resolución no vacío; registra el admin que resuelve
 - Calificación post-servicio (AUT-142):

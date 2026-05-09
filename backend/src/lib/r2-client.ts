@@ -67,6 +67,30 @@ export class R2Client {
     }));
   }
 
+  async uploadBuffer(
+    key: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; publicUrl: string }> {
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+
+    await this.client.send(command);
+
+    return {
+      key,
+      publicUrl: `${this.publicUrl}/${key}`,
+    };
+  }
+
+  getPublicUrl(key: string): string {
+    return `${this.publicUrl}/${key}`;
+  }
+
   async deleteFile(key: string): Promise<void> {
     const command = new DeleteObjectCommand({
       Bucket: this.bucketName,
