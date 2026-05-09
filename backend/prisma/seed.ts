@@ -117,7 +117,7 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'TRIAL_REQUESTS_LIMIT', value: '5' },
     { key: 'PROFESSIONAL_RESPONSE_TIMEOUT_HOURS', value: '3' },
     { key: 'REPUTATION_PENALTY_DECAY_DAYS', value: '90' },
-    { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '5' },
+    { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '10' },
     { key: 'MATCHING_MAX_ACTIVE_REQUESTS', value: '5' },
     { key: 'MATCHING_WEIGHT_COMPLIANCE', value: '0.35' },
     { key: 'MATCHING_WEIGHT_RESPONSE_RATE', value: '0.25' },
