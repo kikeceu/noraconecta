@@ -1,3 +1,5 @@
+import { brand } from '../../../lib/brand';
+
 interface WelcomeScreenProps {
   professionalName: string;
   onStart: () => void;
@@ -19,7 +21,7 @@ export function WelcomeScreen({ professionalName, onStart }: WelcomeScreenProps)
             className="text-[15px] leading-relaxed text-[#6B7280]"
             style={{ fontFamily: 'DM Sans' }}
           >
-            Completá tus datos para activar tu perfil profesional en NORA.
+            Completá tus datos para activar tu perfil profesional en {brand.fullName}.
           </p>
         </div>
       </div>

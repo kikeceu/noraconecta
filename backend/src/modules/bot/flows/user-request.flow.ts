@@ -105,7 +105,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: { text: 'Hola, soy NORA. Cual es tu nombre?' },
+      response: { text: `Hola, soy ${process.env.APP_NAME ?? 'NORA'}. Cual es tu nombre?` },
       nextStep: 'ASK_NAME',
       tempData,
     };
@@ -120,7 +120,7 @@ export class UserRequestFlow implements FlowHandler {
 
     if (!inputName) {
       return {
-        response: { text: 'Hola, soy NORA. Cual es tu nombre?' },
+        response: { text: `Hola, soy ${process.env.APP_NAME ?? 'NORA'}. Cual es tu nombre?` },
         nextStep: 'ASK_NAME',
         tempData,
       };

@@ -1,5 +1,6 @@
 import type { PanelMembershipData } from '../../../types/panel';
 import { PanelCard } from './PanelCard';
+import { brand } from '../../../lib/brand';
 
 interface ProfessionalMembershipProps {
   membership: PanelMembershipData;
@@ -311,7 +312,7 @@ const BENEFITS = [
   'Perfil destacado en búsquedas',
   'Soporte prioritario por WhatsApp',
   'Estadísticas de rendimiento',
-  'Badge de confianza NORA',
+  `Badge de confianza ${brand.name}`,
 ];
 
 function formatDate(dateStr: string): string {

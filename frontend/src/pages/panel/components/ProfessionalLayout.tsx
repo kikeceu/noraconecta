@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Home, User, CreditCard, ClipboardList, Star, Clock, Activity, Menu, X } from 'lucide-react';
 import type { PanelTab, ProfessionalStatus } from '../../../types/panel';
+import { brand } from '../../../lib/brand';
 
 interface ProfessionalLayoutProps {
   activeTab: PanelTab;
@@ -36,7 +37,7 @@ function DesktopSidebar({
           className="text-2xl font-bold text-[#0B6E4F]"
           style={{ fontFamily: 'DM Sans' }}
         >
-          NORA
+          {brand.name}
         </span>
         <span
           className="text-xs text-[#9CA3AF] mt-0.5"
@@ -113,7 +114,7 @@ function MobileHeader({
         className="text-lg font-bold text-[#0B6E4F] shrink-0"
         style={{ fontFamily: 'DM Sans' }}
       >
-        NORA
+        {brand.name}
       </span>
     </header>
   );
@@ -169,7 +170,7 @@ export function ProfessionalLayout({
                 className="text-xl font-bold text-[#0B6E4F]"
                 style={{ fontFamily: 'DM Sans' }}
               >
-                NORA
+                {brand.name}
               </span>
               <p
                 className="text-xs text-[#9CA3AF] mt-0.5"

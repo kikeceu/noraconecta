@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { getConfig, updateConfig } from '../../lib/admin-api';
+import { brand } from '../../lib/brand';
 import type { SystemConfig } from '../../types/admin';
 
 interface ConfigGroup {
@@ -122,7 +123,7 @@ export function SettingsPage() {
           Configuración del sistema
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Parámetros generales de la plataforma NORA
+          Parámetros generales de la plataforma {brand.fullName}
         </p>
       </div>
 

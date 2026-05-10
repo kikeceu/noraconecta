@@ -1,3 +1,5 @@
+import { brand } from '../../lib/brand';
+
 interface EmptyStateProps {
   readonly phoneSelected: boolean;
 }
@@ -24,7 +26,7 @@ export function EmptyState({ phoneSelected }: EmptyStateProps) {
         </h2>
         <p className="text-[0.8125rem] leading-relaxed text-zinc-muted">
           {phoneSelected
-            ? 'Escribi un mensaje para simular una conversacion con NORA'
+            ? `Escribi un mensaje para simular una conversacion con ${brand.name}`
             : 'Selecciona un telefono y empeza a escribir para simular una conversacion'}
         </p>
       </div>

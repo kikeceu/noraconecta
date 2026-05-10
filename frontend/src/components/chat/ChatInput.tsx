@@ -1,5 +1,6 @@
 import { useState, useRef, FormEvent, ChangeEvent, useCallback } from 'react';
 import { presignUpload, uploadToR2 } from '../../lib/api';
+import { brand } from '../../lib/brand';
 
 interface ChatInputProps {
   readonly onSend: (text: string, imageUrls?: string[], audioUrl?: string) => void;
@@ -314,7 +315,7 @@ export function ChatInput({ onSend, onSendLocation, showLocationButton, disabled
                 isRecording
                   ? 'Grabando...'
                   : disabled
-                    ? 'NORA esta escribiendo...'
+                    ? `${brand.name} esta escribiendo...`
                     : 'Escribi un mensaje...'
               }
               className="h-9 flex-1 rounded-xl border border-border bg-elevated px-4 text-[0.9375rem] text-steel outline-none transition-colors placeholder:text-iron focus:border-emerald/50 disabled:opacity-50"

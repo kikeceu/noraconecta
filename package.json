@@ -8,6 +8,8 @@
     "dev:frontend": "npm run dev --workspace=@noraconecta/frontend",
     "build:frontend": "npm run build --workspace=@noraconecta/frontend",
     "migrate": "npm run prisma:migrate --workspace=@noraconecta/backend",
-    "seed": "npm run prisma:seed --workspace=@noraconecta/backend"
+    "seed": "npm run prisma:seed --workspace=@noraconecta/backend",
+    "inject-brand": "bash scripts/inject-brand.sh",
+    "build:landing": "bash scripts/inject-brand.sh && cd landing && npx tailwindcss -i input.css -o output.css --minify"
   }
 }
