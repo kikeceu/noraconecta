@@ -6,3 +6,4 @@ coverage/
 .cache/
 *.tsbuildinfo
 landing/output.css
+landing/index.html

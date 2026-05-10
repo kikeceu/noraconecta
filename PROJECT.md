@@ -158,7 +158,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
 │   │   │   ├── onboarding-api.ts      # API client for professional onboarding (NEW)
 │   │   │   ├── panel-api.ts           # API client for professional panel (NEW)
-│   │   │   └── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
+│   │   │   ├── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
+│   │   │   └── brand.ts               # Brand config: name, fullName, tagline, url from env (AUT-187)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep, FileUploadInfo, OnboardingFormData, TokenValidationResponse
@@ -229,12 +230,17 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   ├── tsconfig.json                   # React + TypeScript strict config
 │   └── vite.config.ts                  # Vite + React + Tailwind + API proxy (supports BUILD_TARGET)
 ├── landing/                           # Landing page estática (AUT-135)
-│   ├── index.html                      # HTML estático optimizado SEO/GEO
+│   ├── index.template.html             # Template con placeholders {{APP_NAME}}, {{APP_FULL_NAME}}, {{APP_TAGLINE}}, {{APP_URL}} (AUT-187)
+│   ├── index.html                      # HTML generado (no commiteado, .gitignore) (AUT-187)
 │   ├── input.css                       # Tailwind v4 source + tokens
 │   ├── output.css                      # CSS compilado (no commiteado)
 │   ├── robots.txt                      # SEO
 │   ├── sitemap.xml                     # SEO
 │   └── DESIGN.md                       # Sistema de diseño
+├── scripts/
+│   └── inject-brand.sh                # Inyección de variables de marca en landing (AUT-187)
+├── .env                                # Variables de entorno raíz (marca) (AUT-187)
+├── .env.example                        # Template de variables de entorno raíz (AUT-187)
 ├── package.json                 # Root workspace config
 ├── .gitignore
 ├── PROJECT.md
@@ -351,18 +357,22 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 
 ### Archivos de entorno del backend
 
-| Variable   | Default                         | Descripción                                  |
-|-----------|---------------------------------|----------------------------------------------|
-| `APP_URL` | `http://app.noraconecta.local`  | Base URL del frontend para links enviados por WhatsApp (verificación + panel) |
+| Variable          | Default                     | Descripción                                  |
+|-------------------|-----------------------------|----------------------------------------------|
+| `APP_URL`         | `http://app.noraconecta.local` | Base URL del frontend para links enviados por WhatsApp (verificación + panel) |
+| `APP_NAME`        | `NORA`                        | Nombre corto de la marca para mensajes del bot, logo (AUT-187) |
+| `APP_FULL_NAME`   | `NORA Conecta`                | Nombre completo para títulos, SEO, textos institucionales (AUT-187) |
+| `APP_TAGLINE`     | `Tu profesional de confianza` | Tagline de la marca (AUT-187) |
+| `APP_URL` (marca) | `https://noraconecta.com`     | URL pública del sitio (AUT-187) |
 
 ### Archivos de entorno por target (frontend)
 
-| Archivo          | Variables                                   |
-|-----------------|---------------------------------------------|
-| `.env.landing`    | `VITE_WHATSAPP_NUMBER`                      |
-| `.env.admin`      | `VITE_API_URL`                              |
-| `.env.app`        | `VITE_API_URL`                              |
-| `.env.development`| `VITE_API_URL` (cargado en `npm run dev`)   |
+| Archivo          | Variables                                                            |
+|-----------------|----------------------------------------------------------------------|
+| `.env.landing`    | `VITE_WHATSAPP_NUMBER`, `VITE_APP_NAME`, `VITE_APP_FULL_NAME`, `VITE_APP_TAGLINE`, `VITE_APP_URL` |
+| `.env.admin`      | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_APP_FULL_NAME`, `VITE_APP_TAGLINE`, `VITE_APP_URL` |
+| `.env.app`        | `VITE_API_URL`, `VITE_APP_NAME`, `VITE_APP_FULL_NAME`, `VITE_APP_TAGLINE`, `VITE_APP_URL` |
+| `.env.development`| `VITE_API_URL`, `VITE_APP_NAME`, `VITE_APP_FULL_NAME`, `VITE_APP_TAGLINE`, `VITE_APP_URL` |
 
 ### Nginx en producción (referencia)
 
@@ -383,13 +393,43 @@ server {
 }
 ```
 
+## Brand Configuration (AUT-187)
+
+Las variables de marca son configurables desde el `.env` raíz mediante las variables `APP_NAME`, `APP_FULL_NAME`, `APP_TAGLINE` y `APP_URL`. El sistema usa fallbacks con los valores por defecto.
+
+### Backend
+
+Los mensajes del bot usan `process.env.APP_NAME ?? 'NORA'`.
+
+### Frontend
+
+El módulo `frontend/src/lib/brand.ts` expone un objeto `brand` con `name`, `fullName`, `tagline` y `url` desde `import.meta.env.VITE_APP_*` con fallbacks.
+
+Reglas de uso:
+- Logo en sidebar, mensajes internos, referencia al bot → `brand.name`
+- Títulos de página, pantallas de error, textos institucionales → `brand.fullName`
+
+### Landing page (estática)
+
+El landing usa placeholders en `landing/index.template.html` (`{{APP_NAME}}`, `{{APP_FULL_NAME}}`, `{{APP_TAGLINE}}`, `{{APP_URL}}`) que se reemplazan con `npm run inject-brand` (ejecuta `scripts/inject-brand.sh`). El archivo generado `landing/index.html` está en `.gitignore`.
+
+### Scripts raíz
+
+```json
+{
+  "inject-brand": "bash scripts/inject-brand.sh",
+  "build:landing": "bash scripts/inject-brand.sh && cd landing && npx tailwindcss -i input.css -o output.css --minify"
+}
+```
+
 ## Landing Page (Static HTML) (AUT-135)
 
 Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React.
 
 | Archivo | Descripción |
 |---------|-------------|
-| `landing/index.html` | Landing page completa con SEO, JSON-LD, FAQ y links de WhatsApp |
+| `landing/index.template.html` | Template con placeholders `{{APP_NAME}}`, `{{APP_FULL_NAME}}`, `{{APP_TAGLINE}}`, `{{APP_URL}}` (AUT-187) |
+| `landing/index.html` | HTML generado por `npm run inject-brand` (no commiteado) (AUT-187) |
 | `landing/input.css` | Tailwind v4 source con `@theme` tokens + custom CSS |
 | `landing/output.css` | CSS compilado (minificado, no commiteado) |
 | `landing/package.json` | Dependencia: `@tailwindcss/cli` para compilación |

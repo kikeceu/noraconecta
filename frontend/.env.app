@@ -1,2 +1,6 @@
 # Env vars for app build (app.noraconecta.com.ar)
 VITE_API_URL=http://api.noraconecta.local
+VITE_APP_NAME=NORA
+VITE_APP_FULL_NAME=NORA Conecta
+VITE_APP_TAGLINE=Tu profesional de confianza
+VITE_APP_URL=https://noraconecta.com

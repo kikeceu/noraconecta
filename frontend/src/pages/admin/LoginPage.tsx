@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getAdminDashboardPath } from '../../lib/host';
+import { brand } from '../../lib/brand';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -32,7 +33,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-green-700">NORA</h1>
+            <h1 className="text-2xl font-bold text-green-700">{brand.name}</h1>
             <p className="text-sm text-gray-500 mt-1">Panel de Administración</p>
           </div>
 

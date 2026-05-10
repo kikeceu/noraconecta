@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { resolveHostContext } from '../../lib/host';
+import { brand } from '../../lib/brand';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,7 +66,7 @@ export function AdminLayout() {
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
       <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
         <Link to={homePath} className="flex items-center gap-2 cursor-pointer">
-          <span className="text-lg font-bold text-green-700">NORA</span>
+          <span className="text-lg font-bold text-green-700">{brand.name}</span>
           <span className="text-xs text-gray-500 font-normal">Admin</span>
         </Link>
         <button
@@ -158,7 +159,7 @@ export function AdminLayout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-lg font-bold text-green-700">NORA</span>
+          <span className="text-lg font-bold text-green-700">{brand.name}</span>
           <span className="text-xs text-gray-500 ml-1">Admin</span>
         </div>
 

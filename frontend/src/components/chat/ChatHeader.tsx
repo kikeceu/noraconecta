@@ -1,6 +1,7 @@
 import { PhoneSelector } from './PhoneSelector';
 import { SessionStatus } from './SessionStatus';
 import { SessionState } from '../../types/chat';
+import { brand } from '../../lib/brand';
 
 interface ChatHeaderProps {
   readonly phone: string;
@@ -23,7 +24,7 @@ export function ChatHeader({
     <header className="sticky top-0 z-10 shrink-0 border-b border-border bg-surface">
       <div className="mx-auto flex h-[52px] max-w-[720px] items-center justify-between gap-2 px-5">
         <h1 className="select-none shrink-0 font-mono text-[0.75rem] text-zinc-muted">
-          NORA
+          {brand.name}
         </h1>
 
         <PhoneSelector
