@@ -70,7 +70,7 @@ app.use('/admin', adminRoutes);
 app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
 app.use('/webhooks', webhooksRoutes);
-app.use('/payments', paymentsRoutes);
+app.use('/webhooks', paymentsRoutes);
 
 app.use(errorHandler);
 
