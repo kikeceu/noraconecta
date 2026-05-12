@@ -116,7 +116,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
-│   │   │   │   ├── payments.routes.ts     # POST /payments/mercadopago (webhook)
+│   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook)
 │   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch
 │   │   │   │   ├── payments.service.ts    # Payment link generation, webhook processing, trial-exhausted notification
 │   │   │   │   └── payments.repository.ts # Plan queries, trial-exhausted professional lookup, waiting request lookup
@@ -299,7 +299,7 @@ src/
 │       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
 │       └── matching.repository.ts # Prisma queries para motor de matching + findTrialExhaustedProfessionals (AUT-188)
 │   └── payments/                  # (AUT-188)
-│       ├── payments.routes.ts     # POST /payments/mercadopago
+│       ├── payments.routes.ts     # POST /webhooks/mercadopago
 │       ├── payments.controller.ts # Webhook HMAC validation
 │       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
 │       └── payments.repository.ts # Plan queries, waiting request lookup
@@ -580,7 +580,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 
 | Endpoint                     | Método | Descripción                          | Auth      |
 |-----------------------------|--------|--------------------------------------|-----------|
-| `/payments/mercadopago`     | POST   | Webhook de MercadoPago (IPN)         | HMAC      |
+| `/webhooks/mercadopago`     | POST   | Webhook de MercadoPago (IPN)         | HMAC      |
 
 **Servicios internos:**
 
@@ -588,7 +588,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 |----------------------------------------|-----------------------------------------------------------------|
 | `generatePaymentLink()`                | Crea link de pago de MP con `external_reference = professionalId:planId` |
 | `notifyTrialExhaustedProfessionals()`  | Envía WhatsApp a profesionales con trial agotado con links de pago |
-| `verifyWebhookSignature()`             | Valida firma HMAC-SHA256 del webhook                           |
+| `verifyWebhookSignature()`             | Valida firma HMAC-SHA256 del webhook con `x-signature` (`ts`, `v1`) + `x-request-id` |
 | `processPaymentWebhook()`              | Procesa pago aprobado: activa membresía, reactiva pedido, notifica |
 | `getTrialLimit()`                      | Lee límite de trial desde SystemConfig                         |
 
@@ -1635,7 +1635,7 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
   - Si el usuario acepta, el pedido queda en `NO_RESPONSE` con `waitingUserConsent = true` y `waitingActivationSince = now()`
   - NORA notifica a cada profesional con trial agotado en la misma categoría y zona con links de pago de MercadoPago por plan
   - El link de pago incluye `external_reference = professionalId:planId` para identificación en el webhook
-  - Webhook `POST /payments/mercadopago` valida firma HMAC-SHA256, responde 200 inmediatamente y procesa asíncrono
+  - Webhook `POST /webhooks/mercadopago` valida firma HMAC-SHA256, responde 200 inmediatamente y procesa asíncrono
   - Al confirmar pago (`status = approved`), se activa membresía mensual con `activatedBy = 'mercadopago'`
   - Si existe un pedido en espera coincidente en categoría y zona, se reactiva para el profesional que pagó
   - Múltiples pagos para el mismo pedido: solo el primero recibe el pedido, los demás quedan con membresía activa

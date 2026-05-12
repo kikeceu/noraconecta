@@ -11,6 +11,7 @@ export class PaymentsController {
   ): Promise<void> => {
     try {
       const signature = req.headers['x-signature'] as string | undefined;
+      const requestId = (req.headers['x-request-id'] as string | undefined) ?? '';
 
       if (!signature) {
         res.status(400).json({ error: 'Missing x-signature header' });
@@ -27,6 +28,7 @@ export class PaymentsController {
       const isValid = this.paymentsService.verifyWebhookSignature(
         rawBody,
         signature,
+        requestId,
       );
 
       if (!isValid) {

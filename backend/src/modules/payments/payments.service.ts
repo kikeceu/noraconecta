@@ -96,7 +96,11 @@ export class PaymentsService {
 
   // --- Webhook processing ---
 
-  verifyWebhookSignature(payload: Buffer, signature: string): boolean {
+  verifyWebhookSignature(
+    rawBody: Buffer,
+    signature: string,
+    requestId: string,
+  ): boolean {
     const secret = process.env.MERCADOPAGO_WEBHOOK_SECRET;
 
     if (!secret) {
@@ -106,14 +110,43 @@ export class PaymentsService {
       return false;
     }
 
+    const headerParts = Object.fromEntries(
+      signature.split(',').map((part) => {
+        const [key, value] = part.split('=');
+        return [key?.trim() ?? '', value?.trim() ?? ''];
+      }),
+    );
+
+    const timestamp = headerParts.ts;
+    const signatureHash = headerParts.v1;
+
+    if (!timestamp || !signatureHash) {
+      return false;
+    }
+
+    let dataId = '';
+
+    try {
+      const body = JSON.parse(rawBody.toString()) as { data?: { id?: string } };
+      dataId = body.data?.id ?? '';
+    } catch {
+      return false;
+    }
+
+    const manifest = `id:${dataId};request-id:${requestId};ts:${timestamp};`;
+
     const expected = crypto
       .createHmac('sha256', secret)
-      .update(payload)
+      .update(manifest)
       .digest('hex');
+
+    if (expected.length !== signatureHash.length) {
+      return false;
+    }
 
     return crypto.timingSafeEqual(
       Buffer.from(expected),
-      Buffer.from(signature),
+      Buffer.from(signatureHash),
     );
   }
 
