@@ -143,4 +143,37 @@ export class MembershipsService {
       activatedBy,
     });
   }
+
+  async activateFromPayment(
+    professionalId: string,
+    planId: string,
+    paymentRef: string,
+  ): Promise<Membership> {
+    const professional =
+      await this.membershipsRepository.findProfessionalById(professionalId);
+
+    if (!professional) {
+      throw new AppError('Professional not found', 404);
+    }
+
+    const plan = await this.plansRepository.findById(planId);
+
+    if (!plan) {
+      throw new AppError('Plan not found', 404);
+    }
+
+    const startDate = new Date();
+    const endDate = calculateEndDate(startDate, 'MONTHLY');
+
+    return this.membershipsRepository.create({
+      professionalId,
+      planId,
+      type: 'MONTHLY',
+      status: 'ACTIVE',
+      startDate,
+      endDate,
+      activatedBy: 'mercadopago',
+      paymentRef,
+    });
+  }
 }

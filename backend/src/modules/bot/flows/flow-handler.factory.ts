@@ -9,6 +9,14 @@ import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
+import { PaymentsService } from '../../payments/payments.service';
+import { PaymentsRepository } from '../../payments/payments.repository';
+import { PlansRepository } from '../../plans/plans.repository';
+import { MembershipsService } from '../../memberships/memberships.service';
+import { MembershipsRepository } from '../../memberships/memberships.repository';
+import { ConfigRepository } from '../../config/config.repository';
+import { WhatsAppAdapter } from '../../../lib/whatsapp-adapter';
+import { R2Client } from '../../../lib/r2-client';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -19,7 +27,30 @@ const requestsService = new RequestsService(requestsRepository, usersRepository,
 const professionalsRepository = new ProfessionalsRepository();
 const professionalsService = new ProfessionalsService(professionalsRepository);
 
-const userRequestFlow = new UserRequestFlow(requestsService);
+const paymentsRepository = new PaymentsRepository();
+const plansRepository = new PlansRepository();
+const membershipsRepository = new MembershipsRepository();
+const configRepository = new ConfigRepository();
+const r2Client = new R2Client();
+const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
+
+const membershipsService = new MembershipsService(
+  membershipsRepository,
+  plansRepository,
+  configRepository,
+);
+
+const paymentsService = new PaymentsService(
+  paymentsRepository,
+  membershipsService,
+  matchingRepository,
+  requestsRepository,
+  whatsappAdapter,
+  botRepository,
+  configRepository,
+);
+
+const userRequestFlow = new UserRequestFlow(requestsService, paymentsService);
 const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository);
 const coordinationFlow = new CoordinationFlow(requestsService);
 

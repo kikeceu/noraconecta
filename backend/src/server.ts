@@ -20,6 +20,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
 import webhooksRoutes from './routes/webhooks.routes';
+import paymentsRoutes from './modules/payments/payments.routes';
 import { RequestsService } from './modules/requests/requests.service';
 import { RequestsRepository } from './modules/requests/requests.repository';
 import { MatchingRepository } from './modules/matching/matching.repository';
@@ -69,6 +70,7 @@ app.use('/admin', adminRoutes);
 app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
 app.use('/webhooks', webhooksRoutes);
+app.use('/payments', paymentsRoutes);
 
 app.use(errorHandler);
 
@@ -99,6 +101,11 @@ const coordinationService = new CoordinationService(botRepository);
 
 cron.schedule('0 * * * *', () => {
   void coordinationService.sendReminders();
+});
+
+// Cron job: check waiting activations expiry (24h timeout, runs every 30 minutes)
+cron.schedule('*/30 * * * *', () => {
+  void requestsService.checkWaitingActivations();
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
