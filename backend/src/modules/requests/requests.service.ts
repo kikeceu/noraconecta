@@ -826,6 +826,18 @@ export class RequestsService {
     return request;
   }
 
+  async update(
+    id: string,
+    data: {
+      status?: 'CREATED' | 'ASSIGNED' | 'ACCEPTED' | 'PENDING_CONFIRMATION' | 'CANCELLED' | 'NO_RESPONSE' | 'COMPLETED' | 'NOT_FULFILLED';
+      waitingUserConsent?: boolean;
+      waitingActivationSince?: Date | null;
+      assignmentTimeoutAt?: Date | null;
+    },
+  ): Promise<Request> {
+    return this.requestsRepository.update(id, data);
+  }
+
   async processTimeouts(): Promise<number> {
     const now = new Date();
     let processed = 0;
@@ -1364,5 +1376,96 @@ export class RequestsService {
     }
 
     return DEFAULT_AUTO_COMPLETE_HOURS;
+  }
+
+  // --- Waiting activation flow ---
+
+  async checkTrialExhaustedForWaiting(
+    categoryId: string,
+    geoNodeId: string,
+  ): Promise<{ hasTrialExhausted: boolean; count: number }> {
+    const trialLimit = await this.getTrialLimit();
+    const exhausted =
+      await this.matchingRepository.findTrialExhaustedProfessionals(
+        categoryId,
+        geoNodeId,
+        trialLimit,
+      );
+
+    return {
+      hasTrialExhausted: exhausted.length > 0,
+      count: exhausted.length,
+    };
+  }
+
+  async getTrialExhaustedProfessionals(
+    categoryId: string,
+    geoNodeId: string,
+  ): Promise<{ id: string; name: string; phone: string }[]> {
+    const trialLimit = await this.getTrialLimit();
+
+    return this.matchingRepository.findTrialExhaustedProfessionals(
+      categoryId,
+      geoNodeId,
+      trialLimit,
+    );
+  }
+
+  async startWaitingForActivation(requestId: string): Promise<Request> {
+    return this.requestsRepository.update(requestId, {
+      waitingUserConsent: true,
+      waitingActivationSince: new Date(),
+    });
+  }
+
+  async closeWaitingRequest(requestId: string): Promise<Request> {
+    return this.requestsRepository.update(requestId, {
+      waitingUserConsent: false,
+      waitingActivationSince: null,
+    });
+  }
+
+  async checkWaitingActivations(): Promise<number> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const expired =
+      await this.requestsRepository.findExpiredWaitingActivations(cutoff);
+
+    for (const request of expired) {
+      try {
+        await this.requestsRepository.update(request.id, {
+          waitingUserConsent: false,
+          waitingActivationSince: null,
+        });
+
+        const userData = (request as unknown as { user?: { phone?: string; name?: string } }).user;
+
+        if (userData?.phone) {
+          console.log(
+            `[RequestsService] 24h waiting activation expired: ${request.id}, user: ${userData.phone}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[RequestsService] Error processing expired waiting activation ${request.id}:`,
+          err,
+        );
+      }
+    }
+
+    return expired.length;
+  }
+
+  private async getTrialLimit(): Promise<number> {
+    const config = await configRepository.findByKey('TRIAL_REQUESTS_LIMIT');
+
+    if (config) {
+      const parsed = parseInt(config.value, 10);
+
+      if (Number.isFinite(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+
+    return 3;
   }
 }

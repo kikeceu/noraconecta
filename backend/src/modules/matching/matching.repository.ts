@@ -343,4 +343,30 @@ export class MatchingRepository {
       },
     });
   }
+
+  async findTrialExhaustedProfessionals(
+    categoryId: string,
+    geoNodeId: string,
+    trialRequestsLimit: number,
+  ): Promise<{ id: string; name: string; phone: string }[]> {
+    return prisma.professional.findMany({
+      where: {
+        status: { in: ['ACTIVE', 'OBSERVATION'] },
+        categoryId,
+        zones: { some: { geoNodeId } },
+        trialRequestsUsed: { gte: trialRequestsLimit },
+        memberships: {
+          none: {
+            status: 'ACTIVE',
+            endDate: { gt: new Date() },
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+      },
+    });
+  }
 }

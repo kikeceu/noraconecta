@@ -148,9 +148,9 @@ async function seedSystemConfig(): Promise<void> {
 
 async function seedPlans(): Promise<void> {
   const plans = [
-    { name: 'Básico', monthlyPrice: 9000, annualDiscountPct: 10, priority: 1 },
-    { name: 'Profesional', monthlyPrice: 20000, annualDiscountPct: 15, priority: 2 },
-    { name: 'Premium', monthlyPrice: 40000, annualDiscountPct: 20, priority: 3 },
+    { name: 'Básico', monthlyPrice: 9000, annualDiscountPct: 15, priority: 1 },
+    { name: 'Profesional', monthlyPrice: 20000, annualDiscountPct: 20, priority: 2 },
+    { name: 'Premium', monthlyPrice: 40000, annualDiscountPct: 25, priority: 3 },
   ];
 
   const legacyProfessional = await prisma.plan.findUnique({

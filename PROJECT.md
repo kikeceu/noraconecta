@@ -115,12 +115,17 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
-│   │   ├── routes/                    # (placeholder for future shared routes)
-│   │   │   └── webhooks.routes.ts      # WhatsApp webhook endpoint (verification + inbound messages) (AUT-134)
-│   │   ├── controllers/               # (placeholder for future shared controllers)
-│   │   ├── services/                  # (placeholder for future shared services)
-│   │   └── repositories/              # (placeholder for future shared repositories)
-│   ├── prisma/
+│   │   │   ├── payments/                # (AUT-188)
+│   │   │   │   ├── payments.routes.ts     # POST /payments/mercadopago (webhook)
+│   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch
+│   │   │   │   ├── payments.service.ts    # Payment link generation, webhook processing, trial-exhausted notification
+│   │   │   │   └── payments.repository.ts # Plan queries, trial-exhausted professional lookup, waiting request lookup
+│   │   ├── lib/
+│   │   │   ├── prisma.ts              # Prisma client singleton
+│   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
+│   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
+│   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter (AUT-134)
+│   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
 │   │   ├── migrations/
 │   │   └── seed.ts
@@ -292,7 +297,12 @@ src/
 │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
 │   └── matching/
 │       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
-│       └── matching.repository.ts # Prisma queries para motor de matching
+│       └── matching.repository.ts # Prisma queries para motor de matching + findTrialExhaustedProfessionals (AUT-188)
+│   └── payments/                  # (AUT-188)
+│       ├── payments.routes.ts     # POST /payments/mercadopago
+│       ├── payments.controller.ts # Webhook HMAC validation
+│       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
+│       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
 │   └── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
 ├── services/                  # (placeholder for future shared services)
@@ -364,6 +374,11 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 | `APP_FULL_NAME`   | `NORA Conecta`                | Nombre completo para títulos, SEO, textos institucionales (AUT-187) |
 | `APP_TAGLINE`     | `Tu profesional de confianza` | Tagline de la marca (AUT-187) |
 | `APP_URL` (marca) | `https://noraconecta.com`     | URL pública del sitio (AUT-187) |
+| `MERCADOPAGO_ACCESS_TOKEN` | — | Access token de MercadoPago (producción o sandbox) (AUT-188) |
+| `MERCADOPAGO_WEBHOOK_SECRET` | — | Secret para validar firma HMAC del webhook (AUT-188) |
+| `MERCADOPAGO_SUCCESS_URL` | `https://noraconecta.com.ar/pago-exitoso` | URL de retorno tras pago exitoso (AUT-188) |
+| `MERCADOPAGO_FAILURE_URL` | `https://noraconecta.com.ar/pago-fallido` | URL de retorno tras pago fallido (AUT-188) |
+| `MERCADOPAGO_PENDING_URL` | `https://noraconecta.com.ar/pago-pendiente` | URL de retorno tras pago pendiente (AUT-188) |
 
 ### Archivos de entorno por target (frontend)
 
@@ -558,6 +573,34 @@ Response shape:
 |------------------------------------------|--------|--------------------------------------|-----------|
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
+
+### Payments (AUT-188)
+
+Módulo de integración con MercadoPago Checkout Pro para activación de membresías vía pago.
+
+| Endpoint                     | Método | Descripción                          | Auth      |
+|-----------------------------|--------|--------------------------------------|-----------|
+| `/payments/mercadopago`     | POST   | Webhook de MercadoPago (IPN)         | HMAC      |
+
+**Servicios internos:**
+
+| Método                                  | Descripción                                                     |
+|----------------------------------------|-----------------------------------------------------------------|
+| `generatePaymentLink()`                | Crea link de pago de MP con `external_reference = professionalId:planId` |
+| `notifyTrialExhaustedProfessionals()`  | Envía WhatsApp a profesionales con trial agotado con links de pago |
+| `verifyWebhookSignature()`             | Valida firma HMAC-SHA256 del webhook                           |
+| `processPaymentWebhook()`              | Procesa pago aprobado: activa membresía, reactiva pedido, notifica |
+| `getTrialLimit()`                      | Lee límite de trial desde SystemConfig                         |
+
+**Lógica de negocio:**
+
+- El link de pago se genera dinámicamente con `external_reference` en formato `professionalId:planId`
+- El webhook responde 200 inmediatamente a MP y procesa de forma asíncrona
+- Al confirmar pago (`status = approved`), se activa membresía mensual para el profesional con `activatedBy = 'mercadopago'`
+- Si existe un pedido en `NO_RESPONSE` con `waitingUserConsent = true` que coincida en categoría y zona, se reactiva para ese profesional
+- Múltiples pagos para el mismo pedido: solo el primero recibe el pedido, los demás quedan con membresía activa
+- Si `MERCADOPAGO_ACCESS_TOKEN` no está configurado, el servidor arranca pero falla al intentar generar un link de pago
+- Las notificaciones a profesionales pasan por `WhatsAppAdapter.sendText()` que respeta la ventana de 24hs (`shouldUseTemplate()`)
 
 ### Reputation
 
@@ -1290,6 +1333,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | clientLongitude       | Float?    | Longitud del pin de WhatsApp                 |
 | coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| AWAITING_USER_CONFIRMATION \| AWAITING_LOCATION \| SCHEDULED |
 | negotiationRounds     | Int       | Rondas de negociación de horario (default: 0) |
+| waitingUserConsent     | Boolean?  | Usuario aceptó esperar activación de profesional (default: false) (AUT-188) |
+| waitingActivationSince | DateTime? | Timestamp de inicio de espera de activación (24h timeout) (AUT-188) |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
@@ -1584,6 +1629,19 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 4. `ProtectedRoute` verifica autenticación y opcionalmente rol requerido
 5. OPERATOR no ve Configuración; botones SUPERADMIN ocultos para OPERATOR
 6. Todas las acciones destructivas (aprobar, rechazar, suspender, reactivar, bloquear, desbloquear, cambiar estado de escalada, resolver) tienen un `ConfirmDialog` que muestra el nombre del afectado antes de ejecutar el request
+
+- **Activación de membresía vía MercadoPago (AUT-188):**
+  - Cuando el matching no encuentra profesionales disponibles (todos con trial agotado), el bot pregunta al usuario si quiere esperar hasta 24hs
+  - Si el usuario acepta, el pedido queda en `NO_RESPONSE` con `waitingUserConsent = true` y `waitingActivationSince = now()`
+  - NORA notifica a cada profesional con trial agotado en la misma categoría y zona con links de pago de MercadoPago por plan
+  - El link de pago incluye `external_reference = professionalId:planId` para identificación en el webhook
+  - Webhook `POST /payments/mercadopago` valida firma HMAC-SHA256, responde 200 inmediatamente y procesa asíncrono
+  - Al confirmar pago (`status = approved`), se activa membresía mensual con `activatedBy = 'mercadopago'`
+  - Si existe un pedido en espera coincidente en categoría y zona, se reactiva para el profesional que pagó
+  - Múltiples pagos para el mismo pedido: solo el primero recibe el pedido, los demás quedan con membresía activa
+  - Cron `checkWaitingActivations()` corre cada 30 minutos y cierra pedidos con más de 24hs en espera
+  - Si `MERCADOPAGO_ACCESS_TOKEN` no está configurado, el servidor arranca pero falla al generar links de pago
+  - Los precios y nombres de planes siempre se leen desde DB, nunca hardcodeados
 
 ## Scripts
 

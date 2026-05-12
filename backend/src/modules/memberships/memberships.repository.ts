@@ -5,9 +5,11 @@ export type CreateMembershipInput = {
   professionalId: string;
   planId: string;
   type: 'MONTHLY' | 'ANNUAL';
+  status?: 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
   startDate: Date;
   endDate: Date;
   activatedBy?: string;
+  paymentRef?: string;
 };
 
 export class MembershipsRepository {
@@ -46,7 +48,16 @@ export class MembershipsRepository {
 
   async create(data: CreateMembershipInput): Promise<Membership> {
     return prisma.membership.create({
-      data,
+      data: {
+        professionalId: data.professionalId,
+        planId: data.planId,
+        type: data.type,
+        status: data.status ?? 'ACTIVE',
+        startDate: data.startDate,
+        endDate: data.endDate,
+        activatedBy: data.activatedBy,
+        paymentRef: data.paymentRef,
+      },
       include: { plan: true },
     });
   }
@@ -58,6 +69,17 @@ export class MembershipsRepository {
     return prisma.membership.update({
       where: { id },
       data: { status },
+      include: { plan: true },
+    });
+  }
+
+  async updatePaymentRef(
+    id: string,
+    paymentRef: string,
+  ): Promise<Membership> {
+    return prisma.membership.update({
+      where: { id },
+      data: { paymentRef },
       include: { plan: true },
     });
   }

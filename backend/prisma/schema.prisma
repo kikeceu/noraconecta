@@ -246,6 +246,8 @@ model Request {
   clientLongitude        Float?
   coordinationStatus     String?
   negotiationRounds      Int           @default(0)
+  waitingUserConsent     Boolean?      @default(false)
+  waitingActivationSince DateTime?
 
   events     RequestEvent[]
   feedback   Feedback?

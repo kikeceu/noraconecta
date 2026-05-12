@@ -1,6 +1,7 @@
 import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { RequestsService } from '../../requests/requests.service';
+import { PaymentsService } from '../../payments/payments.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import prisma from '../../../lib/prisma';
 
@@ -9,7 +10,10 @@ const nlpService = new NlpService();
 export class UserRequestFlow implements FlowHandler {
   readonly flowName = 'USER_REQUEST';
 
-  constructor(private readonly requestsService: RequestsService) {}
+  constructor(
+    private readonly requestsService: RequestsService,
+    private readonly paymentsService: PaymentsService,
+  ) {}
 
   getInitialStep(): string {
     return 'INIT';
@@ -38,6 +42,10 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleConfirm(message, tempData);
       case 'SEARCHING':
         return this.handleSearching();
+      case 'WAITING_CONSENT':
+        return this.handleWaitingConsent(message, tempData);
+      case 'WAITING':
+        return this.handleWaiting(tempData);
       case 'CANCEL_CONFIRMATION':
         return handleCancelConfirmation(context, this.requestsService);
       default:
@@ -351,13 +359,48 @@ export class UserRequestFlow implements FlowHandler {
 
         tempData.requestId = request.id;
 
+        // Matching found a professional -> normal flow
+        if (request.status === 'ASSIGNED') {
+          return {
+            response: {
+              text: 'Buscando el profesional ideal... te aviso cuando confirme.',
+              requestId: request.id,
+            },
+            nextStep: 'SEARCHING',
+            tempData,
+          };
+        }
+
+        // No match found -> check for trial-exhausted professionals
+        const trialCheck =
+          await this.requestsService.checkTrialExhaustedForWaiting(
+            tempData.categoryId as string,
+            tempData.geoNodeId as string,
+          );
+
+        if (trialCheck.hasTrialExhausted) {
+          return {
+            response: {
+              text:
+                `En este momento no encontré un profesional disponible para tu pedido. ` +
+                `Estoy buscando opciones — si aparece alguien, ¿querés que te avise? ` +
+                `Puede demorar hasta 24hs.`,
+              options: ['Sí', 'No'],
+              requestId: request.id,
+            },
+            nextStep: 'WAITING_CONSENT',
+            tempData,
+          };
+        }
+
+        // No match and no trial-exhausted professionals -> close
         return {
           response: {
-            text: 'Buscando el profesional ideal... te aviso cuando confirme.',
+            text: 'En este momento no hay profesionales disponibles en tu zona para este servicio. Podés volver a intentarlo más tarde.',
             requestId: request.id,
           },
-          nextStep: 'SEARCHING',
-          tempData,
+          nextStep: null,
+          tempData: {},
         };
       } catch (err) {
         console.error('[UserRequestFlow] handleConfirm: create failed', err);
@@ -384,6 +427,100 @@ export class UserRequestFlow implements FlowHandler {
       response: { text: 'Confirma la busqueda? Responde Si o No', options: ['Si', 'No'] },
       nextStep: 'CONFIRM',
       tempData,
+    };
+  }
+
+  private async handleWaitingConsent(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = message.text?.trim().toLowerCase();
+
+    if (inputText === 'si' || inputText === 'sí') {
+      return this.handleWaiting(tempData);
+    }
+
+    if (inputText === 'no') {
+      const requestId = tempData.requestId as string;
+
+      if (requestId) {
+        try {
+          await this.requestsService.cancel(requestId);
+        } catch (err) {
+          console.error(
+            '[UserRequestFlow] handleWaitingConsent: cancel failed',
+            err,
+          );
+        }
+      }
+
+      return {
+        response: { text: 'Entendido. Podés volver a buscar cuando quieras.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    return {
+      response: {
+        text:
+          `En este momento no encontré un profesional disponible para tu pedido. ` +
+          `Estoy buscando opciones — si aparece alguien, ¿querés que te avise? ` +
+          `Puede demorar hasta 24hs.`,
+        options: ['Sí', 'No'],
+      },
+      nextStep: 'WAITING_CONSENT',
+      tempData,
+    };
+  }
+
+  private async handleWaiting(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const requestId = tempData.requestId as string;
+    const categoryId = tempData.categoryId as string;
+    const geoNodeId = tempData.geoNodeId as string;
+    const categoryName = tempData.categoryName as string;
+    const zoneName = tempData.geoNodeName as string;
+
+    try {
+      // Set waiting fields on request
+      await this.requestsService.update(requestId, {
+        status: 'NO_RESPONSE',
+        waitingUserConsent: true,
+        waitingActivationSince: new Date(),
+        assignmentTimeoutAt: null,
+      });
+
+      // Get trial-exhausted professionals and notify them with payment links
+      const exhausted =
+        await this.requestsService.getTrialExhaustedProfessionals(
+          categoryId,
+          geoNodeId,
+        );
+
+      if (exhausted.length > 0) {
+        const professionalIds = exhausted.map((p) => p.id);
+
+        void this.paymentsService.notifyTrialExhaustedProfessionals(
+          professionalIds,
+          categoryName,
+          zoneName,
+        );
+      }
+    } catch (err) {
+      console.error('[UserRequestFlow] handleWaiting: failed', err);
+    }
+
+    return {
+      response: {
+        text:
+          `Perfecto, te aviso en cuanto encuentre a alguien. ` +
+          `Si en 24hs no apareció nadie, te lo hago saber.`,
+        requestId,
+      },
+      nextStep: null,
+      tempData: {},
     };
   }
 

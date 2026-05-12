@@ -286,4 +286,80 @@ export class RequestsRepository {
       },
     });
   }
+
+  async findWaitingRequestForProfessional(
+    professionalId: string,
+    categoryId: string,
+  ): Promise<(Request & { user: { phone: string; name: string } }) | null> {
+    // Find professional zones first
+    const zones = await prisma.professionalZone.findMany({
+      where: { professionalId },
+      select: { geoNodeId: true },
+    });
+
+    const zoneIds = zones.map((z) => z.geoNodeId);
+
+    if (zoneIds.length === 0) return null;
+
+    return prisma.request.findFirst({
+      where: {
+        status: 'NO_RESPONSE',
+        waitingUserConsent: true,
+        categoryId,
+        geoNodeId: { in: zoneIds },
+        assignedProfessionalId: null,
+      },
+      include: {
+        user: { select: { phone: true, name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async reactivateForProfessional(
+    requestId: string,
+    professionalId: string,
+    assignmentTimeoutAt: Date,
+  ): Promise<Request> {
+    const now = new Date();
+
+    return prisma.request.update({
+      where: { id: requestId },
+      data: {
+        status: 'ASSIGNED',
+        assignedProfessionalId: professionalId,
+        assignedAt: now,
+        assignmentTimeoutAt,
+        waitingUserConsent: false,
+        waitingActivationSince: null,
+      },
+    });
+  }
+
+  async findAllWaitingRequests(): Promise<Request[]> {
+    return prisma.request.findMany({
+      where: {
+        status: 'NO_RESPONSE',
+        waitingUserConsent: true,
+        assignedProfessionalId: null,
+      },
+      include: {
+        user: { select: { phone: true, name: true } },
+      },
+    });
+  }
+
+  async findExpiredWaitingActivations(cutoff: Date): Promise<Request[]> {
+    return prisma.request.findMany({
+      where: {
+        status: 'NO_RESPONSE',
+        waitingUserConsent: true,
+        waitingActivationSince: { lt: cutoff },
+      },
+      include: {
+        user: { select: { phone: true, name: true } },
+        category: { select: { name: true } },
+      },
+    });
+  }
 }
