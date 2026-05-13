@@ -10,14 +10,14 @@
 <link rel="canonical" href="{{APP_URL}}/">
 
 <meta property="og:type" content="website">
-<meta property="og:title" content="{{APP_FULL_NAME}} | {{APP_TAGLINE}} en minutos">
+<meta property="og:title" content="{{APP_FULL_NAME}} | {{APP_TAGLINE}}">
 <meta property="og:description" content="Plomeros, electricistas, gasistas y más en Mendoza. Verificados, con reputación real. Solo WhatsApp, sin apps.">
 <meta property="og:url" content="{{APP_URL}}/">
 <meta property="og:locale" content="es_AR">
 <meta property="og:site_name" content="{{APP_FULL_NAME}}">
 
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{{APP_FULL_NAME}} | {{APP_TAGLINE}} en minutos">
+<meta name="twitter:title" content="{{APP_FULL_NAME}} | {{APP_TAGLINE}}">
 <meta name="twitter:description" content="Plomeros, electricistas, gasistas y más en Mendoza. Sin apps, solo WhatsApp.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,6 +25,12 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="output.css">
+
+<style>
+@media (max-width: 767px) {
+  .chat-icon-mobile { display: inline !important; }
+}
+</style>
 
 <script type="application/ld+json">
 {
@@ -141,12 +147,11 @@
 <nav class="flex justify-between items-center px-margin-mobile md:px-margin-desktop h-20 max-w-container-max mx-auto">
 <div class="font-headline-md text-headline-md font-bold text-primary">{{APP_FULL_NAME}}</div>
 <div class="hidden md:flex gap-8 items-center">
-<a class="font-body-md text-body-md font-medium text-primary border-b-2 border-primary pb-1 transition-all duration-200" href="#">Para usuarios</a>
-<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#">Para profesionales</a>
-<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#faq">Cómo funciona</a>
+<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#como-funciona">Cómo funciona</a>
+<a class="font-body-md text-body-md font-medium text-on-surface-variant hover:text-primary transition-all duration-200" href="#profesionales">Soy profesional</a>
 </div>
 <div class="flex items-center gap-4">
-<a href="https://wa.me/5492615551234" target="_blank" rel="noopener noreferrer" class="material-symbols-outlined text-on-surface-variant active:scale-95 transition-transform duration-100 no-underline" aria-label="Chat de WhatsApp">chat</a>
+<a href="https://wa.me/5492615551234" target="_blank" rel="noopener noreferrer" class="chat-icon-mobile material-symbols-outlined text-on-surface-variant active:scale-95 transition-transform duration-100 no-underline" style="display:none;" aria-label="Chat de WhatsApp">chat</a>
 <a href="https://wa.me/5492615551234" target="_blank" rel="noopener noreferrer" class="hidden md:block bg-primary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 active:scale-95 transition-all no-underline">
                 Quiero un profesional
             </a>
@@ -157,8 +162,7 @@
 <section class="hero-bg pt-20 pb-section-padding px-margin-mobile md:px-margin-desktop text-white">
 <div class="max-w-container-max mx-auto grid md:grid-cols-2 gap-20 items-center">
 <div class="space-y-8">
-<span class="text-white/60 font-label-bold tracking-widest uppercase">Mendoza, Argentina</span>
-<h1 class="font-display-hero text-display-hero-mobile md:text-display-hero leading-tight text-white">{{APP_TAGLINE}}, en minutos.</h1>
+<h1 class="font-display-hero text-display-hero-mobile md:text-display-hero leading-tight text-white">{{APP_TAGLINE}}.</h1>
 <p class="font-body-lg text-body-lg text-white/80 max-w-lg">
                 Escribile a {{APP_NAME}} por WhatsApp y en minutos tenés al profesional indicado para tu problema. Verificado, con historial real, sin apps ni formularios.
             </p>
@@ -167,33 +171,70 @@
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">chat</span>
                     Necesito un profesional
                 </a>
-<a href="https://wa.me/5492615555678?text=Hola%20{{APP_NAME}}%2C%20quiero%20registrarme%20como%20profesional." target="_blank" rel="noopener noreferrer" class="border-2 border-white/20 text-white px-8 py-4 rounded-xl font-bold hover:bg-white/10 transition-all active:scale-95 no-underline">
+<a href="https://wa.me/5492615555678?text=Hola%20{{APP_NAME}}%2C%20quiero%20registrarme%20como%20profesional." target="_blank" rel="noopener noreferrer" class="border-2 border-white/60 text-white px-8 py-4 rounded-xl font-semibold hover:bg-white/10 transition-all active:scale-95 no-underline">
                     Soy profesional
                 </a>
 </div>
 </div>
 <div class="relative">
 <!-- WhatsApp Mockup -->
-<div class="glass-card rounded-[32px] p-6 max-w-sm mx-auto shadow-2xl relative z-10 text-white">
-<div class="flex items-center gap-3 mb-8 pb-4 border-b border-white/10">
-<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold" aria-label="Avatar de {{APP_NAME}}">N</div>
-<div>
-<p class="font-bold">{{APP_FULL_NAME}}</p>
-<p class="text-xs text-primary font-medium">En línea ahora</p>
+<div class="bg-black rounded-[36px] p-1.5 shadow-2xl w-[280px] h-[500px] mx-auto relative z-10 flex flex-col">
+<!-- Phone screen -->
+<div class="bg-white rounded-[30px] overflow-hidden flex-1 flex flex-col">
+<!-- Status bar -->
+<div class="bg-[#054d44] text-white px-5 pt-1.5 pb-0.5 flex justify-between items-center text-[11px] font-medium">
+<span>12:00</span>
+<span class="flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[11px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[11px]">wifi</span>
+<span class="material-symbols-outlined text-[11px]">battery_full</span>
+</span>
+</div>
+<!-- WhatsApp header -->
+<div class="bg-[#075E54] px-3 py-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-white text-[18px]">arrow_back</span>
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs flex-shrink-0" aria-label="Avatar de {{APP_NAME}}">N</div>
+<div class="flex-1 min-w-0">
+<p class="text-white text-[13px] font-semibold leading-tight truncate">{{APP_FULL_NAME}}</p>
+<p class="text-[#A5D6A7] text-[11px] leading-tight">En línea</p>
+</div>
+<span class="material-symbols-outlined text-white text-[18px]">videocam</span>
+<span class="material-symbols-outlined text-white text-[18px]">call</span>
+</div>
+<!-- Messages area -->
+<div class="bg-[#ECE5DD] p-3 space-y-2 flex-1">
+<!-- User bubble -->
+<div class="whatsapp-bubble-user p-2 ml-auto text-right max-w-[85%] shadow-sm">
+<p class="text-[#1A1A1A] text-xs leading-snug">necesito un plomero</p>
+<div class="flex items-center justify-end gap-0.5 mt-0.5">
+<span class="text-[9px] text-[#667781]">10:42</span>
+<span class="text-[#4FC3F7] text-[10px] leading-none">✓✓</span>
 </div>
 </div>
-<div class="space-y-4">
-<div class="whatsapp-bubble-user p-3 ml-auto text-white text-sm max-w-[80%]">
-                        necesito un plomero
-                        <p class="text-[10px] text-right mt-1 opacity-70">10:42</p>
+<!-- NORA bubble 1 -->
+<div class="whatsapp-bubble-nora p-2 mr-auto max-w-[85%] shadow-sm">
+<p class="text-[#1A1A1A] text-xs leading-snug">¡Hola! Buscando al mejor plomero verificado disponible ahora cerca tuyo... 🔍</p>
+<span class="text-[9px] text-[#667781] float-right mt-0.5">10:42</span>
 </div>
-<div class="whatsapp-bubble-nora p-3 mr-auto text-white text-sm max-w-[85%] border border-white/10">
-                        ¡Hola! Buscando al mejor plomero verificado disponible ahora cerca tuyo... 🔍
-                        <p class="text-[10px] mt-1 opacity-70">10:42</p>
+<!-- NORA bubble 2 -->
+<div class="whatsapp-bubble-nora p-2 mr-auto max-w-[85%] shadow-sm">
+<p class="text-[#1A1A1A] text-xs leading-snug">Asignando profesional verificado... ✅</p>
+<span class="text-[9px] text-[#667781] float-right mt-0.5">10:43</span>
 </div>
-<div class="whatsapp-bubble-nora p-3 mr-auto text-white text-sm max-w-[85%] border border-white/10">
-                        Asignando profesional verificado... ✅
-                        <p class="text-[10px] mt-1 opacity-70">10:43</p>
+<!-- NORA bubble 3 -->
+<div class="whatsapp-bubble-nora p-2 mr-auto max-w-[85%] shadow-sm">
+<p class="text-[#1A1A1A] text-xs leading-snug">✅ ¡Listo! Te asignamos a Juan P., plomero verificado. En camino.</p>
+<span class="text-[9px] text-[#667781] float-right mt-0.5">10:43</span>
+</div>
+</div>
+<!-- Input bar -->
+<div class="bg-white px-2 py-1.5 flex items-center gap-2 border-t border-gray-100">
+<span class="material-symbols-outlined text-gray-400 text-[20px]">mood</span>
+<div class="flex-1 bg-gray-100 rounded-full px-3 py-1.5">
+<span class="text-gray-400 text-xs">Mensaje</span>
+</div>
+<span class="material-symbols-outlined text-gray-400 text-[20px]">attach_file</span>
+<span class="material-symbols-outlined text-[#075E54] text-[22px]">mic</span>
 </div>
 </div>
 </div>
@@ -229,7 +270,7 @@
 </div>
 </section>
 <!-- Cómo Funciona -->
-<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-surface-container">
+<section id="como-funciona" class="py-section-padding px-margin-mobile md:px-margin-desktop bg-surface-container">
 <div class="max-w-container-max mx-auto">
 <div class="mb-20">
 <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-4 text-on-surface">Tres pasos. Nada más.</h2>
@@ -322,27 +363,29 @@
 <section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-[#064E3B] border-y border-white/10 text-white">
 <div class="max-w-container-max mx-auto grid grid-cols-2 lg:grid-cols-4 gap-12 text-center">
 <div>
-<p class="text-display-hero text-white leading-none font-bold">7</p>
+<p class="text-[36px] md:text-[80px] text-white leading-none font-bold">7</p>
 <p class="text-white/60 font-medium mt-4">Rubros disponibles</p>
 </div>
 <div>
-<p class="text-display-hero text-white leading-none font-bold">18</p>
+<p class="text-[36px] md:text-[80px] text-white leading-none font-bold">18</p>
 <p class="text-white/60 font-medium mt-4">Departamentos de Mendoza</p>
 </div>
 <div>
-<p class="text-display-hero text-white leading-none font-bold">100%</p>
+<p class="text-[36px] md:text-[80px] text-white leading-none font-bold">100%</p>
 <p class="text-white/60 font-medium mt-4">Profesionales verificados</p>
 </div>
 <div>
-<p class="text-display-hero text-white leading-none font-bold">&lt;3min</p>
+<p class="text-[36px] md:text-[80px] text-white leading-none font-bold">&lt;3min</p>
 <p class="text-white/60 font-medium mt-4">Tiempo de respuesta</p>
 </div>
 </div>
 </section>
 <!-- Para Profesionales -->
-<section class="py-section-padding px-margin-mobile md:px-margin-desktop bg-white">
-<div class="max-w-container-max mx-auto bg-surface-container rounded-[48px] p-12 md:p-24 overflow-hidden relative border border-gray-100">
-<div class="relative z-10 max-w-2xl">
+<section id="profesionales" class="py-section-padding px-margin-mobile md:px-margin-desktop bg-white">
+<div class="max-w-container-max mx-auto bg-surface-container rounded-[48px] p-12 border border-gray-100">
+<div class="grid md:grid-cols-2 gap-16 items-center">
+<!-- Columna izquierda: contenido -->
+<div>
 <h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg mb-8 leading-tight text-on-surface">Recibí pedidos sin salir a buscarlos.</h2>
 <div class="space-y-6 mb-10">
 <div class="flex items-center gap-4">
@@ -362,11 +405,47 @@
                 Quiero registrarme como profesional
             </a>
 </div>
-<svg class="absolute right-[-10%] top-[-10%] w-[60%] h-[120%] hidden lg:block opacity-50" viewBox="0 0 400 500" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Ilustración de profesional trabajando">
-<circle cx="200" cy="250" r="180" fill="#0B6E4F" opacity="0.3"/>
-<rect x="150" y="200" width="100" height="150" rx="30" fill="#0B6E4F" opacity="0.5"/>
-<circle cx="200" cy="150" r="60" fill="#0B6E4F" opacity="0.5"/>
-</svg>
+<!-- Columna derecha: dashboard visual -->
+<div class="hidden lg:flex flex-col items-center gap-5">
+<!-- 2x2 grid de métricas -->
+<div class="grid grid-cols-2 gap-3 w-full max-w-xs min-w-0 overflow-visible">
+<div class="rounded-2xl p-6" style="background-color: rgba(11, 110, 79, 0.12)">
+<p class="text-on-surface-variant text-sm">Pedidos</p>
+<p class="text-on-surface text-[40px] font-bold leading-none mt-2">24</p>
+<p class="text-on-surface-variant text-[13px] mt-2">Este mes</p>
+</div>
+<div class="rounded-2xl p-6" style="background-color: rgba(11, 110, 79, 0.12)">
+<p class="text-on-surface-variant text-sm">Rating</p>
+<p class="text-on-surface text-[40px] font-bold leading-none mt-2">4.9</p>
+<p class="text-on-surface-variant text-[13px] mt-2">de 5.0</p>
+</div>
+<div class="rounded-2xl p-6" style="background-color: rgba(11, 110, 79, 0.12)">
+<p class="text-on-surface-variant text-sm">Zonas</p>
+<p class="text-on-surface text-[40px] font-bold leading-none mt-2">3</p>
+<p class="text-on-surface-variant text-[13px] mt-2">Cobertura</p>
+</div>
+<div class="rounded-2xl p-6" style="background-color: rgba(11, 110, 79, 0.12)">
+<p class="text-on-surface-variant text-sm">Cumplim.</p>
+<p class="text-on-surface text-[40px] font-bold leading-none mt-2">98%</p>
+<p class="text-on-surface-variant text-[13px] mt-2">Últimos 30d</p>
+</div>
+</div>
+<!-- Separador -->
+<div class="w-full max-w-xs h-px bg-gray-200"></div>
+<!-- Notificaciones entrantes -->
+<div class="flex flex-col gap-2 w-full max-w-xs">
+<div class="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm opacity-60">
+<p class="text-sm text-on-surface-variant leading-snug">📨 Nuevo pedido · <span class="text-primary font-semibold">Plomero</span> — Godoy Cruz</p>
+</div>
+<div class="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm opacity-80">
+<p class="text-sm text-on-surface-variant leading-snug">📨 Nuevo pedido · <span class="text-primary font-semibold">Electricista</span> — Las Heras</p>
+</div>
+<div class="bg-white border border-primary/10 rounded-xl px-4 py-3 shadow-md">
+<p class="text-sm text-on-surface-variant leading-snug">📨 Nuevo pedido · <span class="text-primary font-semibold">Pintor</span> — Maipú</p>
+</div>
+</div>
+</div>
+</div>
 </div>
 </section>
 <!-- Testimonios -->
@@ -382,12 +461,9 @@
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
 </div>
-<p class="text-lg italic mb-8 text-on-surface-variant">"Increíble. Le escribí a {{APP_NAME}} por una pérdida de agua un domingo y en 15 minutos estaba el plomero en casa. Roberto fue muy profesional."</p>
+<p class="text-lg italic mb-8 text-on-surface-variant">"Increíble. Le escribí a NORA por una pérdida de agua y al rato me contactó el plomero. Roberto fue muy profesional y resolvió todo rápido."</p>
 <div class="flex items-center gap-4">
-<svg class="w-12 h-12 rounded-full" viewBox="0 0 48 48" aria-label="Avatar de Laura M.">
-<circle cx="24" cy="24" r="24" fill="#E5E7EB"/>
-<text x="24" y="30" text-anchor="middle" font-size="18" font-family="DM Sans" font-weight="700" fill="#4B5563">LM</text>
-</svg>
+<div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg" style="background: linear-gradient(135deg, #0B6E4F, #1a9c72)" aria-label="Avatar de Laura M.">LM</div>
 <div>
 <p class="font-bold text-on-surface">Laura M.</p>
 <p class="text-xs text-on-surface-variant">Mendoza</p>
@@ -404,10 +480,7 @@
 </div>
 <p class="text-lg italic mb-8 text-on-surface-variant">"Como profesional me cambió la vida. Ya no tengo que andar pagando publicidad en redes que no sirve. {{APP_NAME}} me manda trabajo directo."</p>
 <div class="flex items-center gap-4">
-<svg class="w-12 h-12 rounded-full" viewBox="0 0 48 48" aria-label="Avatar de Carlos S.">
-<circle cx="24" cy="24" r="24" fill="#E5E7EB"/>
-<text x="24" y="30" text-anchor="middle" font-size="18" font-family="DM Sans" font-weight="700" fill="#4B5563">CS</text>
-</svg>
+<div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg" style="background: linear-gradient(135deg, #2563EB, #3b82f6)" aria-label="Avatar de Carlos S.">CS</div>
 <div>
 <p class="font-bold text-on-surface">Carlos S.</p>
 <p class="text-xs text-on-surface-variant">Electricista, Mendoza</p>
@@ -424,10 +497,7 @@
 </div>
 <p class="text-lg italic mb-8 text-on-surface-variant">"Lo que más valoro es que los profesionales están verificados. Me da tranquilidad saber quién entra a mi casa."</p>
 <div class="flex items-center gap-4">
-<svg class="w-12 h-12 rounded-full" viewBox="0 0 48 48" aria-label="Avatar de Sofía R.">
-<circle cx="24" cy="24" r="24" fill="#E5E7EB"/>
-<text x="24" y="30" text-anchor="middle" font-size="18" font-family="DM Sans" font-weight="700" fill="#4B5563">SR</text>
-</svg>
+<div class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg" style="background: linear-gradient(135deg, #7C3AED, #8b5cf6)" aria-label="Avatar de Sofía R.">SR</div>
 <div>
 <p class="font-bold text-on-surface">Sofía R.</p>
 <p class="text-xs text-on-surface-variant">Mendoza</p>
@@ -514,14 +584,13 @@
 <div class="grid grid-cols-2 sm:grid-cols-3 gap-12">
 <div class="flex flex-col gap-4">
 <p class="font-bold text-on-surface">Plataforma</p>
-<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Para usuarios</a>
-<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Para profesionales</a>
-<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#faq">Cómo funciona</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#como-funciona">Cómo funciona</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#profesionales">Soy profesional</a>
 </div>
 <div class="flex flex-col gap-4">
 <p class="font-bold text-on-surface">Legal</p>
-<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Términos y condiciones</a>
-<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Privacidad</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="terminos.html">Términos y condiciones</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="privacidad.html">Privacidad</a>
 </div>
 <div class="flex flex-col gap-4">
 <p class="font-bold text-on-surface">Redes</p>

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+html {
+  scroll-behavior: smooth;
+}
+
 @theme {
   --color-primary: #0B6E4F;
   --color-primary-container: #0B6E4F;
@@ -104,18 +108,13 @@
 
 /* --- WhatsApp bubbles --- */
 .whatsapp-bubble-user {
-  background-color: #005c4b;
-  border-radius: 12px 0 12px 12px;
+  background-color: #DCF8C6;
+  border-radius: 7px 0 7px 7px;
 }
 
 .whatsapp-bubble-nora {
-  background-color: #202c33;
-  border-radius: 0 12px 12px 12px;
+  background-color: #FFFFFF;
+  border-radius: 0 7px 7px 7px;
+  box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.13);
 }
 
-/* --- Glass card --- */
-.glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
