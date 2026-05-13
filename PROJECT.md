@@ -234,10 +234,12 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   ├── package.json                    # @noraconecta/frontend (Vite + React 19 + Tailwind 4)
 │   ├── tsconfig.json                   # React + TypeScript strict config
 │   └── vite.config.ts                  # Vite + React + Tailwind + API proxy (supports BUILD_TARGET)
-├── landing/                           # Landing page estática (AUT-135)
+├── landing/                           # Landing page estática (AUT-135, AUT-191)
 │   ├── index.template.html             # Template con placeholders {{APP_NAME}}, {{APP_FULL_NAME}}, {{APP_TAGLINE}}, {{APP_URL}} (AUT-187)
 │   ├── index.html                      # HTML generado (no commiteado, .gitignore) (AUT-187)
-│   ├── input.css                       # Tailwind v4 source + tokens
+│   ├── privacidad.html                 # Política de privacidad (contenido hardcodeado) (AUT-191)
+│   ├── terminos.html                   # Términos y condiciones (contenido hardcodeado) (AUT-191)
+│   ├── input.css                       # Tailwind v4 source + tokens + scroll-behavior: smooth (AUT-191)
 │   ├── output.css                      # CSS compilado (no commiteado)
 │   ├── robots.txt                      # SEO
 │   ├── sitemap.xml                     # SEO
@@ -437,15 +439,17 @@ El landing usa placeholders en `landing/index.template.html` (`{{APP_NAME}}`, `{
 }
 ```
 
-## Landing Page (Static HTML) (AUT-135)
+## Landing Page (Static HTML) (AUT-135, AUT-191)
 
-Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React. Copy actualizado a cobertura provincial (18 departamentos de Mendoza) y bloque de métricas renovado (AUT-190).
+Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React. Copy actualizado a cobertura provincial (18 departamentos de Mendoza) y bloque de métricas renovado (AUT-190). Rediseño visual con navbar simplificado, scroll suave, avatares con gradiente, mockup de WhatsApp realista (phone frame Android, burbujas estilo WhatsApp), sección profesionales con dashboard de métricas + notificaciones, métricas responsive y páginas legales (AUT-191).
 
 | Archivo | Descripción |
 |---------|-------------|
 | `landing/index.template.html` | Template con placeholders `{{APP_NAME}}`, `{{APP_FULL_NAME}}`, `{{APP_TAGLINE}}`, `{{APP_URL}}` (AUT-187) |
 | `landing/index.html` | HTML generado por `npm run inject-brand` (no commiteado) (AUT-187) |
-| `landing/input.css` | Tailwind v4 source con `@theme` tokens + custom CSS |
+| `landing/privacidad.html` | Página estática de política de privacidad (contenido hardcodeado) (AUT-191) |
+| `landing/terminos.html` | Página estática de términos y condiciones (contenido hardcodeado) (AUT-191) |
+| `landing/input.css` | Tailwind v4 source con `@theme` tokens + custom CSS + `scroll-behavior: smooth` (AUT-191) |
 | `landing/output.css` | CSS compilado (minificado, no commiteado) |
 | `landing/package.json` | Dependencia: `@tailwindcss/cli` para compilación |
 | `landing/robots.txt` | Allow all, sitemap |
