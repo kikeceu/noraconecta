@@ -439,7 +439,7 @@ El landing usa placeholders en `landing/index.template.html` (`{{APP_NAME}}`, `{
 
 ## Landing Page (Static HTML) (AUT-135)
 
-Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React.
+Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com.ar`. HTML puro sin JavaScript ni React. Copy actualizado a cobertura provincial (18 departamentos de Mendoza) y bloque de métricas renovado (AUT-190).
 
 | Archivo | Descripción |
 |---------|-------------|
@@ -457,8 +457,8 @@ Landing page estática optimizada para SEO y GEO, deployeada en `noraconecta.com
 - **Meta tags:** description, keywords (locales), robots, canonical
 - **Open Graph:** og:type, og:title, og:description, og:url, og:locale, og:site_name
 - **Twitter Card:** summary_large_image con title y description
-- **Structured Data:** JSON-LD `LocalBusiness` (con areaServed y hasOfferCatalog) + `FAQPage` (5 preguntas)
-- **GEO:** keywords geográficas en contenido visible (Maipú, Luján de Cuyo, Mendoza)
+- **Structured Data:** JSON-LD `LocalBusiness` (con `areaServed` de los 18 departamentos de Mendoza y `hasOfferCatalog`) + `FAQPage` (5 preguntas) (AUT-190)
+- **GEO:** keywords geográficas con departamentos principales de Mendoza (Maipú, Luján de Cuyo, Godoy Cruz, Guaymallén, Las Heras); copy visible genérico con cobertura provincial (AUT-190)
 
 ### Performance
 
