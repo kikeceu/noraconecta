@@ -918,10 +918,10 @@ export class RequestsService {
         const phone = request.assignedProfessional?.phone;
         if (!phone) continue;
 
-        const session = await this.botRepository.findByPhone(phone);
+        const session = await this.botRepository.findByPhoneAndRole(phone, 'PROFESSIONAL');
         if (session?.reminderSentAt) continue;
 
-        await this.botRepository.setReminderSent(phone, now);
+        await this.botRepository.setReminderSent(phone, 'PROFESSIONAL', now);
 
         const message =
           'Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo.';
@@ -950,7 +950,7 @@ export class RequestsService {
           });
 
           if (pro?.phone) {
-            await this.botRepository.clearReminderSent(pro.phone).catch(() => {
+            await this.botRepository.clearReminderSent(pro.phone, 'PROFESSIONAL').catch(() => {
               // Ignore if session does not exist
             });
           }

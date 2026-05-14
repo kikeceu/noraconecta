@@ -66,7 +66,7 @@ export class CoordinationService {
       `¿Cómo quedó?\n\n` +
       `Respondé: "conforme", "con observaciones" o "no conforme"`;
 
-    const userSession = await this.botRepository.findByPhone(userPhone);
+    const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
     const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
     await this.botRepository.upsert(userPhone, {
@@ -118,7 +118,7 @@ export class CoordinationService {
       if (userPhone) {
         const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}. Si necesitás reprogramar, escribime.`;
 
-        const userSession = await this.botRepository.findByPhone(userPhone);
+        const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
         const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
         await this.botRepository.upsert(userPhone, {
@@ -136,7 +136,7 @@ export class CoordinationService {
         const address = visit.clientAddress || 'la dirección';
         const professionalMessage = `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address} por el pedido #${visit.id}.`;
 
-        const profSession = await this.botRepository.findByPhone(professionalPhone);
+        const profSession = await this.botRepository.findByPhoneAndRole(professionalPhone, 'PROFESSIONAL');
         const profTempData = (profSession?.tempData as Record<string, unknown>) || {};
 
         await this.botRepository.upsert(professionalPhone, {
@@ -196,7 +196,7 @@ export class CoordinationService {
         const userMessage =
           'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
 
-        const userSession = await this.botRepository.findByPhone(request.user.phone);
+        const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
         const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
         await this.botRepository.upsert(request.user.phone, {
@@ -259,7 +259,7 @@ export class CoordinationService {
 
         const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
-        const userSession = await this.botRepository.findByPhone(request.user.phone);
+        const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
         const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
         await this.botRepository.upsert(request.user.phone, {
@@ -313,7 +313,7 @@ export class CoordinationService {
 
       const userMessage = `${professionalName} llega el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
-      const userSession = await this.botRepository.findByPhone(request.user.phone);
+      const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
       const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
       await this.botRepository.upsert(request.user.phone, {

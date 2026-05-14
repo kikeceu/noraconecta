@@ -689,9 +689,9 @@ POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
     → UsersService.findOrCreateByPhone(phone)  // garantiza User en DB
-    → BotRepository.findByPhone(phone)
+    → determina rol (input.role || 'USER')      // antes de cargar sesión, por phone_number_id del webhook
+    → BotRepository.findByPhoneAndRole(phone, role)  // clave compuesta (phone, role)
     → detectar pendingMessage (notificación proactiva de coordinación)
-    → determinar rol (USER / PROFESSIONAL)
     → despachar al FlowHandler correspondiente
     → FlowHandler ejecuta el paso actual
     → procesar pendingNotification (notificar al otro participante)
@@ -761,17 +761,17 @@ POST /bot/message
 
 **Tracking de ventana de conversación de 24hs (WhatsApp) (AUT-171):**
 - `BotSession.lastInboundAt` registra el timestamp del último mensaje entrante recibido de un número
-- `BotRepository.updateLastInboundAt(phone, at)`: actualiza `lastInboundAt` en cada mensaje entrante
-- `BotRepository.isWithin24hWindow(phone)`: retorna `true` si `lastInboundAt` existe y `Date.now() - lastInboundAt < 24 horas`
-- `BotService.processMessage()` llama a `updateLastInboundAt(phone, new Date())` después de garantizar que la sesión existe, antes de cualquier otro procesamiento
-- `shouldUseTemplate(phone, botRepository)` (`utils/whatsapp-utils.ts`): helper stateless que retorna `true` si se necesita template (fuera de ventana de 24hs) o `false` si se puede responder con mensaje libre
+- `BotRepository.updateLastInboundAt(phone, role, at)`: actualiza `lastInboundAt` en cada mensaje entrante
+- `BotRepository.isWithin24hWindow(phone, role)`: retorna `true` si `lastInboundAt` existe y `Date.now() - lastInboundAt < 24 horas`
+- `BotService.processMessage()` llama a `updateLastInboundAt(phone, role, new Date())` después de garantizar que la sesión existe, antes de cualquier otro procesamiento
+- `shouldUseTemplate(phone, role, botRepository)` (`utils/whatsapp-utils.ts`): helper stateless que retorna `true` si se necesita template (fuera de ventana de 24hs) o `false` si se puede responder con mensaje libre. Requiere `role` como parámetro adicional (AUT-192)
 - La ventana la abre el usuario/profesional cuando nos escribe; no se abre cuando NORA escribe a ellos
 - El helper es reutilizable desde cualquier módulo — las issues futuras de envío de mensajes lo consumen para decidir entre template y mensaje libre
 
 **Timeout reminder tracking (AUT-177):**
 - `BotSession.reminderSentAt` registra el timestamp del último recordatorio de timeout enviado al profesional
-- `BotRepository.setReminderSent(phone, at)`: marca que se envió recordatorio al profesional
-- `BotRepository.clearReminderSent(phone)`: limpia el timestamp cuando el pedido se reasigna
+- `BotRepository.setReminderSent(phone, role, at)`: marca que se envió recordatorio al profesional
+- `BotRepository.clearReminderSent(phone, role)`: limpia el timestamp cuando el pedido se reasigna
 - Se usa en `RequestsService.processTimeouts()` para evitar recordatorios duplicados y limpiar tras reasignación
 
 **Validación de colisión de fechas en coordinación (AUT-172):**
@@ -1393,8 +1393,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | Columna       | Tipo      | Descripción                                      |
 |--------------|----------|--------------------------------------------------|
 | id           | CUID     | PK, autogenerado                                 |
-| phone        | String   | Único, teléfono del usuario                      |
-| role         | Enum?    | USER \| PROFESSIONAL                             |
+| phone        | String   | Teléfono del usuario (parte de clave compuesta)  |
+| role         | Enum     | USER \| PROFESSIONAL (requerido, parte de clave compuesta) |
 | currentFlow  | String?  | Flujo actual del bot                             |
 | currentStep  | String?  | Paso actual dentro del flujo                     |
 | tempData     | Json?    | Datos temporales de la conversación              |
@@ -1402,6 +1402,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | reminderSentAt| DateTime?| Timestamp del recordatorio de timeout enviado (AUT-177) |
 | createdAt    | DateTime | Autogenerado                                     |
 | updatedAt    | DateTime | Autogenerado (on update)                         |
+
+- Unique constraint: `@@unique([phone, role])` — permite dos sesiones simultáneas e independientes del mismo teléfono (USER y PROFESSIONAL) (AUT-192)
 
 ### Enums
 
