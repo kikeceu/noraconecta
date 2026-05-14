@@ -2,5 +2,5 @@
 VITE_API_URL=http://api.noraconecta.local
 VITE_APP_NAME=NORA
 VITE_APP_FULL_NAME=NORA Conecta
-VITE_APP_TAGLINE=Tu profesional de confianza
-VITE_APP_URL=https://noraconecta.com
+VITE_APP_TAGLINE=El profesional indicado para tu problema
+VITE_APP_URL=http://app.noraconecta.local
