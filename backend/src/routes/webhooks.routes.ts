@@ -6,13 +6,15 @@ import { BotRepository } from '../modules/bot/bot.repository';
 import { UsersService } from '../modules/users/users.service';
 import { UsersRepository } from '../modules/users/users.repository';
 import { RequestsRepository } from '../modules/requests/requests.repository';
+import { ProfessionalsRepository } from '../modules/professionals/professionals.repository';
 import { R2Client } from '../lib/r2-client';
 
 const botRepository = new BotRepository();
 const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const requestsRepository = new RequestsRepository();
-const botService = new BotService(botRepository, usersService, requestsRepository);
+const professionalsRepository = new ProfessionalsRepository();
+const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository);
 
 let r2Client: R2Client | null = null;
 let whatsappAdapter: WhatsAppAdapter | null = null;

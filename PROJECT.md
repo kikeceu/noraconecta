@@ -713,6 +713,29 @@ POST /bot/message
 - `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body
 - Si el proveedor no soporta reenvío de mensajes `location`, se genera un link de Google Maps: `https://maps.google.com/?q={lat},{lng}`
 
+**Validación de estado del profesional al iniciar sesión (AUT-193):**
+- Cuando un profesional escribe al canal de profesionales (7665) y no tiene sesión activa en `BotSession`, el bot consulta `ProfessionalsRepository.findByPhone(phone)` antes de arrancar cualquier flujo.
+- Para `ACTIVE` y `OBSERVATION`, además consulta si el profesional tiene un pedido activo (`status IN (ASSIGNED, ACCEPTED)` y `assignedProfessionalId = professional.id`).
+
+| Estado | Flow iniciado | Step | Mensaje |
+|--------|--------------|------|---------|
+| No existe (sin registro) | `PROFESSIONAL_REGISTER` | `ASK_NAME` | Comportamiento actual — arranca registro |
+| `PENDING` | — | — | "Tu registro está siendo procesado. Te enviamos un enlace de verificación. Si no lo recibiste, escribinos." |
+| `UNDER_REVIEW` | — | — | "Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo." |
+| `ACTIVE` (con pedido activo) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca flujo de coordinación; `tempData` incluye `requestId` |
+| `ACTIVE` (sin pedido activo) | — | — | "Hola [nombre]! Tu cuenta está activa. Te notificaremos cuando tengas un nuevo pedido asignado." |
+| `OBSERVATION` (con pedido activo) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca flujo de coordinación con prefijo: "Tu cuenta está en observación. Seguís operando normalmente."; `tempData` incluye `requestId` |
+| `OBSERVATION` (sin pedido activo) | — | — | "Tu cuenta está en observación. Seguís operando normalmente. Te notificaremos cuando tengas un nuevo pedido asignado." |
+| `PAUSED` | — | — | "Tu cuenta está pausada. Para reactivarla, ingresá a tu panel." |
+| `SUSPENDED` | — | — | "Tu cuenta está suspendida. Para más información, contactá a soporte." |
+| `REJECTED` | — | — | "Tu solicitud fue rechazada. Para más información, contactá a soporte." |
+
+- Para los estados que no arrancan flujo, la sesión se guarda con `currentFlow: null` y `currentStep: null`. En el próximo mensaje, el bot re-evalúa el estado del profesional desde la DB — si el estado cambió (ej: un admin aprobó al profesional), se arranca el flujo correspondiente.
+- La lógica se implementa en dos puntos de `BotService.processMessage()`:
+  1. Al no encontrar sesión (`!session`)
+  2. Al encontrar sesión sin flujo activo (`!session.currentFlow`)
+- `BotService` recibe `ProfessionalsRepository` por inyección de dependencias en su constructor. La consulta de pedido activo se realiza vía `prisma.request.findFirst()`.
+
 **Flujos implementados:**
 
 | Flow                    | Estados                                                                 |

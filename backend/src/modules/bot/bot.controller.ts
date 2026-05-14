@@ -4,12 +4,14 @@ import { BotRepository } from './bot.repository';
 import { UsersService } from '../users/users.service';
 import { UsersRepository } from '../users/users.repository';
 import { RequestsRepository } from '../requests/requests.repository';
+import { ProfessionalsRepository } from '../professionals/professionals.repository';
 
 const botRepository = new BotRepository();
 const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const requestsRepository = new RequestsRepository();
-const botService = new BotService(botRepository, usersService, requestsRepository);
+const professionalsRepository = new ProfessionalsRepository();
+const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository);
 
 export class BotController {
   async message(req: Request, res: Response, next: NextFunction): Promise<void> {
