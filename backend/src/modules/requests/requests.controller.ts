@@ -599,7 +599,7 @@ export class RequestsController {
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
       try {
-        const userSession = await botRepository.findByPhone(result.userPhone);
+        const userSession = await botRepository.findByPhoneAndRole(result.userPhone, 'USER');
         const userTempData =
           (userSession?.tempData as Record<string, unknown>) || {};
 
@@ -664,7 +664,7 @@ export class RequestsController {
             const alternativeText = formatDateTimeArgentina(new Date(proposedAt));
             const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
-            const userSession = await botRepository.findByPhone(user.phone);
+            const userSession = await botRepository.findByPhoneAndRole(user.phone, 'USER');
             const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
             await botRepository.upsert(user.phone, {

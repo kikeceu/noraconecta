@@ -4,7 +4,7 @@ import { FlowContext, BotResponse, LocationData, PendingNotification } from './f
 import { isCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
-import { Prisma } from '@prisma/client';
+import { Prisma, BotRole } from '@prisma/client';
 
 export type ProcessMessageInput = {
   phone: string;
@@ -12,7 +12,7 @@ export type ProcessMessageInput = {
   imageUrls?: string[];
   audioUrl?: string;
   location?: LocationData;
-  role?: 'USER' | 'PROFESSIONAL';
+  role?: BotRole;
 };
 
 export class BotService {
@@ -27,11 +27,11 @@ export class BotService {
   ): Promise<BotResponse & { flow?: string; step?: string }> {
     const user = await this.usersService.findOrCreateByPhone(input.phone);
 
-    let session = await this.botRepository.findByPhone(input.phone);
+    const role: BotRole = input.role || 'USER';
 
-    console.log('[processMessage] phone:', input.phone, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
+    let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
 
-    const role = input.role || (session?.role as 'USER' | 'PROFESSIONAL') || 'USER';
+    console.log('[processMessage] phone:', input.phone, 'role:', role, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
 
     const userIdentity = {
       userId: user.id,
@@ -65,7 +65,7 @@ export class BotService {
       }
     }
 
-    await this.botRepository.updateLastInboundAt(input.phone, new Date());
+    await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
 
     const sessionTempData = (session.tempData as Record<string, unknown>) || {};
 

@@ -311,8 +311,8 @@ model Escalation {
 
 model BotSession {
   id          String   @id @default(cuid())
-  phone       String   @unique
-  role        BotRole?
+  phone       String
+  role        BotRole
   currentFlow String?
   currentStep String?
   tempData      Json?
@@ -320,4 +320,6 @@ model BotSession {
   reminderSentAt  DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@unique([phone, role])
 }

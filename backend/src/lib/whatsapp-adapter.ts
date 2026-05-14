@@ -151,7 +151,7 @@ export class WhatsAppAdapter {
     text: string,
     role: WhatsAppRole,
   ): Promise<void> {
-    const needsTemplate = await shouldUseTemplate(phone, this.botRepository);
+    const needsTemplate = await shouldUseTemplate(phone, role, this.botRepository);
 
     if (needsTemplate) {
       await this.sendTemplate(phone, 'nora_notification', [text], role);
