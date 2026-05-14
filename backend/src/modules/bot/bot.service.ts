@@ -4,7 +4,9 @@ import { FlowContext, BotResponse, LocationData, PendingNotification } from './f
 import { isCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
-import { Prisma, BotRole } from '@prisma/client';
+import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import prisma from '../../lib/prisma';
+import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 
 export type ProcessMessageInput = {
   phone: string;
@@ -20,6 +22,7 @@ export class BotService {
     private readonly botRepository: BotRepository,
     private readonly usersService: UsersService,
     private readonly requestsRepository: RequestsRepository,
+    private readonly professionalsRepository: ProfessionalsRepository,
   ) {}
 
   async processMessage(
@@ -39,15 +42,47 @@ export class BotService {
       phone: user.phone,
     };
 
-    if (!session) {
-      const handler = resolveFlowHandler(role);
+    let observationWarning: string | undefined;
 
-      session = await this.botRepository.upsert(input.phone, {
-        role,
-        currentFlow: handler.flowName,
-        currentStep: handler.getInitialStep(),
-        tempData: userIdentity as Prisma.InputJsonValue,
-      });
+    if (!session) {
+      if (role === 'PROFESSIONAL') {
+        const state = await this.resolveProfessionalState(input.phone);
+
+        if (state) {
+          observationWarning = state.observationWarning;
+
+          const tempData: Record<string, unknown> = { ...userIdentity };
+          if (state.requestId) {
+            tempData.requestId = state.requestId;
+          }
+
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: state.flowName,
+            currentStep: state.stepName,
+            tempData: tempData as Prisma.InputJsonValue,
+          });
+
+          if (!state.flowName) {
+            return {
+              text: state.responseText,
+              flow: undefined,
+              step: undefined,
+            };
+          }
+        }
+      }
+
+      if (!session) {
+        const handler = resolveFlowHandler(role);
+
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: handler.flowName,
+          currentStep: handler.getInitialStep(),
+          tempData: userIdentity as Prisma.InputJsonValue,
+        });
+      }
     } else {
       const sessionTempData = (session.tempData as Record<string, unknown>) || {};
 
@@ -108,9 +143,39 @@ export class BotService {
     }
 
     if (!session.currentFlow) {
-      const handler = resolveFlowHandler(role);
-      session.currentFlow = handler.flowName;
-      session.currentStep = handler.getInitialStep();
+      if (role === 'PROFESSIONAL') {
+        const state = await this.resolveProfessionalState(input.phone);
+
+        if (state) {
+          observationWarning = observationWarning || state.observationWarning;
+
+          const tempData: Record<string, unknown> = { ...userIdentity };
+          if (state.requestId) {
+            tempData.requestId = state.requestId;
+          }
+
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: state.flowName,
+            currentStep: state.stepName,
+            tempData: tempData as Prisma.InputJsonValue,
+          });
+
+          if (!state.flowName) {
+            return {
+              text: state.responseText,
+              flow: undefined,
+              step: undefined,
+            };
+          }
+        }
+      }
+
+      if (!session.currentFlow) {
+        const handler = resolveFlowHandler(role);
+        session.currentFlow = handler.flowName;
+        session.currentStep = handler.getInitialStep();
+      }
     }
 
     const flowHandler = getFlowHandlerByName(session.currentFlow);
@@ -139,6 +204,10 @@ export class BotService {
     };
 
     const result = await flowHandler.handleStep(step, context);
+
+    if (observationWarning) {
+      result.response.text = observationWarning + '\n\n' + result.response.text;
+    }
 
     const resultTempData = (result.tempData as Record<string, unknown>) || {};
     const pendingNotification = resultTempData.pendingNotification as PendingNotification | undefined;
@@ -190,5 +259,81 @@ export class BotService {
 
   async resetSession(phone: string): Promise<void> {
     await this.botRepository.deleteByPhone(phone);
+  }
+
+  private async resolveProfessionalState(phone: string): Promise<{
+    flowName: string | null;
+    stepName: string | null;
+    responseText: string;
+    observationWarning?: string;
+    requestId?: string;
+  } | null> {
+    const existing = await this.professionalsRepository.findByPhone(phone);
+    if (!existing) return null;
+
+    let responseText = '';
+    let flowName: string | null = null;
+    let stepName: string | null = null;
+    let observationWarning: string | undefined;
+    let requestId: string | undefined;
+
+    switch (existing.status) {
+      case ProfessionalStatus.PENDING:
+        responseText = 'Tu registro está siendo procesado. Te enviamos un enlace de verificación. Si no lo recibiste, escribinos.';
+        break;
+      case ProfessionalStatus.UNDER_REVIEW:
+        responseText = 'Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo.';
+        break;
+      case ProfessionalStatus.ACTIVE: {
+        const activeRequest = await prisma.request.findFirst({
+          where: {
+            assignedProfessionalId: existing.id,
+            status: { in: ['ASSIGNED', 'ACCEPTED'] },
+          },
+        });
+
+        if (activeRequest) {
+          const coordinationFlow = getFlowHandlerByName('COORDINATION');
+          flowName = 'COORDINATION';
+          stepName = coordinationFlow?.getInitialStep() ?? null;
+          requestId = activeRequest.id;
+        } else {
+          responseText = `Hola ${existing.name}! Tu cuenta está activa. Te notificaremos cuando tengas un nuevo pedido asignado.`;
+        }
+        break;
+      }
+      case ProfessionalStatus.OBSERVATION: {
+        observationWarning = 'Tu cuenta está en observación. Seguís operando normalmente.';
+
+        const activeRequest = await prisma.request.findFirst({
+          where: {
+            assignedProfessionalId: existing.id,
+            status: { in: ['ASSIGNED', 'ACCEPTED'] },
+          },
+        });
+
+        if (activeRequest) {
+          const coordinationFlow = getFlowHandlerByName('COORDINATION');
+          flowName = 'COORDINATION';
+          stepName = coordinationFlow?.getInitialStep() ?? null;
+          requestId = activeRequest.id;
+        } else {
+          responseText = 'Tu cuenta está en observación. Seguís operando normalmente. Te notificaremos cuando tengas un nuevo pedido asignado.';
+          observationWarning = undefined;
+        }
+        break;
+      }
+      case ProfessionalStatus.PAUSED:
+        responseText = 'Tu cuenta está pausada. Para reactivarla, ingresá a tu panel.';
+        break;
+      case ProfessionalStatus.SUSPENDED:
+        responseText = 'Tu cuenta está suspendida. Para más información, contactá a soporte.';
+        break;
+      case ProfessionalStatus.REJECTED:
+        responseText = 'Tu solicitud fue rechazada. Para más información, contactá a soporte.';
+        break;
+    }
+
+    return { flowName, stepName, responseText, observationWarning, requestId };
   }
 }
