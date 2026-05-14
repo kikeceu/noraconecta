@@ -43,7 +43,7 @@ function getWhatsappAdapter(): WhatsAppAdapter | null {
 }
 
 function validateHmac(rawBody: Buffer, signatureHeader: string): boolean {
-  const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET;
+  const webhookSecret = process.env.WHATSAPP_APP_SECRET;
   if (!webhookSecret) return false;
 
   if (!signatureHeader?.startsWith('sha256=')) return false;
