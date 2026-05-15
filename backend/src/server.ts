@@ -27,6 +27,9 @@ import { MatchingRepository } from './modules/matching/matching.repository';
 import { UsersRepository } from './modules/users/users.repository';
 import { CoordinationService } from './modules/bot/coordination.service';
 import { BotRepository } from './modules/bot/bot.repository';
+import { NotificationService } from './modules/notifications/notification.service';
+import { WhatsAppAdapter } from './lib/whatsapp-adapter';
+import { R2Client } from './lib/r2-client';
 
 const app = express();
 
@@ -80,11 +83,19 @@ const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
 const matchingRepository = new MatchingRepository();
 const botRepository = new BotRepository();
+const r2Client = new R2Client();
+const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
+const notificationService = new NotificationService(whatsappAdapter);
+const coordinationService = new CoordinationService(botRepository, whatsappAdapter);
 const requestsService = new RequestsService(
   requestsRepository,
   usersRepository,
   matchingRepository,
   botRepository,
+  undefined,
+  undefined,
+  notificationService,
+  coordinationService,
 );
 
 cron.schedule('*/15 * * * *', () => {
@@ -97,8 +108,6 @@ cron.schedule('0 * * * *', () => {
 });
 
 // Cron job: send visit reminders 24h before scheduledAt (runs every hour)
-const coordinationService = new CoordinationService(botRepository);
-
 cron.schedule('0 * * * *', () => {
   void coordinationService.sendReminders();
 });

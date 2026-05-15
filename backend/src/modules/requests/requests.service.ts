@@ -8,6 +8,8 @@ import { ReputationService } from '../reputation/reputation.service';
 import { ReputationRepository } from '../reputation/reputation.repository';
 import { EscalationsService } from '../escalations/escalations.service';
 import { EscalationsRepository } from '../escalations/escalations.repository';
+import { NotificationService } from '../notifications/notification.service';
+import { CoordinationService } from '../bot/coordination.service';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
 import { parseExactDate, formatDateTimeArgentina } from '../../utils/date-utils';
@@ -58,6 +60,8 @@ export class RequestsService {
     private readonly botRepository: BotRepository,
     private readonly reputationService = new ReputationService(reputationRepository),
     private readonly escalationsService = new EscalationsService(escalationsRepository),
+    private readonly notificationService?: NotificationService,
+    private readonly coordinationService?: CoordinationService,
   ) {
     this.matchingService = new MatchingService(this.matchingRepository, configRepository);
   }
@@ -135,6 +139,32 @@ export class RequestsService {
 
       await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
 
+      // Notify professional via WhatsApp
+      if (this.notificationService) {
+        const categoryName = await this.getCategoryName(input.categoryId);
+        const zoneName = await this.getZoneName(input.geoNodeId);
+
+        const professional = await prisma.professional.findUnique({
+          where: { id: match.professionalId },
+          select: { phone: true, name: true },
+        });
+
+        if (professional) {
+          this.notificationService.notifyProfessionalAssigned(
+            professional,
+            {
+              id: request.id,
+              categoryName,
+              zoneName,
+              description: input.description,
+              timeoutHours: responseTimeoutHours,
+            },
+          ).catch((err) => {
+            console.error('[RequestsService] Failed to notify professional assigned:', err);
+          });
+        }
+      }
+
       return updated;
     }
 
@@ -188,6 +218,37 @@ export class RequestsService {
       professionalId: request.assignedProfessionalId,
       type: 'ACCEPTED',
     });
+
+    // Init coordination and notify user
+    const fullRequest = await this.requestsRepository.findByIdWithCoordination(requestId);
+
+    if (fullRequest?.user?.phone && fullRequest?.assignedProfessional?.phone) {
+      if (this.coordinationService) {
+        this.coordinationService.initAfterAccept({
+          requestId: fullRequest.id,
+          userId: fullRequest.userId,
+          userName: fullRequest.user?.name || 'Usuario',
+          userPhone: fullRequest.user.phone,
+          professionalId: fullRequest.assignedProfessionalId!,
+          professionalName: fullRequest.assignedProfessional?.name || 'Profesional',
+          professionalPhone: fullRequest.assignedProfessional.phone,
+          categoryName: fullRequest.category?.name || 'el servicio',
+          description: fullRequest.description,
+        }).catch((err) => {
+          console.error('[RequestsService] Failed to init coordination after accept:', err);
+        });
+      }
+
+      if (this.notificationService) {
+        this.notificationService.notifyUserRequestAccepted(
+          fullRequest.user,
+          fullRequest.assignedProfessional,
+          { id: fullRequest.id, categoryName: fullRequest.category?.name || 'el servicio' },
+        ).catch((err) => {
+          console.error('[RequestsService] Failed to notify user request accepted:', err);
+        });
+      }
+    }
 
     return updated;
   }
@@ -923,9 +984,17 @@ export class RequestsService {
 
         await this.botRepository.setReminderSent(phone, 'PROFESSIONAL', now);
 
-        const message =
-          'Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo.';
-        console.log('[Timeout reminder] phone:', phone, 'message:', message);
+        if (this.notificationService) {
+          await this.notificationService.notifyProfessionalReminder(
+            { phone, name: '' },
+            { id: request.id, categoryName: '' },
+          );
+        } else {
+          const message =
+            'Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo.';
+          console.log('[Timeout reminder] phone:', phone, 'message:', message);
+        }
+
         processed++;
       } catch {
         // Continue processing remaining requests
@@ -982,6 +1051,19 @@ export class RequestsService {
             requestId: request.id,
             type: 'NO_RESPONSE',
           });
+
+          // Notify user that no professional was found
+          if (this.notificationService) {
+            const userData = await prisma.user.findUnique({
+              where: { id: request.userId },
+              select: { phone: true, name: true },
+            });
+            if (userData?.phone) {
+              this.notificationService.notifyUserNoResponse(userData).catch((err) => {
+                console.error('[RequestsService] Failed to notify user no response:', err);
+              });
+            }
+          }
         } else {
           const responseTimeoutHours = await this.getResponseTimeoutHours();
           const assignmentTimeoutAt = new Date(
@@ -1005,6 +1087,42 @@ export class RequestsService {
             match.professionalId,
             now,
           );
+
+          // Notify new professional and user
+          if (this.notificationService) {
+            const categoryName = await this.getCategoryName(request.categoryId);
+            const zoneName = await this.getZoneName(request.geoNodeId);
+
+            const professional = await prisma.professional.findUnique({
+              where: { id: match.professionalId },
+              select: { phone: true, name: true },
+            });
+
+            if (professional) {
+              this.notificationService.notifyProfessionalReassigned(
+                professional,
+                {
+                  id: request.id,
+                  categoryName,
+                  zoneName,
+                  description: request.description,
+                  timeoutHours: responseTimeoutHours,
+                },
+              ).catch((err) => {
+                console.error('[RequestsService] Failed to notify professional reassigned:', err);
+              });
+            }
+
+            const userData = await prisma.user.findUnique({
+              where: { id: request.userId },
+              select: { phone: true, name: true },
+            });
+            if (userData?.phone) {
+              this.notificationService.notifyUserReassigning(userData).catch((err) => {
+                console.error('[RequestsService] Failed to notify user reassigning:', err);
+              });
+            }
+          }
         }
 
         processed++;
@@ -1348,6 +1466,22 @@ export class RequestsService {
     }
 
     return processed;
+  }
+
+  private async getCategoryName(categoryId: string): Promise<string> {
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { name: true },
+    });
+    return category?.name || 'el servicio';
+  }
+
+  private async getZoneName(geoNodeId: string): Promise<string> {
+    const node = await prisma.geoNode.findUnique({
+      where: { id: geoNodeId },
+      select: { name: true },
+    });
+    return node?.name || 'tu zona';
   }
 
   private async getResponseTimeoutHours(): Promise<number> {

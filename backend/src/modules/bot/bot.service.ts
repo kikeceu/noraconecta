@@ -27,7 +27,7 @@ export class BotService {
 
   async processMessage(
     input: ProcessMessageInput,
-  ): Promise<BotResponse & { flow?: string; step?: string }> {
+  ): Promise<BotResponse & { flow?: string; step?: string; pendingNotification?: PendingNotification }> {
     const user = await this.usersService.findOrCreateByPhone(input.phone);
 
     const role: BotRole = input.role || 'USER';
@@ -254,6 +254,7 @@ export class BotService {
       requestId: result.response.requestId,
       flow: updatedSession.currentFlow || undefined,
       step: updatedSession.currentStep || undefined,
+      pendingNotification: pendingNotification || undefined,
     };
   }
 

@@ -5,14 +5,29 @@ import { MatchingRepository } from '../matching/matching.repository';
 import { UsersRepository } from '../users/users.repository';
 import { CoordinationService } from '../bot/coordination.service';
 import { BotRepository } from '../bot/bot.repository';
+import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { R2Client } from '../../lib/r2-client';
+import { NotificationService } from '../notifications/notification.service';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
 const matchingRepository = new MatchingRepository();
 const botRepository = new BotRepository();
-const requestsService = new RequestsService(requestsRepository, usersRepository, matchingRepository, botRepository);
-const coordinationService = new CoordinationService(botRepository);
+const r2Client = new R2Client();
+const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
+const notificationService = new NotificationService(whatsappAdapter);
+const coordinationService = new CoordinationService(botRepository, whatsappAdapter);
+const requestsService = new RequestsService(
+  requestsRepository,
+  usersRepository,
+  matchingRepository,
+  botRepository,
+  undefined,
+  undefined,
+  notificationService,
+  coordinationService,
+);
 
 type ReassignmentReason = 'PROFESSIONAL_CANCELLED' | 'TIMEOUT';
 
@@ -136,27 +151,6 @@ export class RequestsController {
       }
 
       const request = await requestsService.accept(id);
-
-      try {
-        const fullRequest = await requestsRepository.findByIdWithCoordination(id);
-
-        if (fullRequest?.user?.phone && fullRequest.assignedProfessional?.phone) {
-          await coordinationService.initAfterAccept({
-            requestId: fullRequest.id,
-            userId: fullRequest.userId,
-            userName: fullRequest.user?.name || 'Usuario',
-            userPhone: fullRequest.user.phone,
-            professionalId: fullRequest.assignedProfessionalId!,
-            professionalName: fullRequest.assignedProfessional?.name || 'Profesional',
-            professionalPhone: fullRequest.assignedProfessional.phone,
-            categoryName: fullRequest.category?.name || 'el servicio',
-            description: fullRequest.description,
-          });
-
-        }
-      } catch (err) {
-        console.error('[RequestsController] Failed to init coordination:', err);
-      }
 
       res.status(200).json({ data: request });
     } catch (err) {
@@ -599,20 +593,7 @@ export class RequestsController {
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
       try {
-        const userSession = await botRepository.findByPhoneAndRole(result.userPhone, 'USER');
-        const userTempData =
-          (userSession?.tempData as Record<string, unknown>) || {};
-
-        await botRepository.upsert(result.userPhone, {
-          role: 'USER',
-          currentFlow: userSession?.currentFlow,
-          currentStep: userSession?.currentStep,
-          tempData: {
-            ...userTempData,
-            pendingMessage: result.userMessage,
-            requestId: id,
-          },
-        });
+        await whatsappAdapter.sendText(result.userPhone, result.userMessage, 'USER');
       } catch (err) {
         console.error(
           '[RequestsController] Failed to notify user about professional cancellation:',
