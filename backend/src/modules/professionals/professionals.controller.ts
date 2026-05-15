@@ -1,9 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProfessionalsService, VerificationStageTwoInput } from './professionals.service';
 import { ProfessionalsRepository } from './professionals.repository';
+import { ConfigRepository } from '../config/config.repository';
+import { BotRepository } from '../bot/bot.repository';
+import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { R2Client } from '../../lib/r2-client';
 
 const professionalsRepository = new ProfessionalsRepository();
-const professionalsService = new ProfessionalsService(professionalsRepository);
+const configRepository = new ConfigRepository();
+const botRepository = new BotRepository();
+const r2Client = new R2Client();
+const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
+const professionalsService = new ProfessionalsService(
+  professionalsRepository,
+  whatsappAdapter,
+  configRepository,
+);
 
 export class ProfessionalsController {
   async register(

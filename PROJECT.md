@@ -757,6 +757,10 @@ POST /bot/message
 | `REJECTED` | — | — | "Tu solicitud fue rechazada. Para más información, contactá a soporte." |
 
 - Para los estados que no arrancan flujo, la sesión se guarda con `currentFlow: null` y `currentStep: null`. En el próximo mensaje, el bot re-evalúa el estado del profesional desde la DB — si el estado cambió (ej: un admin aprobó al profesional), se arranca el flujo correspondiente.
+- **Sesión de registro obsoleta (AUT-196):** si existe sesión con `currentFlow = PROFESSIONAL_REGISTER` pero el profesional ya no está en etapa de registro, el bot evita ejecutar `SEND_LINK`:
+  - `ACTIVE` / `OBSERVATION`: resetea sesión (`currentFlow/currentStep = null`) y reaplica la misma resolución de estado de AUT-193 (inicia coordinación si hay pedido activo o responde mensaje informativo)
+  - `PAUSED` / `SUSPENDED` / `REJECTED`: resetea sesión y responde mensaje de estado correspondiente
+  - `PENDING` / `UNDER_REVIEW`: conserva la sesión existente pero responde mensaje informativo de estado actual
 - La lógica se implementa en dos puntos de `BotService.processMessage()`:
   1. Al no encontrar sesión (`!session`)
   2. Al encontrar sesión sin flujo activo (`!session.currentFlow`)
@@ -1530,7 +1534,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `POST /professionals/verify/:token` acepta `{ dniNumber, cuil, dniFrontUrl, dniBackUrl, criminalRecordUrl?, references?, presentationVideoUrl? }` — todos los campos son opcionales en backend; el frontend valida obligatoriedad de DNI, CUIL, dniFrontUrl y dniBackUrl
   - El frontend de onboarding (`/verify/:token`) es standalone (sin header ni nav), mobile-first (375px), con barra de progreso de 8 pasos y upload de archivos a R2 vía presigned URLs
   - El sistema nunca aprueba profesionales automáticamente — siempre requiere revisión manual de un SUPERADMIN
-  - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE
+  - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE y envía WhatsApp inmediato de bienvenida al profesional aprobado con la cantidad de pedidos gratuitos (`TRIAL_REQUESTS_LIMIT`, default 3)
   - Rechazo: solo permite transición UNDER_REVIEW → REJECTED. El motivo se registra en logs (no hay campo en DB para rejectionReason en MVP)
   - Suspensión: cualquier estado → SUSPENDED (excepto si ya está suspendido → 409)
   - Reactivación: solo permite transición SUSPENDED → ACTIVE
