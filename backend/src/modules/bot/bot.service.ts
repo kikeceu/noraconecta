@@ -44,6 +44,62 @@ export class BotService {
 
     let observationWarning: string | undefined;
 
+    if (
+      role === 'PROFESSIONAL' &&
+      session?.currentFlow === 'PROFESSIONAL_REGISTER'
+    ) {
+      const existingProfessional = await this.professionalsRepository.findByPhone(input.phone);
+
+      if (existingProfessional) {
+        const state = await this.resolveProfessionalState(input.phone);
+
+        if (!state) {
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: 'Error interno: no se pudo resolver el estado de la cuenta.',
+            flow: undefined,
+            step: undefined,
+          };
+        }
+
+        const shouldKeepRegisterSession =
+          existingProfessional.status === ProfessionalStatus.PENDING ||
+          existingProfessional.status === ProfessionalStatus.UNDER_REVIEW;
+
+        if (shouldKeepRegisterSession) {
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: state.responseText,
+            flow: undefined,
+            step: undefined,
+          };
+        }
+
+        const tempData: Record<string, unknown> = { ...userIdentity };
+        if (state.requestId) {
+          tempData.requestId = state.requestId;
+        }
+
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: state.flowName,
+          currentStep: state.stepName,
+          tempData: tempData as Prisma.InputJsonValue,
+        });
+
+        if (!state.flowName) {
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: state.responseText,
+            flow: undefined,
+            step: undefined,
+          };
+        }
+
+        observationWarning = state.observationWarning;
+      }
+    }
+
     if (!session) {
       if (role === 'PROFESSIONAL') {
         const state = await this.resolveProfessionalState(input.phone);

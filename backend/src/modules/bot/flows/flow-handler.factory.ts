@@ -40,12 +40,16 @@ const requestsService = new RequestsService(
 );
 
 const professionalsRepository = new ProfessionalsRepository();
-const professionalsService = new ProfessionalsService(professionalsRepository);
+const configRepository = new ConfigRepository();
+const professionalsService = new ProfessionalsService(
+  professionalsRepository,
+  whatsappAdapter,
+  configRepository,
+);
 
 const paymentsRepository = new PaymentsRepository();
 const plansRepository = new PlansRepository();
 const membershipsRepository = new MembershipsRepository();
-const configRepository = new ConfigRepository();
 
 const membershipsService = new MembershipsService(
   membershipsRepository,
