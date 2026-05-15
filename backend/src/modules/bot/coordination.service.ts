@@ -1,6 +1,7 @@
 import { BotRepository } from './bot.repository';
 import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
+import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 
 export type CoordinationInitData = {
@@ -16,7 +17,10 @@ export type CoordinationInitData = {
 };
 
 export class CoordinationService {
-  constructor(private readonly botRepository: BotRepository) {}
+  constructor(
+    private readonly botRepository: BotRepository,
+    private readonly whatsappAdapter: WhatsAppAdapter,
+  ) {}
 
   async initAfterAccept(data: CoordinationInitData): Promise<void> {
     const tempData: Record<string, unknown> = {
@@ -66,6 +70,10 @@ export class CoordinationService {
       `¿Cómo quedó?\n\n` +
       `Respondé: "conforme", "con observaciones" o "no conforme"`;
 
+    await this.whatsappAdapter.sendText(userPhone, message, 'USER').catch((err) => {
+      console.error('[CoordinationService] Failed to notify work finished:', err);
+    });
+
     const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
     const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
 
@@ -75,7 +83,6 @@ export class CoordinationService {
       currentStep: null,
       tempData: {
         ...userTempData,
-        pendingMessage: message,
         requestId,
         userId: request.userId,
       } as Prisma.InputJsonValue,
@@ -118,17 +125,8 @@ export class CoordinationService {
       if (userPhone) {
         const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}. Si necesitás reprogramar, escribime.`;
 
-        const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
-        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
-
-        await this.botRepository.upsert(userPhone, {
-          role: 'USER',
-          currentFlow: userSession?.currentFlow,
-          currentStep: userSession?.currentStep,
-          tempData: {
-            ...userTempData,
-            pendingMessage: userMessage,
-          } as Prisma.InputJsonValue,
+        await this.whatsappAdapter.sendText(userPhone, userMessage, 'USER').catch((err) => {
+          console.error('[CoordinationService] Failed to send reminder to user:', err);
         });
       }
 
@@ -136,17 +134,8 @@ export class CoordinationService {
         const address = visit.clientAddress || 'la dirección';
         const professionalMessage = `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address} por el pedido #${visit.id}.`;
 
-        const profSession = await this.botRepository.findByPhoneAndRole(professionalPhone, 'PROFESSIONAL');
-        const profTempData = (profSession?.tempData as Record<string, unknown>) || {};
-
-        await this.botRepository.upsert(professionalPhone, {
-          role: 'PROFESSIONAL',
-          currentFlow: profSession?.currentFlow,
-          currentStep: profSession?.currentStep,
-          tempData: {
-            ...profTempData,
-            pendingMessage: professionalMessage,
-          } as Prisma.InputJsonValue,
+        await this.whatsappAdapter.sendText(professionalPhone, professionalMessage, 'PROFESSIONAL').catch((err) => {
+          console.error('[CoordinationService] Failed to send reminder to professional:', err);
         });
       }
 
@@ -196,15 +185,15 @@ export class CoordinationService {
         const userMessage =
           'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
 
-        const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
-        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+        await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
+          console.error('[CoordinationService] Failed to send format error to user:', err);
+        });
 
         await this.botRepository.upsert(request.user.phone, {
           role: 'USER',
           currentFlow: 'COORDINATION',
           currentStep: 'AWAITING_AVAILABILITY',
           tempData: {
-            ...userTempData,
             requestId,
             userId: request.userId,
             userName: request.user?.name,
@@ -214,7 +203,6 @@ export class CoordinationService {
             professionalPhone: request.assignedProfessional?.phone,
             categoryName: request.category?.name,
             description: request.description,
-            pendingMessage: userMessage,
             negotiationRounds: 0,
           } as Prisma.InputJsonValue,
         });
@@ -259,15 +247,15 @@ export class CoordinationService {
 
         const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
-        const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
-        const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+        await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
+          console.error('[CoordinationService] Failed to send alternative schedule to user:', err);
+        });
 
         await this.botRepository.upsert(request.user.phone, {
           role: 'USER',
           currentFlow: 'COORDINATION',
           currentStep: 'AWAITING_USER_CONFIRMATION',
           tempData: {
-            ...userTempData,
             requestId,
             userId: request.userId,
             userName: request.user?.name,
@@ -280,7 +268,6 @@ export class CoordinationService {
             alternativeScheduledAt: scheduledAt.toISOString(),
             availability: clientAvailability,
             negotiationRounds: 0,
-            pendingMessage: userMessage,
           } as Prisma.InputJsonValue,
         });
 
@@ -313,15 +300,15 @@ export class CoordinationService {
 
       const userMessage = `${professionalName} llega el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
-      const userSession = await this.botRepository.findByPhoneAndRole(request.user.phone, 'USER');
-      const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
+      await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
+        console.error('[CoordinationService] Failed to send location request to user:', err);
+      });
 
       await this.botRepository.upsert(request.user.phone, {
         role: 'USER',
         currentFlow: 'COORDINATION',
         currentStep: 'AWAITING_LOCATION',
         tempData: {
-          ...userTempData,
           requestId,
           userId: request.userId,
           userName: request.user?.name,
@@ -332,7 +319,6 @@ export class CoordinationService {
           categoryName: request.category?.name,
           description: request.description,
           scheduledAt: scheduledAt.toISOString(),
-          pendingMessage: userMessage,
         } as Prisma.InputJsonValue,
       });
     }

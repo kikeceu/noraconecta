@@ -97,6 +97,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
+│   │   │   └── notifications/              # (AUT-195)
+│   │   │       └── notification.service.ts   # WhatsApp notification dispatch for request lifecycle events
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
@@ -300,6 +302,8 @@ src/
 │   └── matching/
 │       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
 │       └── matching.repository.ts # Prisma queries para motor de matching + findTrialExhaustedProfessionals (AUT-188)
+│   └── notifications/             # (AUT-195)
+│       └── notification.service.ts # WhatsApp notification dispatch for request lifecycle events
 │   └── payments/                  # (AUT-188)
 │       ├── payments.routes.ts     # POST /webhooks/mercadopago
 │       ├── payments.controller.ts # Webhook HMAC validation
@@ -577,6 +581,28 @@ Response shape:
 |------------------------------------------|--------|--------------------------------------|-----------|
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
+
+### Notifications (AUT-195)
+
+Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida del pedido. Encapsula `WhatsAppAdapter` y expone métodos semánticos por evento.
+
+**Servicios internos:**
+
+| Método                              | Descripción                                                          |
+|-------------------------------------|----------------------------------------------------------------------|
+| `notifyProfessionalAssigned()`      | Notifica al profesional cuando se le asigna un nuevo pedido           |
+| `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
+| `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout)|
+| `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2)       |
+| `notifyUserReassigning()`           | Notifica al usuario que se está buscando otro profesional             |
+| `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible         |
+| `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló el pedido             |
+| `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido              |
+
+**Lógica de negocio:**
+- Todos los métodos capturan errores de envío y loguean sin propagar la excepción
+- Usa `WhatsAppAdapter.sendText()` que maneja automáticamente la ventana de 24hs (template vs texto libre)
+- Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
 
 ### Payments (AUT-188)
 
@@ -888,6 +914,9 @@ WhatsApp (Meta) → POST /webhooks/whatsapp
       → Retornar IncomingMessage normalizado
     → BotService.processMessage(phone, message)
     → WhatsAppAdapter.sendText() / sendImage() (usa shouldUseTemplate() antes de enviar)
+    → Si processMessage retorna pendingNotification:
+      → Enviar WhatsApp inmediato al destinatario via sendText()
+      → Limpiar pendingMessage de la sesión del destinatario (para no reentregar)
 ```
 
 **WhatsAppAdapter (`src/lib/whatsapp-adapter.ts`):**
@@ -1016,14 +1045,14 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 ```
 
 **Lógica de negocio:**
-- Crear: validar usuario sin pedido activo (409 si ya tiene) → crea en CREATED → matching → si encuentra candidato transiciona a ASSIGNED con `assignmentTimeoutAt`. Si no encuentra, permanece en CREATED con `assignmentTimeoutAt` para que el cron reintente.
-- Aceptar: incrementar `trialRequestsUsed` si no tiene membresía activa
+- Crear: validar usuario sin pedido activo (409 si ya tiene) → crea en CREATED → matching → si encuentra candidato transiciona a ASSIGNED con `assignmentTimeoutAt` y notifica al profesional via WhatsApp (`NotificationService.notifyProfessionalAssigned()`). Si no encuentra, permanece en CREATED con `assignmentTimeoutAt` para que el cron reintente.
+- Aceptar: incrementar `trialRequestsUsed` si no tiene membresía activa. Inicia coordinación (`CoordinationService.initAfterAccept()`) y notifica al usuario via WhatsApp (`NotificationService.notifyUserRequestAccepted()`) (AUT-195).
 - Rechazar: registrar evento REJECTED → reasignar excluyendo todos los rejectores anteriores
 - Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar. CREATED con `assignmentTimeoutAt < now()` → reintenta matching → si falla → NO_RESPONSE
 - Cancelación (cancel): solo permitida en CREATED o ASSIGNED
 - Cancelación por usuario (cancelByUser, AUT-169): permitida en CREATED, ASSIGNED, ACCEPTED (cualquier coordinationStatus incluyendo SCHEDULED). Si coordinationStatus = SCHEDULED, valida que falten más de 2 horas para `scheduledAt`. Registra evento CANCELLED con metadata `{ cancelledBy: 'USER', hadConfirmedVisit, hoursBeforeVisit }`. Retorna `CancelByUserResult` con info de notificación al profesional: notifica solo si ya había aceptado o tenía visita confirmada.
-- Cancelación por profesional (cancelByProfessional, AUT-170): permitida solo en ACCEPTED. Valida que el `assignedProfessionalId` coincida con el `professionalId` del caller. Registra evento CANCELLED con metadata `{ cancelledBy: 'PROFESSIONAL', hadConfirmedVisit, scheduledAt }` (no genera NO_RESPONSE — el profesional canceló voluntariamente, no por timeout). Notifica al usuario vía pendingMessage: si había visita confirmada → "canceló la visita programada para el [DD/MM HH:MM]"; si no → "no puede atenderte en este momento". Luego intenta reasignar excluyendo al profesional que canceló + rejectores anteriores. Si encuentra candidato → ASSIGNED con nuevo timeout. Si no → NO_RESPONSE con mensaje "No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno."
-- Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía pendingMessage al usuario con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158).
+- Cancelación por profesional (cancelByProfessional, AUT-170, AUT-195): permitida solo en ACCEPTED. Valida que el `assignedProfessionalId` coincida con el `professionalId` del caller. Registra evento CANCELLED con metadata `{ cancelledBy: 'PROFESSIONAL', hadConfirmedVisit, scheduledAt }` (no genera NO_RESPONSE — el profesional canceló voluntariamente, no por timeout). Notifica al usuario via WhatsApp inmediato (`whatsappAdapter.sendText()`): si había visita confirmada → "canceló la visita programada para el [DD/MM HH:MM]"; si no → "no puede atenderte en este momento". Luego intenta reasignar excluyendo al profesional que canceló + rejectores anteriores. Si encuentra candidato → ASSIGNED con nuevo timeout. Si no → NO_RESPONSE con mensaje "No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno."
+- Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía WhatsApp inmediato al usuario via `CoordinationService.notifyWorkFinished()` con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158, AUT-195).
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
   - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge
   - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
@@ -1543,9 +1572,9 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Pedidos:
   - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION) no puede crear otro → 409
   - Usuario bloqueado no puede crear pedidos → 403
-  - Creación dispara matching automáticamente vía `findBestCandidate()`; si no hay candidatos → NO_RESPONSE
+  - Creación dispara matching automáticamente vía `findBestCandidate()`; si encuentra candidato → notifica al profesional via WhatsApp (`NotificationService.notifyProfessionalAssigned()`). Si no hay candidatos → NO_RESPONSE
   - `assignmentTimeoutAt` se setea al asignar: `now() + PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2h)
-  - Aceptar: incrementa `trialRequestsUsed` si el profesional no tiene membresía ACTIVA vigente. Limpia `assignmentTimeoutAt`
+  - Aceptar: incrementa `trialRequestsUsed` si el profesional no tiene membresía ACTIVA vigente. Limpia `assignmentTimeoutAt`. Inicia flujo de coordinación (`CoordinationService.initAfterAccept()`) y notifica al usuario via WhatsApp (`NotificationService.notifyUserRequestAccepted()`) (AUT-195).
   - Rechazar: registra evento REJECTED, recolecta todos los rejectores anteriores (incluyendo al actual) y reasigna excluyéndolos
   - Sin candidatos tras reasignación → NO_RESPONSE
   - Cancelación: solo permitida en CREATED o ASSIGNED → CANCELLED
@@ -1556,16 +1585,17 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `confirmCompletion`: (legacy) usuario confirma Sí → COMPLETED, o No → NOT_FULFILLED
   - `reportNoncompliance`: (legacy) usuario reporta incumplimiento → NOT_FULFILLED
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
-- Timeout job (dos etapas, AUT-177): 
-  - **Etapa 1 — Recordatorio (entre 60 y 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 minutos atrás cuyo profesional asignado no tenga `reminderSentAt` en su `BotSession`. Registra `reminderSentAt` y loggea el mensaje de recordatorio: "Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Entrá a tu panel para aceptarlo o rechazarlo." El envío real por WhatsApp queda pendiente para AUT-134.
-  - **Etapa 2 — Reasignación (más de 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` > 90 minutos atrás. Crea evento `NO_RESPONSE` para el profesional actual y limpia su `reminderSentAt`. Excluye al profesional vencido + rejectores previos y reasigna. Si no hay candidatos → `NO_RESPONSE`. El usuario no recibe ninguna notificación (reasignación silenciosa).
+- Timeout job (dos etapas, AUT-177, AUT-195): 
+  - **Etapa 1 — Recordatorio (entre 60 y 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 minutos atrás cuyo profesional asignado no tenga `reminderSentAt` en su `BotSession`. Registra `reminderSentAt` y envía WhatsApp inmediato al profesional via `NotificationService.notifyProfessionalReminder()`. Si `NotificationService` no está disponible, loggea el mensaje como fallback.
+  - **Etapa 2 — Reasignación (más de 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` > 90 minutos atrás. Crea evento `NO_RESPONSE` para el profesional actual y limpia su `reminderSentAt`. Excluye al profesional vencido + rejectores previos y reasigna. Si hay nuevo candidato → notifica al nuevo profesional (`notifyProfessionalReassigned`) y al usuario (`notifyUserReassigning`). Si no hay candidatos → `NO_RESPONSE` + notifica al usuario (`notifyUserNoResponse`).
   - El cron corre cada 15 minutos (`*/15 * * * *`).
 - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
-- **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía `pendingMessage` a usuario y profesional vía `BotSession`. El cron corre cada hora (`node-cron` en `server.ts`).
+- **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía WhatsApp inmediato a usuario y profesional via `CoordinationService.sendReminders()` (AUT-195). El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
-- **Coordinación de visita (AUT-151, AUT-152, AUT-160):**
-  - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsController` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot
+- **Coordinación de visita (AUT-151, AUT-152, AUT-160, AUT-195):**
+  - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsService.accept()` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot. También envía WhatsApp inmediato al usuario via `NotificationService.notifyUserRequestAccepted()`.
+  - Los mensajes de coordinación (`confirmVisit`, `notifyWorkFinished`, `sendReminders`) se envían inmediatamente por WhatsApp via `CoordinationService` (antes usaban `pendingMessage` en BotSession).
   - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
   - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
    - Si el profesional propone un horario diferente al del usuario → `AWAITING_USER_CONFIRMATION`:

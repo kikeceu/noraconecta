@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { WhatsAppAdapter } from '../lib/whatsapp-adapter';
 import { BotService } from '../modules/bot/bot.service';
 import { BotRepository } from '../modules/bot/bot.repository';
@@ -152,6 +153,32 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
     if (result.mediaUrls?.length) {
       for (const mediaUrl of result.mediaUrls) {
         await adapter.sendImage(parsed.message.phone, mediaUrl, parsed.role);
+      }
+    }
+
+    // Send pending notification immediately via WhatsApp and clear from session
+    if (result.pendingNotification) {
+      const { targetPhone, targetRole, message } = result.pendingNotification;
+
+      try {
+        await adapter.sendText(targetPhone, message, targetRole);
+
+        // Clear pendingMessage from target session so it's not delivered again
+        const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
+        if (targetSession) {
+          const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
+          const { pendingMessage: _, ...cleanTempData } = targetTempData;
+
+          await botRepository.upsert(targetPhone, {
+            role: targetRole,
+            currentFlow: targetSession.currentFlow,
+            currentStep: targetSession.currentStep,
+            tempData: cleanTempData as Prisma.InputJsonValue,
+          });
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[webhooks] Failed to send pending notification:', err);
       }
     }
   } catch (err) {
