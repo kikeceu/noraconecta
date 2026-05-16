@@ -1,5 +1,6 @@
 import { FlowStepResult, FlowContext, PendingNotification } from './types';
 import { RequestsService } from '../../requests/requests.service';
+import { resolveOption } from './option-resolver.helper';
 
 const CANCEL_KEYWORDS = [
   'cancelar',
@@ -14,24 +15,6 @@ const CANCEL_KEYWORDS = [
 export function isCancellationIntent(text: string): boolean {
   const normalized = text.trim().toLowerCase();
   return CANCEL_KEYWORDS.some((kw) => normalized.includes(kw));
-}
-
-function isAffirmative(text: string): boolean {
-  const patterns = [
-    'si', 'sí', 'dale', 'ok', 'okey', 'de acuerdo', 'bien', 'bueno',
-    'perfecto', 'genial', 'joya', 'confirmado', 'me viene bien',
-  ];
-  const normalized = text.trim().toLowerCase();
-  return patterns.some((p) => normalized.startsWith(p) || normalized === p);
-}
-
-function isNegative(text: string): boolean {
-  const patterns = [
-    'no', 'nop', 'nope', 'negativo', 'no puedo', 'no me viene bien',
-    'no me sirve', 'no me queda', 'tampoco',
-  ];
-  const normalized = text.trim().toLowerCase();
-  return patterns.some((p) => normalized.startsWith(p) || normalized === p);
 }
 
 export async function handleCancelConfirmation(
@@ -52,7 +35,9 @@ export async function handleCancelConfirmation(
     };
   }
 
-  if (isAffirmative(inputText || '')) {
+  const resolved = inputText ? resolveOption('CANCEL_CONFIRMATION', inputText) : null;
+
+  if (resolved === 'YES') {
     try {
       const result = await requestsService.cancelByUser(requestId);
 
@@ -87,7 +72,7 @@ export async function handleCancelConfirmation(
     }
   }
 
-  if (isNegative(inputText || '')) {
+  if (resolved === 'NO') {
     const prevStep = tempData._previousStep as string | null;
 
     const cleanTempData: Record<string, unknown> = {};

@@ -33,7 +33,8 @@ export class NotificationService {
     const message = [
       `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.`,
       `Descripción: ${request.description}`,
-      `Tenés ${request.timeoutHours}hs para responder. Aceptalo o rechazalo desde tu panel.`,
+      `Tenés ${request.timeoutHours}hs para responder.`,
+      '1. Aceptar\n2. Rechazar',
     ].join('\n\n');
 
     await this.send(professional.phone, message, 'PROFESSIONAL');
@@ -66,7 +67,8 @@ export class NotificationService {
     const message = [
       `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.`,
       `Descripción: ${request.description}`,
-      `Tenés ${request.timeoutHours}hs para responder. Aceptalo o rechazalo desde tu panel.`,
+      `Tenés ${request.timeoutHours}hs para responder.`,
+      '1. Aceptar\n2. Rechazar',
     ].join('\n\n');
 
     await this.send(professional.phone, message, 'PROFESSIONAL');

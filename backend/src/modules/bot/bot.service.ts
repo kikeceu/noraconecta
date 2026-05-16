@@ -347,12 +347,17 @@ export class BotService {
             assignedProfessionalId: existing.id,
             status: { in: ['ASSIGNED', 'ACCEPTED'] },
           },
+          select: {
+            id: true,
+            status: true,
+          },
         });
 
         if (activeRequest) {
-          const coordinationFlow = getFlowHandlerByName('COORDINATION');
           flowName = 'COORDINATION';
-          stepName = coordinationFlow?.getInitialStep() ?? null;
+          stepName = activeRequest.status === 'ASSIGNED'
+            ? 'AWAITING_ACCEPTANCE'
+            : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
         } else {
           responseText = `Hola ${existing.name}! Tu cuenta está activa. Te notificaremos cuando tengas un nuevo pedido asignado.`;
@@ -367,12 +372,17 @@ export class BotService {
             assignedProfessionalId: existing.id,
             status: { in: ['ASSIGNED', 'ACCEPTED'] },
           },
+          select: {
+            id: true,
+            status: true,
+          },
         });
 
         if (activeRequest) {
-          const coordinationFlow = getFlowHandlerByName('COORDINATION');
           flowName = 'COORDINATION';
-          stepName = coordinationFlow?.getInitialStep() ?? null;
+          stepName = activeRequest.status === 'ASSIGNED'
+            ? 'AWAITING_ACCEPTANCE'
+            : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
         } else {
           responseText = 'Tu cuenta está en observación. Seguís operando normalmente. Te notificaremos cuando tengas un nuevo pedido asignado.';

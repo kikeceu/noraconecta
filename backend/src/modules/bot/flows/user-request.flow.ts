@@ -3,6 +3,7 @@ import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { RequestsService } from '../../requests/requests.service';
 import { PaymentsService } from '../../payments/payments.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
+import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -345,8 +346,9 @@ export class UserRequestFlow implements FlowHandler {
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const inputText = message.text?.trim().toLowerCase();
+    const resolved = inputText ? resolveOption('CONFIRM', inputText) : null;
 
-    if (inputText === 'si' || inputText === 'sí') {
+    if (resolved === 'YES') {
       try {
         const request = await this.requestsService.create({
           phone: tempData.phone as string,
@@ -415,7 +417,7 @@ export class UserRequestFlow implements FlowHandler {
       }
     }
 
-    if (inputText === 'no') {
+    if (resolved === 'NO') {
       return {
         response: { text: 'Pedido cancelado. Cuando necesites algo, escribime.' },
         nextStep: null,
@@ -435,12 +437,13 @@ export class UserRequestFlow implements FlowHandler {
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const inputText = message.text?.trim().toLowerCase();
+    const resolved = inputText ? resolveOption('WAITING_CONSENT', inputText) : null;
 
-    if (inputText === 'si' || inputText === 'sí') {
+    if (resolved === 'YES') {
       return this.handleWaiting(tempData);
     }
 
-    if (inputText === 'no') {
+    if (resolved === 'NO') {
       const requestId = tempData.requestId as string;
 
       if (requestId) {
