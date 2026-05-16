@@ -116,6 +116,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook)
@@ -602,6 +603,7 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 **Lógica de negocio:**
 - Todos los métodos capturan errores de envío y loguean sin propagar la excepción
 - Usa `WhatsAppAdapter.sendText()` que maneja automáticamente la ventana de 24hs (template vs texto libre)
+- `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`
 - Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
 
 ### Payments (AUT-188)
@@ -748,9 +750,11 @@ POST /bot/message
 | No existe (sin registro) | `PROFESSIONAL_REGISTER` | `ASK_NAME` | Comportamiento actual — arranca registro |
 | `PENDING` | — | — | "Tu registro está siendo procesado. Te enviamos un enlace de verificación. Si no lo recibiste, escribinos." |
 | `UNDER_REVIEW` | — | — | "Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo." |
-| `ACTIVE` (con pedido activo) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca flujo de coordinación; `tempData` incluye `requestId` |
+| `ACTIVE` (con pedido ASSIGNED) | `COORDINATION` | `AWAITING_ACCEPTANCE` | Profesional puede responder por WhatsApp: `1. Aceptar` / `2. Rechazar`; `tempData` incluye `requestId` |
+| `ACTIVE` (con pedido ACCEPTED) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca coordinación de visita; `tempData` incluye `requestId` |
 | `ACTIVE` (sin pedido activo) | — | — | "Hola [nombre]! Tu cuenta está activa. Te notificaremos cuando tengas un nuevo pedido asignado." |
-| `OBSERVATION` (con pedido activo) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca flujo de coordinación con prefijo: "Tu cuenta está en observación. Seguís operando normalmente."; `tempData` incluye `requestId` |
+| `OBSERVATION` (con pedido ASSIGNED) | `COORDINATION` | `AWAITING_ACCEPTANCE` | Igual que ACTIVE, con prefijo de observación; `tempData` incluye `requestId` |
+| `OBSERVATION` (con pedido ACCEPTED) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca coordinación con prefijo de observación; `tempData` incluye `requestId` |
 | `OBSERVATION` (sin pedido activo) | — | — | "Tu cuenta está en observación. Seguís operando normalmente. Te notificaremos cuando tengas un nuevo pedido asignado." |
 | `PAUSED` | — | — | "Tu cuenta está pausada. Para reactivarla, ingresá a tu panel." |
 | `SUSPENDED` | — | — | "Tu cuenta está suspendida. Para más información, contactá a soporte." |
@@ -772,12 +776,13 @@ POST /bot/message
 |------------------------|-------------------------------------------------------------------------|
 | `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
-| `COORDINATION`         | AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
+| `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
 **Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
 
 **Flujo de coordinación actualizado (AUT-166):**
-- **`handleAwaitingAvailability`**: Mensaje al usuario: "¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)". Valida con `parseExactDate`. Si no cumple → "El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 09/05 16:00)" → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
+- **`handleAwaitingAcceptance` (AUT-197)**: Profesional responde asignación desde WhatsApp. `resolveOption('AWAITING_ACCEPTANCE', input)` acepta número o alias (`1/aceptar/acepto/sí` o `2/rechazar/rechazo/no`). Si acepta llama `RequestsService.accept()`. Si rechaza llama `RequestsService.reject()`.
+- **`handleAwaitingAvailability`**: Mensaje al usuario en singular: "...indicá un día y horario..." y recordatorio de cancelación: `escribí "cancelar"`. Valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
 - **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
 - **`CoordinationService.confirmVisit`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Misma lógica de detección de horario alternativo vía `isSameSchedule` (margen 15 min).
 - **`RequestsService.confirmSchedule`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Sin fallback a `clientAvailability`.

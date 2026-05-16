@@ -7,6 +7,7 @@ import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
+import { resolveOption } from './option-resolver.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
@@ -25,6 +26,8 @@ export class CoordinationFlow implements FlowHandler {
     const role = session.role as 'USER' | 'PROFESSIONAL';
 
     switch (step) {
+      case 'AWAITING_ACCEPTANCE':
+        return this.handleAwaitingAcceptance(message, tempData, role);
       case 'AWAITING_AVAILABILITY':
         return this.handleAwaitingAvailability(message, tempData, role);
       case 'AWAITING_CONFIRMATION':
@@ -38,6 +41,85 @@ export class CoordinationFlow implements FlowHandler {
       default:
         return this.handleAwaitingAvailability(message, tempData, role);
     }
+  }
+
+  private async handleAwaitingAcceptance(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+    role: 'USER' | 'PROFESSIONAL',
+  ): Promise<FlowStepResult> {
+    const requestId = tempData.requestId as string;
+
+    if (!requestId) {
+      return {
+        response: { text: 'No encontré un pedido asignado para responder.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    if (role !== 'PROFESSIONAL') {
+      return {
+        response: { text: 'Esperando la respuesta del profesional asignado.' },
+        nextStep: 'AWAITING_ACCEPTANCE',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim().toLowerCase() || '';
+    const resolved = resolveOption('AWAITING_ACCEPTANCE', inputText);
+
+    if (resolved === 'ACCEPT') {
+      try {
+        await this.requestsService.accept(requestId);
+
+        return {
+          response: {
+            text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
+          },
+          nextStep: null,
+          tempData: {},
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'No se pudo aceptar el pedido.';
+
+        return {
+          response: { text: errorMessage },
+          nextStep: null,
+          tempData: {},
+        };
+      }
+    }
+
+    if (resolved === 'REJECT') {
+      try {
+        await this.requestsService.reject(requestId);
+
+        return {
+          response: {
+            text: 'Entendido. Rechazaste el pedido.',
+          },
+          nextStep: null,
+          tempData: {},
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'No se pudo rechazar el pedido.';
+
+        return {
+          response: { text: errorMessage },
+          nextStep: null,
+          tempData: {},
+        };
+      }
+    }
+
+    return {
+      response: {
+        text: 'Respondé con una opción:\n\n1. Aceptar\n2. Rechazar',
+      },
+      nextStep: 'AWAITING_ACCEPTANCE',
+      tempData,
+    };
   }
 
   private async handleAwaitingAvailability(
@@ -195,8 +277,8 @@ export class CoordinationFlow implements FlowHandler {
     const categoryName = request.category?.name || 'el servicio';
 
     const messageText = negotiationRounds > 0
-      ? `¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`
-      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. ¿Qué días y horarios tenés disponibles para la visita? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar el pedido, escribí cancelar en cualquier momento.`;
+      ? `¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`
+      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. Para coordinar la visita, indicá un día y horario en que podés recibir al profesional. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar, escribí "cancelar".`;
 
     return {
       response: {
@@ -216,8 +298,9 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role === 'PROFESSIONAL' && message.text?.trim()) {
       const scheduleText = message.text.trim();
+      const resolved = resolveOption('AWAITING_CONFIRMATION', scheduleText);
 
-      if (this.isAffirmative(scheduleText)) {
+      if (resolved === 'CONFIRM') {
         const existingScheduledAt = tempData.scheduledAt as string;
         const scheduledAt = new Date(existingScheduledAt);
 
@@ -431,10 +514,9 @@ export class CoordinationFlow implements FlowHandler {
     if (role === 'USER' && message.text?.trim()) {
       const response = message.text.trim().toLowerCase();
 
-      const isYes = this.isAffirmative(response);
-      const isNo = this.isNegative(response);
+      const resolved = resolveOption('AWAITING_USER_CONFIRMATION', response);
 
-      if (isYes) {
+      if (resolved === 'YES') {
         const alternativeScheduledAt = new Date(tempData.alternativeScheduledAt as string);
         const professionalName = (tempData.professionalName as string) || 'El profesional';
 
@@ -483,7 +565,7 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
-      if (isNo) {
+      if (resolved === 'NO') {
         const negotiationRounds = ((tempData.negotiationRounds as number) || 0) + 1;
         const professionalId = tempData.professionalId as string;
         const professionalName = (tempData.professionalName as string) || 'el profesional';
@@ -533,7 +615,7 @@ export class CoordinationFlow implements FlowHandler {
 
         return {
           response: {
-            text: `Entendido. ¿Qué otros días y horarios tenés disponibles para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`,
+            text: `Entendido. ¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`,
           },
           nextStep: 'AWAITING_AVAILABILITY',
           tempData: {
@@ -715,24 +797,6 @@ export class CoordinationFlow implements FlowHandler {
         (getHoursArgentina(available) * 60 + getMinutesArgentina(available))
       ) <= 15
     );
-  }
-
-  private isAffirmative(text: string): boolean {
-    const affirmativePatterns = [
-      'si', 'sí', 'yes', 'dale', 'ok', 'okey', 'vale', 'claro', 'sure',
-      'de acuerdo', 'bien', 'bueno', 'perfecto', 'genial', 'joya',
-      'confirmado', 'me viene bien',
-      'si,', 'sí,', 'dale,', 'ok,', 'okey,',
-    ];
-    return affirmativePatterns.some((p) => text.startsWith(p) || text === p);
-  }
-
-  private isNegative(text: string): boolean {
-    const negativePatterns = [
-      'no', 'nop', 'nope', 'negativo', 'no puedo', 'no me viene bien',
-      'no me sirve', 'no,', 'no me queda', 'tampoco',
-    ];
-    return negativePatterns.some((p) => text.startsWith(p) || text === p);
   }
 }
 
