@@ -26,7 +26,7 @@ const matchingRepository = new MatchingRepository();
 const botRepository = new BotRepository();
 const r2Client = new R2Client();
 const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
-const notificationService = new NotificationService(whatsappAdapter);
+const notificationService = new NotificationService(whatsappAdapter, botRepository);
 const coordinationService = new CoordinationService(botRepository, whatsappAdapter);
 const requestsService = new RequestsService(
   requestsRepository,

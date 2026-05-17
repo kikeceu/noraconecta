@@ -16,6 +16,7 @@ export interface IncomingMessage {
 export interface BotResponse {
   text: string;
   mediaUrls?: string[];
+  audioUrl?: string;
   options?: string[];
   requestId?: string;
 }

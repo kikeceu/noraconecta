@@ -156,6 +156,10 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       }
     }
 
+    if (result.audioUrl) {
+      await adapter.sendAudio(parsed.message.phone, result.audioUrl, parsed.role);
+    }
+
     // Send pending notification immediately via WhatsApp and clear from session
     if (result.pendingNotification) {
       const { targetPhone, targetRole, message } = result.pendingNotification;

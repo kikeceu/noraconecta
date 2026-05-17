@@ -156,8 +156,10 @@ export class RequestsService {
               id: request.id,
               categoryName,
               zoneName,
-              description: input.description,
+              description: request.description,
               timeoutHours: responseTimeoutHours,
+              photoUrls: request.photoUrls,
+              audioUrl: request.audioUrl || undefined,
             },
           ).catch((err) => {
             console.error('[RequestsService] Failed to notify professional assigned:', err);
@@ -1107,6 +1109,8 @@ export class RequestsService {
                   zoneName,
                   description: request.description,
                   timeoutHours: responseTimeoutHours,
+                  photoUrls: request.photoUrls,
+                  audioUrl: request.audioUrl || undefined,
                 },
               ).catch((err) => {
                 console.error('[RequestsService] Failed to notify professional reassigned:', err);
