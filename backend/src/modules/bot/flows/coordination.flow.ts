@@ -67,6 +67,45 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
+
+    if (['ver detalles', 'detalle', 'detalles', 'ver pedido'].includes(inputText)) {
+      const request = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: {
+          category: { select: { name: true } },
+          geoNode: { select: { name: true } },
+          description: true,
+          photoUrls: true,
+          audioUrl: true,
+        },
+      });
+
+      if (!request) {
+        return {
+          response: { text: 'No encontré los detalles del pedido asignado.' },
+          nextStep: null,
+          tempData: {},
+        };
+      }
+
+      const categoryName = request.category?.name || 'el servicio';
+      const zoneName = request.geoNode?.name || 'tu zona';
+
+      return {
+        response: {
+          text: [
+            `Pedido de ${categoryName} en ${zoneName}.`,
+            `Descripción: ${request.description}`,
+            '1. Aceptar\n2. Rechazar',
+          ].join('\n\n'),
+          mediaUrls: request.photoUrls,
+          audioUrl: request.audioUrl || undefined,
+        },
+        nextStep: 'AWAITING_ACCEPTANCE',
+        tempData,
+      };
+    }
+
     const resolved = resolveOption('AWAITING_ACCEPTANCE', inputText);
 
     if (resolved === 'ACCEPT') {

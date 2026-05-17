@@ -1,4 +1,6 @@
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
+import { BotRepository } from '../bot/bot.repository';
 
 export interface ProfessionalInfo {
   phone: string;
@@ -16,6 +18,8 @@ export interface RequestInfo {
   zoneName: string;
   description: string;
   timeoutHours: number;
+  photoUrls: string[];
+  audioUrl?: string;
 }
 
 export interface RequestBasicInfo {
@@ -24,20 +28,16 @@ export interface RequestBasicInfo {
 }
 
 export class NotificationService {
-  constructor(private readonly whatsappAdapter: WhatsAppAdapter) {}
+  constructor(
+    private readonly whatsappAdapter: WhatsAppAdapter,
+    private readonly botRepository: BotRepository,
+  ) {}
 
   async notifyProfessionalAssigned(
     professional: ProfessionalInfo,
     request: RequestInfo,
   ): Promise<void> {
-    const message = [
-      `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.`,
-      `Descripción: ${request.description}`,
-      `Tenés ${request.timeoutHours}hs para responder.`,
-      '1. Aceptar\n2. Rechazar',
-    ].join('\n\n');
-
-    await this.send(professional.phone, message, 'PROFESSIONAL');
+    await this.notifyProfessionalWithDetails(professional.phone, request);
   }
 
   async notifyUserRequestAccepted(
@@ -64,14 +64,64 @@ export class NotificationService {
     professional: ProfessionalInfo,
     request: RequestInfo,
   ): Promise<void> {
+    await this.notifyProfessionalWithDetails(professional.phone, request);
+  }
+
+  private async notifyProfessionalWithDetails(
+    professionalPhone: string,
+    request: RequestInfo,
+  ): Promise<void> {
+    const needsTemplate = await shouldUseTemplate(
+      professionalPhone,
+      'PROFESSIONAL',
+      this.botRepository,
+    );
+
+    if (needsTemplate) {
+      await this.whatsappAdapter.sendTemplate(
+        professionalPhone,
+        'nora_pro_nuevo_pedido',
+        [request.categoryName, request.zoneName],
+        'PROFESSIONAL',
+      );
+      return;
+    }
+
     const message = [
       `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.`,
       `Descripción: ${request.description}`,
-      `Tenés ${request.timeoutHours}hs para responder.`,
       '1. Aceptar\n2. Rechazar',
     ].join('\n\n');
 
-    await this.send(professional.phone, message, 'PROFESSIONAL');
+    await this.send(professionalPhone, message, 'PROFESSIONAL');
+    await this.sendRequestMedia(professionalPhone, request);
+  }
+
+  private async sendRequestMedia(
+    phone: string,
+    request: RequestInfo,
+  ): Promise<void> {
+    for (const photoUrl of request.photoUrls) {
+      try {
+        await this.whatsappAdapter.sendImage(phone, photoUrl, 'PROFESSIONAL');
+      } catch (err) {
+        console.error('[NotificationService] Failed to send request photo:', err);
+      }
+    }
+
+    if (!request.audioUrl) {
+      return;
+    }
+
+    try {
+      await this.whatsappAdapter.sendAudio(
+        phone,
+        request.audioUrl,
+        'PROFESSIONAL',
+      );
+    } catch (err) {
+      console.error('[NotificationService] Failed to send request audio:', err);
+    }
   }
 
   async notifyUserReassigning(user: UserInfo): Promise<void> {

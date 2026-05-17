@@ -228,6 +228,38 @@ export class WhatsAppAdapter {
     }
   }
 
+  async sendAudio(
+    phone: string,
+    audioUrl: string,
+    role: WhatsAppRole,
+  ): Promise<void> {
+    const phoneNumberId = this.getPhoneNumberId(role);
+
+    const res = await fetch(
+      `https://graph.facebook.com/${this.apiVersion}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'audio',
+          audio: { link: audioUrl },
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      // eslint-disable-next-line no-console
+      console.error(`[WhatsAppAdapter] sendAudio failed: ${res.status} ${body}`);
+    }
+  }
+
   async sendTemplate(
     phone: string,
     templateName: string,

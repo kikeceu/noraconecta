@@ -97,8 +97,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
-│   │   │   └── notifications/              # (AUT-195)
-│   │   │       └── notification.service.ts   # WhatsApp notification dispatch for request lifecycle events
+│   │   │   └── notifications/              # (AUT-195, AUT-199)
+│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy + request media delivery (photos/audio)
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
@@ -605,6 +605,17 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 - Usa `WhatsAppAdapter.sendText()` que maneja automáticamente la ventana de 24hs (template vs texto libre)
 - `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`
 - Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
+
+### Notifications (AUT-199)
+
+Extensión del módulo de notificaciones para envío de media del pedido al profesional (fotos y audio) con comportamiento adaptativo según ventana de 24hs de WhatsApp.
+
+**Lógica de negocio:**
+- Si el profesional está fuera de ventana de 24hs: envía plantilla `nora_pro_nuevo_pedido` (`{{1}}` rubro, `{{2}}` zona) y difiere el envío de media hasta que responda "Ver detalles"
+- Si el profesional está dentro de ventana de 24hs: envía texto completo + opciones + fotos (`sendImage`) + audio (`sendAudio`) en el mismo flujo
+- `AWAITING_ACCEPTANCE` en `CoordinationFlow` reconoce "Ver detalles" y devuelve `mediaUrls` + `audioUrl` para despacho por webhook
+- `BotResponse` incorpora `audioUrl?: string` y `webhooks.routes.ts` envía audio luego del texto/media
+- `sendAudio()` falla silenciosamente con logging y no interrumpe el flujo
 
 ### Payments (AUT-188)
 
