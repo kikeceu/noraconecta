@@ -1335,6 +1335,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | hasBadge             | Boolean  | Insignia de reputación (default: false) |
 | trialRequestsUsed    | Int      | Pedidos de prueba usados (default: 0)   |
 | lastAssignedAt       | DateTime?| Última asignación de pedido             |
+| latitude             | Float?   | Latitud del profesional para matching geográfico |
+| longitude            | Float?   | Longitud del profesional para matching geográfico |
 | createdAt            | DateTime | Autogenerado                            |
 | updatedAt            | DateTime | Autogenerado (on update)                |
 
@@ -1411,6 +1413,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | negotiationRounds     | Int       | Rondas de negociación de horario (default: 0) |
 | waitingUserConsent     | Boolean?  | Usuario aceptó esperar activación de profesional (default: false) (AUT-188) |
 | waitingActivationSince | DateTime? | Timestamp de inicio de espera de activación (24h timeout) (AUT-188) |
+| userLatitude           | Float?    | Latitud de referencia del usuario para matching por proximidad |
+| userLongitude          | Float?    | Longitud de referencia del usuario para matching por proximidad |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 

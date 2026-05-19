@@ -163,6 +163,8 @@ model Professional {
   hasBadge              Boolean            @default(false)
   trialRequestsUsed     Int                @default(0)
   lastAssignedAt        DateTime?
+  latitude              Float?
+  longitude             Float?
 
   zones       ProfessionalZone[]
   memberships Membership[]
@@ -248,6 +250,8 @@ model Request {
   negotiationRounds      Int           @default(0)
   waitingUserConsent     Boolean?      @default(false)
   waitingActivationSince DateTime?
+  userLatitude           Float?
+  userLongitude          Float?
 
   events     RequestEvent[]
   feedback   Feedback?
