@@ -177,7 +177,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
 │   │   │       ├── admin/
-│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; context-aware nav links (NEW)
+│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; logo SVG en desktop/mobile header y header mobile dark (#111110) (AUT-210)
 │   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard; context-aware redirect paths (NEW)
 │   │   │       │   └── ConfirmDialog.tsx   # Reusable confirm modal for destructive actions (NEW)
 │   │   ├── pages/
@@ -228,8 +228,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart (160x160, r=68), compliance metrics (text-4xl), MiniAxisCard (text-3xl, p-4), metric cards min-h-[120px], completed/rejected/notFulfilled rows text-2xl, recomendación %, tips, max-w-5xl (AUT-181, AUT-183)
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
-│   ├── index-admin.html                 # Vite entry HTML (admin build)
+│   ├── index-admin.html                 # Vite entry HTML (admin build) + favicon `/favicon.svg` (AUT-210)
 │   ├── index-app.html                   # Vite entry HTML (app build)
+│   ├── public/
+│   │   ├── favicon.svg                  # Browser favicon for frontend targets (AUT-210)
+│   │   └── logo-nora.svg                # Shared NORA logo asset used by admin layout (AUT-210)
 │   ├── .env.landing                     # Env vars for landing build
 │   ├── .env.admin                       # Env vars for admin build
 │   ├── .env.app                         # Env vars for app build

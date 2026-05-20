@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { resolveHostContext } from '../../lib/host';
-import { brand } from '../../lib/brand';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -66,8 +65,12 @@ export function AdminLayout() {
     <div className="flex flex-col h-full bg-[#111110] border-r border-white/8">
       <div className="flex items-center justify-between h-14 px-4 border-b border-white/8">
         <Link to={homePath} className="flex items-center gap-2 cursor-pointer">
-          <span className="text-lg font-bold text-white">{brand.name}</span>
-          <span className="text-xs text-white/35 font-normal">Admin</span>
+            <img
+              src="/logo-nora.svg"
+              alt="NORA"
+              className="h-10 w-auto"
+              style={{ filter: 'brightness(0) invert(1)' }}
+            />
         </Link>
         <button
           className="lg:hidden p-1 text-white/40 hover:text-white cursor-pointer"
@@ -152,15 +155,19 @@ export function AdminLayout() {
       {/* Main content */}
       <div className="flex-1 flex flex-col lg:pl-60">
         {/* Mobile header */}
-        <div className="lg:hidden flex items-center h-14 px-4 bg-white border-b border-gray-200">
+        <div className="lg:hidden flex items-center h-14 px-4 bg-[#111110] border-b border-white/8">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 text-white/40 hover:text-white mr-3 cursor-pointer"
+            className="p-1.5 text-white/70 hover:text-white mr-3 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-lg font-bold text-green-700">{brand.name}</span>
-          <span className="text-xs text-gray-500 ml-1">Admin</span>
+          <img
+            src="/logo-nora.svg"
+            alt="NORA"
+            className="h-10 w-auto"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
         </div>
 
         <main className="flex-1 overflow-y-auto p-6 md:p-8">

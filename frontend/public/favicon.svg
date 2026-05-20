@@ -1,0 +1,7 @@
+<svg width="200" height="200" viewBox="0 0 200 200" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>NORA Conecta favicon</title>
+  <rect x="10" y="10" width="180" height="180" rx="20" fill="#0C447C"/>
+  <circle cx="100" cy="100" r="52" fill="#1D9E75"/>
+  <circle cx="100" cy="100" r="56" fill="none" stroke="white" stroke-width="4"/>
+  <polyline points="76,100 94,120 128,76" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
