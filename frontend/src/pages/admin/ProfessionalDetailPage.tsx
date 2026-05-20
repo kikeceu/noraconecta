@@ -29,6 +29,12 @@ const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: strin
   REJECTED: { label: 'Rechazado', className: 'bg-red-50 text-red-700' },
 };
 
+const SESSION_ELIGIBLE_STATUSES: ReadonlySet<ProfessionalStatus> = new Set([
+  'ACTIVE',
+  'OBSERVATION',
+  'PAUSED',
+]);
+
 export function ProfessionalDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { isSuperAdmin } = useAuth();
@@ -85,7 +91,7 @@ export function ProfessionalDetailPage() {
   };
 
   const handleGenerateSession = async () => {
-    if (!id) return;
+    if (!id || !professional || !SESSION_ELIGIBLE_STATUSES.has(professional.status)) return;
     setSessionLoading(true);
     setSessionUrl(null);
     try {
@@ -148,6 +154,7 @@ export function ProfessionalDetailPage() {
   const canApprove = isSuperAdmin() && (p.status === 'UNDER_REVIEW' || p.status === 'PENDING');
   const canSuspend = isSuperAdmin() && p.status === 'ACTIVE';
   const canReactivate = isSuperAdmin() && p.status === 'SUSPENDED';
+  const canGenerateSession = SESSION_ELIGIBLE_STATUSES.has(p.status);
 
   const docs = [
     { label: 'DNI frente', url: p.dniFrontUrl },
@@ -328,12 +335,19 @@ export function ProfessionalDetailPage() {
               </h2>
               <button
                 onClick={handleGenerateSession}
-                disabled={sessionLoading}
+                disabled={sessionLoading || !canGenerateSession}
+                title={!canGenerateSession ? 'El profesional debe estar activo para acceder al panel' : undefined}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors w-full justify-center cursor-pointer"
               >
                 <Link2 className="w-4 h-4" />
                 {sessionLoading ? 'Generando...' : 'Generar enlace de acceso'}
               </button>
+
+              {!canGenerateSession && (
+                <p className="mt-2 text-xs text-amber-700">
+                  El profesional debe estar activo para acceder al panel
+                </p>
+              )}
 
               {sessionUrl && (
                 <div className="mt-3 p-3 rounded-lg bg-gray-50 border border-gray-100">

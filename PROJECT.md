@@ -185,8 +185,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── admin/                  # Admin panel pages (NEW)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + professional status bars
-│   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination
-│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL
+│   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination, phone column between zone and status (AUT-205)
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW) (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots
