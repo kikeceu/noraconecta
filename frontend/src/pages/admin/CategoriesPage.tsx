@@ -84,7 +84,7 @@ export function CategoriesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Categorías</h1>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Categorías</h1>
           <p className="text-sm text-gray-500 mt-1">
             Tipos de servicios disponibles en la plataforma
           </p>
@@ -106,7 +106,7 @@ export function CategoriesPage() {
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -196,6 +196,78 @@ export function CategoriesPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="lg:hidden space-y-3 p-3">
+          {loading
+            ? [...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse space-y-2"
+                >
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
+              ))
+            : categories.map((cat) => (
+                <div key={cat.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900">{cat.name}</p>
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                        cat.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'
+                      }`}
+                    >
+                      {cat.isActive ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    <span className="text-gray-500">Slug:</span>{' '}
+                    <span className="font-mono">{cat.slug}</span>
+                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    {isSuperAdmin() ? (
+                      <button
+                        onClick={() => handleToggle(cat.id)}
+                        disabled={actionLoading === cat.id}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
+                          cat.isActive ? 'bg-green-600' : 'bg-gray-200'
+                        } disabled:opacity-50`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                            cat.isActive ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                          }`}
+                        />
+                      </button>
+                    ) : (
+                      <span
+                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          cat.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-50 text-gray-500'
+                        }`}
+                      >
+                        {cat.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    )}
+
+                    {isSuperAdmin() && (
+                      <button
+                        onClick={() => openEdit(cat)}
+                        className="text-sm text-green-700 hover:text-green-800 font-medium cursor-pointer"
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+          {!loading && categories.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white rounded-xl border border-gray-200">
+              No hay categorías configuradas
+            </div>
+          )}
         </div>
       </div>
 

@@ -69,7 +69,7 @@ export function ProfessionalsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Profesionales</h1>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Profesionales</h1>
         <p className="text-sm text-gray-500 mt-1">
           Gestión de profesionales registrados en la plataforma
         </p>
@@ -100,9 +100,9 @@ export function ProfessionalsPage() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Table / mobile cards */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -195,6 +195,63 @@ export function ProfessionalsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="lg:hidden space-y-3 p-3">
+          {loading
+            ? [...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse space-y-2"
+                >
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
+              ))
+            : filtered.map((p) => (
+                <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900">{p.name}</p>
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                        STATUS_BADGE[p.status]?.className || 'bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {STATUS_BADGE[p.status]?.label || p.status}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-600">
+                    <p>
+                      <span className="text-gray-500">Zona:</span>{' '}
+                      {p.zones?.[0]?.geoNode?.name || '—'}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Teléfono:</span> {p.phone || '—'}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">DNI:</span>{' '}
+                      <span className="font-mono">{p.dniNumber || '—'}</span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Registro:</span>{' '}
+                      {new Date(p.createdAt).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+                  <Link
+                    to={adminPath(`/professionals/${p.id}`)}
+                    className="inline-flex text-sm text-green-700 hover:text-green-800 font-medium cursor-pointer"
+                  >
+                    Ver detalle
+                  </Link>
+                </div>
+              ))}
+
+          {!loading && filtered.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white rounded-xl border border-gray-200">
+              {error ? <span className="text-red-600">{error}</span> : 'No se encontraron profesionales'}
+            </div>
+          )}
         </div>
 
         {/* Pagination */}

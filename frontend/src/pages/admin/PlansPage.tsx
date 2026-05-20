@@ -67,7 +67,7 @@ export function PlansPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Planes</h1>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Planes</h1>
         <p className="text-sm text-gray-500 mt-1">
           Configuración de planes de suscripción para profesionales
         </p>

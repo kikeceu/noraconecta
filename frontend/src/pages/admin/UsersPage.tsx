@@ -65,7 +65,7 @@ export function UsersPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Usuarios</h1>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Usuarios</h1>
         <p className="text-sm text-gray-500 mt-1">
           Clientes registrados en la plataforma
         </p>
@@ -94,7 +94,7 @@ export function UsersPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -187,6 +187,61 @@ export function UsersPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="lg:hidden space-y-3 p-3">
+          {loading
+            ? [...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse space-y-2"
+                >
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
+              ))
+            : filtered.map((u) => (
+                <div key={u.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-900 break-all">{u.name || u.phone}</p>
+                    {u.status === 'BLOCKED' && (
+                      <span className="inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 whitespace-nowrap">
+                        Bloqueado
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-600">
+                    <p>
+                      <span className="text-gray-500">Teléfono:</span>{' '}
+                      <span className="font-mono">{u.phone}</span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Registro:</span>{' '}
+                      {new Date(u.createdAt).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+                  {isSuperAdmin() && (
+                    <button
+                      onClick={() => setConfirmUser(u)}
+                      disabled={actionLoading === u.id}
+                      className={`text-xs font-medium px-2.5 py-1 rounded-md border transition-colors disabled:opacity-50 cursor-pointer ${
+                        u.status === 'BLOCKED'
+                          ? 'text-green-700 border-green-300 hover:bg-green-50'
+                          : 'text-red-600 border-red-300 hover:bg-red-50'
+                      }`}
+                    >
+                      {actionLoading === u.id ? '...' : u.status === 'BLOCKED' ? 'Desbloquear' : 'Bloquear'}
+                    </button>
+                  )}
+                </div>
+              ))}
+
+          {!loading && filtered.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white rounded-xl border border-gray-200">
+              {error ? <span className="text-red-600">{error}</span> : 'No se encontraron usuarios'}
+            </div>
+          )}
         </div>
 
         {/* Footer metrics */}
