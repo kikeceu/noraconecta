@@ -2,6 +2,7 @@ import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
+import { LocationsRepository } from '../../locations/locations.repository';
 
 const nlpService = new NlpService();
 
@@ -11,7 +12,25 @@ export class ProfessionalRegisterFlow implements FlowHandler {
   constructor(
     private readonly professionalsService: ProfessionalsService,
     private readonly professionalsRepository: ProfessionalsRepository,
+    private readonly locationsRepository: LocationsRepository,
   ) {}
+
+  private readonly COUNTRY_PHONE_PREFIXES: { prefix: string; countryId: string }[] = [
+    { prefix: '54', countryId: 'cmoojlpis0000mc7g7kxf8z1q' },
+    { prefix: '51', countryId: 'cmopxb2ts0002mcqak2883mvh' },
+  ];
+
+  private detectCountryId(phone: string): string | null {
+    const normalized = phone.replace(/^\+/, '');
+
+    for (const { prefix, countryId } of this.COUNTRY_PHONE_PREFIXES) {
+      if (normalized.startsWith(prefix)) {
+        return countryId;
+      }
+    }
+
+    return null;
+  }
 
   getInitialStep(): string {
     return 'ASK_NAME';
@@ -26,6 +45,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
         return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
         return this.handleAskService(message, tempData);
+      case 'ASK_PROVINCE':
+        return this.handleAskProvince(message, tempData);
       case 'ASK_ZONES':
         return this.handleAskZones(message, tempData);
       case 'ASK_LOCATION':
@@ -40,10 +61,14 @@ export class ProfessionalRegisterFlow implements FlowHandler {
   }
 
   private async handleAskName(
-    message: { text?: string },
+    message: { text?: string; phone?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const alreadyAsked = tempData._nameAsked === true;
+
+    if (!tempData.phone) {
+      tempData.phone = message.phone;
+    }
 
     if (!alreadyAsked) {
       tempData._nameAsked = true;
@@ -104,9 +129,121 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     tempData.categoryId = nlpResult.match.id;
     tempData.categoryName = nlpResult.match.name;
 
+    const phone = tempData.phone as string;
+    const countryId = this.detectCountryId(phone);
+
+    if (!countryId) {
+      return {
+        response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+
+    if (provinces.length === 0) {
+      return {
+        response: { text: 'No hay provincias habilitadas por el momento. Intenta mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    tempData._countryId = countryId;
+    tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
+    tempData._provinceListed = true;
+
+    const list = provinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+
     return {
       response: {
-        text: `Entendido: ${nlpResult.match.name}. En que zonas trabajas? Podes indicar varias separadas por coma o "y".`,
+        text: `Entendido, sos ${nlpResult.match.name}. En que provincia trabajas?\n\n${list}\n\nResponde con el numero.`,
+      },
+      nextStep: 'ASK_PROVINCE',
+      tempData,
+    };
+  }
+
+  private async handleAskProvince(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+
+    if (!tempData._provinceListed) {
+      const phone = tempData.phone as string;
+      const countryId = this.detectCountryId(phone);
+
+      if (!countryId) {
+        return {
+          response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._countryId = countryId;
+
+      const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+
+      if (provinces.length === 0) {
+        return {
+          response: { text: 'No hay provincias habilitadas por el momento. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
+      tempData._provinceListed = true;
+
+      const list = provinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+
+      return {
+        response: {
+          text: `En que provincia trabajas?\n\n${list}\n\nResponde con el numero.`,
+        },
+        nextStep: 'ASK_PROVINCE',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim() || '';
+    const availableProvinces = tempData._availableProvinces as { id: string; name: string }[];
+
+    const number = parseInt(inputText, 10);
+
+    if (isNaN(number) || number < 1 || number > availableProvinces.length) {
+      const list = availableProvinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+      return {
+        response: { text: `No entendi la respuesta. Elegi un numero entre 1 y ${availableProvinces.length}:\n\n${list}` },
+        nextStep: 'ASK_PROVINCE',
+        tempData,
+      };
+    }
+
+    const selected = availableProvinces[number - 1];
+    tempData._provinceId = selected.id;
+    tempData._provinceName = selected.name;
+
+    const zones = await this.locationsRepository.findActiveChildNodes(selected.id);
+
+    if (zones.length === 0) {
+      return {
+        response: { text: 'No hay zonas habilitadas en esa provincia por el momento. Intenta mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+    tempData._zonesListed = true;
+
+    const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
+    return {
+      response: {
+        text: `Provincia seleccionada: ${selected.name}. En que zonas trabajas?\n\n${list}\n\nResponde con los numeros separados por coma. Podes elegir mas de una. (Ej: 1, 3)`,
       },
       nextStep: 'ASK_ZONES',
       tempData,
@@ -117,61 +254,76 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim();
 
-    if (!inputText) {
-      return {
-        response: {
-          text: 'En que zonas trabajas? Podes indicar varias separadas por coma o "y". (Ej: Maipu, Godoy Cruz y Capital)',
-        },
-        nextStep: 'ASK_ZONES',
-        tempData,
-      };
-    }
+    if (!tempData._zonesListed) {
+      const provinceId = tempData._provinceId as string;
+      const zones = await this.locationsRepository.findActiveChildNodes(provinceId);
 
-    const zoneNames = inputText
-      .replace(/\s+y\s+/gi, ',')
-      .replace(/\s+e\s+/gi, ',')
-      .split(',')
-      .map((z) => z.trim())
-      .filter((z) => z.length > 0);
-
-    const resolvedZones: string[] = [];
-    const zoneIds: string[] = [];
-    const notFoundZones: string[] = [];
-
-    for (const zoneName of zoneNames) {
-      const nlpResult = await nlpService.resolveZone(zoneName);
-
-      if (nlpResult.match) {
-        resolvedZones.push(nlpResult.match.name);
-        zoneIds.push(nlpResult.match.id);
-      } else {
-        notFoundZones.push(zoneName);
+      if (zones.length === 0) {
+        return {
+          response: { text: 'No hay zonas habilitadas en esa provincia por el momento. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
       }
-    }
 
-    if (resolvedZones.length === 0) {
+      tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+      tempData._zonesListed = true;
+
+      const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
       return {
         response: {
-          text: 'No encontre ninguna de las zonas indicadas. Podrias probar con otros nombres? (Ej: Maipu, Godoy Cruz)',
+          text: `En que zonas de ${tempData._provinceName} trabajas?\n\n${list}\n\nResponde con los numeros separados por coma. Podes elegir mas de una. (Ej: 1, 3)`,
         },
         nextStep: 'ASK_ZONES',
         tempData,
       };
     }
 
-    tempData.zones = resolvedZones;
-    tempData.zoneIds = zoneIds;
+    const inputText = message.text?.trim() || '';
+    const availableZones = tempData._availableZones as { id: string; name: string }[];
 
-    let response = `Zonas registradas: ${resolvedZones.join(', ')}.`;
-    if (notFoundZones.length > 0) {
-      response += ` (No encontre: ${notFoundZones.join(', ')})`;
+    const numbers = inputText
+      .split(/[\s,]+/)
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => !isNaN(n));
+
+    if (numbers.length === 0) {
+      const list = availableZones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+      return {
+        response: { text: `No entendi la respuesta. Indica los numeros de las zonas:\n\n${list}` },
+        nextStep: 'ASK_ZONES',
+        tempData,
+      };
     }
-    response += ' Para poder asignarte pedidos cercanos, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion).';
+
+    const selected = numbers
+      .filter((n) => n >= 1 && n <= availableZones.length)
+      .map((n) => availableZones[n - 1]);
+
+    const invalid = numbers.filter((n) => n < 1 || n > availableZones.length);
+
+    if (selected.length === 0) {
+      const list = availableZones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+      return {
+        response: { text: `Esos numeros no corresponden a ninguna zona. Elegi entre las opciones:\n\n${list}` },
+        nextStep: 'ASK_ZONES',
+        tempData,
+      };
+    }
+
+    tempData.zones = selected.map((z) => z.name);
+    tempData.zoneIds = selected.map((z) => z.id);
+
+    let responseText = `Zonas registradas: ${selected.map((z) => z.name).join(', ')}.`;
+    if (invalid.length > 0) {
+      responseText += ` (Numeros no reconocidos: ${invalid.join(', ')})`;
+    }
+    responseText += ' Para poder asignarte pedidos cercanos, comparti tu ubicacion por WhatsApp.';
 
     return {
-      response: { text: response },
+      response: { text: responseText },
       nextStep: 'ASK_LOCATION',
       tempData,
     };

@@ -325,4 +325,10 @@ export class ProfessionalsRepository {
       where: { professionalId, geoNodeId },
     });
   }
+
+  async deleteAllZones(professionalId: string): Promise<Prisma.BatchPayload> {
+    return prisma.professionalZone.deleteMany({
+      where: { professionalId },
+    });
+  }
 }

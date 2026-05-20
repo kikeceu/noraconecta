@@ -10,6 +10,7 @@ import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../../bot/coordination.service';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
+import { LocationsRepository } from '../../locations/locations.repository';
 import { PaymentsService } from '../../payments/payments.service';
 import { PaymentsRepository } from '../../payments/payments.repository';
 import { PlansRepository } from '../../plans/plans.repository';
@@ -40,6 +41,7 @@ const requestsService = new RequestsService(
 );
 
 const professionalsRepository = new ProfessionalsRepository();
+const locationsRepository = new LocationsRepository();
 const configRepository = new ConfigRepository();
 const professionalsService = new ProfessionalsService(
   professionalsRepository,
@@ -68,7 +70,7 @@ const paymentsService = new PaymentsService(
 );
 
 const userRequestFlow = new UserRequestFlow(requestsService, paymentsService);
-const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository);
+const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository);
 const coordinationFlow = new CoordinationFlow(requestsService);
 
 export function resolveFlowHandler(role: 'USER' | 'PROFESSIONAL'): FlowHandler {

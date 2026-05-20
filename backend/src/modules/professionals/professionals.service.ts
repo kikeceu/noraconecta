@@ -33,6 +33,7 @@ export type VerificationStageTwoInput = {
   criminalRecordUrl?: string;
   references?: string;
   presentationVideoUrl?: string;
+  zoneIds?: string[];
 };
 
 function canReceiveRequests(professional: Professional): boolean {
@@ -163,11 +164,20 @@ export class ProfessionalsService {
       throw new AppError('Verification token has expired', 400);
     }
 
+    const { zoneIds, ...updateData } = data;
+
     const updated = await this.professionalsRepository.update(professional.id, {
-      ...data,
+      ...updateData,
       status: 'UNDER_REVIEW',
       verificationTokenUsed: true,
     });
+
+    if (zoneIds !== undefined) {
+      await this.professionalsRepository.deleteAllZones(professional.id);
+      for (const zoneId of zoneIds) {
+        await this.professionalsRepository.addZone(professional.id, zoneId);
+      }
+    }
 
     notifyProfessionalPendingReview(updated);
 

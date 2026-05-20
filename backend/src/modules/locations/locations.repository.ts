@@ -171,6 +171,16 @@ export class LocationsRepository {
     }
   }
 
+  async findActiveChildNodes(parentId: string): Promise<GeoNode[]> {
+    return prisma.geoNode.findMany({
+      where: {
+        parentId,
+        isActive: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async findActiveLeafNodeById(id: string): Promise<LeafNode | null> {
     return prisma.geoNode.findFirst({
       where: {

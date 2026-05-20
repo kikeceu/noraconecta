@@ -16,10 +16,10 @@ export function ZonesStep({ zones, selectedIds, onToggle, onBack, onNext }: Zone
       <div className="flex-1 overflow-auto px-4 py-5">
         <div className="rounded-2xl bg-white p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <h2 className="mb-1 text-[18px] font-medium text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
-            En que zonas trabajas
+            Tus zonas de cobertura
           </h2>
           <p className="mb-5 text-[14px] leading-relaxed text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
-            Selecciona todas las zonas donde podes atender clientes.
+            Estas son las zonas que registraste. Podés modificarlas si es necesario.
           </p>
 
           <div className="flex flex-col gap-3">
