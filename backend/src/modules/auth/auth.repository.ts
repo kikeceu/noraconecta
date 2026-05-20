@@ -9,6 +9,10 @@ export type CreateAdminInput = {
 };
 
 export class AuthRepository {
+  async findById(id: string): Promise<Admin | null> {
+    return prisma.admin.findUnique({ where: { id } });
+  }
+
   async findByEmail(email: string): Promise<Admin | null> {
     return prisma.admin.findUnique({ where: { email } });
   }

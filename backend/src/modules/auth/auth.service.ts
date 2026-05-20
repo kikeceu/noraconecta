@@ -18,6 +18,26 @@ export interface LoginResult {
 export class AuthService {
   constructor(private readonly authRepository: AuthRepository) {}
 
+  async getAdminById(id: string): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  } | null> {
+    const admin = await this.authRepository.findById(id);
+
+    if (!admin) {
+      return null;
+    }
+
+    return {
+      id: admin.id,
+      email: admin.email,
+      name: admin.name,
+      role: admin.role,
+    };
+  }
+
   async login(email: string, password: string): Promise<LoginResult> {
     const admin = await this.authRepository.findByEmail(email);
 

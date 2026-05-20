@@ -43,8 +43,8 @@ export function AdminLayout() {
     { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate(loginPath);
   };
 

@@ -2,6 +2,7 @@ import 'dotenv/config';
 
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cron from 'node-cron';
@@ -34,7 +35,13 @@ import { R2Client } from './lib/r2-client';
 const app = express();
 
 app.use(helmet());
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.ALLOWED_ORIGIN || 'http://localhost:5173',
+    credentials: true,
+  }),
+);
+app.use(cookieParser());
 app.use(morgan('dev'));
 app.use(
   express.json({

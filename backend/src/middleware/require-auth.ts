@@ -4,13 +4,16 @@ import { AppError } from './error-handler';
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
+  const headerToken = authHeader?.startsWith('Bearer ')
+    ? authHeader.split(' ')[1]
+    : null;
+  const cookieToken = req.cookies?.admin_token as string | undefined;
+  const token = headerToken || cookieToken;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     next(new AppError('Missing or invalid authorization header', 401));
     return;
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
     const payload = verifyToken(token);
