@@ -244,8 +244,6 @@ model Request {
   scheduledAt            DateTime?
   clientAddress          String?
   clientAvailability     String?
-  clientLatitude         Float?
-  clientLongitude        Float?
   coordinationStatus     String?
   negotiationRounds      Int           @default(0)
   waitingUserConsent     Boolean?      @default(false)

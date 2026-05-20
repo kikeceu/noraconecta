@@ -1125,7 +1125,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | Endpoint | Método | Descripción |
 |---|---|---|
 | `/professionals/session/:token/panel` | GET | Datos consolidados: perfil, membresía, reputación |
-| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado: incluye datos del cliente (nombre, teléfono), descripción, rubro, zona, estado, campos de coordinación (coordinationStatus, clientAddress, clientLatitude, clientLongitude, scheduledAt), photoUrls, audioUrl, flags de calificación |
+| `/professionals/session/:token/orders` | GET | Historial de pedidos paginado: incluye datos del cliente (nombre, teléfono), descripción, rubro, zona, estado, campos de coordinación (coordinationStatus, clientAddress, userLatitude, userLongitude, scheduledAt), photoUrls, audioUrl, flags de calificación |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante |
 
 **Response shape `GET /session/:token/panel` (ACTUALIZADO AUT-142):**
@@ -1161,7 +1161,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
     "ratedByProfessional": false, "ratedByUser": true,
     "coordinationStatus": "SCHEDULED", "clientAvailability": "el viernes a las 18",
     "clientAddress": "Calle 123",
-    "clientLatitude": -32.89, "clientLongitude": -68.84,
+    "userLatitude": -32.89, "userLongitude": -68.84,
     "scheduledAt": "2026-05-06T14:00:00.000Z",
     "photoUrls": ["https://r2.example.com/uuid.jpg"],
     "audioUrl": null
@@ -1415,8 +1415,6 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | scheduledAt           | DateTime? | Fecha y hora confirmada de la visita         |
 | clientAddress         | String?   | Dirección exacta ingresada por el usuario    |
 | clientAvailability    | String?   | Disponibilidad horaria en texto libre        |
-| clientLatitude        | Float?    | Latitud del pin de WhatsApp                  |
-| clientLongitude       | Float?    | Longitud del pin de WhatsApp                 |
 | coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| AWAITING_USER_CONFIRMATION \| AWAITING_LOCATION \| SCHEDULED |
 | negotiationRounds     | Int       | Rondas de negociación de horario (default: 0) |
 | waitingUserConsent     | Boolean?  | Usuario aceptó esperar activación de profesional (default: false) (AUT-188) |
