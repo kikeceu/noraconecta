@@ -57,6 +57,7 @@ export function DashboardPage() {
       icon: ShoppingBag,
       trend: null,
       color: 'text-blue-600 bg-blue-50',
+      borderColor: 'border-t-blue-500' 
     },
     {
       label: 'Tasa de aceptación',
@@ -65,6 +66,7 @@ export function DashboardPage() {
       icon: Percent,
       trend: null,
       color: 'text-green-600 bg-green-50',
+      borderColor: 'border-t-blue-500' 
     },
     {
       label: 'Profesionales pendientes',
@@ -73,6 +75,7 @@ export function DashboardPage() {
       icon: UserCheck,
       trend: metrics.professionals.pending > 0 ? 'warning' : null,
       color: 'text-amber-600 bg-amber-50',
+      borderColor: 'border-t-blue-500' 
     },
     {
       label: 'Escaladas abiertas',
@@ -81,14 +84,15 @@ export function DashboardPage() {
       icon: AlertCircle,
       trend: metrics.escalations.open > 0 ? 'error' : 'good',
       color: 'text-red-600 bg-red-50',
+      borderColor: 'border-t-blue-500' 
     },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Dashboard</h1>
+        <p className="text-sm text-gray-600 mt-1">
           Panel de métricas operativas de {brand.fullName}
         </p>
       </div>
@@ -98,12 +102,12 @@ export function DashboardPage() {
         {cards.map((card) => (
           <div
             key={card.label}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-sm transition-shadow"
+            className={`bg-white rounded-xl border border-gray-200 p-6 hover:shadow-sm transition-shadow border-t-2 ${card.borderColor}`}
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-gray-500">{card.label}</p>
-                <p className="text-2xl font-mono font-medium text-gray-900 mt-1">
+                <p className="text-sm text-gray-600">{card.label}</p>
+                <p className="text-6xl font-black text-gray-900 mt-3 tracking-tighter">
                   {card.value}
                 </p>
                 {card.trend === 'warning' && (
@@ -129,7 +133,7 @@ export function DashboardPage() {
                 <card.icon className="w-5 h-5" />
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-3">{card.subtitle}</p>
+            <p className="text-sm text-gray-600 mt-4">{card.subtitle}</p>
           </div>
         ))}
       </div>
@@ -137,36 +141,36 @@ export function DashboardPage() {
       {/* Secondary metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Acceptance & satisfaction */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-5">
             Rendimiento
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Tasa de aceptación</span>
-              <span className="text-sm font-mono font-medium text-gray-900">
+              <span className="text-sm text-gray-600">Tasa de aceptación</span>
+              <span className="text-sm font-semibold text-gray-900">
                 {metrics.acceptanceRate}%
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Tasa de cobertura</span>
-              <span className="text-sm font-mono font-medium text-gray-900">
+              <span className="text-sm text-gray-600">Tasa de cobertura</span>
+              <span className="text-sm font-semibold text-gray-900">
                 {metrics.coverageRate}%
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-600">
                 Tiempo promedio de aceptación
               </span>
-              <span className="text-sm font-mono font-medium text-gray-900">
+              <span className="text-sm font-semibold text-gray-900">
                 {metrics.avgAcceptanceTimeMinutes
                   ? `${metrics.avgAcceptanceTimeMinutes} min`
                   : '—'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">% Recomendaría</span>
-              <span className="text-sm font-mono font-medium text-gray-900">
+              <span className="text-sm text-gray-600">% Recomendaría</span>
+              <span className="text-sm font-semibold text-gray-900">
                 {metrics.wouldRecommendPct}%
               </span>
             </div>
@@ -174,8 +178,8 @@ export function DashboardPage() {
         </div>
 
         {/* Professionals by status */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-5">
             Profesionales por estado
           </h3>
           <div className="space-y-3">
@@ -222,7 +226,7 @@ function StatusBar({
         <span className="text-gray-600">{label}</span>
         <span className="font-mono font-medium text-gray-900">{count}</span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${color} transition-all`}
           style={{ width: `${pct}%` }}

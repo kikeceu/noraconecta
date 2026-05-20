@@ -49,11 +49,11 @@ export function AdminLayout() {
   };
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-      isActive
-        ? 'bg-green-50 text-green-700 border-l-[3px] border-green-700'
-        : 'text-gray-700 hover:bg-gray-50 border-l-[3px] border-transparent'
-    }`;
+  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+    isActive
+      ? 'bg-emerald-900/40 text-emerald-400 border-l-[3px] border-emerald-400'
+      : 'text-white/75 hover:bg-white/6 hover:text-white border-l-[3px] border-transparent'
+  }`;
 
   const initials = admin?.name
     ?.split(' ')
@@ -63,14 +63,14 @@ export function AdminLayout() {
     .slice(0, 2) || 'NA';
 
   const sidebar = (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
+    <div className="flex flex-col h-full bg-[#111110] border-r border-white/8">
+      <div className="flex items-center justify-between h-14 px-4 border-b border-white/8">
         <Link to={homePath} className="flex items-center gap-2 cursor-pointer">
-          <span className="text-lg font-bold text-green-700">{brand.name}</span>
-          <span className="text-xs text-gray-500 font-normal">Admin</span>
+          <span className="text-lg font-bold text-white">{brand.name}</span>
+          <span className="text-xs text-white/35 font-normal">Admin</span>
         </Link>
         <button
-          className="lg:hidden p-1 text-gray-500 hover:text-gray-700 cursor-pointer"
+          className="lg:hidden p-1 text-white/40 hover:text-white cursor-pointer"
           onClick={() => setSidebarOpen(false)}
         >
           <X className="w-5 h-5" />
@@ -104,22 +104,22 @@ export function AdminLayout() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-gray-200">
+      <div className="p-3 border-t border-white/8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-green-700 text-white flex items-center justify-center text-xs font-bold">
               {initials}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className="text-sm font-medium text-white/80 truncate">
                 {admin?.name}
               </p>
-              <p className="text-xs text-gray-500">{admin?.role}</p>
+              <p className="text-xs text-white/35">{admin?.role}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+            className="p-1.5 text-white/30 hover:text-red-400 transition-colors cursor-pointer"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
@@ -130,7 +130,7 @@ export function AdminLayout() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-100">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:w-60 lg:flex-col lg:fixed lg:inset-y-0">
         {sidebar}
@@ -155,7 +155,7 @@ export function AdminLayout() {
         <div className="lg:hidden flex items-center h-14 px-4 bg-white border-b border-gray-200">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1.5 text-gray-500 hover:text-gray-700 mr-3 cursor-pointer"
+            className="p-1.5 text-white/40 hover:text-white mr-3 cursor-pointer"
           >
             <Menu className="w-5 h-5" />
           </button>
