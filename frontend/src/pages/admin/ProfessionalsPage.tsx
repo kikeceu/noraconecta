@@ -81,7 +81,7 @@ export function ProfessionalsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por nombre, email o DNI"
+            placeholder="Buscar por nombre, teléfono o DNI"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
@@ -116,6 +116,9 @@ export function ProfessionalsPage() {
                   Zona
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+                  Teléfono
+                </th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
                   Estado
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
@@ -130,7 +133,7 @@ export function ProfessionalsPage() {
               {loading
                 ? [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(6)].map((_, j) => (
+                      {[...Array(7)].map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 rounded w-3/4" />
                         </td>
@@ -150,6 +153,9 @@ export function ProfessionalsPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {p.zones?.[0]?.geoNode?.name || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-gray-600">
+                        {p.phone || '—'}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -176,7 +182,7 @@ export function ProfessionalsPage() {
               {!loading && filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-12 text-center text-sm text-gray-500"
                   >
                     {error ? (
