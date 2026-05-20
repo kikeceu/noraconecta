@@ -727,8 +727,9 @@ Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web
 POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
-    → UsersService.findOrCreateByPhone(phone)  // garantiza User en DB
     → determina rol (input.role || 'USER')      // antes de cargar sesión, por phone_number_id del webhook
+    → role=USER: UsersService.findOrCreateByPhone(phone)
+    → role=PROFESSIONAL: UsersService.findByPhone(phone) sin crear User nuevo (AUT-202)
     → BotRepository.findByPhoneAndRole(phone, role)  // clave compuesta (phone, role)
     → detectar pendingMessage (notificación proactiva de coordinación)
     → despachar al FlowHandler correspondiente
@@ -1549,8 +1550,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - No se permite crear categorías con name o slug duplicado → 409
   - `findBySlugOrName(query)`: búsqueda exacta por slug o name, luego Levenshtein con threshold configurable (max distance: 3) como fallback; retorna `null` si no hay match
 - Usuarios:
-  - El usuario no se registra explícitamente; el bot lo crea automáticamente al detectar un número nuevo
+  - El usuario no se registra explícitamente; el bot lo crea automáticamente al detectar un número nuevo solo cuando el `role` es `USER` (AUT-202)
   - `findOrCreateByPhone(phone, name?)`: busca por teléfono; si no existe, crea uno nuevo con `name` (default: phone)
+  - `findByPhone(phone)`: busca por teléfono y retorna `User | null` sin crear registros
+  - Cuando el `role` del bot es `PROFESSIONAL`, nunca se crea `User` nuevo de forma implícita (AUT-202)
   - `isBlocked(phone)`: retorna `true` si el status es BLOCKED; si el usuario no existe, retorna `false`
   - No existe endpoint de creación manual ni de eliminación de usuarios
   - Bloquear un usuario ya bloqueado retorna 409; desbloquear uno activo retorna 409
