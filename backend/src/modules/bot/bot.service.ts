@@ -28,19 +28,21 @@ export class BotService {
   async processMessage(
     input: ProcessMessageInput,
   ): Promise<BotResponse & { flow?: string; step?: string; pendingNotification?: PendingNotification }> {
-    const user = await this.usersService.findOrCreateByPhone(input.phone);
-
     const role: BotRole = input.role || 'USER';
-
-    let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
-
-    console.log('[processMessage] phone:', input.phone, 'role:', role, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
+    const user =
+      role === 'USER'
+        ? await this.usersService.findOrCreateByPhone(input.phone)
+        : (await this.usersService.findByPhone(input.phone)) ?? { id: '', name: '', phone: input.phone };
 
     const userIdentity = {
       userId: user.id,
       name: user.name,
       phone: user.phone,
     };
+
+    let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
+
+    console.log('[processMessage] phone:', input.phone, 'role:', role, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
 
     let observationWarning: string | undefined;
 
@@ -143,9 +145,9 @@ export class BotService {
       const sessionTempData = (session.tempData as Record<string, unknown>) || {};
 
       if (!sessionTempData.userId) {
-        sessionTempData.userId = user.id;
-        sessionTempData.name = user.name;
-        sessionTempData.phone = user.phone;
+        sessionTempData.userId = userIdentity.userId;
+        if (!sessionTempData.name) sessionTempData.name = userIdentity.name || '';
+        sessionTempData.phone = userIdentity.phone;
 
         session = await this.botRepository.upsert(input.phone, {
           role,
@@ -275,9 +277,9 @@ export class BotService {
       }
     }
 
-    if (!finalTempData.userId) finalTempData.userId = user.id;
-    if (!finalTempData.name) finalTempData.name = user.name;
-    if (!finalTempData.phone) finalTempData.phone = user.phone;
+    if (!finalTempData.userId) finalTempData.userId = userIdentity.userId;
+    if (!finalTempData.name && userIdentity.name) finalTempData.name = userIdentity.name;
+    if (!finalTempData.phone) finalTempData.phone = userIdentity.phone;
 
     const updatedSession = await this.botRepository.upsert(input.phone, {
       role,

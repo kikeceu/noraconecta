@@ -15,6 +15,10 @@ export interface PaginatedUsersResponse {
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
 
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.usersRepository.findByPhone(phone);
+  }
+
   async findOrCreateByPhone(phone: string, name?: string): Promise<User> {
     const existing = await this.usersRepository.findByPhone(phone);
 
