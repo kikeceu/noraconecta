@@ -1195,8 +1195,6 @@ export class RequestsService {
       scheduledAt: null,
       clientAddress: null,
       clientAvailability: null,
-      clientLatitude: null,
-      clientLongitude: null,
       coordinationStatus: null,
       negotiationRounds: 0,
     });
@@ -1313,8 +1311,6 @@ export class RequestsService {
         scheduledAt: null,
         clientAddress: null,
         clientAvailability: null,
-        clientLatitude: null,
-        clientLongitude: null,
         coordinationStatus: null,
         negotiationRounds: 0,
       });
@@ -1339,8 +1335,6 @@ export class RequestsService {
       scheduledAt: null,
       clientAddress: null,
       clientAvailability: null,
-      clientLatitude: null,
-      clientLongitude: null,
       coordinationStatus: null,
       negotiationRounds: 0,
     });

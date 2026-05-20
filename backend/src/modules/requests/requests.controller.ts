@@ -535,7 +535,7 @@ export class RequestsController {
           scheduledAt: request.scheduledAt,
           clientAvailability: request.clientAvailability,
           clientAddress: request.clientAddress,
-          hasLocation: !!(request.clientLatitude && request.clientLongitude),
+          hasLocation: !!(request.userLatitude && request.userLongitude),
         };
       }
 
