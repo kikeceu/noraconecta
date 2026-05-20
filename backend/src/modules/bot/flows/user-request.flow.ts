@@ -35,6 +35,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskZone(message, tempData);
       case 'ASK_DESCRIPTION':
         return this.handleAskDescription(message, tempData);
+      case 'ASK_LOCATION':
+        return this.handleAskLocation(message, tempData);
       case 'ASK_PHOTOS':
         return this.handleAskPhotos(message, tempData);
       case 'ASK_AUDIO':
@@ -239,8 +241,52 @@ export class UserRequestFlow implements FlowHandler {
     tempData.description = inputText;
 
     return {
-      response: { text: 'Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
-      nextStep: 'ASK_PHOTOS',
+      response: {
+        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion). Si no podes compartirla, escribi "omitir".',
+      },
+      nextStep: 'ASK_LOCATION',
+      tempData,
+    };
+  }
+
+  private async handleAskLocation(
+    message: { text?: string; location?: { latitude: number; longitude: number } },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    if (message.location) {
+      tempData.userLatitude = message.location.latitude;
+      tempData.userLongitude = message.location.longitude;
+
+      return {
+        response: { text: 'Gracias. Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
+        nextStep: 'ASK_PHOTOS',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim().toLowerCase() || '';
+    const skipLocation =
+      inputText === 'omitir' ||
+      inputText.includes('no puedo') ||
+      inputText.includes('sin ubicacion') ||
+      inputText.includes('sin ubicación');
+
+    if (skipLocation) {
+      tempData.userLatitude = undefined;
+      tempData.userLongitude = undefined;
+
+      return {
+        response: { text: 'Perfecto. Continuamos sin ubicacion. Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
+        nextStep: 'ASK_PHOTOS',
+        tempData,
+      };
+    }
+
+    return {
+      response: {
+        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp. Si no podes compartirla, escribi "omitir".',
+      },
+      nextStep: 'ASK_LOCATION',
       tempData,
     };
   }
@@ -357,6 +403,8 @@ export class UserRequestFlow implements FlowHandler {
           description: tempData.description as string,
           photoUrls: (tempData.photoUrls as string[]) || [],
           audioUrl: tempData.audioUrl as string | undefined,
+          userLatitude: tempData.userLatitude as number | undefined,
+          userLongitude: tempData.userLongitude as number | undefined,
         });
 
         tempData.requestId = request.id;

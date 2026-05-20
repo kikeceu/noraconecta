@@ -10,6 +10,8 @@ export type CreateRequestInput = {
   description: string;
   photoUrls: string[];
   audioUrl?: string;
+  userLatitude?: number;
+  userLongitude?: number;
   status: 'CREATED' | 'ASSIGNED' | 'NO_RESPONSE';
   assignedProfessionalId?: string;
   assignedAt?: Date;

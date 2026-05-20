@@ -358,7 +358,7 @@ export class CoordinationFlow implements FlowHandler {
         const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
         const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
-        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
         return {
           response: {
@@ -444,7 +444,7 @@ export class CoordinationFlow implements FlowHandler {
         const hours = getHoursArgentina(newScheduledAt).toString().padStart(2, '0');
         const minutes = getMinutesArgentina(newScheduledAt).toString().padStart(2, '0');
 
-        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
         return {
           response: {
@@ -574,7 +574,7 @@ export class CoordinationFlow implements FlowHandler {
 
         const professionalMessage = `El cliente aceptó el ${dayName} a las ${hours}:${minutes}. Visita confirmada.`;
 
-        const userMessage = `¡Buenísimo! Le confirmo a ${professionalName} la visita para el ${dayName} a las ${hours}:${minutes}.\n\nAhora, para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+        const userMessage = `¡Buenísimo! Le confirmo a ${professionalName} la visita para el ${dayName} a las ${hours}:${minutes}.\n\nPor favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
         return {
           response: {
@@ -694,7 +694,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleAwaitingLocation(
-    message: { text?: string; location?: { latitude: number; longitude: number } },
+    message: { text?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
@@ -702,127 +702,90 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role !== 'USER') {
       return {
-        response: { text: 'Esperando que el usuario comparta su ubicación.' },
+        response: { text: 'Esperando que el usuario comparta su direccion.' },
         nextStep: 'AWAITING_LOCATION',
         tempData,
       };
     }
 
-    const clientAddress = (tempData.clientAddress as string) || '';
-    const clientLatitude = tempData.clientLatitude as number | undefined;
-    const clientLongitude = tempData.clientLongitude as number | undefined;
+    const address = message.text?.trim();
 
-    let newAddress = clientAddress;
-    let newLat = clientLatitude;
-    let newLng = clientLongitude;
-
-    if (message.text?.trim() && !isLocationLikeMessage(message.text.trim())) {
-      newAddress = message.text.trim();
-    }
-
-    if (message.location) {
-      newLat = message.location.latitude;
-      newLng = message.location.longitude;
-    }
-
-    const hasAddress = !!newAddress;
-    const hasLocation = newLat !== undefined && newLng !== undefined;
-
-    if (hasAddress && hasLocation) {
-      await prisma.request.update({
-        where: { id: requestId },
-        data: {
-          coordinationStatus: 'SCHEDULED',
-          clientAddress: newAddress,
-          clientLatitude: newLat,
-          clientLongitude: newLng,
-        },
-      });
-
-      const request = await prisma.request.findUnique({
-        where: { id: requestId },
-        select: {
-          scheduledAt: true,
-          description: true,
-          user: { select: { name: true, phone: true } },
-        },
-      });
-
-      const scheduledAt = request?.scheduledAt;
-      const userPhone = request?.user?.phone;
-
-      let scheduleText = '';
-      if (scheduledAt) {
-        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-        const dayName = dayNames[getDayArgentina(scheduledAt)];
-        const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
-        const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
-        scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
-      }
-
-      const mapsLink = `https://maps.google.com/?q=${newLat},${newLng}`;
-
-      const professionalMessage =
-        `Visita confirmada ✅\n` +
-        `Cliente: ${request?.user?.name || 'el usuario'}\n` +
-        `Pedido: ${request?.description || 'Sin descripción'}\n` +
-        (scheduleText ? `Día y hora: ${scheduleText}\n` : '') +
-        `Dirección: ${newAddress}\n` +
-        `Ubicación: ${mapsLink}\n` +
-        `Teléfono del cliente: ${userPhone || 'No disponible'}`;
-
+    if (!address) {
       return {
         response: {
-          text: `¡Todo listo! ${tempData.professionalName || 'El profesional'} ya tiene tus datos para la visita.`,
-        },
-        nextStep: null,
-        tempData: {
-          requestId,
-          pendingNotification: {
-            targetPhone: tempData.professionalPhone,
-            targetRole: 'PROFESSIONAL',
-            message: professionalMessage,
-            flow: null,
-            step: null,
-            tempData: {},
-          },
-        } as Record<string, unknown>,
-      };
-    }
-
-    if (!hasAddress && !hasLocation) {
-      return {
-        response: {
-          text: 'Para que el profesional pueda encontrarte, necesito tu dirección exacta (calle, número, piso/depto, referencia) y tu ubicación. Podés compartir el pin desde WhatsApp.',
+          text: 'Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).',
         },
         nextStep: 'AWAITING_LOCATION',
         tempData,
       };
     }
 
-    if (!hasAddress) {
-      return {
-        response: {
-          text: 'Gracias por la ubicación. Ahora necesito tu dirección exacta (calle, número, piso/depto, referencia de acceso).',
-        },
-        nextStep: 'AWAITING_LOCATION',
-        tempData: {
-          ...tempData,
-          clientLatitude: newLat,
-          clientLongitude: newLng,
-        },
-      };
+    await prisma.request.update({
+      where: { id: requestId },
+      data: {
+        coordinationStatus: 'SCHEDULED',
+        clientAddress: address,
+      },
+    });
+
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: {
+        scheduledAt: true,
+        description: true,
+        userLatitude: true,
+        userLongitude: true,
+        user: { select: { name: true, phone: true } },
+      },
+    });
+
+    const scheduledAt = request?.scheduledAt;
+    const userPhone = request?.user?.phone;
+
+    let scheduleText = '';
+    if (scheduledAt) {
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const dayName = dayNames[getDayArgentina(scheduledAt)];
+      const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+      const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
+      scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
     }
+
+    const hasUserCoordinates =
+      request?.userLatitude !== null &&
+      request?.userLatitude !== undefined &&
+      request?.userLongitude !== null &&
+      request?.userLongitude !== undefined;
+
+    const mapsLink = hasUserCoordinates
+      ? `https://maps.google.com/?q=${request.userLatitude},${request.userLongitude}`
+      : null;
+
+    const professionalMessage =
+      `Visita confirmada ✅\n` +
+      `Cliente: ${request?.user?.name || 'el usuario'}\n` +
+      `Pedido: ${request?.description || 'Sin descripción'}\n` +
+      (scheduleText ? `Día y hora: ${scheduleText}\n` : '') +
+      `Dirección: ${address}\n` +
+      (mapsLink ? `Ubicación: ${mapsLink}\n` : '') +
+      `Teléfono del cliente: ${userPhone || 'No disponible'}`;
 
     return {
       response: {
-        text: 'Gracias por la dirección. Ahora compartíme tu ubicación desde WhatsApp para que el profesional pueda llegar.',
+        text: `¡Todo listo! ${tempData.professionalName || 'El profesional'} ya tiene tus datos para la visita.`,
       },
-      nextStep: 'AWAITING_LOCATION',
+      nextStep: null,
       tempData: {
-        ...tempData,
-        clientAddress: newAddress,
-      },
+        requestId,
+        pendingNotification: {
+          targetPhone: tempData.professionalPhone,
+          targetRole: 'PROFESSIONAL',
+          message: professionalMessage,
+          flow: null,
+          step: null,
+          tempData: {},
+        },
+      } as Record<string, unknown>,
     };
   }
 
@@ -837,11 +800,4 @@ export class CoordinationFlow implements FlowHandler {
       ) <= 15
     );
   }
-}
-
-function isLocationLikeMessage(text: string): boolean {
-  const trimmed = text.trim();
-  if (trimmed.length < 8) return false;
-  const coordPattern = /^(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)$/;
-  return coordPattern.test(trimmed);
 }

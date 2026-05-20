@@ -25,6 +25,8 @@ export interface CreateRequestInput {
   description: string;
   photoUrls?: string[];
   audioUrl?: string;
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
 export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
@@ -108,6 +110,8 @@ export class RequestsService {
       description: input.description.trim(),
       photoUrls: input.photoUrls || [],
       audioUrl: input.audioUrl,
+      userLatitude: input.userLatitude,
+      userLongitude: input.userLongitude,
       status: 'CREATED',
     });
 
@@ -115,6 +119,8 @@ export class RequestsService {
       input.categoryId,
       input.geoNodeId,
       [],
+      input.userLatitude ?? null,
+      input.userLongitude ?? null,
     );
 
     if (match) {
@@ -285,6 +291,8 @@ export class RequestsService {
       request.categoryId,
       request.geoNodeId,
       rejectorIds,
+      request.userLatitude,
+      request.userLongitude,
     );
 
     if (!match) {
@@ -914,6 +922,8 @@ export class RequestsService {
           request.categoryId,
           request.geoNodeId,
           [],
+          request.userLatitude,
+          request.userLongitude,
         );
 
         if (!match) {
@@ -1039,6 +1049,8 @@ export class RequestsService {
           request.categoryId,
           request.geoNodeId,
           [...excludedIds],
+          request.userLatitude,
+          request.userLongitude,
         );
 
         if (!match) {
@@ -1207,6 +1219,8 @@ export class RequestsService {
       request.categoryId,
       request.geoNodeId,
       excludedIds,
+      request.userLatitude,
+      request.userLongitude,
     );
 
     let userMessage: string;
@@ -1286,6 +1300,8 @@ export class RequestsService {
       request.categoryId,
       request.geoNodeId,
       excludedIds,
+      request.userLatitude,
+      request.userLongitude,
     );
 
     if (!match) {

@@ -202,6 +202,24 @@ export class MatchingRepository {
     return map;
   }
 
+  async getProfessionalCoordinates(
+    professionalIds: string[],
+  ): Promise<Map<string, { latitude: number | null; longitude: number | null }>> {
+    const professionals = await prisma.professional.findMany({
+      where: { id: { in: professionalIds } },
+      select: { id: true, latitude: true, longitude: true },
+    });
+
+    const map = new Map<string, { latitude: number | null; longitude: number | null }>();
+    for (const professional of professionals) {
+      map.set(professional.id, {
+        latitude: professional.latitude,
+        longitude: professional.longitude,
+      });
+    }
+    return map;
+  }
+
   async getAverageRatings(
     professionalIds: string[],
   ): Promise<Map<string, number | null>> {

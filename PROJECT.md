@@ -785,8 +785,8 @@ POST /bot/message
 
 | Flow                    | Estados                                                                 |
 |------------------------|-------------------------------------------------------------------------|
-| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
-| `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_AVAILABILITY → SEND_LINK     |
+| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
+| `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
 **Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
@@ -806,11 +806,14 @@ POST /bot/message
 
 **Lógica de paso ASK_AUDIO (AUT-155):** Cuando el usuario envía un mensaje de tipo `audio`, el bot lo guarda en `tempData.audioUrl` y avanza directamente a `CONFIRM`. Si el usuario escribe "listo" o cualquier otro texto sin audio, también avanza a `CONFIRM`. Solo repite la pregunta si el mensaje está vacío y no contiene audio.
 
+**Lógica de paso ASK_LOCATION (AUT-201):** Después de `ASK_DESCRIPTION`, el bot solicita ubicación para priorizar cercanía real. Si recibe `location`, guarda `userLatitude` y `userLongitude` en `tempData`. Si el usuario responde `omitir` (o indica que no puede compartir ubicación), continúa sin coordenadas. En `handleConfirm`, esas coordenadas se envían opcionalmente a `RequestsService.create()`.
+
 **Lógica de flujo PROFESSIONAL_REGISTER:**
 - `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó.
 - `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein).
 - `ASK_ZONES`: divide el input por coma, "y" y "e", resuelve cada zona por separado, registra múltiples zoneIds en tempData.
-- `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
+- `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
+- `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
 **NLP (nlp.service.ts):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
@@ -893,12 +896,14 @@ POST /bot/message
 | `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` | 2 | Timeout de respuesta del profesional |
 | `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
 | `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
-| `MATCHING_WEIGHT_COMPLIANCE`   | 0.35   | Peso de compliance en el score |
-| `MATCHING_WEIGHT_RESPONSE_RATE` | 0.25  | Peso de response rate en el score |
+| `MATCHING_WEIGHT_COMPLIANCE`   | 0.30   | Peso de compliance en el score |
+| `MATCHING_WEIGHT_RESPONSE_RATE` | 0.22  | Peso de response rate en el score |
 | `MATCHING_WEIGHT_RECOMMENDATION` | 0.10 | Peso de wouldRecommend en el score |
 | `MATCHING_WEIGHT_DISTRIBUTION` | 0.05   | Peso de distribución en el score |
-| `MATCHING_WEIGHT_QUALITY_RATING` | 0.20 | Peso de quality rating (4 ejes) en el score |
+| `MATCHING_WEIGHT_QUALITY_RATING` | 0.18 | Peso de quality rating (4 ejes) en el score |
+| `MATCHING_WEIGHT_PROXIMITY`    | 0.10   | Peso de cercanía geográfica (Haversine) |
 | `MATCHING_WEIGHT_PLAN`         | 0.05   | Peso de plan priority en el score |
+| `MATCHING_MAX_DISTANCE_KM`     | 50     | Distancia máxima para escalar score de proximidad |
 | `MATCHING_BADGE_BONUS`         | 5      | Bonus fijo por hasBadge (no ponderado) |
 | `MATCHING_REJECTION_PENALTY`   | 10     | Penalización por cada REJECTED event en distribución |
 | `MATCHING_TENDENCY_WEIGHT`     | 0.15   | Peso de tendencia reciente dentro de qualityRating |
@@ -983,11 +988,12 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
 **Filtros duros**: status ACTIVE | OBSERVATION, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo de pedidos activos configurable, no rechazó el pedido actual.
 
-**Fórmula de scoring (AUT-186):**
+**Fórmula de scoring (AUT-186, AUT-201):**
 ```
-score_final = compliance        × 0.35
-            + responseRate      × 0.25
-            + qualityRating     × 0.20   (promedio 4 ejes, reemplaza wouldRecommend como componente principal)
+score_final = compliance        × 0.30
+            + responseRate      × 0.22
+            + qualityRating     × 0.18   (promedio 4 ejes, reemplaza wouldRecommend como componente principal)
+            + proximity         × 0.10   (distancia real usuario-profesional con Haversine)
             + recommendation    × 0.10   (wouldRecommend se mantiene con menos peso)
             + distribution      × 0.05   (reducido, penaliza rechazos)
             + planScore         × 0.05   (nuevo con peso real: Básico=33, Profesional=66, Premium=100)
@@ -995,12 +1001,13 @@ score_final = compliance        × 0.35
             ± tendencyBonus     (mejora reciente en ratings, máx ±15 puntos)
 ```
 
-**Pesos**: 0.35 + 0.25 + 0.20 + 0.10 + 0.05 + 0.05 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
+**Pesos**: 0.30 + 0.22 + 0.18 + 0.10 + 0.10 + 0.05 + 0.05 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
 
 **Componentes del scoring:**
-- **Compliance (35%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
-- **ResponseRate (25%)**: base 100, penalización por NO_RESPONSE
-- **QualityRating (20%)**: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5 → 0-100). Sin datos → 60 (score neutro, para no penalizar nuevos). Con datos recientes → bonus/penalización de tendencia (máx ±15)
+- **Compliance (30%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
+- **ResponseRate (22%)**: base 100, penalización por NO_RESPONSE
+- **QualityRating (18%)**: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5 → 0-100). Sin datos → 60 (score neutro, para no penalizar nuevos). Con datos recientes → bonus/penalización de tendencia (máx ±15)
+- **Proximity (10%)**: cercanía real en km con Haversine entre `Request.userLatitude/userLongitude` y `Professional.latitude/longitude`; sin coordenadas en cualquiera de los dos lados retorna 50 (neutro), con tope configurable por `MATCHING_MAX_DISTANCE_KM`.
 - **Recommendation (10%)**: % de feedbacks con wouldRecommend = true. Sin feedbacks → 50
 - **Distribution (5%)**: bonus por tiempo desde última asignación, penalizado por rechazos (REJECTED events)
 - **PlanScore (5%)**: priority 1 (Básico) → 33, 2 (Profesional) → 66, 3 (Premium) → 100. El plan NUNCA puede hacer que un profesional con mala reputación supere a uno con buena (diferencia máxima por plan: ~5 puntos)
@@ -1107,7 +1114,7 @@ Portal de autogestión para profesionales. Acceso exclusivo vía magic link (`ap
 | Inicio | `ProfessionalDashboard` | Saludo "Hola, {nombre}" + badge de membresía (activa/trial/sin), 4 métricas principales (completados, calificación promedio, % recomendación, score cumplimiento), gráficos de actividad temporal: BarChart de pedidos por día (últimos 7 días, completados/cancelados/no cumplidos) y LineChart de evolución de calificación promedio (últimas 8 semanas) con Recharts, desglose de ratings con barras de progreso (solo si `totalRated > 0`), accesos rápidos a Pedidos pendientes y En curso (AUT-178, AUT-182) |
 | Perfil | `ProfessionalProfile` | Estado con badge (Activo/Suspendido/En observación), badge Excelencia NORA, disponibilidad en chips, datos personales, docs R2 (solo lectura) |
 | Pedidos pendientes | `ProfessionalPendingRequests` | Lista de pedidos ASSIGNED sin responder, con indicador de tiempo restante, botones Aceptar/Rechazar y modal de confirmación. Sección temporal para testing del flujo de asignación (reemplazable por WhatsApp en AUT-134) |
-| En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando ubicación del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado, Cancelar pedido con modal de confirmación). Botón "Marcar finalizado" (AUT-176): solo visible cuando `coordinationStatus = SCHEDULED` (la visita ya tiene fecha y hora confirmadas). Modal "Confirmar visita": al proponer horario alternativo, el campo se prellena con `clientAvailability` del pedido (AUT-168). Botón "Cancelar pedido" (AUT-170): visible para todo pedido ACCEPTED, modal de confirmación "¿Confirmás que querés cancelar este pedido? Esta acción no se puede deshacer." (AUT-170) |
+| En curso | `ProfessionalInProgress` | Pedidos aceptados y en proceso de coordinación (ACCEPTED + PENDING_CONFIRMATION). Muestra estado de coordinación con etiquetas descriptivas (AUT-165): `AWAITING_AVAILABILITY` → "Coordinando horario con el usuario", `AWAITING_CONFIRMATION` → "Esperando tu confirmación de horario", `AWAITING_USER_CONFIRMATION` → "Esperando que el usuario acepte tu propuesta", `AWAITING_LOCATION` → "Esperando dirección del usuario", `SCHEDULED` → "Visita confirmada · {fecha}". Stats cards (total, aceptados, esperando confirmación), búsqueda, tabla con acciones (Confirmar visita, Ver detalle con modal ampliado, Marcar finalizado, Cancelar pedido con modal de confirmación). Botón "Marcar finalizado" (AUT-176): solo visible cuando `coordinationStatus = SCHEDULED` (la visita ya tiene fecha y hora confirmadas). Modal "Confirmar visita": al proponer horario alternativo, el campo se prellena con `clientAvailability` del pedido (AUT-168). Botón "Cancelar pedido" (AUT-170): visible para todo pedido ACCEPTED, modal de confirmación "¿Confirmás que querés cancelar este pedido? Esta acción no se puede deshacer." (AUT-170) |
 | Historial | `ProfessionalOrders` | Pedidos donde el profesional participó en algún evento (vía `events.some({ professionalId })`, no solo `assignedProfessionalId`). Muestra `professionalEventType` (evento más reciente del profesional: CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE) en vez del `status` del pedido (AUT-170). Stats cards, filtros por status (chips + búsqueda extendida por rubro/zona/usuario), tabla con columnas: Fecha, Zona, Usuario (nombre + teléfono), Estado, Calificación (⭐ + promedio clickeable → RatingDetailModal si calificado, "Sin calificación" si no, — si no es COMPLETED), Acción (AUT-179). RatingDetailModal: sección "Lo que el usuario opinó de vos" (Puntualidad/Calidad/Comunicación/Precio justo + promedio + comentario) y "Tu evaluación del usuario" (Claridad/Disponibilidad/Trato/¿Volvería a atenderlo? + comentario, o botón "Calificar al usuario" si no calificó). Pedidos COMPLETED sin calificar: botón "Calificar". Paginación + empty state |
 | Membresía | `ProfessionalMembership` | Plan activo (nombre, tipo mensual/anual, fechas, beneficios, precio). Trial: barra de progreso "X de 5 pedidos gratuitos". Expirado: instrucciones + alias de pago + botón WhatsApp |
 | Reputación | `ProfessionalReputation` | Donut chart con score de cumplimiento (%), breakdown completados/rechazados/no cumplidos, % recomendación, tasa de aceptación, tiempo de respuesta, consejos |
@@ -1580,10 +1587,11 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Motor de matching (ACTUALIZADO AUT-186):
   - Scoring en tiempo real, no persistido en DB
   - Filtros duros: status ACTIVE | OBSERVATION, zona, categoría, canReceiveRequests, máximo activos configurable, no rechazó el pedido
-  - Fórmula: Compliance × 0.35 + ResponseRate × 0.25 + QualityRating × 0.20 + Recommendation × 0.10 + Distribution × 0.05 + PlanScore × 0.05 + BadgeBonus (fijo) + TendencyBonus (máx ±15)
+  - Fórmula: Compliance × 0.30 + ResponseRate × 0.22 + QualityRating × 0.18 + Proximity × 0.10 + Recommendation × 0.10 + Distribution × 0.05 + PlanScore × 0.05 + BadgeBonus (fijo) + TendencyBonus (máx ±15)
   - Compliance: base 100, -50 por NOT_FULFILLED atenuado linealmente hasta `REPUTATION_DECAY_DAYS` (default: 90). Mín 0.
   - ResponseRate: base 100, -25 por NO_RESPONSE. Mín 0.
   - QualityRating: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5). Sin datos → 60 (score neutro). Con datos recientes (30d) → bonus/penalización de tendencia (máx ±15).
+  - Proximity: distancia real en km con Haversine entre coordenadas del pedido (`userLatitude`/`userLongitude`) y del profesional (`latitude`/`longitude`). Si faltan coordenadas en cualquiera, retorna 50 (neutro). Escala lineal con tope `MATCHING_MAX_DISTANCE_KM` (default 50km).
   - Recommendation: % feedbacks con `wouldRecommend = true`. Sin feedbacks → 50.
   - Distribution: bonus por tiempo desde última asignación (días × dailyBonus). Penalizado por rechazos (REJECTED events, -10 c/u por default).
   - PlanScore: Básico=33, Profesional=66, Premium=100. Con peso 0.05, la diferencia máxima por plan es ~3 puntos.
@@ -1596,6 +1604,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Pedidos:
   - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION) no puede crear otro → 409
   - Usuario bloqueado no puede crear pedidos → 403
+  - Al crear pedido desde bot, `userLatitude` y `userLongitude` son opcionales (step `ASK_LOCATION`). Si el usuario omite ubicación, el pedido se crea igual.
   - Creación dispara matching automáticamente vía `findBestCandidate()`; si encuentra candidato → notifica al profesional via WhatsApp (`NotificationService.notifyProfessionalAssigned()`). Si no hay candidatos → NO_RESPONSE
   - `assignmentTimeoutAt` se setea al asignar: `now() + PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2h)
   - Aceptar: incrementa `trialRequestsUsed` si el profesional no tiene membresía ACTIVA vigente. Limpia `assignmentTimeoutAt`. Inicia flujo de coordinación (`CoordinationService.initAfterAccept()`) y notifica al usuario via WhatsApp (`NotificationService.notifyUserRequestAccepted()`) (AUT-195).
@@ -1617,22 +1626,22 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía WhatsApp inmediato a usuario y profesional via `CoordinationService.sendReminders()` (AUT-195). El cron corre cada hora (`node-cron` en `server.ts`).
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
-- **Coordinación de visita (AUT-151, AUT-152, AUT-160, AUT-195):**
+- **Coordinación de visita (AUT-151, AUT-152, AUT-160, AUT-195, AUT-201):**
   - Al aceptar un pedido (`POST /requests/:id/accept`), `RequestsService.accept()` dispara `CoordinationService.initAfterAccept()` que setea `coordinationStatus = AWAITING_AVAILABILITY` y configura la sesión del usuario en el bot. También envía WhatsApp inmediato al usuario via `NotificationService.notifyUserRequestAccepted()`.
   - Los mensajes de coordinación (`confirmVisit`, `notifyWorkFinished`, `sendReminders`) se envían inmediatamente por WhatsApp via `CoordinationService` (antes usaban `pendingMessage` en BotSession).
-  - NORA actúa como relay entre usuario y profesional para coordinar día, hora, dirección y ubicación
+  - NORA actúa como relay entre usuario y profesional para coordinar día, hora y dirección exacta
   - Estados de coordinación: `AWAITING_AVAILABILITY` → `AWAITING_CONFIRMATION` → `AWAITING_LOCATION` → `SCHEDULED`
    - Si el profesional propone un horario diferente al del usuario → `AWAITING_USER_CONFIRMATION`:
      - Mensaje al usuario: "{nombre} no puede {disponibilidad}. Propone el DD/MM a las HH:MM. ¿Te viene bien? (Sí / No)" en vez del día de semana (AUT-167)
-     - Usuario acepta → `AWAITING_LOCATION` (continúa flujo normal de ubicación)
+     - Usuario acepta → `AWAITING_LOCATION` (continúa flujo de dirección)
      - Usuario rechaza → vuelve a `AWAITING_AVAILABILITY` con mensaje que incluye formato: "Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)" (AUT-167)
      - Tras 3 rondas sin acuerdo → se intenta con el siguiente profesional del matching (`reassignAfterNegotiation`)
   - El usuario comparte disponibilidad horaria vía chat → el coordination flow guarda la disponibilidad en `clientAvailability` y notifica al profesional
-  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `confirmVisit` detecta si el horario es alternativo comparando el parseo con `parseExactDate` del texto del profesional vía `isSameSchedule`. Si la respuesta es afirmativa ("dale", "confirmo", etc.) → `AWAITING_LOCATION`. Si no es afirmativa y `parseExactDate` parseó → `AWAITING_USER_CONFIRMATION`. Si no se pudo parsear el texto del profesional → reset a `AWAITING_AVAILABILITY`. `scheduledAt` se guarda, NORA pide ubicación al usuario.
-  - El usuario comparte dirección (`clientAddress`) y ubicación (`clientLatitude`/`clientLongitude` vía pin de WhatsApp)
-  - Si el usuario solo comparte uno de los dos (texto o pin), NORA pide el faltante
-  - Al completar ambos → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con todos los datos
-  - El profesional ve en su panel: botón "Confirmar visita" (cuando AWAITING_CONFIRMATION), indicador "Esperando ubicación" (cuando AWAITING_LOCATION, no permite marcar finalizado) y botón "Ver detalle" (cuando SCHEDULED, muestra dirección y link Google Maps)
+  - El profesional confirma desde el panel (`POST /requests/:id/confirm-visit`) → `confirmVisit` detecta si el horario es alternativo comparando el parseo con `parseExactDate` del texto del profesional vía `isSameSchedule`. Si la respuesta es afirmativa ("dale", "confirmo", etc.) → `AWAITING_LOCATION`. Si no es afirmativa y `parseExactDate` parseó → `AWAITING_USER_CONFIRMATION`. Si no se pudo parsear el texto del profesional → reset a `AWAITING_AVAILABILITY`. `scheduledAt` se guarda, NORA pide dirección exacta al usuario.
+  - En `AWAITING_LOCATION`, el usuario comparte solo dirección exacta en texto (`clientAddress`)
+  - Las coordenadas del usuario ya vienen en el pedido desde `ASK_LOCATION` del flujo `USER_REQUEST` (`userLatitude`/`userLongitude`)
+  - Al recibir dirección → `coordinationStatus = SCHEDULED`, NORA notifica al profesional con dirección y, si hay coordenadas del pedido, link de Google Maps
+  - El profesional ve en su panel: botón "Confirmar visita" (cuando AWAITING_CONFIRMATION), indicador "Esperando dirección" (cuando AWAITING_LOCATION, no permite marcar finalizado) y botón "Ver detalle" (cuando SCHEDULED, muestra dirección y link Google Maps)
   - El simulador web incluye un botón "📍 Compartir ubicación (simulada)" que envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) cuando NORA pide compartir ubicación desde WhatsApp — exclusivo para testing en desarrollo
   - El usuario NUNCA recibe el teléfono del profesional en ningún momento
   - El profesional SÍ recibe el teléfono del usuario en el modal "Ver detalle" del panel

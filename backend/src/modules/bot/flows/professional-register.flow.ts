@@ -28,6 +28,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
         return this.handleAskService(message, tempData);
       case 'ASK_ZONES':
         return this.handleAskZones(message, tempData);
+      case 'ASK_LOCATION':
+        return this.handleAskLocation(message, tempData);
       case 'ASK_AVAILABILITY':
         return this.handleAskAvailability(message, tempData);
       case 'SEND_LINK':
@@ -166,10 +168,36 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     if (notFoundZones.length > 0) {
       response += ` (No encontre: ${notFoundZones.join(', ')})`;
     }
-    response += ` Cuales son tus horarios de disponibilidad general?`;
+    response += ' Para poder asignarte pedidos cercanos, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion).';
 
     return {
       response: { text: response },
+      nextStep: 'ASK_LOCATION',
+      tempData,
+    };
+  }
+
+  private async handleAskLocation(
+    message: { location?: { latitude: number; longitude: number } },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    if (!message.location) {
+      return {
+        response: {
+          text: 'Necesito que compartas tu ubicacion para asignarte pedidos cercanos. Envia el pin desde WhatsApp con el boton de ubicacion.',
+        },
+        nextStep: 'ASK_LOCATION',
+        tempData,
+      };
+    }
+
+    tempData.latitude = message.location.latitude;
+    tempData.longitude = message.location.longitude;
+
+    return {
+      response: {
+        text: 'Perfecto. Cuales son tus horarios de disponibilidad general? (Ej: Lunes a Viernes de 8 a 18)',
+      },
       nextStep: 'ASK_AVAILABILITY',
       tempData,
     };
@@ -199,6 +227,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       const categoryId = tempData.categoryId as string;
       const zoneIds = (tempData.zoneIds as string[]) || [];
       const availability = inputText;
+      const latitude = tempData.latitude as number | undefined;
+      const longitude = tempData.longitude as number | undefined;
 
       console.log('[ProfessionalRegisterFlow] handleAskAvailability: registering professional', { phone, name, categoryId });
 
@@ -206,6 +236,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
         phone,
         name,
         categoryId,
+        latitude,
+        longitude,
       );
 
       for (const zoneId of zoneIds) {
