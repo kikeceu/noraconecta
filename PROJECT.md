@@ -512,7 +512,22 @@ Response shape:
     "avgAcceptanceTimeMinutes": 12,
     "professionals": { "active": 89, "pending": 18, "suspended": 4, "total": 120 },
     "escalations": { "open": 5, "total": 23 },
-    "wouldRecommendPct": 94
+    "wouldRecommendPct": 94,
+    "ordersByStatus": [
+      { "status": "CREATED", "count": 31 },
+      { "status": "ASSIGNED", "count": 22 },
+      { "status": "ACCEPTED", "count": 15 },
+      { "status": "COMPLETED", "count": 430 }
+    ],
+    "ordersLast30Days": [
+      { "date": "2026-05-01", "count": 11 },
+      { "date": "2026-05-02", "count": 9 }
+    ],
+    "professionalsByStatus": [
+      { "status": "ACTIVE", "count": 80 },
+      { "status": "UNDER_REVIEW", "count": 12 },
+      { "status": "SUSPENDED", "count": 4 }
+    ]
   }
 }
 ```

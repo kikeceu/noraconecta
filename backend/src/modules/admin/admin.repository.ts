@@ -44,6 +44,31 @@ export class AdminRepository {
     return { last24h: count24h, last7d: count7d };
   }
 
+  async getOrdersLast30Days(): Promise<{ date: string; count: number }[]> {
+    const days: { date: string; count: number }[] = [];
+    const now = new Date();
+
+    for (let i = 29; i >= 0; i--) {
+      const from = new Date(now);
+      from.setDate(from.getDate() - i);
+      from.setHours(0, 0, 0, 0);
+
+      const to = new Date(from);
+      to.setHours(23, 59, 59, 999);
+
+      const count = await prisma.request.count({
+        where: { createdAt: { gte: from, lte: to } },
+      });
+
+      days.push({
+        date: from.toISOString().split('T')[0],
+        count,
+      });
+    }
+
+    return days;
+  }
+
   async countProfessionalsByStatus(): Promise<CountByStatus[]> {
     const result = await prisma.professional.groupBy({
       by: ['status'],
