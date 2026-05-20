@@ -90,15 +90,23 @@ export function useOnboarding(token: string) {
           return;
         }
 
-        setProfessionalName(data.professionalName || '');
-        setZones(data.zones || []);
+    setProfessionalName(data.professionalName || '');
+    setZones(data.zones || []);
 
-        const restored = restoreFormData();
-        if (restored) {
-          setFormData(restored);
-        }
+    const restored = restoreFormData();
+    if (restored) {
+      setFormData(restored);
+    }
 
-        setStep('welcome');
+    const apiZoneIds = (data.zones || []).map((z) => z.id);
+    setFormData((prev) => {
+      if (prev.zoneIds.length === 0) {
+        return { ...prev, zoneIds: apiZoneIds };
+      }
+      return prev;
+    });
+
+    setStep('welcome');
       } catch (err) {
         setStep('error');
         const message = (err instanceof Error ? err.message : '').toLowerCase();

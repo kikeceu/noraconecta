@@ -211,7 +211,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── CriminalRecordStep.tsx # Criminal record certificate upload (PDF allowed)
 │   │   │           ├── ReferencesStep.tsx   # Optional textarea with "Opcional" badge
 │   │   │           ├── VideoStep.tsx        # Optional video upload (MP4/MOV)
-│   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones
+│   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones, pre-selected from bot registration
 │   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
@@ -546,7 +546,7 @@ Response shape:
 | `/categories/:id`         | PATCH  | Editar nombre o descripción          | SUPERADMIN|
 | `/categories/:id/toggle`  | PATCH  | Habilitar / deshabilitar categoría   | SUPERADMIN|
 
-### Locations
+### Locations (ACTUALIZADO AUT-211)
 
 | Endpoint                       | Método | Descripción                                  | Rol mínimo |
 |-------------------------------|--------|----------------------------------------------|-----------|
@@ -557,6 +557,9 @@ Response shape:
 | `/locations/nodes`            | POST   | Crear nodo en cualquier nivel                | SUPERADMIN|
 | `/locations/nodes/:id/toggle` | PATCH  | Habilitar / deshabilitar nodo                | SUPERADMIN|
 | `/locations/nodes/:id`       | PATCH  | Actualizar nombre del nodo                   | SUPERADMIN|
+
+**Métodos internos del repositorio:**
+- `findActiveChildNodes(parentId)`: retorna nodos hijos activos ordenados alfabéticamente (usado por `PROFESSIONAL_REGISTER` para provincias y zonas).
 
 ### Users
 
@@ -573,7 +576,7 @@ Response shape:
 |----------------------------------------|--------|-------------------------------------------------|-----------|
 | `/professionals/register`             | POST   | Etapa 1: crear profesional desde bot            | Sin auth  |
 | `/professionals/verify/:token`         | GET    | Verificar validez del token y obtener nombre + zonas del profesional | Sin auth  |
-| `/professionals/verify/:token`         | POST   | Etapa 2: subir documentación                    | Sin auth  |
+| `/professionals/verify/:token`         | POST   | Etapa 2: subir documentación + zoneIds (pisa lo registrado por el bot) | Sin auth  |
 | `/professionals/session/:token`        | GET    | Recuperar sesión de profesional por token       | Sin auth  |
 | `/professionals/session/:token/panel`  | GET    | Datos consolidados del panel (perfil + membresía + reputación) | Sin auth |
 | `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, incluye nombre/teléfono del usuario y calificación recibida) | Sin auth |
@@ -807,7 +810,7 @@ POST /bot/message
 | Flow                    | Estados                                                                 |
 |------------------------|-------------------------------------------------------------------------|
 | `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
-| `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
+| `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). |
 
 **Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
@@ -829,16 +832,17 @@ POST /bot/message
 
 **Lógica de paso ASK_LOCATION (AUT-201):** Después de `ASK_DESCRIPTION`, el bot solicita ubicación para priorizar cercanía real. Si recibe `location`, guarda `userLatitude` y `userLongitude` en `tempData`. Si el usuario responde `omitir` (o indica que no puede compartir ubicación), continúa sin coordenadas. En `handleConfirm`, esas coordenadas se envían opcionalmente a `RequestsService.create()`.
 
-**Lógica de flujo PROFESSIONAL_REGISTER:**
-- `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó.
-- `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein).
-- `ASK_ZONES`: divide el input por coma, "y" y "e", resuelve cada zona por separado, registra múltiples zoneIds en tempData.
+**Lógica de flujo PROFESSIONAL_REGISTER (ACTUALIZADO AUT-211):**
+- `ASK_NAME`: ignora el contenido del primer mensaje, siempre pregunta el nombre. Usa flag `_nameAsked` en tempData para detectar si ya preguntó. Asegura que `tempData.phone` esté disponible.
+- `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein). Al encontrar match, detecta país por prefijo telefónico, carga provincias activas y las muestra en el mismo mensaje junto con la confirmación de categoría.
+- `ASK_PROVINCE`: procesa selección única por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`), eliminando un paso extra.
+- `ASK_ZONES`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección múltiple por números separados por coma. Acepta números válidos aunque haya inválidos. Los `zoneIds` guardados corresponden a zonas reales de la DB.
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
 - `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
-**NLP (nlp.service.ts):**
+**NLP (nlp.service.ts) (ACTUALIZADO AUT-211):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
-- `resolveZone(text)`: ídem para GeoNode
+- `resolveZone(text)`: ídem para GeoNode (no usado en PROFESSIONAL_REGISTER desde AUT-211; las zonas se seleccionan por lista numerada)
 - Retorna `{ match, confidence: 'exact' | 'fuzzy' | 'none' }`
 
 **Flujo de cancelación de pedido por el usuario (AUT-169):**
