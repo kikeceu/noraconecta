@@ -64,6 +64,8 @@ export class ProfessionalsService {
     phone: string,
     name: string,
     categoryId: string,
+    latitude?: number,
+    longitude?: number,
   ): Promise<{ professional: Professional; verificationUrl: string }> {
     const trimmedPhone = phone.trim();
     const trimmedName = name.trim();
@@ -97,6 +99,8 @@ export class ProfessionalsService {
       categoryId,
       verificationToken,
       verificationTokenExp,
+      latitude,
+      longitude,
     });
 
     const verificationUrl = `${APP_URL}/verify/${verificationToken}`;

@@ -7,6 +7,8 @@ export interface CreateProfessionalInput {
   categoryId: string;
   verificationToken: string;
   verificationTokenExp: Date;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface UpdateProfessionalInput {
@@ -27,6 +29,8 @@ export interface UpdateProfessionalInput {
   sessionTokenExp?: Date | null;
   trialRequestsUsed?: number;
   lastAssignedAt?: Date | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface ProfessionalFilters {

@@ -10,10 +10,12 @@ export interface MatchResult {
 interface ScoringConfig {
   weightCompliance: number;
   weightResponseRate: number;
+  weightQualityRating: number;
+  weightProximity: number;
   weightRecommendation: number;
   weightDistribution: number;
-  weightQualityRating: number;
   weightPlan: number;
+  maxDistanceKm: number;
   compliancePenalty: number;
   responsePenalty: number;
   reputationDecayDays: number;
@@ -25,12 +27,14 @@ interface ScoringConfig {
   tendencyWeight: number;
 }
 
-const DEFAULT_WEIGHT_COMPLIANCE = 0.35;
-const DEFAULT_WEIGHT_RESPONSE_RATE = 0.25;
+const DEFAULT_WEIGHT_COMPLIANCE = 0.30;
+const DEFAULT_WEIGHT_RESPONSE_RATE = 0.22;
+const DEFAULT_WEIGHT_QUALITY_RATING = 0.18;
+const DEFAULT_WEIGHT_PROXIMITY = 0.10;
 const DEFAULT_WEIGHT_RECOMMENDATION = 0.10;
 const DEFAULT_WEIGHT_DISTRIBUTION = 0.05;
-const DEFAULT_WEIGHT_QUALITY_RATING = 0.20;
 const DEFAULT_WEIGHT_PLAN = 0.05;
+const DEFAULT_MAX_DISTANCE_KM = 50;
 const DEFAULT_COMPLIANCE_PENALTY = 50;
 const DEFAULT_RESPONSE_PENALTY = 25;
 const DEFAULT_REPUTATION_DECAY_DAYS = 90;
@@ -44,10 +48,12 @@ const DEFAULT_TENDENCY_WEIGHT = 0.15;
 const CONFIG_KEYS = {
   WEIGHT_COMPLIANCE: 'MATCHING_WEIGHT_COMPLIANCE',
   WEIGHT_RESPONSE_RATE: 'MATCHING_WEIGHT_RESPONSE_RATE',
+  WEIGHT_QUALITY_RATING: 'MATCHING_WEIGHT_QUALITY_RATING',
+  WEIGHT_PROXIMITY: 'MATCHING_WEIGHT_PROXIMITY',
   WEIGHT_RECOMMENDATION: 'MATCHING_WEIGHT_RECOMMENDATION',
   WEIGHT_DISTRIBUTION: 'MATCHING_WEIGHT_DISTRIBUTION',
-  WEIGHT_QUALITY_RATING: 'MATCHING_WEIGHT_QUALITY_RATING',
   WEIGHT_PLAN: 'MATCHING_WEIGHT_PLAN',
+  MAX_DISTANCE_KM: 'MATCHING_MAX_DISTANCE_KM',
   COMPLIANCE_PENALTY: 'MATCHING_COMPLIANCE_PENALTY',
   RESPONSE_PENALTY: 'MATCHING_RESPONSE_PENALTY',
   REPUTATION_DECAY_DAYS: 'MATCHING_REPUTATION_DECAY_DAYS',
@@ -69,6 +75,8 @@ export class MatchingService {
     categoryId: string,
     geoNodeId: string,
     excludedProfessionalIds: string[],
+    userLatitude: number | null,
+    userLongitude: number | null,
   ): Promise<MatchResult | null> {
     const config = await this.loadScoringConfig();
 
@@ -110,6 +118,8 @@ export class MatchingService {
 
     const scored = await this.scoreProfessionals(
       filtered.map((p) => p.id),
+      userLatitude,
+      userLongitude,
       config,
     );
 
@@ -180,6 +190,8 @@ export class MatchingService {
 
   private async scoreProfessionals(
     ids: string[],
+    userLat: number | null,
+    userLon: number | null,
     config: ScoringConfig,
   ): Promise<MatchResult[]> {
     const [
@@ -192,6 +204,7 @@ export class MatchingService {
       rejectedCounts,
       badgeStatus,
       planPriorities,
+      professionalCoords,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents(ids),
       this.matchingRepository.countNoResponseEvents(ids),
@@ -202,6 +215,7 @@ export class MatchingService {
       this.matchingRepository.countRejectedEvents(ids),
       this.matchingRepository.getBadgeStatus(ids),
       this.matchingRepository.getPlanPriorities(ids),
+      this.matchingRepository.getProfessionalCoordinates(ids),
     ]);
 
     return ids.map((id) => ({
@@ -217,6 +231,9 @@ export class MatchingService {
         rejectedCounts,
         badgeStatus,
         planPriorities,
+        userLat,
+        userLon,
+        professionalCoords,
         config,
       ),
     }));
@@ -236,6 +253,7 @@ export class MatchingService {
       rejectedCounts,
       badgeStatus,
       planPriorities,
+      professionalCoords,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents([professionalId]),
       this.matchingRepository.countNoResponseEvents([professionalId]),
@@ -246,6 +264,7 @@ export class MatchingService {
       this.matchingRepository.countRejectedEvents([professionalId]),
       this.matchingRepository.getBadgeStatus([professionalId]),
       this.matchingRepository.getPlanPriorities([professionalId]),
+      this.matchingRepository.getProfessionalCoordinates([professionalId]),
     ]);
 
     return this.computeScoreFromData(
@@ -259,6 +278,9 @@ export class MatchingService {
       rejectedCounts,
       badgeStatus,
       planPriorities,
+      null,
+      null,
+      professionalCoords,
       config,
     );
   }
@@ -274,6 +296,9 @@ export class MatchingService {
     rejectedCounts: Map<string, number>,
     badgeStatus: Map<string, boolean>,
     planPriorities: Map<string, number>,
+    userLat: number | null,
+    userLon: number | null,
+    professionalCoords: Map<string, { latitude: number | null; longitude: number | null }>,
     config: ScoringConfig,
   ): number {
     const compliance = this.computeCompliance(professionalId, notFulfilled, config);
@@ -292,14 +317,22 @@ export class MatchingService {
       config,
     );
     const planScore = this.computePlanScore(professionalId, planPriorities);
+    const proximity = this.computeProximity(
+      professionalId,
+      userLat,
+      userLon,
+      professionalCoords,
+      config,
+    );
     const hasBadge = badgeStatus.get(professionalId) ?? false;
 
     const baseScore =
       compliance * config.weightCompliance +
       response * config.weightResponseRate +
+      qualityRating * config.weightQualityRating +
+      proximity * config.weightProximity +
       recommendation * config.weightRecommendation +
       distribution * config.weightDistribution +
-      qualityRating * config.weightQualityRating +
       planScore * config.weightPlan;
 
     const badgeBonus = hasBadge ? config.badgeBonus : 0;
@@ -404,6 +437,54 @@ export class MatchingService {
     return Math.min(100, (priority / 3) * 100);
   }
 
+  private haversineDistanceKm(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const earthRadiusKm = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
+
+    return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private computeProximity(
+    professionalId: string,
+    userLat: number | null,
+    userLon: number | null,
+    professionalCoords: Map<string, { latitude: number | null; longitude: number | null }>,
+    config: ScoringConfig,
+  ): number {
+    const coords = professionalCoords.get(professionalId);
+
+    if (
+      userLat === null ||
+      userLon === null ||
+      !coords ||
+      coords.latitude === null ||
+      coords.longitude === null
+    ) {
+      return 50;
+    }
+
+    const distanceKm = this.haversineDistanceKm(
+      userLat,
+      userLon,
+      coords.latitude,
+      coords.longitude,
+    );
+
+    const score = Math.max(0, 100 - (distanceKm / config.maxDistanceKm) * 100);
+    return Math.min(100, score);
+  }
+
   // --- Config ---
 
   private async loadScoringConfig(): Promise<ScoringConfig> {
@@ -427,10 +508,12 @@ export class MatchingService {
     return {
       weightCompliance: getFloat(CONFIG_KEYS.WEIGHT_COMPLIANCE, DEFAULT_WEIGHT_COMPLIANCE),
       weightResponseRate: getFloat(CONFIG_KEYS.WEIGHT_RESPONSE_RATE, DEFAULT_WEIGHT_RESPONSE_RATE),
+      weightQualityRating: getFloat(CONFIG_KEYS.WEIGHT_QUALITY_RATING, DEFAULT_WEIGHT_QUALITY_RATING),
+      weightProximity: getFloat(CONFIG_KEYS.WEIGHT_PROXIMITY, DEFAULT_WEIGHT_PROXIMITY),
       weightRecommendation: getFloat(CONFIG_KEYS.WEIGHT_RECOMMENDATION, DEFAULT_WEIGHT_RECOMMENDATION),
       weightDistribution: getFloat(CONFIG_KEYS.WEIGHT_DISTRIBUTION, DEFAULT_WEIGHT_DISTRIBUTION),
-      weightQualityRating: getFloat(CONFIG_KEYS.WEIGHT_QUALITY_RATING, DEFAULT_WEIGHT_QUALITY_RATING),
       weightPlan: getFloat(CONFIG_KEYS.WEIGHT_PLAN, DEFAULT_WEIGHT_PLAN),
+      maxDistanceKm: getFloat(CONFIG_KEYS.MAX_DISTANCE_KM, DEFAULT_MAX_DISTANCE_KM),
       compliancePenalty: getInt(CONFIG_KEYS.COMPLIANCE_PENALTY, DEFAULT_COMPLIANCE_PENALTY),
       responsePenalty: getInt(CONFIG_KEYS.RESPONSE_PENALTY, DEFAULT_RESPONSE_PENALTY),
       reputationDecayDays: getInt(CONFIG_KEYS.REPUTATION_DECAY_DAYS, DEFAULT_REPUTATION_DECAY_DAYS),
