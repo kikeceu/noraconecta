@@ -6,14 +6,68 @@ import {
   ShoppingBag,
   Percent,
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 import { getDashboardMetrics } from '../../lib/admin-api';
 import { brand } from '../../lib/brand';
 import type { DashboardMetrics } from '../../types/admin';
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  CREATED: 'Creado',
+  ASSIGNED: 'Asignado',
+  ACCEPTED: 'Aceptado',
+  COMPLETED: 'Completado',
+  CANCELLED: 'Cancelado',
+  NO_RESPONSE: 'Sin respuesta',
+  PENDING_CONFIRMATION: 'Pend. confirmación',
+};
+
+const PROFESSIONAL_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: 'Activo',
+  PENDING: 'Pendiente',
+  UNDER_REVIEW: 'En revisión',
+  OBSERVATION: 'En observación',
+  SUSPENDED: 'Suspendido',
+  PAUSED: 'Pausado',
+  REJECTED: 'Rechazado',
+};
+
+const PROFESSIONAL_STATUS_COLOR: Record<string, string> = {
+  ACTIVE: '#0B6E4F',
+  PENDING: '#EF9F27',
+  UNDER_REVIEW: '#378ADD',
+  OBSERVATION: '#888780',
+  SUSPENDED: '#E24B4A',
+  PAUSED: '#B4B2A9',
+  REJECTED: '#F09595',
+};
+
+function formatDayMonth(dateText: string): string {
+  const [year, month, day] = dateText.split('-');
+  if (!year || !month || !day) {
+    return dateText;
+  }
+
+  return `${day}/${month}`;
+}
 
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [range, setRange] = useState<7 | 15 | 30>(30);
 
   useEffect(() => {
     getDashboardMetrics()
@@ -35,6 +89,13 @@ export function DashboardPage() {
             <div key={i} className="h-28 bg-gray-100 rounded-xl" />
           ))}
         </div>
+        <div className="grid grid-cols-1 gap-6">
+          <div className="h-[220px] bg-gray-100 rounded-lg animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-[220px] bg-gray-100 rounded-lg animate-pulse" />
+            <div className="h-[220px] bg-gray-100 rounded-lg animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -48,6 +109,17 @@ export function DashboardPage() {
   }
 
   if (!metrics) return null;
+
+  const ordersByStatusWithCount = metrics.ordersByStatus.filter(
+    (item) => item.count > 0,
+  );
+
+  const professionalsTotal = metrics.professionalsByStatus.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
+
+  const ordersLastDaysByRange = metrics.ordersLast30Days.slice(-range);
 
   const cards = [
     {
@@ -136,6 +208,166 @@ export function DashboardPage() {
             <p className="text-sm text-gray-600 mt-4">{card.subtitle}</p>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h3 className="text-base font-semibold text-gray-900">
+              {`Pedidos - últimos ${range} días`}
+            </h3>
+            <div className="flex items-center gap-2">
+              {[7, 15, 30].map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setRange(option as 7 | 15 | 30)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    range === option
+                      ? 'border-green-700 text-green-700'
+                      : 'border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  {option}d
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={ordersLastDaysByRange} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis
+                dataKey="date"
+                tickFormatter={formatDayMonth}
+                tick={{ fontSize: 12, fill: '#6B7280' }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fontSize: 12, fill: '#6B7280' }}
+                axisLine={false}
+                tickLine={false}
+                width={30}
+              />
+              <Tooltip
+                labelFormatter={(value) => formatDayMonth(String(value))}
+                formatter={(value) => [value, 'Pedidos']}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#0B6E4F"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#0B6E4F' }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-5">
+              Pedidos por estado
+            </h3>
+            {ordersByStatusWithCount.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={ordersByStatusWithCount}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 8, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tick={{ fontSize: 12, fill: '#6B7280' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="status"
+                    tickFormatter={(status) => ORDER_STATUS_LABEL[status] ?? status}
+                    tick={{ fontSize: 12, fill: '#4B5563' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={120}
+                  />
+                  <Tooltip
+                    labelFormatter={(status) => ORDER_STATUS_LABEL[String(status)] ?? String(status)}
+                    formatter={(value) => [value, 'Pedidos']}
+                  />
+                  <Bar dataKey="count" fill="#0B6E4F" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[220px] rounded-lg bg-gray-50 flex items-center justify-center text-sm text-gray-500">
+                Sin datos
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-5">
+              Profesionales por estado
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={metrics.professionalsByStatus}
+                  dataKey="count"
+                  nameKey="status"
+                  innerRadius={60}
+                  outerRadius={95}
+                  paddingAngle={2}
+                  stroke="#FFFFFF"
+                  strokeWidth={2}
+                >
+                  {metrics.professionalsByStatus.map((item) => (
+                    <Cell
+                      key={item.status}
+                      fill={PROFESSIONAL_STATUS_COLOR[item.status] ?? '#B4B2A9'}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  labelFormatter={(status) =>
+                    PROFESSIONAL_STATUS_LABEL[String(status)] ?? String(status)
+                  }
+                  formatter={(value) => [value, 'Profesionales']}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {metrics.professionalsByStatus.map((item) => (
+                <div
+                  key={item.status}
+                  className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full"
+                      style={{
+                        backgroundColor: PROFESSIONAL_STATUS_COLOR[item.status] ?? '#B4B2A9',
+                      }}
+                    />
+                    <span className="text-sm text-gray-700">
+                      {PROFESSIONAL_STATUS_LABEL[item.status] ?? item.status}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">{item.count}</span>
+                </div>
+              ))}
+            </div>
+
+            {professionalsTotal === 0 && (
+              <p className="mt-3 text-xs text-gray-500">Sin datos para el periodo seleccionado.</p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Secondary metrics */}
