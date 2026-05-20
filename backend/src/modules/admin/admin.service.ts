@@ -21,6 +21,9 @@ export interface AdminMetrics {
     total: number;
   };
   wouldRecommendPct: number;
+  ordersByStatus: { status: string; count: number }[];
+  ordersLast30Days: { date: string; count: number }[];
+  professionalsByStatus: { status: string; count: number }[];
 }
 
 export class AdminService {
@@ -34,6 +37,7 @@ export class AdminService {
       escalationCounts,
       feedbackStats,
       acceptanceStats,
+      ordersLast30Days,
     ] = await Promise.all([
       this.adminRepository.countOrdersByStatus(),
       this.adminRepository.countRecentOrders(),
@@ -41,6 +45,7 @@ export class AdminService {
       this.adminRepository.countEscalationsByStatus(),
       this.adminRepository.getFeedbackStats(),
       this.adminRepository.getAcceptanceStats(),
+      this.adminRepository.getOrdersLast30Days(),
     ]);
 
     const activeOrders =
@@ -118,6 +123,15 @@ export class AdminService {
         total: totalEscalations,
       },
       wouldRecommendPct: wouldRecommend,
+      ordersByStatus: orderCounts.map((o) => ({
+        status: o.status,
+        count: o._count,
+      })),
+      ordersLast30Days,
+      professionalsByStatus: professionalCounts.map((p) => ({
+        status: p.status,
+        count: p._count,
+      })),
     };
   }
 }
