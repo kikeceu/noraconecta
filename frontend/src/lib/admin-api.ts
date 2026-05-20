@@ -19,16 +19,6 @@ import type {
 
 const BASE = '/api';
 
-let token: string | null = null;
-
-export function setToken(t: string | null): void {
-  token = t;
-}
-
-export function getToken(): string | null {
-  return token;
-}
-
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -38,13 +28,10 @@ async function request<T>(
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   if (!res.ok) {
@@ -71,6 +58,16 @@ export function login(email: string, password: string): Promise<LoginResponse> {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
+}
+
+export function logout(): Promise<{ ok: true }> {
+  return request<{ ok: true }>('/auth/logout', {
+    method: 'POST',
+  });
+}
+
+export function getMe(): Promise<{ admin: LoginResponse['admin'] }> {
+  return request<{ admin: LoginResponse['admin'] }>('/auth/me');
 }
 
 // Dashboard

@@ -37,9 +37,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
 │   │   │   ├── auth/
-│   │   │   │   ├── auth.routes.ts     # POST /auth/login
-│   │   │   │   ├── auth.controller.ts # Request validation, response formatting
-│   │   │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
+│   │   │   │   ├── auth.routes.ts     # POST /auth/login, POST /auth/logout, GET /auth/me
+│   │   │   │   ├── auth.controller.ts # Login cookie httpOnly + logout + me
+│   │   │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing, getAdminById
 │   │   │   │   └── auth.repository.ts # Prisma queries for Admin model
 │   │   │   ├── categories/
 │   │   │   │   ├── categories.routes.ts     # 6 endpoints under /categories
@@ -274,7 +274,7 @@ src/
   │   └── express.d.ts           # Express Request augmentation (req.admin)
   ├── modules/
   │   ├── auth/
-  │   │   ├── auth.routes.ts     # POST /auth/login
+  │   │   ├── auth.routes.ts     # POST /auth/login, POST /auth/logout, GET /auth/me
   │   │   ├── auth.controller.ts # Request validation, response formatting
   │   │   ├── auth.service.ts    # Login logic, bcrypt comparison, JWT signing
   │   │   └── auth.repository.ts # Prisma queries for Admin model
@@ -490,6 +490,8 @@ cd landing && npm install && npm run build:css
 |-----------------|--------|--------------------------------------|----------------|
 | `/health`        | GET    | Health check (sin auth)              | No             |
 | `/auth/login`    | POST   | Login de admin (email + password)    | No             |
+| `/auth/logout`   | POST   | Limpia la cookie de sesión admin     | No             |
+| `/auth/me`       | GET    | Retorna admin autenticado por cookie/header | Sí (requireAuth) |
 
 ### Admin Dashboard (NEW)
 
@@ -1507,6 +1509,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `DATABASE_URL`     | Sí        | Connection string de PostgreSQL          |
 | `JWT_SECRET`       | Sí        | Secreto para firmar/verificar JWT        |
 | `PORT`             | No (3000) | Puerto del servidor HTTP                 |
+| `NODE_ENV`         | No (`development`) | Entorno de ejecución (`development`/`production`) |
+| `ALLOWED_ORIGIN`   | No (`http://localhost:5173`) | Origin permitido por CORS para requests con credenciales |
 | `PUBLIC_URL`       | No (http://localhost:3000) | URL pública para links de verificación   |
 | `SEED_ADMIN_EMAIL` | No        | Email del superadmin inicial (seed)      |
 | `SEED_ADMIN_PASSWORD`| No      | Password del superadmin inicial (seed)   |
@@ -1534,6 +1538,9 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Solo usuarios con rol `SUPERADMIN` pueden acceder a rutas protegidas con `requireSuperAdmin`
 - Errores de autenticación retornan 401 (credenciales inválidas o token inválido/expirado)
 - Errores de autorización retornan 403 (rol insuficiente)
+- Auth admin usa cookie `admin_token` httpOnly (sameSite=lax, secure en producción) con persistencia de 7 días
+- `POST /auth/login` no retorna JWT en el body; retorna solo `{ admin }` y setea cookie
+- `requireAuth` mantiene compatibilidad con `Authorization: Bearer` y usa cookie `admin_token` como fallback
 - El seed crea/actualiza superadmin, jerarquía geográfica, configuración del sistema, planes y categorías si no existen previamente
 - Jerarquía geográfica:
   - Países son nodos raíz (`parentId = null`, `levelId = null`)
@@ -1716,9 +1723,9 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | `/admin/settings` | Configuración | SUPERADMIN | Parámetros matching, límites, integraciones, toggles |
 
 ### Auth Flow
-1. Login → `POST /auth/login` → JWT almacenado en variable en memoria
-2. Cada request incluye `Authorization: Bearer <token>`
-3. Logout → se limpia el token de memoria → redirect a `/admin/login`
+1. Login → `POST /auth/login` → cookie `admin_token` httpOnly (persistente)
+2. Cada request del admin usa `credentials: 'include'` para enviar la cookie automáticamente
+3. Logout → `POST /auth/logout` limpia la cookie en backend → redirect a `/admin/login`
 4. `ProtectedRoute` verifica autenticación y opcionalmente rol requerido
 5. OPERATOR no ve Configuración; botones SUPERADMIN ocultos para OPERATOR
 6. Todas las acciones destructivas (aprobar, rechazar, suspender, reactivar, bloquear, desbloquear, cambiar estado de escalada, resolver) tienen un `ConfirmDialog` que muestra el nombre del afectado antes de ejecutar el request

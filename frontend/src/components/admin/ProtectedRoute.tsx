@@ -13,7 +13,15 @@ export function ProtectedRoute({
   loginPath = '/admin/login',
   fallbackPath = '/admin',
 }: ProtectedRouteProps) {
-  const { isAuthenticated, admin } = useAuth();
+  const { isAuthenticated, admin, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-green-700" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to={loginPath} replace />;
