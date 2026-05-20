@@ -276,7 +276,7 @@ export function ZonesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Zonas</h1>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Zonas</h1>
           <p className="text-sm text-gray-500 mt-1">
             Árbol geográfico de cobertura del servicio
           </p>

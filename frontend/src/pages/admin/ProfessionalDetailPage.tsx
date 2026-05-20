@@ -175,7 +175,7 @@ export function ProfessionalDetailPage() {
           Profesionales
         </Link>
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-semibold text-gray-900">{p.name}</h1>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">{p.name}</h1>
           <span
             className={`inline-flex px-3 py-1 rounded-full text-sm font-medium ${badge.className}`}
           >

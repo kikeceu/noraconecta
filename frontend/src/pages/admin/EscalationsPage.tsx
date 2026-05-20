@@ -97,7 +97,7 @@ export function EscalationsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Escaladas</h1>
+        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Escaladas</h1>
         <p className="text-sm text-gray-500 mt-1">
           Incidentes y reclamos que requieren intervención del equipo
         </p>
@@ -151,7 +151,7 @@ export function EscalationsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
@@ -265,6 +265,82 @@ export function EscalationsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="lg:hidden space-y-3 p-3">
+          {loading
+            ? [...Array(5)].map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl border border-gray-200 p-4 animate-pulse space-y-2"
+                >
+                  <div className="h-4 bg-gray-100 rounded w-1/2" />
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                </div>
+              ))
+            : filtered.map((e) => (
+                <div key={e.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-semibold font-mono text-gray-900">#{e.id.slice(-6)}</p>
+                    <span
+                      className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                        STATUS_BADGE[e.status]?.className || 'bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {STATUS_BADGE[e.status]?.label || e.status}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-sm text-gray-600">
+                    <p>
+                      <span className="text-gray-500">Profesional:</span> {e.professional?.name || '—'}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Pedido:</span>{' '}
+                      <span className="font-mono">#{e.requestId.slice(-4)}</span>
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Fecha:</span>{' '}
+                      {new Date(e.createdAt).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+
+                  {e.status === 'OPEN' && (
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => setConfirmAction(e)}
+                        disabled={actionLoading === e.id}
+                        className="text-xs font-medium px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        Revisar
+                      </button>
+                      <button
+                        onClick={() => setResolveModal(e)}
+                        disabled={actionLoading === e.id}
+                        className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        Resolver
+                      </button>
+                    </div>
+                  )}
+                  {e.status === 'IN_REVIEW' && (
+                    <button
+                      onClick={() => setResolveModal(e)}
+                      disabled={actionLoading === e.id}
+                      className="text-xs font-medium px-2 py-1 rounded-md bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      Resolver
+                    </button>
+                  )}
+                  {e.status === 'RESOLVED' && <span className="text-xs text-gray-400">—</span>}
+                </div>
+              ))}
+
+          {!loading && filtered.length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-gray-500 bg-white rounded-xl border border-gray-200">
+              {error ? <span className="text-red-600">{error}</span> : 'No se encontraron escaladas'}
+            </div>
+          )}
         </div>
 
         {pagination.total > 0 && (

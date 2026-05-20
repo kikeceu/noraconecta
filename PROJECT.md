@@ -1711,16 +1711,18 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | Ruta | Pantalla | Rol mínimo | Funcionalidad |
 |------|----------|-----------|--------------|
 | `/admin/login` | Login | Ninguno | Formulario email + contraseña → JWT en memoria |
-| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado |
-| `/admin/professionals` | Lista Profesionales | OPERATOR | Tabla con filtros, badges, paginación |
+| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado; H1 unificado con `text-4xl font-black tracking-tighter` (AUT-207) |
+| `/admin/professionals` | Lista Profesionales | OPERATOR | Tabla desktop + cards mobile (<lg) con estado, zona, teléfono, DNI, registro y CTA de detalle; paginación compartida (AUT-207) |
 | `/admin/professionals/:id` | Detalle Profesional | OPERATOR | Info, docs R2, historial, acciones SUPERADMIN |
-| `/admin/users` | Usuarios | OPERATOR | Tabla, footer métricas, bloquear/desbloquear |
-| `/admin/orders` | Pedidos | OPERATOR | Tabla con timeline de 3 dots, filtros |
-| `/admin/escalations` | Escaladas | OPERATOR | Summary críticas, cambiar estado, modal resolver |
+| `/admin/users` | Usuarios | OPERATOR | Tabla desktop + cards mobile (<lg) con badge de bloqueo y acción bloquear/desbloquear; footer métricas + paginación (AUT-207) |
+| `/admin/orders` | Pedidos | OPERATOR | Tabla desktop con timeline + cards mobile (<lg) con ID, estado, categoría, usuario, zona y fecha (AUT-207) |
+| `/admin/escalations` | Escaladas | OPERATOR | Summary críticas + tabla desktop; cards mobile (<lg) con acciones por estado (revisar/resolver) y paginación (AUT-207) |
 | `/admin/zones` | Zonas | OPERATOR | Árbol con acordeón, toggles, agregar/editar nodos |
-| `/admin/categories` | Categorías | OPERATOR | Tabla con toggle inline, modal crear/editar |
+| `/admin/categories` | Categorías | OPERATOR | Tabla desktop + cards mobile (<lg) con nombre, slug, badge activa/inactiva y toggle inline; modal crear/editar (AUT-207) |
 | `/admin/plans` | Planes | OPERATOR | Cards de planes + edición de precio |
 | `/admin/settings` | Configuración | SUPERADMIN | Parámetros matching, límites, integraciones, toggles |
+
+**Consistencia tipográfica (AUT-207):** todos los H1 del panel admin (excepto Login) usan `text-4xl font-black text-gray-900 tracking-tighter`.
 
 ### Auth Flow
 1. Login → `POST /auth/login` → cookie `admin_token` httpOnly (persistente)
