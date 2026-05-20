@@ -184,7 +184,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
 │   │   │   ├── admin/                  # Admin panel pages (NEW)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
-│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + professional status bars
+│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) (AUT-209)
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination, phone column between zone and status (AUT-205)
 │   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW) (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
@@ -1726,7 +1726,7 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | Ruta | Pantalla | Rol mínimo | Funcionalidad |
 |------|----------|-----------|--------------|
 | `/admin/login` | Login | Ninguno | Formulario email + contraseña → JWT en memoria |
-| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado; H1 unificado con `text-4xl font-black tracking-tighter` (AUT-207) |
+| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado + sección "Análisis" con 3 gráficos Recharts (línea con selector 7d/15d/30d, pedidos por estado, profesionales por estado); H1 unificado con `text-4xl font-black tracking-tighter` (AUT-207, AUT-209) |
 | `/admin/professionals` | Lista Profesionales | OPERATOR | Tabla desktop + cards mobile (<lg) con estado, zona, teléfono, DNI, registro y CTA de detalle; paginación compartida (AUT-207) |
 | `/admin/professionals/:id` | Detalle Profesional | OPERATOR | Info, docs R2, historial, acciones SUPERADMIN |
 | `/admin/users` | Usuarios | OPERATOR | Tabla desktop + cards mobile (<lg) con badge de bloqueo y acción bloquear/desbloquear; footer métricas + paginación (AUT-207) |

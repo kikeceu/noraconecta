@@ -262,6 +262,9 @@ export interface DashboardMetrics {
     total: number;
   };
   wouldRecommendPct: number;
+  ordersByStatus: { status: string; count: number }[];
+  ordersLast30Days: { date: string; count: number }[];
+  professionalsByStatus: { status: string; count: number }[];
 }
 
 export interface ListResponse<T> {
