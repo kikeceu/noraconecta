@@ -1,7 +1,9 @@
+import { BotRole } from '@prisma/client';
 import { BotRepository } from './bot.repository';
 import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 
 export type CoordinationInitData = {
@@ -70,9 +72,13 @@ export class CoordinationService {
       `¿Cómo quedó?\n\n` +
       `Respondé: "conforme", "con observaciones" o "no conforme"`;
 
-    await this.whatsappAdapter.sendText(userPhone, message, 'USER').catch((err) => {
-      console.error('[CoordinationService] Failed to notify work finished:', err);
-    });
+    await this.sendWithWindowCheck(
+      userPhone,
+      'USER',
+      message,
+      'nora_user_trabajo_finalizado',
+      [professionalName],
+    );
 
     const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
     const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
@@ -125,18 +131,26 @@ export class CoordinationService {
       if (userPhone) {
         const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}. Si necesitás reprogramar, escribime.`;
 
-        await this.whatsappAdapter.sendText(userPhone, userMessage, 'USER').catch((err) => {
-          console.error('[CoordinationService] Failed to send reminder to user:', err);
-        });
+        await this.sendWithWindowCheck(
+          userPhone,
+          'USER',
+          userMessage,
+          'nora_user_visita_recordatorio',
+          [professionalName, `${hours}:${minutes}`],
+        );
       }
 
       if (professionalPhone) {
         const address = visit.clientAddress || 'la dirección';
         const professionalMessage = `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address} por el pedido #${visit.id}.`;
 
-        await this.whatsappAdapter.sendText(professionalPhone, professionalMessage, 'PROFESSIONAL').catch((err) => {
-          console.error('[CoordinationService] Failed to send reminder to professional:', err);
-        });
+        await this.sendWithWindowCheck(
+          professionalPhone,
+          'PROFESSIONAL',
+          professionalMessage,
+          'nora_pro_visita_recordatorio',
+          [`${hours}:${minutes}`, address],
+        );
       }
 
       sent++;
@@ -185,9 +199,13 @@ export class CoordinationService {
         const userMessage =
           'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
 
-        await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
-          console.error('[CoordinationService] Failed to send format error to user:', err);
-        });
+        await this.sendWithWindowCheck(
+          request.user.phone,
+          'USER',
+          userMessage,
+          'nora_user_horario_alternativo',
+          [request.assignedProfessional?.name || 'El profesional', scheduleText],
+        );
 
         await this.botRepository.upsert(request.user.phone, {
           role: 'USER',
@@ -247,9 +265,13 @@ export class CoordinationService {
 
         const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
 
-        await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
-          console.error('[CoordinationService] Failed to send alternative schedule to user:', err);
-        });
+        await this.sendWithWindowCheck(
+          request.user.phone,
+          'USER',
+          userMessage,
+          'nora_user_horario_alternativo',
+          [professionalName, alternativeText],
+        );
 
         await this.botRepository.upsert(request.user.phone, {
           role: 'USER',
@@ -295,14 +317,18 @@ export class CoordinationService {
 
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       const dayName = dayNames[getDayArgentina(scheduledAt)];
-      const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
-      const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
+      const hours2 = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+      const minutes2 = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
-      const userMessage = `${professionalName} llega el ${dayName} a las ${hours}:${minutes}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+      const userMessage = `${professionalName} llega el ${dayName} a las ${hours2}:${minutes2}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
 
-      await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER').catch((err) => {
-        console.error('[CoordinationService] Failed to send location request to user:', err);
-      });
+      await this.sendWithWindowCheck(
+        request.user.phone,
+        'USER',
+        userMessage,
+        'nora_user_visita_confirmada',
+        [professionalName, dayName, `${hours2}:${minutes2}`],
+      );
 
       await this.botRepository.upsert(request.user.phone, {
         role: 'USER',
@@ -324,6 +350,25 @@ export class CoordinationService {
     }
   }
 
+  private async sendWithWindowCheck(
+    phone: string,
+    role: 'USER' | 'PROFESSIONAL',
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    try {
+      const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
+
+      if (needsTemplate) {
+        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+      } else {
+        await this.whatsappAdapter.sendText(phone, text, role);
+      }
+    } catch (err) {
+      console.error(`[CoordinationService] Failed to send to ${phone} (${role}):`, err);
+    }
+  }
 }
 
 function isSameSchedule(proposed: Date, available: Date | null): boolean {

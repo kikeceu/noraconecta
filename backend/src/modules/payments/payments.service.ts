@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { BotRole } from '@prisma/client';
 import { PaymentsRepository } from './payments.repository';
 import { MembershipsService } from '../memberships/memberships.service';
 import { MatchingRepository } from '../matching/matching.repository';
@@ -6,6 +7,7 @@ import { RequestsRepository } from '../requests/requests.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { BotRepository } from '../bot/bot.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { createPaymentLink, fetchPayment } from '../../lib/mercadopago-client';
 
 const TRIAL_REQUESTS_LIMIT_KEY = 'TRIAL_REQUESTS_LIMIT';
@@ -66,6 +68,8 @@ export class PaymentsService {
 
         if (!pro) continue;
 
+        const url = `${process.env.APP_URL}/planes?pro=${professionalId}`;
+
         let message =
           `Hay un usuario interesado en tu servicio de ${categoryName} en ${zoneName}. ` +
           `Para recibir este pedido activá tu membresía eligiendo un plan:\n\n`;
@@ -84,7 +88,13 @@ export class PaymentsService {
 
         message += `\nCada link te lleva directo al pago. Una vez confirmado, te asignamos el pedido automáticamente.`;
 
-        await this.whatsappAdapter.sendText(pro.phone, message, 'PROFESSIONAL');
+        await this.sendWithWindowCheck(
+          pro.phone,
+          'PROFESSIONAL',
+          message,
+          'nora_pro_upgrade_membresia',
+          [categoryName, zoneName, url],
+        );
       } catch (err) {
         console.error(
           `[PaymentsService] Failed to notify professional ${professionalId}:`,
@@ -229,19 +239,17 @@ export class PaymentsService {
           now,
         );
 
-        // Notify professional
-        await this.whatsappAdapter.sendText(
+        await this.sendWithWindowCheck(
           professional.phone,
-          `¡Tu membresía fue activada! Te asignamos un pedido de la categoría. Aceptalo o rechazalo desde tu panel.`,
           'PROFESSIONAL',
+          `¡Tu membresía fue activada! Te asignamos un pedido de la categoría. Aceptalo o rechazalo desde tu panel.`,
+          'nora_pro_membresia_activada_con_pedido',
+          [matchedRequest.category.name, matchedRequest.geoNode.name],
         );
 
         // Notify user via pending message in bot session
-        if ((matchedRequest as unknown as { user?: { phone?: string } }).user
-          ?.phone) {
-          const userPhone = (
-            matchedRequest as unknown as { user: { phone: string } }
-          ).user.phone;
+        if (matchedRequest.user?.phone) {
+          const userPhone = matchedRequest.user.phone;
           const userMessage = `¡Buenas noticias! Encontré un profesional para tu pedido. Te aviso cuando confirme.`;
 
           await this.botRepository.upsert(userPhone, {
@@ -254,10 +262,12 @@ export class PaymentsService {
           `[PaymentsService] Request ${matchedRequest.id} reactivated for professional ${professionalId}`,
         );
       } else {
-        await this.whatsappAdapter.sendText(
+        await this.sendWithWindowCheck(
           professional.phone,
-          `¡Tu membresía fue activada! Ya podés recibir pedidos.`,
           'PROFESSIONAL',
+          `¡Tu membresía fue activada! Ya podés recibir pedidos.`,
+          'nora_pro_membresia_activada',
+          [],
         );
       }
     } catch (err) {
@@ -284,6 +294,26 @@ export class PaymentsService {
     }
 
     return DEFAULT_TRIAL_LIMIT;
+  }
+
+  private async sendWithWindowCheck(
+    phone: string,
+    role: 'USER' | 'PROFESSIONAL',
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    try {
+      const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
+
+      if (needsTemplate) {
+        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+      } else {
+        await this.whatsappAdapter.sendText(phone, text, role);
+      }
+    } catch (err) {
+      console.error(`[PaymentsService] Failed to send to ${phone} (${role}):`, err);
+    }
   }
 
   private async getResponseTimeoutHours(): Promise<number> {

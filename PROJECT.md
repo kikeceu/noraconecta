@@ -379,7 +379,7 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 
 | Variable          | Default                     | Descripción                                  |
 |-------------------|-----------------------------|----------------------------------------------|
-| `APP_URL`         | `http://app.noraconecta.local` | Base URL del frontend para links enviados por WhatsApp (verificación + panel) |
+| `APP_URL`         | `http://app.noraconecta.local` | Base URL del frontend para links enviados por WhatsApp: verificación, panel, página de planes (`/planes?pro=`) (AUT-213) |
 | `APP_NAME`        | `NORA`                        | Nombre corto de la marca para mensajes del bot, logo (AUT-187) |
 | `APP_FULL_NAME`   | `NORA Conecta`                | Nombre completo para títulos, SEO, textos institucionales (AUT-187) |
 | `APP_TAGLINE`     | `Tu profesional de confianza` | Tagline de la marca (AUT-187) |
@@ -606,7 +606,7 @@ Response shape:
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
 
-### Notifications (AUT-195)
+### Notifications (AUT-195, ACTUALIZADO AUT-213)
 
 Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida del pedido. Encapsula `WhatsAppAdapter` y expone métodos semánticos por evento.
 
@@ -625,9 +625,54 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 
 **Lógica de negocio:**
 - Todos los métodos capturan errores de envío y loguean sin propagar la excepción
-- Usa `WhatsAppAdapter.sendText()` que maneja automáticamente la ventana de 24hs (template vs texto libre)
+- Método privado `sendWithWindowCheck()` centraliza la verificación de ventana de 24hs con `shouldUseTemplate()` antes de cada envío
+- Dentro de la ventana → envía texto libre; fuera de la ventana → envía template específica por evento
+- Cada método público usa su template correspondiente (ver tabla en AUT-213)
 - `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`
 - Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
+
+### Notifications (AUT-213) — Centralización de ventana 24hs y templates WhatsApp
+
+Centralización de la verificación de ventana de 24hs en `notification.service.ts`, `coordination.service.ts`, `payments.service.ts` y `requests.controller.ts`. Ningún envío de WhatsApp llama directo a `sendText` sin verificar la ventana.
+
+**20 templates WhatsApp definidas (categoría `UTILITY`):**
+
+Número profesional: 7665 / Número usuario: 7668
+
+| # | Nombre | Contenido | Params |
+|---|--------|-----------|--------|
+| 1 | `nora_pro_nuevo_pedido` | Tenés un nuevo pedido de {{1}} en {{2}}. Ingresá a tu panel para aceptarlo o rechazarlo. | categoryName, zoneName |
+| 2 | `nora_pro_recordatorio_pedido` | Tenés un pedido pendiente de respuesta. Aceptalo o rechazalo desde tu panel antes de que venza el tiempo. | ninguno |
+| 3 | `nora_pro_visita_recordatorio` | Recordatorio: mañana a las {{1}} tenés visita en {{2}}. ¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir. | hora, dirección |
+| 4 | `nora_pro_pedido_cancelado` | El usuario canceló el pedido. Quedás disponible para nuevas asignaciones. | ninguno |
+| 5 | `nora_pro_membresia_activada_con_pedido` | ¡Tu membresía fue activada! El pedido de {{1}} en {{2}} ya está asignado a vos. Aceptalo o rechazalo desde tu panel. | categoryName, zoneName |
+| 6 | `nora_pro_membresia_activada` | ¡Tu membresía fue activada! Ya podés recibir pedidos en NORA. | ninguno |
+| 7 | `nora_pro_upgrade_membresia` | Hay un pedido de {{1}} en {{2}} esperándote. Activá tu membresía para recibirlo: {{3}} | categoryName, zoneName, url |
+| 8 | `nora_user_pedido_aceptado` | ¡Buenas noticias! {{1}} aceptó tu pedido de {{2}}. Te vamos a coordinar la visita. | professionalName, categoryName |
+| 9 | `nora_user_buscando_profesional` | Seguimos buscando el profesional ideal para tu pedido. Te avisamos en cuanto confirmemos. | ninguno |
+| 10 | `nora_user_sin_profesional` | No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde. | ninguno |
+| 11 | `nora_user_visita_recordatorio` | Recordatorio: {{1}} visita tu domicilio mañana a las {{2}}. Si necesitás reprogramar, escribinos. | professionalName, hora |
+| 12 | `nora_user_trabajo_finalizado` | {{1}} indicó que finalizó el trabajo. ¿Cómo quedó? Respondé: conforme, con observaciones o no conforme. | professionalName |
+| 13 | `nora_user_horario_alternativo` | {{1}} propone el {{2}} como horario alternativo. ¿Te viene bien? Respondé Sí o No. | professionalName, fechaHora |
+| 14 | `nora_user_profesional_cancelado` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | ninguno |
+| 15 | `nora_user_visita_confirmada` | {{1}} confirmó la visita para el {{2}} a las {{3}}. Indicá tu dirección exacta para que pueda encontrarte. | professionalName, día, hora |
+| 16 | `nora_user_profesional_cancelo` | El profesional asignado a tu pedido canceló. Estamos buscando otro disponible. | ninguno |
+
+*Nota: Las templates 8, 9, 17, 18, 19 listadas en el issue (profesionales: `nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`; usuarios: `nora_user_horario_propuesto_pro`, `nora_user_reasignando_por_negociacion`) están definidas pero aún no tienen punto de consumo en el código.*
+
+**Método `sendWithWindowCheck()` presente en 3 servicios:**
+
+- `NotificationService.sendWithWindowCheck()` — consume `shouldUseTemplate()`, decide template vs texto libre
+- `CoordinationService.sendWithWindowCheck()` — ídem para notificaciones de coordinación
+- `PaymentsService.sendWithWindowCheck()` — ídem para notificaciones de pago/membresía
+
+**Archivos modificados (AUT-213):**
+- `notification.service.ts` — `sendWithWindowCheck()` + 8 templates asignadas a métodos públicos
+- `coordination.service.ts` — `sendWithWindowCheck()` + 6 templates para confirmVisit/sendReminders/notifyWorkFinished
+- `payments.service.ts` — `sendWithWindowCheck()` + 3 templates (upgrade, membresía activada con/sin pedido) + `APP_URL` para link de planes
+- `requests.controller.ts` — window check en `cancelByProfessional` con `nora_user_profesional_cancelo`
+- `requests.repository.ts` — `findWaitingRequestForProfessional` incluye `category.name` y `geoNode.name` para params de template
+- `backend/.env` / `.env.example` — `APP_URL` configurado para link de planes en `payments.service.ts`
 
 ### Notifications (AUT-199)
 
@@ -653,7 +698,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 | Método                                  | Descripción                                                     |
 |----------------------------------------|-----------------------------------------------------------------|
 | `generatePaymentLink()`                | Crea link de pago de MP con `external_reference = professionalId:planId` |
-| `notifyTrialExhaustedProfessionals()`  | Envía WhatsApp a profesionales con trial agotado con links de pago |
+| `notifyTrialExhaustedProfessionals()`  | Envía WhatsApp a profesionales con trial agotado con links de pago (AUT-213: template `nora_pro_upgrade_membresia` + URL `/planes?pro=`) |
 | `verifyWebhookSignature()`             | Valida firma HMAC-SHA256 del webhook con `x-signature` (`ts`, `v1`) + `x-request-id` |
 | `processPaymentWebhook()`              | Procesa pago aprobado: activa membresía, reactiva pedido, notifica |
 | `getTrialLimit()`                      | Lee límite de trial desde SystemConfig                         |
@@ -666,7 +711,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 - Si existe un pedido en `NO_RESPONSE` con `waitingUserConsent = true` que coincida en categoría y zona, se reactiva para ese profesional
 - Múltiples pagos para el mismo pedido: solo el primero recibe el pedido, los demás quedan con membresía activa
 - Si `MERCADOPAGO_ACCESS_TOKEN` no está configurado, el servidor arranca pero falla al intentar generar un link de pago
-- Las notificaciones a profesionales pasan por `WhatsAppAdapter.sendText()` que respeta la ventana de 24hs (`shouldUseTemplate()`)
+- Las notificaciones a profesionales pasan por `PaymentsService.sendWithWindowCheck()` que respeta la ventana de 24hs y usa templates específicas por evento (AUT-213)
 
 ### Reputation
 
