@@ -1,3 +1,4 @@
+import { BotRole } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { BotRepository } from '../bot/bot.repository';
@@ -47,7 +48,13 @@ export class NotificationService {
   ): Promise<void> {
     const message = `¡Buenas noticias! ${professional.name} aceptó tu pedido de ${request.categoryName}. Te vamos a coordinar la visita por acá.`;
 
-    await this.send(user.phone, message, 'USER');
+    await this.sendWithWindowCheck(
+      user.phone,
+      'USER',
+      message,
+      'nora_user_pedido_aceptado',
+      [professional.name, request.categoryName],
+    );
   }
 
   async notifyProfessionalReminder(
@@ -57,7 +64,13 @@ export class NotificationService {
     const message =
       `Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Aceptalo o rechazalo desde tu panel antes de que venza el tiempo.`;
 
-    await this.send(professional.phone, message, 'PROFESSIONAL');
+    await this.sendWithWindowCheck(
+      professional.phone,
+      'PROFESSIONAL',
+      message,
+      'nora_pro_recordatorio_pedido',
+      [],
+    );
   }
 
   async notifyProfessionalReassigned(
@@ -128,14 +141,26 @@ export class NotificationService {
     const message =
       'Seguimos buscando el profesional ideal para tu pedido. Te avisamos en cuanto confirmemos.';
 
-    await this.send(user.phone, message, 'USER');
+    await this.sendWithWindowCheck(
+      user.phone,
+      'USER',
+      message,
+      'nora_user_buscando_profesional',
+      [],
+    );
   }
 
   async notifyUserNoResponse(user: UserInfo): Promise<void> {
     const message =
       'No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde.';
 
-    await this.send(user.phone, message, 'USER');
+    await this.sendWithWindowCheck(
+      user.phone,
+      'USER',
+      message,
+      'nora_user_sin_profesional',
+      [],
+    );
   }
 
   async notifyProfessionalCancelledByUser(
@@ -159,14 +184,46 @@ export class NotificationService {
         'El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.';
     }
 
-    await this.send(professional.phone, message, 'PROFESSIONAL');
+    await this.sendWithWindowCheck(
+      professional.phone,
+      'PROFESSIONAL',
+      message,
+      'nora_pro_pedido_cancelado',
+      [],
+    );
   }
 
   async notifyUserProfessionalCancelled(
     user: UserInfo,
     message: string,
   ): Promise<void> {
-    await this.send(user.phone, message, 'USER');
+    await this.sendWithWindowCheck(
+      user.phone,
+      'USER',
+      message,
+      'nora_user_profesional_cancelado',
+      [],
+    );
+  }
+
+  private async sendWithWindowCheck(
+    phone: string,
+    role: WhatsAppRole,
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    try {
+      const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
+
+      if (needsTemplate) {
+        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+      } else {
+        await this.whatsappAdapter.sendText(phone, text, role);
+      }
+    } catch (err) {
+      console.error(`[NotificationService] Failed to send to ${phone} (${role}):`, err);
+    }
   }
 
   private async send(

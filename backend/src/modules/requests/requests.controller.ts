@@ -9,6 +9,7 @@ import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 import { NotificationService } from '../notifications/notification.service';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -593,7 +594,12 @@ export class RequestsController {
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
       try {
-        await whatsappAdapter.sendText(result.userPhone, result.userMessage, 'USER');
+        const needsTemplate = await shouldUseTemplate(result.userPhone, 'USER', botRepository);
+        if (needsTemplate) {
+          await whatsappAdapter.sendTemplate(result.userPhone, 'nora_user_profesional_cancelo', [], 'USER');
+        } else {
+          await whatsappAdapter.sendText(result.userPhone, result.userMessage, 'USER');
+        }
       } catch (err) {
         console.error(
           '[RequestsController] Failed to notify user about professional cancellation:',

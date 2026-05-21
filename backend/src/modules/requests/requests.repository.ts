@@ -292,7 +292,11 @@ export class RequestsRepository {
   async findWaitingRequestForProfessional(
     professionalId: string,
     categoryId: string,
-  ): Promise<(Request & { user: { phone: string; name: string } }) | null> {
+  ): Promise<(Request & {
+    user: { phone: string; name: string };
+    category: { name: string };
+    geoNode: { name: string };
+  }) | null> {
     // Find professional zones first
     const zones = await prisma.professionalZone.findMany({
       where: { professionalId },
@@ -313,6 +317,8 @@ export class RequestsRepository {
       },
       include: {
         user: { select: { phone: true, name: true } },
+        category: { select: { name: true } },
+        geoNode: { select: { name: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
