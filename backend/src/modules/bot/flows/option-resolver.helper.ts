@@ -57,6 +57,23 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1'] },
     { value: 'NO', aliases: ['no', 'nop', '2'] },
   ],
+  AWAITING_WORK_COMPLETION: [
+    { value: 'DONE', aliases: ['finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho'] },
+    { value: 'PENDING', aliases: ['pendiente', 'no', 'todavia no', 'todavía no'] },
+  ],
+  FEEDBACK_SATISFACTION: [
+    { value: 'SATISFIED', aliases: ['conforme', 'todo bien', 'bien', 'ok'] },
+    { value: 'PARTIAL', aliases: ['con observaciones', 'observaciones', 'mas o menos', 'más o menos'] },
+    { value: 'UNSATISFIED', aliases: ['no conforme', 'mal', 'no', 'insatisfecho'] },
+  ],
+  FEEDBACK_RECOMMEND: [
+    { value: 'YES', aliases: ['si', 'sí', 'claro', 'por supuesto'] },
+    { value: 'NO', aliases: ['no'] },
+  ],
+  FEEDBACK_PRO_RECOMMEND: [
+    { value: 'YES', aliases: ['si', 'sí', 'claro', 'por supuesto'] },
+    { value: 'NO', aliases: ['no'] },
+  ],
 };
 
 export function resolveOption(step: string, input: string): string | null {

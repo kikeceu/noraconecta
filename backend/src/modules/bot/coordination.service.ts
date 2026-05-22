@@ -5,6 +5,11 @@ import prisma from '../../lib/prisma';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
+import { ConfigRepository } from '../config/config.repository';
+import { randomUUID } from 'crypto';
+
+const DEFAULT_WORK_COMPLETION_CHECK_HOURS = 24;
+const SESSION_TOKEN_TTL_DAYS = 30;
 
 export type CoordinationInitData = {
   requestId: string;
@@ -22,6 +27,7 @@ export class CoordinationService {
   constructor(
     private readonly botRepository: BotRepository,
     private readonly whatsappAdapter: WhatsAppAdapter,
+    private readonly configRepository = new ConfigRepository(),
   ) {}
 
   async initAfterAccept(data: CoordinationInitData): Promise<void> {
@@ -85,14 +91,198 @@ export class CoordinationService {
 
     await this.botRepository.upsert(userPhone, {
       role: 'USER',
-      currentFlow: null,
-      currentStep: null,
+      currentFlow: 'FEEDBACK',
+      currentStep: 'FEEDBACK_SATISFACTION',
       tempData: {
         ...userTempData,
         requestId,
         userId: request.userId,
+        userPhone,
+        userName: request.user?.name,
+        professionalName,
       } as Prisma.InputJsonValue,
     });
+  }
+
+  async checkWorkCompletion(): Promise<void> {
+    const hours = await this.getWorkCompletionCheckHours();
+    const now = new Date();
+    const firstCheckThreshold = new Date(now.getTime() - hours * 60 * 60 * 1000);
+
+    const requests = await prisma.request.findMany({
+      where: {
+        status: 'ACCEPTED',
+        coordinationStatus: 'SCHEDULED',
+        scheduledAt: { lte: firstCheckThreshold },
+      },
+      include: {
+        user: { select: { id: true, name: true, phone: true } },
+        assignedProfessional: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            sessionToken: true,
+            sessionTokenExp: true,
+          },
+        },
+      },
+    });
+
+    const appUrl = process.env.APP_URL ?? 'http://app.noraconecta.local';
+
+    for (const request of requests) {
+      const professionalPhone = request.assignedProfessional?.phone;
+      const professionalId = request.assignedProfessional?.id;
+
+      if (!professionalPhone || !professionalId) {
+        continue;
+      }
+
+      const session = await this.botRepository.findByPhoneAndRole(professionalPhone, 'PROFESSIONAL');
+      const tempData = (session?.tempData as Record<string, unknown>) || {};
+      const sessionRequestId = typeof tempData.requestId === 'string' ? tempData.requestId : null;
+
+      if (
+        session?.currentFlow === 'FEEDBACK' &&
+        session?.currentStep === 'AWAITING_WORK_COMPLETION' &&
+        sessionRequestId &&
+        sessionRequestId !== request.id
+      ) {
+        continue;
+      }
+
+      const completionAttemptRaw = tempData.completionAttempt;
+      const completionAttempt =
+        typeof completionAttemptRaw === 'number'
+          ? completionAttemptRaw
+          : Number.isFinite(Number(completionAttemptRaw))
+            ? Number(completionAttemptRaw)
+            : 0;
+
+      const lastCheckAtRaw = tempData.completionLastCheckAt;
+      const lastCheckAt =
+        typeof lastCheckAtRaw === 'string' && !Number.isNaN(Date.parse(lastCheckAtRaw))
+          ? new Date(lastCheckAtRaw)
+          : null;
+
+      const nextAttemptAt = lastCheckAt
+        ? new Date(lastCheckAt.getTime() + hours * 60 * 60 * 1000)
+        : null;
+      const canRetry = !nextAttemptAt || now >= nextAttemptAt;
+
+      const address = request.clientAddress || 'la dirección';
+      const userName = request.user?.name || 'el usuario';
+
+      if (completionAttempt <= 0) {
+        await this.sendWithWindowCheck(
+          professionalPhone,
+          'PROFESSIONAL',
+          `¿Pudiste finalizar el trabajo en ${address} para ${userName}? Respondé "Finalicé" si completaste el trabajo o "Pendiente" si quedó algo por resolver.`,
+          'nora_pro_check_finalizacion',
+          [address, userName],
+        );
+
+        await this.botRepository.upsert(professionalPhone, {
+          role: 'PROFESSIONAL',
+          currentFlow: 'FEEDBACK',
+          currentStep: 'AWAITING_WORK_COMPLETION',
+          tempData: {
+            requestId: request.id,
+            userId: request.userId,
+            userPhone: request.user?.phone,
+            userName,
+            completionAttempt: 1,
+            completionLastCheckAt: now.toISOString(),
+          } as Prisma.InputJsonValue,
+        });
+
+        continue;
+      }
+
+      if (completionAttempt === 1) {
+        if (!canRetry) {
+          continue;
+        }
+
+        let sessionToken = request.assignedProfessional?.sessionToken;
+        const sessionTokenExp = request.assignedProfessional?.sessionTokenExp;
+        const hasValidSessionToken =
+          !!sessionToken && !!sessionTokenExp && sessionTokenExp.getTime() > now.getTime();
+
+        if (!hasValidSessionToken) {
+          sessionToken = randomUUID();
+          const newSessionTokenExp = new Date(
+            now.getTime() + SESSION_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+          );
+
+          await prisma.professional.update({
+            where: { id: professionalId },
+            data: {
+              sessionToken,
+              sessionTokenExp: newSessionTokenExp,
+            },
+          });
+        }
+
+        const panelUrl = `${appUrl}/panel/${sessionToken}`;
+
+        await this.sendWithWindowCheck(
+          professionalPhone,
+          'PROFESSIONAL',
+          `¿Pudiste finalizar el trabajo en ${address}? Es la última consulta por acá. Respondé "Finalicé" o confirmalo desde tu panel: ${panelUrl}`,
+          'nora_pro_check_finalizacion_ultimo',
+          [address, panelUrl],
+        );
+
+        await this.botRepository.upsert(professionalPhone, {
+          role: 'PROFESSIONAL',
+          currentFlow: 'FEEDBACK',
+          currentStep: 'AWAITING_WORK_COMPLETION',
+          tempData: {
+            ...tempData,
+            requestId: request.id,
+            userId: request.userId,
+            userPhone: request.user?.phone,
+            userName,
+            completionAttempt: 2,
+            completionLastCheckAt: now.toISOString(),
+          } as Prisma.InputJsonValue,
+        });
+
+        continue;
+      }
+
+      if (!canRetry) {
+        continue;
+      }
+
+      const existingEscalation = await prisma.escalation.findUnique({
+        where: { requestId: request.id },
+        select: { id: true },
+      });
+
+      if (!existingEscalation && request.assignedProfessionalId) {
+        await prisma.escalation.create({
+          data: {
+            requestId: request.id,
+            reportedBy: request.userId,
+            professionalId: request.assignedProfessionalId,
+            status: 'OPEN',
+          },
+        });
+      }
+    }
+  }
+
+  async sendMessageWithWindowCheck(
+    phone: string,
+    role: 'USER' | 'PROFESSIONAL',
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    await this.sendWithWindowCheck(phone, role, text, templateName, templateParams);
   }
 
   async sendReminders(): Promise<number> {
@@ -383,6 +573,17 @@ export class CoordinationService {
     } catch (err) {
       console.error(`[CoordinationService] Failed to send to ${phone} (${role}):`, err);
     }
+  }
+
+  private async getWorkCompletionCheckHours(): Promise<number> {
+    const config = await this.configRepository.findByKey('WORK_COMPLETION_CHECK_HOURS');
+    const parsed = config ? Number.parseInt(config.value, 10) : NaN;
+
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return DEFAULT_WORK_COMPLETION_CHECK_HOURS;
+    }
+
+    return parsed;
   }
 }
 
