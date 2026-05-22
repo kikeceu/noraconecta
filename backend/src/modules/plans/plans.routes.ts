@@ -1,11 +1,10 @@
 import { Router } from 'express';
 import { plansController } from './plans.controller';
-import { requireAuth } from '../../middleware/require-auth';
 import { requireSuperAdmin } from '../../middleware/require-super-admin';
 
 const router = Router();
 
-router.get('/', requireAuth, (req, res, next) => {
+router.get('/', (req, res, next) => {
   void plansController.list(req, res, next);
 });
 

@@ -299,6 +299,16 @@ export function updatePlan(
   });
 }
 
+export function getPaymentLink(
+  professionalId: string,
+  planId: string,
+): Promise<SingleResponse<{ url: string }>> {
+  return request<SingleResponse<{ url: string }>>('/payments/link', {
+    method: 'POST',
+    body: JSON.stringify({ professionalId, planId }),
+  });
+}
+
 // Requests (Orders)
 export function getRequests(params?: {
   page?: number;

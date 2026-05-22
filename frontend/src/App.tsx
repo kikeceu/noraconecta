@@ -3,6 +3,7 @@ import { SimulatorPage } from './pages/SimulatorPage';
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
 import { ErrorScreen } from './pages/onboarding/components/ErrorScreen';
 import { ProfessionalPanelPage } from './pages/panel/ProfessionalPanelPage';
+import { PlanesPage } from './pages/app/PlanesPage';
 import { AuthProvider } from './context/AuthContext';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
@@ -86,6 +87,7 @@ function renderAppRoutes(context: HostContext): ReactNode {
       )}
       <Route path="/verify/:token" element={<OnboardingPage />} />
       <Route path="/panel/:sessionToken" element={<ProfessionalPanelPage />} />
+      <Route path="/planes" element={<PlanesPage />} />
     </>
   );
 }

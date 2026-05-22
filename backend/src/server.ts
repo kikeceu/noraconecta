@@ -81,6 +81,7 @@ app.use('/storage', storageRoutes);
 app.use('/bot', botRoutes);
 app.use('/webhooks', webhooksRoutes);
 app.use('/webhooks', paymentsRoutes);
+app.use('/payments', paymentsRoutes);
 
 app.use(errorHandler);
 
