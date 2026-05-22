@@ -116,6 +116,7 @@ async function seedSystemConfig(): Promise<void> {
   const configs = [
     { key: 'TRIAL_REQUESTS_LIMIT', value: '5' },
     { key: 'PROFESSIONAL_RESPONSE_TIMEOUT_HOURS', value: '3' },
+    { key: 'WORK_COMPLETION_CHECK_HOURS', value: '24' },
     { key: 'REPUTATION_PENALTY_DECAY_DAYS', value: '90' },
     { key: 'BADGE_MIN_COMPLETED_REQUESTS', value: '10' },
     { key: 'MATCHING_MAX_ACTIVE_REQUESTS', value: '5' },

@@ -2,6 +2,7 @@ import { FlowHandler } from './types';
 import { UserRequestFlow } from './user-request.flow';
 import { ProfessionalRegisterFlow } from './professional-register.flow';
 import { CoordinationFlow } from './coordination.flow';
+import { FeedbackFlow } from './feedback.flow';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { MatchingRepository } from '../../matching/matching.repository';
@@ -72,6 +73,7 @@ const paymentsService = new PaymentsService(
 const userRequestFlow = new UserRequestFlow(requestsService, paymentsService);
 const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository);
 const coordinationFlow = new CoordinationFlow(requestsService);
+const feedbackFlow = new FeedbackFlow(requestsService, botRepository, coordinationService);
 
 export function resolveFlowHandler(role: 'USER' | 'PROFESSIONAL'): FlowHandler {
   switch (role) {
@@ -92,6 +94,8 @@ export function getFlowHandlerByName(flowName: string): FlowHandler | null {
       return professionalRegisterFlow;
     case 'COORDINATION':
       return coordinationFlow;
+    case 'FEEDBACK':
+      return feedbackFlow;
     default:
       return null;
   }

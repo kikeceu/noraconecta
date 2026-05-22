@@ -108,13 +108,14 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
-│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders
+│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
+│   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow (AUT-216)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
@@ -816,7 +817,7 @@ POST /bot/message
   { targetPhone, targetRole, message, flow, step, tempData }
   ```
 - `BotService` procesa la notificación: crea/actualiza la sesión del destinatario con el `pendingMessage`
-- `CoordinationService.notifyWorkFinished(requestId)`: invocado por `POST /requests/:id/finish`, envía pendingMessage al usuario con el mensaje de confirmación de cierre y limpia el flujo de coordinación de su sesión (AUT-158)
+- `CoordinationService.notifyWorkFinished(requestId)`: invocado por `POST /requests/:id/finish` y por `FEEDBACK/AWAITING_WORK_COMPLETION` cuando el profesional confirma "Finalicé". Envía WhatsApp al usuario y lo deja en `FEEDBACK_SATISFACTION` para continuar la calificación.
 
 **Soporte de ubicación (WhatsApp location):**
 - `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body
@@ -858,6 +859,7 @@ POST /bot/message
 | `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). Recordatorio pre-visita: AWAITING_VISIT_CONFIRMATION (profesional responde Confirmo/Cancelar). |
+| `FEEDBACK`             | AWAITING_WORK_COMPLETION → FEEDBACK_SATISFACTION → FEEDBACK_RATING → FEEDBACK_RECOMMEND → FEEDBACK_COMMENT → FEEDBACK_PRO_RATING → FEEDBACK_PRO_RECOMMEND |
 
 **Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
 
@@ -965,6 +967,7 @@ POST /bot/message
 | `BADGE_MIN_COMPLETED_REQUESTS` | 10     | Mínimo de pedidos completados para badge |
 | `TRIAL_REQUESTS_LIMIT`         | 3      | Máximo de pedidos de prueba por profesional |
 | `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` | 2 | Timeout de respuesta del profesional |
+| `WORK_COMPLETION_CHECK_HOURS` | 24 | Horas para volver a consultar al profesional si ya venció la visita programada |
 | `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
 | `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
 | `MATCHING_WEIGHT_COMPLIANCE`   | 0.30   | Peso de compliance en el score |
@@ -1151,6 +1154,7 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Cancelación por usuario (cancelByUser, AUT-169): permitida en CREATED, ASSIGNED, ACCEPTED (cualquier coordinationStatus incluyendo SCHEDULED). Si coordinationStatus = SCHEDULED, valida que falten más de 2 horas para `scheduledAt`. Registra evento CANCELLED con metadata `{ cancelledBy: 'USER', hadConfirmedVisit, hoursBeforeVisit }`. Retorna `CancelByUserResult` con info de notificación al profesional: notifica solo si ya había aceptado o tenía visita confirmada.
 - Cancelación por profesional (cancelByProfessional, AUT-170, AUT-195): permitida solo en ACCEPTED. Valida que el `assignedProfessionalId` coincida con el `professionalId` del caller. Registra evento CANCELLED con metadata `{ cancelledBy: 'PROFESSIONAL', hadConfirmedVisit, scheduledAt }` (no genera NO_RESPONSE — el profesional canceló voluntariamente, no por timeout). Notifica al usuario via WhatsApp inmediato (`whatsappAdapter.sendText()`): si había visita confirmada → "canceló la visita programada para el [DD/MM HH:MM]"; si no → "no puede atenderte en este momento". Luego intenta reasignar excluyendo al profesional que canceló + rejectores anteriores. Si encuentra candidato → ASSIGNED con nuevo timeout. Si no → NO_RESPONSE con mensaje "No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno."
 - Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía WhatsApp inmediato al usuario via `CoordinationService.notifyWorkFinished()` con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158, AUT-195).
+- Finalización por cron (AUT-216): `CoordinationService.checkWorkCompletion()` busca pedidos `ACCEPTED + SCHEDULED` cuya visita ya venció según `WORK_COMPLETION_CHECK_HOURS` (default 24), consulta al profesional por WhatsApp (`AWAITING_WORK_COMPLETION`) y escala a `Escalation` si no hay confirmación tras 2 intentos.
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
   - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge
   - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
@@ -1700,6 +1704,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El cron corre cada 15 minutos (`*/15 * * * *`).
 - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía WhatsApp inmediato a usuario y profesional via `CoordinationService.sendReminders()` (AUT-195). Al profesional lo deja en `COORDINATION/AWAITING_VISIT_CONFIRMATION` para responder `Confirmo` o `Cancelar`; si cancela, se ejecuta `cancelByProfessional` y se dispara la reasignación (AUT-215). El cron corre cada hora (`node-cron` en `server.ts`).
+- **Work completion check job (AUT-216):** busca pedidos `ACCEPTED + SCHEDULED` con visita vencida (`WORK_COMPLETION_CHECK_HOURS`, default 24), pregunta al profesional si finalizó (`nora_pro_check_finalizacion`), reintenta una segunda vez con link al panel (`nora_pro_check_finalizacion_ultimo`) y, sin confirmación, abre escalada automática.
 - Endpoint manual de testing: `POST /admin/requests/auto-close` (SUPERADMIN) ejecuta el mismo proceso bajo demanda.
 - Los jobs `processTimeouts()` y `autoClosePendingConfirmations()` son métodos públicos invocados por el cron job interno
 - **Coordinación de visita (AUT-151, AUT-152, AUT-160, AUT-195, AUT-201):**

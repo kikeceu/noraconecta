@@ -120,6 +120,11 @@ cron.schedule('0 * * * *', () => {
   void coordinationService.sendReminders();
 });
 
+// Cron job: check work completion (runs every hour)
+cron.schedule('0 * * * *', () => {
+  void coordinationService.checkWorkCompletion();
+});
+
 // Cron job: check waiting activations expiry (24h timeout, runs every 30 minutes)
 cron.schedule('*/30 * * * *', () => {
   void requestsService.checkWaitingActivations();
