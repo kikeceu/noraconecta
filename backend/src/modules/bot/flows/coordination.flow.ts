@@ -34,6 +34,8 @@ export class CoordinationFlow implements FlowHandler {
         return this.handleAwaitingConfirmation(message, tempData, role);
       case 'AWAITING_USER_CONFIRMATION':
         return this.handleAwaitingUserConfirmation(message, tempData, role);
+      case 'AWAITING_VISIT_CONFIRMATION':
+        return this.handleAwaitingVisitConfirmation(message, tempData, role);
       case 'AWAITING_LOCATION':
         return this.handleAwaitingLocation(message, tempData, role);
       case 'CANCEL_CONFIRMATION':
@@ -786,6 +788,84 @@ export class CoordinationFlow implements FlowHandler {
           tempData: {},
         },
       } as Record<string, unknown>,
+    };
+  }
+
+  private async handleAwaitingVisitConfirmation(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+    role: 'USER' | 'PROFESSIONAL',
+  ): Promise<FlowStepResult> {
+    if (role !== 'PROFESSIONAL') {
+      return {
+        response: { text: 'Esperando confirmación del profesional.' },
+        nextStep: 'AWAITING_VISIT_CONFIRMATION',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim().toLowerCase() || '';
+    const resolved = resolveOption('AWAITING_VISIT_CONFIRMATION', inputText);
+
+    if (resolved === 'CONFIRM') {
+      return {
+        response: { text: '¡Perfecto! Visita confirmada. Te esperamos mañana.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    if (resolved === 'CANCEL') {
+      const requestId = tempData.requestId as string;
+      const professionalId = tempData.professionalId as string;
+
+      if (!requestId || !professionalId) {
+        return {
+          response: {
+            text: 'No pude identificar el pedido a cancelar. Escribinos para revisarlo.',
+          },
+          nextStep: null,
+          tempData: {},
+        };
+      }
+
+      try {
+        const result = await this.requestsService.cancelByProfessional(requestId, professionalId);
+
+        return {
+          response: {
+            text: 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.',
+          },
+          nextStep: null,
+          tempData: {
+            pendingNotification: {
+              targetPhone: result.userPhone,
+              targetRole: 'USER',
+              message: result.userMessage,
+              flow: null,
+              step: null,
+              tempData: {},
+            },
+          } as Record<string, unknown>,
+        };
+      } catch (err) {
+        console.error('[CoordinationFlow] Failed to cancel visit:', err);
+        return {
+          response: {
+            text: 'No pude cancelar la visita en este momento. Intentá nuevamente en unos minutos.',
+          },
+          nextStep: 'AWAITING_VISIT_CONFIRMATION',
+          tempData,
+        };
+      }
+    }
+
+    return {
+      response: {
+        text: 'No entendí. Respondé "Confirmo" para confirmar o "Cancelar" si no podés asistir.',
+      },
+      nextStep: 'AWAITING_VISIT_CONFIRMATION',
+      tempData,
     };
   }
 
