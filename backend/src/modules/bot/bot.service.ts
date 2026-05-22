@@ -77,10 +77,10 @@ export class BotService {
           };
         }
 
-        const tempData: Record<string, unknown> = { ...userIdentity };
-        if (state.requestId) {
-          tempData.requestId = state.requestId;
-        }
+        const tempData = await this.buildProfessionalTempData(
+          userIdentity,
+          state.requestId,
+        );
 
         session = await this.botRepository.upsert(input.phone, {
           role,
@@ -109,10 +109,10 @@ export class BotService {
         if (state) {
           observationWarning = state.observationWarning;
 
-          const tempData: Record<string, unknown> = { ...userIdentity };
-          if (state.requestId) {
-            tempData.requestId = state.requestId;
-          }
+          const tempData = await this.buildProfessionalTempData(
+            userIdentity,
+            state.requestId,
+          );
 
           session = await this.botRepository.upsert(input.phone, {
             role,
@@ -207,10 +207,10 @@ export class BotService {
         if (state) {
           observationWarning = observationWarning || state.observationWarning;
 
-          const tempData: Record<string, unknown> = { ...userIdentity };
-          if (state.requestId) {
-            tempData.requestId = state.requestId;
-          }
+          const tempData = await this.buildProfessionalTempData(
+            userIdentity,
+            state.requestId,
+          );
 
           session = await this.botRepository.upsert(input.phone, {
             role,
@@ -319,6 +319,42 @@ export class BotService {
 
   async resetSession(phone: string): Promise<void> {
     await this.botRepository.deleteByPhone(phone);
+  }
+
+  private async buildProfessionalTempData(
+    userIdentity: { userId: string; name: string; phone: string },
+    requestId?: string,
+  ): Promise<Record<string, unknown>> {
+    const tempData: Record<string, unknown> = { ...userIdentity };
+
+    if (!requestId) {
+      return tempData;
+    }
+
+    tempData.requestId = requestId;
+
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: {
+        category: { select: { name: true } },
+        geoNode: { select: { name: true } },
+        description: true,
+        photoUrls: true,
+        audioUrl: true,
+      },
+    });
+
+    if (!request) {
+      return tempData;
+    }
+
+    tempData.categoryName = request.category?.name || 'el servicio';
+    tempData.zoneName = request.geoNode?.name || 'tu zona';
+    tempData.description = request.description;
+    tempData.photoUrls = request.photoUrls;
+    tempData.audioUrl = request.audioUrl || undefined;
+
+    return tempData;
   }
 
   private async resolveProfessionalState(phone: string): Promise<{

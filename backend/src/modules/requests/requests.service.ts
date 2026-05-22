@@ -164,7 +164,7 @@ export class RequestsService {
               zoneName,
               description: request.description,
               timeoutHours: responseTimeoutHours,
-              photoUrls: request.photoUrls,
+              photoUrls: request.photoUrls ?? [],
               audioUrl: request.audioUrl || undefined,
             },
           ).catch((err) => {
@@ -1121,7 +1121,7 @@ export class RequestsService {
                   zoneName,
                   description: request.description,
                   timeoutHours: responseTimeoutHours,
-                  photoUrls: request.photoUrls,
+                  photoUrls: request.photoUrls ?? [],
                   audioUrl: request.audioUrl || undefined,
                 },
               ).catch((err) => {

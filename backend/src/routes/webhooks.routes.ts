@@ -152,12 +152,22 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
 
     if (result.mediaUrls?.length) {
       for (const mediaUrl of result.mediaUrls) {
-        await adapter.sendImage(parsed.message.phone, mediaUrl, parsed.role);
+        try {
+          await adapter.sendImage(parsed.message.phone, mediaUrl, parsed.role);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[Webhook] Failed to send media:', err);
+        }
       }
     }
 
     if (result.audioUrl) {
-      await adapter.sendAudio(parsed.message.phone, result.audioUrl, parsed.role);
+      try {
+        await adapter.sendAudio(parsed.message.phone, result.audioUrl, parsed.role);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[Webhook] Failed to send audio:', err);
+      }
     }
 
     // Send pending notification immediately via WhatsApp and clear from session
