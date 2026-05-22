@@ -142,7 +142,9 @@ export class CoordinationService {
 
       if (professionalPhone) {
         const address = visit.clientAddress || 'la dirección';
-        const professionalMessage = `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address} por el pedido #${visit.id}.`;
+        const professionalMessage =
+          `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n` +
+          '¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir.';
 
         await this.sendWithWindowCheck(
           professionalPhone,
@@ -151,6 +153,19 @@ export class CoordinationService {
           'nora_pro_visita_recordatorio',
           [`${hours}:${minutes}`, address],
         );
+
+        await this.botRepository.upsert(professionalPhone, {
+          role: 'PROFESSIONAL',
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_VISIT_CONFIRMATION',
+          tempData: {
+            requestId: visit.id,
+            professionalId: visit.assignedProfessionalId,
+            userPhone: visit.user?.phone,
+            userName: visit.user?.name,
+            scheduledAt: visit.scheduledAt?.toISOString(),
+          } as Prisma.InputJsonValue,
+        });
       }
 
       sent++;
