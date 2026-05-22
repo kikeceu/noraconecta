@@ -681,8 +681,8 @@ Extensión del módulo de notificaciones para envío de media del pedido al prof
 **Lógica de negocio:**
 - Si el profesional está fuera de ventana de 24hs: envía plantilla `nora_pro_nuevo_pedido` (`{{1}}` rubro, `{{2}}` zona) y difiere el envío de media hasta que responda "Ver detalles"
 - Si el profesional está dentro de ventana de 24hs: envía texto completo + opciones + fotos (`sendImage`) + audio (`sendAudio`) en el mismo flujo
-- `AWAITING_ACCEPTANCE` en `CoordinationFlow` reconoce "Ver detalles" y devuelve `mediaUrls` + `audioUrl` para despacho por webhook
-- `BotResponse` incorpora `audioUrl?: string` y `webhooks.routes.ts` envía audio luego del texto/media
+- `AWAITING_ACCEPTANCE` en `CoordinationFlow` reconoce "Ver detalles", prioriza `tempData` del flujo (con fallback a DB) y devuelve `mediaUrls` + `audioUrl` para despacho por webhook
+- `BotResponse` incorpora `audioUrl?: string` y `webhooks.routes.ts` envía fotos/audio luego del texto con `try/catch` por archivo para no cortar el flujo
 - `sendAudio()` falla silenciosamente con logging y no interrumpe el flujo
 
 ### Payments (AUT-188)

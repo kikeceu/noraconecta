@@ -71,40 +71,58 @@ export class CoordinationFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase() || '';
 
     if (['ver detalles', 'detalle', 'detalles', 'ver pedido'].includes(inputText)) {
-      const request = await prisma.request.findUnique({
-        where: { id: requestId },
-        select: {
-          category: { select: { name: true } },
-          geoNode: { select: { name: true } },
-          description: true,
-          photoUrls: true,
-          audioUrl: true,
-        },
-      });
+      let categoryName = tempData.categoryName as string | undefined;
+      let zoneName = tempData.zoneName as string | undefined;
+      let description = tempData.description as string | undefined;
+      let photoUrls = (tempData.photoUrls as string[] | undefined) || [];
+      let audioUrl = tempData.audioUrl as string | undefined;
 
-      if (!request) {
-        return {
-          response: { text: 'No encontré los detalles del pedido asignado.' },
-          nextStep: null,
-          tempData: {},
-        };
+      if (!categoryName || !zoneName || !description) {
+        const request = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: {
+            category: { select: { name: true } },
+            geoNode: { select: { name: true } },
+            description: true,
+            photoUrls: true,
+            audioUrl: true,
+          },
+        });
+
+        if (!request) {
+          return {
+            response: { text: 'No encontré los detalles del pedido asignado.' },
+            nextStep: null,
+            tempData: {},
+          };
+        }
+
+        categoryName = request.category?.name || 'el servicio';
+        zoneName = request.geoNode?.name || 'tu zona';
+        description = request.description;
+        photoUrls = request.photoUrls;
+        audioUrl = request.audioUrl || undefined;
       }
-
-      const categoryName = request.category?.name || 'el servicio';
-      const zoneName = request.geoNode?.name || 'tu zona';
 
       return {
         response: {
           text: [
             `Pedido de ${categoryName} en ${zoneName}.`,
-            `Descripción: ${request.description}`,
+            `Descripción: ${description}`,
             '1. Aceptar\n2. Rechazar',
           ].join('\n\n'),
-          mediaUrls: request.photoUrls,
-          audioUrl: request.audioUrl || undefined,
+          mediaUrls: photoUrls,
+          audioUrl,
         },
         nextStep: 'AWAITING_ACCEPTANCE',
-        tempData,
+        tempData: {
+          ...tempData,
+          categoryName,
+          zoneName,
+          description,
+          photoUrls,
+          audioUrl,
+        },
       };
     }
 

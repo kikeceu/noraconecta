@@ -97,6 +97,7 @@ export class NotificationService {
         [request.categoryName, request.zoneName],
         'PROFESSIONAL',
       );
+      // Photos and audio are sent after the professional asks for details.
       return;
     }
 
@@ -106,7 +107,13 @@ export class NotificationService {
       '1. Aceptar\n2. Rechazar',
     ].join('\n\n');
 
-    await this.send(professionalPhone, message, 'PROFESSIONAL');
+    await this.sendWithWindowCheck(
+      professionalPhone,
+      'PROFESSIONAL',
+      message,
+      'nora_pro_nuevo_pedido',
+      [request.categoryName, request.zoneName],
+    );
     await this.sendRequestMedia(professionalPhone, request);
   }
 
@@ -226,18 +233,4 @@ export class NotificationService {
     }
   }
 
-  private async send(
-    phone: string,
-    text: string,
-    role: WhatsAppRole,
-  ): Promise<void> {
-    try {
-      await this.whatsappAdapter.sendText(phone, text, role);
-    } catch (err) {
-      console.error(
-        `[NotificationService] Failed to send WhatsApp to ${phone} (${role}):`,
-        err,
-      );
-    }
-  }
 }
