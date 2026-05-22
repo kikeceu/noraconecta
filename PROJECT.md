@@ -119,8 +119,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
-│   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook)
-│   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch
+│   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
+│   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch, payment link endpoint
 │   │   │   │   ├── payments.service.ts    # Payment link generation, webhook processing, trial-exhausted notification
 │   │   │   │   └── payments.repository.ts # Plan queries, trial-exhausted professional lookup, waiting request lookup
 │   │   ├── lib/
@@ -146,7 +146,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains
 │   │   ├── App-landing.tsx             # Root component (landing): /simulator only
 │   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build)
-│   │   ├── App-app.tsx                 # Root component (app): /verify/:token, /panel/:sessionToken (production build)
+│   │   ├── App-app.tsx                 # Root component (app): /verify/:token, /panel/:sessionToken, /planes (production build)
 │   │   ├── index.css                   # Tailwind CSS directives + design tokens
 │   │   ├── vite-env.d.ts               # Vite client type reference
 │   │   ├── components/
@@ -214,6 +214,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones, pre-selected from bot registration
 │   │   │           ├── SummaryStep.tsx      # 5-section summary with dividers and file previews
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
+│   │   │   └── app/
+│   │   │       └── PlanesPage.tsx           # Public plans page (/planes?pro=) with MercadoPago links (AUT-214)
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
@@ -309,8 +311,8 @@ src/
 │   └── notifications/             # (AUT-195)
 │       └── notification.service.ts # WhatsApp notification dispatch for request lifecycle events
 │   └── payments/                  # (AUT-188)
-│       ├── payments.routes.ts     # POST /webhooks/mercadopago
-│       ├── payments.controller.ts # Webhook HMAC validation
+│       ├── payments.routes.ts     # POST /webhooks/mercadopago, POST /payments/link
+│       ├── payments.controller.ts # Webhook HMAC validation + payment link endpoint
 │       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
 │       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
@@ -338,7 +340,7 @@ En desarrollo local (`npm run dev`) todo corre en `localhost:5173` con rutas sep
 |---------|-----------------------------|---------------------|------------------------|-------------|--------------------------------------|
 | landing | noraconecta.com.ar          | `main-landing.tsx`  | `index-landing.html`  | `dist/landing` | Landing page + simulador del bot     |
 | admin   | admin.noraconecta.com.ar    | `main-admin.tsx`    | `index-admin.html`    | `dist/admin`   | Panel de administración (login + dashboard + CRUD) |
-| app     | app.noraconecta.com.ar      | `main-app.tsx`      | `index-app.html`      | `dist/app`     | Onboarding (`/verify/:token`) + Panel profesional (`/panel/:sessionToken`) |
+| app     | app.noraconecta.com.ar      | `main-app.tsx`      | `index-app.html`      | `dist/app`     | Onboarding (`/verify/:token`) + Panel profesional (`/panel/:sessionToken`) + Planes (`/planes?pro=`) |
 
 ### Host-based routing en desarrollo
 
@@ -346,9 +348,9 @@ En `npm run dev`, `App.tsx` detecta el hostname vía `resolveHostContext()` (`li
 
 | Hostname                    | Contexto | Rutas activas                                    |
 |----------------------------|----------|-------------------------------------------------|
-| `localhost:5173`           | `all`    | Todas: `/simulator`, `/verify/:token`, `/panel/:sessionToken`, `/admin/*` |
+| `localhost:5173`           | `all`    | Todas: `/simulator`, `/verify/:token`, `/panel/:sessionToken`, `/planes`, `/admin/*` |
 | `admin.noraconecta.local`  | `admin`  | Solo admin (sin prefijo): `/login`, `/professionals`, `/escalations`, etc. |
-| `app.noraconecta.local`    | `app`    | Onboarding + panel: `/verify/:token`, `/panel/:sessionToken`, `/` → ErrorScreen "missing" |
+| `app.noraconecta.local`    | `app`    | Onboarding + panel + planes: `/verify/:token`, `/panel/:sessionToken`, `/planes`, `/` → ErrorScreen "missing" |
 | `noraconecta.local`        | `landing`| Solo landing: `/` → `/simulator` |
 
 Los subdominios `.local` requieren mapeo en `/etc/hosts`:
@@ -386,9 +388,6 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 | `APP_URL` (marca) | `https://noraconecta.com`     | URL pública del sitio (AUT-187) |
 | `MERCADOPAGO_ACCESS_TOKEN` | — | Access token de MercadoPago (producción o sandbox) (AUT-188) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | — | Secret para validar firma HMAC del webhook (AUT-188) |
-| `MERCADOPAGO_SUCCESS_URL` | `https://noraconecta.com.ar/pago-exitoso` | URL de retorno tras pago exitoso (AUT-188) |
-| `MERCADOPAGO_FAILURE_URL` | `https://noraconecta.com.ar/pago-fallido` | URL de retorno tras pago fallido (AUT-188) |
-| `MERCADOPAGO_PENDING_URL` | `https://noraconecta.com.ar/pago-pendiente` | URL de retorno tras pago pendiente (AUT-188) |
 
 ### Archivos de entorno por target (frontend)
 
@@ -595,7 +594,7 @@ Response shape:
 
 | Endpoint         | Método | Descripción                      | Rol mínimo |
 |-----------------|--------|----------------------------------|-----------|
-| `/plans`        | GET    | Lista todos los planes           | OPERATOR  |
+| `/plans`        | GET    | Lista todos los planes (pública, usada por `/planes?pro=`) | Sin auth  |
 | `/plans`        | POST   | Crear plan (nombre + precio)     | SUPERADMIN|
 | `/plans/:id`    | PATCH  | Editar precio o % descuento anual| SUPERADMIN|
 
@@ -692,6 +691,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 | Endpoint                     | Método | Descripción                          | Auth      |
 |-----------------------------|--------|--------------------------------------|-----------|
 | `/webhooks/mercadopago`     | POST   | Webhook de MercadoPago (IPN)         | HMAC      |
+| `/payments/link`            | POST   | Genera link de pago para un profesional y plan | Sin auth  |
 
 **Servicios internos:**
 
@@ -706,6 +706,7 @@ Módulo de integración con MercadoPago Checkout Pro para activación de membres
 **Lógica de negocio:**
 
 - El link de pago se genera dinámicamente con `external_reference` en formato `professionalId:planId`
+- `createPaymentLink()` configura `back_urls` hacia `${APP_URL}/planes/gracias`, `${APP_URL}/planes/error` y `${APP_URL}/planes/pendiente`
 - El webhook responde 200 inmediatamente a MP y procesa de forma asíncrona
 - Al confirmar pago (`status = approved`), se activa membresía mensual para el profesional con `activatedBy = 'mercadopago'`
 - Si existe un pedido en `NO_RESPONSE` con `waitingUserConsent = true` que coincida en categoría y zona, se reactiva para ese profesional

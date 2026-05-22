@@ -43,5 +43,8 @@ const paymentsController = new PaymentsController(paymentsService);
 const router = Router();
 
 router.post('/mercadopago', paymentsController.handleWebhook);
+router.post('/link', (req, res, next) => {
+  void paymentsController.generateLink(req, res, next);
+});
 
 export default router;

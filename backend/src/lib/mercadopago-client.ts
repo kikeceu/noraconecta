@@ -39,11 +39,10 @@ export async function createPaymentLink(
       ],
       external_reference: `${professionalId}:${planId}`,
       back_urls: {
-        success: process.env.MERCADOPAGO_SUCCESS_URL || '',
-        failure: process.env.MERCADOPAGO_FAILURE_URL || '',
-        pending: process.env.MERCADOPAGO_PENDING_URL || '',
+        success: `${process.env.APP_URL}/planes/gracias`,
+        failure: `${process.env.APP_URL}/planes/error`,
+        pending: `${process.env.APP_URL}/planes/pendiente`,
       },
-      auto_return: 'approved',
     },
   });
 

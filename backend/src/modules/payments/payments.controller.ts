@@ -4,6 +4,36 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  generateLink = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { professionalId, planId } = req.body as {
+        professionalId?: string;
+        planId?: string;
+      };
+
+      if (!professionalId || !planId) {
+        res
+          .status(400)
+          .json({ error: 'professionalId and planId are required' });
+        return;
+      }
+
+      const link = await this.paymentsService.generatePaymentLink(
+        professionalId,
+        planId,
+      );
+
+      res.status(200).json({ data: { url: link } });
+    } catch (err) {
+      console.error('[PaymentsController] generateLink error:', err);
+      next(err);
+    }
+  };
+
   handleWebhook = async (
     req: Request,
     res: Response,
