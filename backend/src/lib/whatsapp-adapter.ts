@@ -318,9 +318,9 @@ export class WhatsAppAdapter {
     const { token } = this.getCredentials(role);
 
     const mediaRes = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${mediaId}`,
+      `${this.baseUrl}/${this.apiVersion}/${mediaId}`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: this.getAuthHeaders(token),
       },
     );
 
