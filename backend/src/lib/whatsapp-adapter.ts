@@ -77,7 +77,8 @@ interface WhatsAppWebhookPayload {
 
 export class WhatsAppAdapter {
   private readonly apiVersion: string;
-  private readonly token: string;
+  private readonly tokenUser: string;
+  private readonly tokenProfessional: string;
   private readonly baseUrl: string;
   private readonly phoneNumberIdUser: string;
   private readonly phoneNumberIdProfessional: string;
@@ -86,7 +87,8 @@ export class WhatsAppAdapter {
 
   constructor(r2Client: R2Client, botRepository: BotRepository) {
     this.apiVersion = process.env.WHATSAPP_API_VERSION || 'v19.0';
-    this.token = process.env.WHATSAPP_API_TOKEN || '';
+    this.tokenUser = process.env.WHATSAPP_API_TOKEN_USER || '';
+    this.tokenProfessional = process.env.WHATSAPP_API_TOKEN_PROFESSIONAL || '';
     this.baseUrl = process.env.WHATSAPP_BASE_URL || 'https://graph.facebook.com';
     this.phoneNumberIdUser = process.env.WHATSAPP_PHONE_NUMBER_ID_USER || '';
     this.phoneNumberIdProfessional = process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL || '';
@@ -96,7 +98,8 @@ export class WhatsAppAdapter {
 
   isConfigured(): boolean {
     return !!(
-      this.token &&
+      this.tokenUser &&
+      this.tokenProfessional &&
       this.phoneNumberIdUser &&
       this.phoneNumberIdProfessional
     );
@@ -134,7 +137,7 @@ export class WhatsAppAdapter {
 
     if (msg.type === 'image' && msg.image?.id) {
       message.imageUrls = [
-        await this.downloadAndUploadToR2(msg.image.id, 'request-photos'),
+        await this.downloadAndUploadToR2(msg.image.id, 'request-photos', role),
       ];
     }
 
@@ -142,6 +145,7 @@ export class WhatsAppAdapter {
       message.audioUrl = await this.downloadAndUploadToR2(
         msg.audio.id,
         'request-audio',
+        role,
       );
     }
 
@@ -160,14 +164,14 @@ export class WhatsAppAdapter {
       return;
     }
 
-    const phoneNumberId = this.getPhoneNumberId(role);
+    const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
       `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -196,7 +200,7 @@ export class WhatsAppAdapter {
     role: WhatsAppRole,
     caption?: string,
   ): Promise<void> {
-    const phoneNumberId = this.getPhoneNumberId(role);
+    const { token, phoneNumberId } = this.getCredentials(role);
 
     const imagePayload: Record<string, unknown> = { link: imageUrl };
     if (caption) {
@@ -208,7 +212,7 @@ export class WhatsAppAdapter {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -235,14 +239,14 @@ export class WhatsAppAdapter {
     audioUrl: string,
     role: WhatsAppRole,
   ): Promise<void> {
-    const phoneNumberId = this.getPhoneNumberId(role);
+    const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
       `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -268,14 +272,14 @@ export class WhatsAppAdapter {
     params: string[],
     role: WhatsAppRole,
   ): Promise<void> {
-    const phoneNumberId = this.getPhoneNumberId(role);
+    const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
       `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -309,11 +313,14 @@ export class WhatsAppAdapter {
   async downloadAndUploadToR2(
     mediaId: string,
     folder: string,
+    role: WhatsAppRole,
   ): Promise<string> {
+    const { token } = this.getCredentials(role);
+
     const mediaRes = await fetch(
       `${this.baseUrl}/${this.apiVersion}/${mediaId}`,
       {
-        headers: { Authorization: `Bearer ${this.token}` },
+        headers: { Authorization: `Bearer ${token}` },
       },
     );
 
@@ -333,7 +340,7 @@ export class WhatsAppAdapter {
     }
 
     const fileRes = await fetch(mediaData.url, {
-      headers: { Authorization: `Bearer ${this.token}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!fileRes.ok) {
@@ -355,9 +362,17 @@ export class WhatsAppAdapter {
     return result.publicUrl;
   }
 
-  private getPhoneNumberId(role: WhatsAppRole): string {
+  private getCredentials(
+    role: WhatsAppRole,
+  ): { token: string; phoneNumberId: string } {
     return role === 'PROFESSIONAL'
-      ? this.phoneNumberIdProfessional
-      : this.phoneNumberIdUser;
+      ? {
+          token: this.tokenProfessional,
+          phoneNumberId: this.phoneNumberIdProfessional,
+        }
+      : {
+          token: this.tokenUser,
+          phoneNumberId: this.phoneNumberIdUser,
+        };
   }
 }

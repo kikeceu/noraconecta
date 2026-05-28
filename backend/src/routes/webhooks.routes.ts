@@ -38,7 +38,7 @@ function getWhatsappAdapter(): WhatsAppAdapter | null {
   if (!whatsappAdapter.isConfigured()) {
     // eslint-disable-next-line no-console
     console.warn(
-      '[webhooks] WhatsApp API not configured (missing WHATSAPP_API_TOKEN, WHATSAPP_PHONE_NUMBER_ID_USER, or WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL). Webhook will respond 503.',
+      '[webhooks] WhatsApp API not configured (missing WHATSAPP_API_TOKEN_USER, WHATSAPP_API_TOKEN_PROFESSIONAL, WHATSAPP_PHONE_NUMBER_ID_USER, or WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL). Webhook will respond 503.',
     );
     return null;
   }

@@ -51,11 +51,17 @@ app.use(
   }),
 );
 
-const whatsappToken = process.env.WHATSAPP_API_TOKEN;
+const whatsappTokenUser = process.env.WHATSAPP_API_TOKEN_USER;
+const whatsappTokenProfessional = process.env.WHATSAPP_API_TOKEN_PROFESSIONAL;
 const phoneIdUser = process.env.WHATSAPP_PHONE_NUMBER_ID_USER;
 const phoneIdProfessional = process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL;
 
-if (!whatsappToken || !phoneIdUser || !phoneIdProfessional) {
+if (
+  !whatsappTokenUser ||
+  !whatsappTokenProfessional ||
+  !phoneIdUser ||
+  !phoneIdProfessional
+) {
   // eslint-disable-next-line no-console
   console.warn(
     '[server] WhatsApp API not fully configured. Webhook endpoint will respond 503. Simulator remains operational.',
