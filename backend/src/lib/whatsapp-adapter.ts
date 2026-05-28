@@ -171,7 +171,7 @@ export class WhatsAppAdapter {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...this.getAuthHeaders(token),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -212,7 +212,7 @@ export class WhatsAppAdapter {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...this.getAuthHeaders(token),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -246,7 +246,7 @@ export class WhatsAppAdapter {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...this.getAuthHeaders(token),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -279,7 +279,7 @@ export class WhatsAppAdapter {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...this.getAuthHeaders(token),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -318,7 +318,7 @@ export class WhatsAppAdapter {
     const { token } = this.getCredentials(role);
 
     const mediaRes = await fetch(
-      `${this.baseUrl}/${this.apiVersion}/${mediaId}`,
+      `https://graph.facebook.com/${this.apiVersion}/${mediaId}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       },
@@ -374,5 +374,11 @@ export class WhatsAppAdapter {
           token: this.tokenUser,
           phoneNumberId: this.phoneNumberIdUser,
         };
+  }
+
+  private getAuthHeaders(token: string): Record<string, string> {
+    const isKapso = this.baseUrl.includes('kapso.ai');
+
+    return isKapso ? { 'X-API-Key': token } : { Authorization: `Bearer ${token}` };
   }
 }

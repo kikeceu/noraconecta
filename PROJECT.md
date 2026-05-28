@@ -1031,6 +1031,11 @@ Proveedor WhatsApp (Kapso o Meta) → POST /webhooks/whatsapp
 | `sendTemplate()`      | Envía mensaje de template con parámetros                                  |
 | `downloadAndUploadToR2()` | Descarga archivo de Meta → sube a R2 → retorna URL pública           |
 
+**Autenticación saliente adaptable por BSP (AUT-220):**
+- Si `WHATSAPP_BASE_URL` contiene `kapso.ai`, `sendText`/`sendTemplate`/`sendImage`/`sendAudio` envían `X-API-Key: <token>`
+- Para cualquier otro provider (incluyendo Meta Graph), esos métodos usan `Authorization: Bearer <token>`
+- `downloadAndUploadToR2()` siempre consulta/descarga media desde `https://graph.facebook.com` con `Authorization: Bearer <token>` (independiente del `WHATSAPP_BASE_URL`)
+
 **Determinación del rol:**
 ```typescript
 const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
