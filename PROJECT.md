@@ -994,7 +994,7 @@ POST /bot/message
 
 ### Webhooks (AUT-134)
 
-Endpoints de webhook para WhatsApp Cloud API de Meta. Reciben mensajes entrantes y coordinan el flujo con el BotService existente.
+Endpoints de webhook para proveedores de WhatsApp (Meta directo o BSP como Kapso). Reciben mensajes entrantes y coordinan el flujo con el BotService existente.
 
 | Endpoint               | Método | Descripción                                          | Auth      |
 |-----------------------|--------|------------------------------------------------------|-----------|
@@ -1003,9 +1003,11 @@ Endpoints de webhook para WhatsApp Cloud API de Meta. Reciben mensajes entrantes
 
 **Arquitectura:**
 ```
-WhatsApp (Meta) → POST /webhooks/whatsapp
-  → Validación HMAC-SHA256 (X-Hub-Signature-256)
-  → Responder 200 inmediatamente a Meta
+Proveedor WhatsApp (Kapso o Meta) → POST /webhooks/whatsapp
+  → Validación HMAC-SHA256 flexible:
+    → Kapso: X-Webhook-Signature + WHATSAPP_WEBHOOK_SECRET (hex plano)
+    → Meta directo: X-Hub-Signature-256 + WHATSAPP_APP_SECRET (sha256=<hex>)
+  → Responder 200 inmediatamente al proveedor
   → Procesamiento asincrónico:
     → WhatsAppAdapter.parseWebhook(payload)
       → Determinar rol (USER/PROFESSIONAL) según phone_number_id
@@ -1602,8 +1604,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `WHATSAPP_API_TOKEN_PROFESSIONAL`| No | API key/token del proveedor WhatsApp para el número de profesionales |
 | `WHATSAPP_PHONE_NUMBER_ID_USER`| No | Phone Number ID del número de WhatsApp para usuarios |
 | `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL`| No | Phone Number ID del número de WhatsApp para profesionales |
-| `WHATSAPP_APP_SECRET`| No | Secret para validación HMAC-SHA256 del webhook (`x-hub-signature-256`) |
-| `WHATSAPP_WEBHOOK_SECRET`| No | Legacy/env antiguo, no consumido por `webhooks.routes.ts` |
+| `WHATSAPP_APP_SECRET`| No | Secret para validación HMAC-SHA256 del webhook de Meta directo (`x-hub-signature-256`) |
+| `WHATSAPP_WEBHOOK_SECRET`| No | Secret para validación HMAC-SHA256 del webhook de Kapso (`x-webhook-signature`) |
 | `WHATSAPP_API_VERSION`| No (v19.0) | Versión de la API de Meta |
 
 ## Business Rules
@@ -1750,7 +1752,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Escalations se crean automáticamente en `reportNoncompliance` dentro de la misma transacción
 - Ventana de conversación de WhatsApp (24hs): el sistema registra `lastInboundAt` en cada mensaje entrante. Si el último mensaje recibido fue hace menos de 24hs, NORA puede responder con mensaje libre; si pasaron más de 24hs o nunca hubo mensaje, NORA debe usar una plantilla aprobada. La ventana la abre el usuario/profesional cuando escribe, no cuando NORA escribe. El helper `shouldUseTemplate()` en `utils/whatsapp-utils.ts` encapsula esta decisión para todos los módulos.
 - **Dos números de WhatsApp (AUT-134):** NORA opera con dos números distintos: uno para usuarios y otro para profesionales. El rol se determina automáticamente por el `phone_number_id` del webhook de Meta, sin consultar DB.
-- **Webhook WhatsApp (AUT-134):** El endpoint `/webhooks/whatsapp` valida HMAC-SHA256 con `WHATSAPP_APP_SECRET` y responde 401 si la firma no es válida. Responde 200 inmediatamente al proveedor y procesa el mensaje de forma asincrónica. Recibe mensajes de texto, imagen, audio y ubicación.
+- **Webhook WhatsApp (AUT-134, ACTUALIZADO AUT-219):** El endpoint `/webhooks/whatsapp` valida HMAC-SHA256 de forma flexible según el header recibido: Kapso (`x-webhook-signature` + `WHATSAPP_WEBHOOK_SECRET`) o Meta directo (`x-hub-signature-256` + `WHATSAPP_APP_SECRET`). Si no hay firma válida responde 401. Responde 200 inmediatamente al proveedor y procesa el mensaje de forma asincrónica. Recibe mensajes de texto, imagen, audio y ubicación.
 - **Archivos entrantes de WhatsApp (AUT-134):** Imágenes y audio enviados por usuarios/profesionales se descargan de la URL temporal de Meta y se suben a R2. La URL pública de R2 se pasa al `IncomingMessage` para que el bot la procese.
 - **shouldUseTemplate() en envíos salientes (AUT-134):** El `WhatsAppAdapter.sendText()` consulta `shouldUseTemplate()` antes de enviar. Si se necesita template (fuera de ventana de 24hs), usa el template `nora_notification` con el texto como parámetro.
 - Escalations solo pueden transicionar OPEN→IN_REVIEW→RESOLVED; RESOLVED es terminal
