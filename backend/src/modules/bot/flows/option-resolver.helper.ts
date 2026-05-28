@@ -58,8 +58,8 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NO', aliases: ['no', 'nop', '2'] },
   ],
   AWAITING_WORK_COMPLETION: [
-    { value: 'DONE', aliases: ['finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho'] },
-    { value: 'PENDING', aliases: ['pendiente', 'no', 'todavia no', 'todavía no'] },
+    { value: 'DONE', aliases: ['1', 'finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho'] },
+    { value: 'PENDING', aliases: ['2', 'pendiente', 'no', 'todavia no', 'todavía no', 'no pude completarlo'] },
   ],
   FEEDBACK_SATISFACTION: [
     { value: 'SATISFIED', aliases: ['conforme', 'todo bien', 'bien', 'ok'] },

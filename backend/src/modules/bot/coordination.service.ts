@@ -6,10 +6,8 @@ import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 import { ConfigRepository } from '../config/config.repository';
-import { randomUUID } from 'crypto';
 
 const DEFAULT_WORK_COMPLETION_CHECK_HOURS = 24;
-const SESSION_TOKEN_TTL_DAYS = 30;
 
 export type CoordinationInitData = {
   requestId: string;
@@ -131,7 +129,6 @@ export class CoordinationService {
       },
     });
 
-    const appUrl = process.env.APP_URL ?? 'http://app.noraconecta.local';
 
     for (const request of requests) {
       const professionalPhone = request.assignedProfessional?.phone;
@@ -180,7 +177,7 @@ export class CoordinationService {
         await this.sendWithWindowCheck(
           professionalPhone,
           'PROFESSIONAL',
-          `¿Pudiste finalizar el trabajo en ${address} para ${userName}? Respondé "Finalicé" si completaste el trabajo o "Pendiente" si quedó algo por resolver.`,
+          `¡Hola ${userName}! ¿Cómo te fue con el trabajo en ${address}? ¿Pudiste terminarlo?\n1. Sí, lo finalicé\n2. Todavía está pendiente`,
           'nora_pro_check_finalizacion',
           [address, userName],
         );
@@ -207,34 +204,12 @@ export class CoordinationService {
           continue;
         }
 
-        let sessionToken = request.assignedProfessional?.sessionToken;
-        const sessionTokenExp = request.assignedProfessional?.sessionTokenExp;
-        const hasValidSessionToken =
-          !!sessionToken && !!sessionTokenExp && sessionTokenExp.getTime() > now.getTime();
-
-        if (!hasValidSessionToken) {
-          sessionToken = randomUUID();
-          const newSessionTokenExp = new Date(
-            now.getTime() + SESSION_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
-          );
-
-          await prisma.professional.update({
-            where: { id: professionalId },
-            data: {
-              sessionToken,
-              sessionTokenExp: newSessionTokenExp,
-            },
-          });
-        }
-
-        const panelUrl = `${appUrl}/panel/${sessionToken}`;
-
         await this.sendWithWindowCheck(
           professionalPhone,
           'PROFESSIONAL',
-          `¿Pudiste finalizar el trabajo en ${address}? Es la última consulta por acá. Respondé "Finalicé" o confirmalo desde tu panel: ${panelUrl}`,
+          `¡Hola ${userName}! Es nuestra última consulta sobre el trabajo en ${address}. ¿Lo pudiste terminar?\n1. Sí, lo finalicé\n2. No pude completarlo`,
           'nora_pro_check_finalizacion_ultimo',
-          [address, panelUrl],
+          [address, userName],
         );
 
         await this.botRepository.upsert(professionalPhone, {
@@ -287,6 +262,60 @@ export class CoordinationService {
     await this.sendWithWindowCheck(phone, role, text, templateName, templateParams);
   }
 
+  async notifyProfessionalVisitConfirmed(
+    professionalPhone: string,
+    userName: string,
+    scheduleText: string,
+    address: string,
+    userPhone: string,
+    userLatitude: number | null,
+    userLongitude: number | null,
+  ): Promise<void> {
+    const hasCoordinates = !!(userLatitude && userLongitude);
+
+    if (hasCoordinates) {
+      const coords = `${userLatitude},${userLongitude}`;
+      await this.whatsappAdapter.sendTemplateWithButton(
+        professionalPhone,
+        'nora_pro_visita_confirmada_ubicacion',
+        [userName, scheduleText, address, userPhone],
+        coords,
+        'PROFESSIONAL',
+      );
+    } else {
+      const message =
+        `Visita confirmada ✅\n` +
+        `Cliente: ${userName}\n` +
+        `Día y hora: ${scheduleText}\n` +
+        `Dirección: ${address}\n` +
+        `Teléfono del cliente: ${userPhone}`;
+
+      await this.sendWithWindowCheck(
+        professionalPhone,
+        'PROFESSIONAL',
+        message,
+        'nora_pro_visita_confirmada',
+        [userName, scheduleText, address, userPhone],
+      );
+    }
+  }
+
+  async notifyProfessionalClientAcceptedSchedule(
+    professionalPhone: string,
+    userName: string,
+    dayName: string,
+    hours: string,
+    minutes: string,
+  ): Promise<void> {
+    await this.sendWithWindowCheck(
+      professionalPhone,
+      'PROFESSIONAL',
+      `¡${userName} aceptó el ${dayName} a las ${hours}:${minutes}! La visita quedó confirmada.`,
+      'nora_pro_cliente_acepto_horario',
+      [userName, dayName, `${hours}:${minutes}`],
+    );
+  }
+
   async sendReminders(): Promise<number> {
     const now = new Date();
 
@@ -304,6 +333,7 @@ export class CoordinationService {
       include: {
         user: { select: { name: true, phone: true } },
         assignedProfessional: { select: { name: true, phone: true } },
+        category: { select: { name: true } },
       },
     });
 
@@ -321,6 +351,7 @@ export class CoordinationService {
       const professionalPhone = visit.assignedProfessional?.phone;
 
       if (userPhone) {
+        const categoryName = visit.category?.name || 'el servicio';
         const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}. Si necesitás reprogramar, escribime.`;
 
         await this.sendWithWindowCheck(
@@ -328,12 +359,13 @@ export class CoordinationService {
           'USER',
           userMessage,
           'nora_user_visita_recordatorio',
-          [professionalName, `${hours}:${minutes}`],
+          [professionalName, categoryName, `${hours}:${minutes}`],
         );
       }
 
       if (professionalPhone) {
         const address = visit.clientAddress || 'la dirección';
+        const userName = visit.user?.name || 'el usuario';
         const professionalMessage =
           `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n` +
           '¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir.';
@@ -343,7 +375,7 @@ export class CoordinationService {
           'PROFESSIONAL',
           professionalMessage,
           'nora_pro_visita_recordatorio',
-          [`${hours}:${minutes}`, address],
+          [`${hours}:${minutes}`, userName, address],
         );
 
         await this.botRepository.upsert(professionalPhone, {

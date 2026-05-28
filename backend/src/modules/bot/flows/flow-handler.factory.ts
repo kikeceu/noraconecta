@@ -72,7 +72,7 @@ const paymentsService = new PaymentsService(
 
 const userRequestFlow = new UserRequestFlow(requestsService, paymentsService);
 const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository);
-const coordinationFlow = new CoordinationFlow(requestsService);
+const coordinationFlow = new CoordinationFlow(requestsService, coordinationService);
 const feedbackFlow = new FeedbackFlow(requestsService, botRepository, coordinationService);
 
 export function resolveFlowHandler(role: 'USER' | 'PROFESSIONAL'): FlowHandler {

@@ -617,10 +617,10 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 |-------------------------------------|----------------------------------------------------------------------|
 | `notifyProfessionalAssigned()`      | Notifica al profesional cuando se le asigna un nuevo pedido           |
 | `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
-| `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout)|
+| `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout); template con `categoryName` y `zoneName` |
 | `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2)       |
 | `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible         |
-| `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló el pedido             |
+| `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló; usa `nora_pro_usuario_cancelo_pedido` (sin visita) o `nora_pro_usuario_cancelo_visita` (con visita) según `hasConfirmedVisit` |
 | `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido; usa template distinto según si había visita confirmada |
 
 **Lógica de negocio:**
@@ -642,8 +642,8 @@ Número profesional: 7665 / Número usuario: 7668
 | # | Nombre | Contenido | Params |
 |---|--------|-----------|--------|
 | 1 | `nora_pro_nuevo_pedido` | Tenés un nuevo pedido de {{1}} en {{2}}. Ingresá a tu panel para aceptarlo o rechazarlo. | categoryName, zoneName |
-| 2 | `nora_pro_recordatorio_pedido` | Tenés un pedido pendiente de respuesta. Aceptalo o rechazalo desde tu panel antes de que venza el tiempo. | ninguno |
-| 3 | `nora_pro_visita_recordatorio` | Recordatorio: mañana a las {{1}} tenés visita en {{2}}. ¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir. | hora, dirección |
+| 2 | `nora_pro_recordatorio_pedido` | Tenés un pedido pendiente de respuesta. Aceptalo o rechazalo desde tu panel antes de que venza el tiempo. | categoryName, zoneName |
+| 3 | `nora_pro_visita_recordatorio` | Recordatorio: mañana a las {{1}} tenés visita con {{2}} en {{3}}. ¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir. | hora, userName, dirección |
 | 4 | `nora_pro_pedido_cancelado` | ~~El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.~~ (eliminada en AUT-225, template huérfana) | ninguno |
 | 5 | `nora_pro_membresia_activada_con_pedido` | ¡Tu membresía fue activada! El pedido de {{1}} en {{2}} ya está asignado a vos. Aceptalo o rechazalo desde tu panel. | categoryName, zoneName |
 | 6 | `nora_pro_membresia_activada` | ¡Tu membresía fue activada! Ya podés recibir pedidos en NORA. | ninguno |
@@ -658,7 +658,7 @@ Número profesional: 7665 / Número usuario: 7668
 | 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | professionalName, categoryName |
 | 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | professionalName, categoryName, fechaHora |
 
-*Nota: Las templates 17, 18 (`nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`) y 19-20 (templates de profesional para finalización y calificación) están definidas pero aún no tienen punto de consumo en el código. Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Tres nuevas constantes de templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido` (usuario canceló sin visita), `nora_pro_usuario_cancelo_visita` (usuario canceló con visita), `nora_pro_visita_confirmada` (visita confirmada sin GPS).*
+*Nota: Las templates 17 (`nora_pro_cliente_acepto_horario`), 18 (`nora_pro_visita_confirmada_ubicacion`) y 19-20 (templates de profesional para finalización y calificación: `nora_pro_check_finalizacion`, `nora_pro_check_finalizacion_ultimo`, `nora_pro_pedir_calificacion_usuario`) ya tienen punto de consumo en el código (AUT-227). Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido`, `nora_pro_usuario_cancelo_visita`, `nora_pro_visita_confirmada` (consumidas en AUT-227).*
 
 **Método `sendWithWindowCheck()` presente en 3 servicios:**
 
@@ -668,7 +668,7 @@ Número profesional: 7665 / Número usuario: 7668
 
 **Archivos modificados (AUT-213):**
 - `notification.service.ts` — `sendWithWindowCheck()` + 8 templates asignadas a métodos públicos
-- `coordination.service.ts` — `sendWithWindowCheck()` + 6 templates para confirmVisit/sendReminders/notifyWorkFinished
+- `coordination.service.ts` — `sendWithWindowCheck()` + templates para confirmVisit/sendReminders/notifyWorkFinished/checkWorkCompletion; métodos `notifyProfessionalVisitConfirmed()` y `notifyProfessionalClientAcceptedSchedule()` (AUT-227)
 - `payments.service.ts` — `sendWithWindowCheck()` + 3 templates (upgrade, membresía activada con/sin pedido) + `APP_URL` para link de planes
 - `requests.controller.ts` — `cancelByProfessional` usa `nora_user_pro_cancelo_pedido` o `nora_user_pro_cancelo_visita` según `hadConfirmedVisit`
 - `requests.repository.ts` — `findWaitingRequestForProfessional` incluye `category.name` y `geoNode.name` para params de template
@@ -698,6 +698,44 @@ Alineación de textos, parámetros y casos de uso con los templates rediseñados
 
 **Cambios en `user-request.flow.ts` y `feedback.flow.ts`:**
 - Todas las opciones presentadas al usuario ahora están numeradas (`1. Conforme\n2. Con observaciones\n3. No conforme`, `1. Sí\n2. No`, etc.)
+
+### AUT-227 — Ajustes de lógica de bot para templates de profesionales rediseñados
+
+Alineación de textos, parámetros y casos de uso con los templates de profesionales rediseñados en AUT-225.
+
+**Cambios en `notification.service.ts`:**
+- `notifyProfessionalCancelledByUser`: dividido en dos templates según `hasConfirmedVisit` — usa `nora_pro_usuario_cancelo_visita` (con `formattedDate`) o `nora_pro_usuario_cancelo_pedido` (sin params)
+- `notifyProfessionalReminder`: ahora recibe y pasa `categoryName` y `zoneName` como parámetros al template `nora_pro_recordatorio_pedido`
+- `RequestBasicInfo` ahora incluye `zoneName`
+
+**Cambios en `requests.service.ts`:**
+- `processTimeouts`: obtiene `categoryName` y `zoneName` reales de la request (via `findRequestsForReminder` con include ampliado)
+- `accept`: pasa `zoneName` en el `RequestBasicInfo` a `notifyUserRequestAccepted`
+
+**Cambios en `matching.repository.ts`:**
+- `findRequestsForReminder`: incluye `category.name`, `geoNode.name` y `assignedProfessional.name` en la query
+
+**Cambios en `coordinations.service.ts`:**
+- `sendReminders`: pasa `userName` (2do param) y `address` (3er param) al template `nora_pro_visita_recordatorio`
+- `checkWorkCompletion` primer intento: texto y parámetros actualizados (`nora_pro_check_finalizacion` con `[address, userName]`)
+- `checkWorkCompletion` segundo intento: elimina `panelUrl`, agrega `userName`, texto actualizado (`nora_pro_check_finalizacion_ultimo` con `[address, userName]`)
+- Nuevo método `notifyProfessionalVisitConfirmed()`: envía `nora_pro_visita_confirmada_ubicacion` con botón URL si hay coordenadas GPS, o `nora_pro_visita_confirmada` sin botón si no hay coordenadas
+- Nuevo método `notifyProfessionalClientAcceptedSchedule()`: envía `nora_pro_cliente_acepto_horario` con `[userName, dayName, hora]`
+
+**Cambios en `coordination.flow.ts`:**
+- Ahora recibe `CoordinationService` como dependencia
+- `handleAwaitingLocation`: reemplaza `pendingNotification` por llamada directa a `coordinationService.notifyProfessionalVisitConfirmed()`
+- `handleAwaitingUserConfirmation`: reemplaza `pendingNotification` por llamada directa a `coordinationService.notifyProfessionalClientAcceptedSchedule()`
+
+**Cambios en `feedback.flow.ts`:**
+- `handleFeedbackComment`: pasa `userName` como parámetro al template `nora_pro_pedir_calificacion_usuario`
+- `handleAwaitingWorkCompletion`: detecta último intento (`completionAttempt >= 2`) y dispara escalada via `requestsService.reportNoncompliance()` cuando el profesional responde "No pude completarlo"
+
+**Cambios en `option-resolver.helper.ts`:**
+- `AWAITING_WORK_COMPLETION`: agrega aliases numéricos `'1'` (DONE) y `'2'` (PENDING) + `'no pude completarlo'`
+
+**Cambios en `requests.repository.ts`:**
+- `findByIdWithCoordination`: incluye `geoNode.name` en la query
 
 ### Notifications (AUT-199)
 

@@ -27,6 +27,7 @@ export interface RequestInfo {
 export interface RequestBasicInfo {
   id: string;
   categoryName: string;
+  zoneName: string;
 }
 
 export class NotificationService {
@@ -60,7 +61,7 @@ export class NotificationService {
 
   async notifyProfessionalReminder(
     professional: ProfessionalInfo,
-    _request: RequestBasicInfo,
+    request: RequestBasicInfo,
   ): Promise<void> {
     const message =
       `Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Aceptalo o rechazalo desde tu panel antes de que venza el tiempo.`;
@@ -70,7 +71,7 @@ export class NotificationService {
       'PROFESSIONAL',
       message,
       'nora_pro_recordatorio_pedido',
-      [],
+      [request.categoryName, request.zoneName],
     );
   }
 
@@ -163,29 +164,29 @@ export class NotificationService {
     hasConfirmedVisit: boolean,
     scheduledAt: Date | null,
   ): Promise<void> {
-    let message: string;
-
     if (hasConfirmedVisit && scheduledAt) {
-      const date = scheduledAt.toLocaleString('es-AR', {
-        timeZone: 'America/Argentina/Buenos_Aires',
-        day: '2-digit',
-        month: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      message = `El usuario canceló la visita programada para el ${date}. Quedás disponible para nuevas asignaciones.`;
-    } else {
-      message =
-        'El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.';
-    }
+      const formattedDate = formatDateTimeArgentina(scheduledAt);
+      const message = `El usuario canceló la visita del ${formattedDate}. Quedás disponible para nuevas asignaciones.`;
 
-    await this.sendWithWindowCheck(
-      professional.phone,
-      'PROFESSIONAL',
-      message,
-      'nora_pro_pedido_cancelado',
-      [],
-    );
+      await this.sendWithWindowCheck(
+        professional.phone,
+        'PROFESSIONAL',
+        message,
+        'nora_pro_usuario_cancelo_visita',
+        [formattedDate],
+      );
+    } else {
+      const message =
+        'El usuario canceló su pedido. Quedás disponible para nuevas asignaciones. ¡Gracias por tu disposición! 👍';
+
+      await this.sendWithWindowCheck(
+        professional.phone,
+        'PROFESSIONAL',
+        message,
+        'nora_pro_usuario_cancelo_pedido',
+        [],
+      );
+    }
   }
 
   async notifyUserProfessionalCancelled(
