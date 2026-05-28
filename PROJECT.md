@@ -1038,7 +1038,7 @@ const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
 
 **Coexistencia con el simulador:** El endpoint `/webhooks/whatsapp` y el simulador (`/bot/message`) son completamente independientes. Ambos llaman al mismo `BotService` pero tienen entrada y salida propias. El simulador siempre está activo.
 
-**Sin variables configuradas:** Si `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
+**Sin variables configuradas:** Si `WHATSAPP_API_TOKEN_USER`, `WHATSAPP_API_TOKEN_PROFESSIONAL`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
 ### Matching (ACTUALIZADO AUT-186)
 
@@ -1598,7 +1598,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `OPENAI_BASE_URL`   | No        | URL base alternativa de la API de OpenAI (default: https://api.openai.com/v1) |
 | `LLM_MODEL`         | No        | Modelo LLM a usar (default: gpt-4o-mini). Sin uso activo en coordinación desde AUT-166 |
 | `WHATSAPP_BASE_URL`| No (`https://graph.facebook.com`) | URL base de la API WhatsApp (Meta directo o proxy BSP como Kapso) |
-| `WHATSAPP_API_TOKEN`| No        | Token/API key del proveedor WhatsApp configurado |
+| `WHATSAPP_API_TOKEN_USER`| No | API key/token del proveedor WhatsApp para el número de usuarios |
+| `WHATSAPP_API_TOKEN_PROFESSIONAL`| No | API key/token del proveedor WhatsApp para el número de profesionales |
 | `WHATSAPP_PHONE_NUMBER_ID_USER`| No | Phone Number ID del número de WhatsApp para usuarios |
 | `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL`| No | Phone Number ID del número de WhatsApp para profesionales |
 | `WHATSAPP_APP_SECRET`| No | Secret para validación HMAC-SHA256 del webhook (`x-hub-signature-256`) |
