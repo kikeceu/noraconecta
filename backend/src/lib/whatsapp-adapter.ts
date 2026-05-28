@@ -78,6 +78,7 @@ interface WhatsAppWebhookPayload {
 export class WhatsAppAdapter {
   private readonly apiVersion: string;
   private readonly token: string;
+  private readonly baseUrl: string;
   private readonly phoneNumberIdUser: string;
   private readonly phoneNumberIdProfessional: string;
   private readonly r2Client: R2Client;
@@ -86,6 +87,7 @@ export class WhatsAppAdapter {
   constructor(r2Client: R2Client, botRepository: BotRepository) {
     this.apiVersion = process.env.WHATSAPP_API_VERSION || 'v19.0';
     this.token = process.env.WHATSAPP_API_TOKEN || '';
+    this.baseUrl = process.env.WHATSAPP_BASE_URL || 'https://graph.facebook.com';
     this.phoneNumberIdUser = process.env.WHATSAPP_PHONE_NUMBER_ID_USER || '';
     this.phoneNumberIdProfessional = process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL || '';
     this.r2Client = r2Client;
@@ -161,7 +163,7 @@ export class WhatsAppAdapter {
     const phoneNumberId = this.getPhoneNumberId(role);
 
     const res = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${phoneNumberId}/messages`,
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
@@ -202,7 +204,7 @@ export class WhatsAppAdapter {
     }
 
     const res = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${phoneNumberId}/messages`,
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
@@ -236,7 +238,7 @@ export class WhatsAppAdapter {
     const phoneNumberId = this.getPhoneNumberId(role);
 
     const res = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${phoneNumberId}/messages`,
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
@@ -269,7 +271,7 @@ export class WhatsAppAdapter {
     const phoneNumberId = this.getPhoneNumberId(role);
 
     const res = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${phoneNumberId}/messages`,
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
@@ -309,7 +311,7 @@ export class WhatsAppAdapter {
     folder: string,
   ): Promise<string> {
     const mediaRes = await fetch(
-      `https://graph.facebook.com/${this.apiVersion}/${mediaId}`,
+      `${this.baseUrl}/${this.apiVersion}/${mediaId}`,
       {
         headers: { Authorization: `Bearer ${this.token}` },
       },
