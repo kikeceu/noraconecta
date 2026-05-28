@@ -32,6 +32,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-223)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -649,16 +650,16 @@ Número profesional: 7665 / Número usuario: 7668
 | 6 | `nora_pro_membresia_activada` | ¡Tu membresía fue activada! Ya podés recibir pedidos en NORA. | ninguno |
 | 7 | `nora_pro_upgrade_membresia` | Hay un pedido de {{1}} en {{2}} esperándote. Activá tu membresía para recibirlo: {{3}} | categoryName, zoneName, url |
 | 8 | `nora_user_pedido_aceptado` | ¡Buenas noticias! {{1}} aceptó tu pedido de {{2}}. Te vamos a coordinar la visita. | professionalName, categoryName |
-| 9 | `nora_user_buscando_profesional` | Seguimos buscando el profesional ideal para tu pedido. Te avisamos en cuanto confirmemos. | ninguno |
-| 10 | `nora_user_sin_profesional` | No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde. | ninguno |
-| 11 | `nora_user_visita_recordatorio` | Recordatorio: {{1}} visita tu domicilio mañana a las {{2}}. Si necesitás reprogramar, escribinos. | professionalName, hora |
-| 12 | `nora_user_trabajo_finalizado` | {{1}} indicó que finalizó el trabajo. ¿Cómo quedó? Respondé: conforme, con observaciones o no conforme. | professionalName |
-| 13 | `nora_user_horario_alternativo` | {{1}} propone el {{2}} como horario alternativo. ¿Te viene bien? Respondé Sí o No. | professionalName, fechaHora |
-| 14 | `nora_user_profesional_cancelado` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | ninguno |
-| 15 | `nora_user_visita_confirmada` | {{1}} confirmó la visita para el {{2}} a las {{3}}. Indicá tu dirección exacta para que pueda encontrarte. | professionalName, día, hora |
-| 16 | `nora_user_profesional_cancelo` | El profesional asignado a tu pedido canceló. Estamos buscando otro disponible. | ninguno |
+| 9 | `nora_user_sin_profesional` | No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde. | ninguno |
+| 10 | `nora_user_visita_recordatorio` | Recordatorio: {{1}} visita tu domicilio mañana a las {{2}}. Si necesitás reprogramar, escribinos. | professionalName, hora |
+| 11 | `nora_user_trabajo_finalizado` | {{1}} indicó que finalizó el trabajo. ¿Cómo quedó? Respondé: conforme, con observaciones o no conforme. | professionalName |
+| 12 | `nora_user_horario_alternativo` | {{1}} propone el {{2}} como horario alternativo. ¿Te viene bien? Respondé Sí o No. | professionalName, fechaHora |
+| 13 | `nora_user_visita_confirmada` | {{1}} confirmó la visita para el {{2}} a las {{3}}. Indicá tu dirección exacta para que pueda encontrarte. | professionalName, día, hora |
+| 14 | `nora_user_reasignando_por_negociacion` | {{1}} no puede en ese horario. Estamos buscando otro profesional. | professionalName |
+| 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | ninguno |
+| 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | ninguno |
 
-*Nota: Las templates 8, 9, 17, 18, 19 listadas en el issue (profesionales: `nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`; usuarios: `nora_user_horario_propuesto_pro`, `nora_user_reasignando_por_negociacion`) están definidas pero aún no tienen punto de consumo en el código.*
+*Nota: Las templates 17, 18 (`nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`) y 19-20 (templates de profesional para finalización y calificación) están definidas pero aún no tienen punto de consumo en el código. Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223.*
 
 **Método `sendWithWindowCheck()` presente en 3 servicios:**
 
