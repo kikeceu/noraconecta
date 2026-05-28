@@ -315,14 +315,17 @@ export class WhatsAppAdapter {
     folder: string,
     role: WhatsAppRole,
   ): Promise<string> {
-    const { token } = this.getCredentials(role);
+    const { token, phoneNumberId } = this.getCredentials(role);
+    const isKapso = this.baseUrl.includes('kapso.ai');
 
-    const mediaRes = await fetch(
-      `${this.baseUrl}/${this.apiVersion}/${mediaId}`,
-      {
-        headers: this.getAuthHeaders(token),
-      },
-    );
+    let metaUrl = `${this.baseUrl}/${this.apiVersion}/${mediaId}`;
+    if (isKapso) {
+      metaUrl += `?phone_number_id=${phoneNumberId}`;
+    }
+
+    const mediaRes = await fetch(metaUrl, {
+      headers: this.getAuthHeaders(token),
+    });
 
     if (!mediaRes.ok) {
       throw new Error(
@@ -333,15 +336,23 @@ export class WhatsAppAdapter {
     const mediaData = (await mediaRes.json()) as {
       url: string;
       mime_type: string;
+      download_url?: string;
     };
 
     if (!mediaData.url) {
       throw new Error('Media URL not found in Meta response');
     }
 
-    const fileRes = await fetch(mediaData.url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const downloadUrl =
+      isKapso && mediaData.download_url
+        ? mediaData.download_url
+        : mediaData.url;
+    const downloadHeaders =
+      isKapso && mediaData.download_url
+        ? {}
+        : { Authorization: `Bearer ${token}` };
+
+    const fileRes = await fetch(downloadUrl, { headers: downloadHeaders });
 
     if (!fileRes.ok) {
       throw new Error(
