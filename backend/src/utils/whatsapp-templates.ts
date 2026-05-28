@@ -13,9 +13,6 @@ export const TEMPLATE_PRO_RECORDATORIO_PEDIDO = 'nora_pro_recordatorio_pedido';
 /** Template 3 — Reminder: visit scheduled for tomorrow */
 export const TEMPLATE_PRO_VISITA_RECORDATORIO = 'nora_pro_visita_recordatorio';
 
-/** Template 4 — User cancelled the request */
-export const TEMPLATE_PRO_PEDIDO_CANCELADO = 'nora_pro_pedido_cancelado';
-
 /** Template 5 — Membership activated with a pending request */
 export const TEMPLATE_PRO_MEMBRESIA_ACTIVADA_CON_PEDIDO = 'nora_pro_membresia_activada_con_pedido';
 
@@ -39,6 +36,15 @@ export const TEMPLATE_PRO_CHECK_FINALIZACION_ULTIMO = 'nora_pro_check_finalizaci
 
 /** Template 23 — Ask professional to rate the user */
 export const TEMPLATE_PRO_PEDIR_CALIFICACION_USUARIO = 'nora_pro_pedir_calificacion_usuario';
+
+/** User cancelled the request without a confirmed visit */
+export const TEMPLATE_PRO_USUARIO_CANCELO_PEDIDO = 'nora_pro_usuario_cancelo_pedido';
+
+/** User cancelled with a confirmed visit */
+export const TEMPLATE_PRO_USUARIO_CANCELO_VISITA = 'nora_pro_usuario_cancelo_visita';
+
+/** Visit confirmed to the professional without GPS coordinates */
+export const TEMPLATE_PRO_VISITA_CONFIRMADA = 'nora_pro_visita_confirmada';
 
 // ── User templates (phone number 7668) ──────────────────────────────────
 
