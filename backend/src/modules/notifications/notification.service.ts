@@ -1,6 +1,7 @@
 import { BotRole } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
+import { formatDateTimeArgentina } from '../../utils/date-utils';
 import { BotRepository } from '../bot/bot.repository';
 
 export interface ProfessionalInfo {
@@ -46,7 +47,7 @@ export class NotificationService {
     professional: ProfessionalInfo,
     request: RequestBasicInfo,
   ): Promise<void> {
-    const message = `¡Buenas noticias! ${professional.name} aceptó tu pedido de ${request.categoryName}. Te vamos a coordinar la visita por acá.`;
+    const message = `¡${professional.name} aceptó tu pedido de ${request.categoryName}! 🎉 Para coordinar la visita, indicanos qué día y horario te viene bien. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`;
 
     await this.sendWithWindowCheck(
       user.phone,
@@ -144,19 +145,6 @@ export class NotificationService {
     }
   }
 
-  async notifyUserReassigning(user: UserInfo): Promise<void> {
-    const message =
-      'Seguimos buscando el profesional ideal para tu pedido. Te avisamos en cuanto confirmemos.';
-
-    await this.sendWithWindowCheck(
-      user.phone,
-      'USER',
-      message,
-      'nora_user_buscando_profesional',
-      [],
-    );
-  }
-
   async notifyUserNoResponse(user: UserInfo): Promise<void> {
     const message =
       'No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde.';
@@ -203,14 +191,29 @@ export class NotificationService {
   async notifyUserProfessionalCancelled(
     user: UserInfo,
     message: string,
+    hadConfirmedVisit: boolean,
+    scheduledAt: Date | null,
+    professionalName: string,
+    categoryName: string,
   ): Promise<void> {
-    await this.sendWithWindowCheck(
-      user.phone,
-      'USER',
-      message,
-      'nora_user_profesional_cancelado',
-      [],
-    );
+    if (hadConfirmedVisit && scheduledAt) {
+      const formattedDate = formatDateTimeArgentina(scheduledAt);
+      await this.sendWithWindowCheck(
+        user.phone,
+        'USER',
+        message,
+        'nora_user_pro_cancelo_visita',
+        [professionalName, categoryName, formattedDate],
+      );
+    } else {
+      await this.sendWithWindowCheck(
+        user.phone,
+        'USER',
+        message,
+        'nora_user_pro_cancelo_pedido',
+        [professionalName, categoryName],
+      );
+    }
   }
 
   private async sendWithWindowCheck(

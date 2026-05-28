@@ -63,6 +63,7 @@ export class CoordinationService {
       include: {
         user: { select: { name: true, phone: true } },
         assignedProfessional: { select: { name: true } },
+        category: { select: { name: true } },
       },
     });
 
@@ -72,18 +73,19 @@ export class CoordinationService {
     if (!userPhone) return;
 
     const professionalName = request.assignedProfessional?.name || 'El profesional';
+    const categoryName = request.category?.name || 'el servicio';
 
     const message =
-      `El profesional ${professionalName} indicó que finalizó el trabajo.\n` +
-      `¿Cómo quedó?\n\n` +
-      `Respondé: "conforme", "con observaciones" o "no conforme"`;
+      `${professionalName}, tu ${categoryName}, indicó que finalizó el trabajo.\n` +
+      `¿Cómo te fue?\n\n` +
+      `1. Conforme\n2. Con observaciones\n3. No conforme`;
 
     await this.sendWithWindowCheck(
       userPhone,
       'USER',
       message,
       'nora_user_trabajo_finalizado',
-      [professionalName],
+      [professionalName, categoryName],
     );
 
     const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
@@ -404,12 +406,10 @@ export class CoordinationService {
         const userMessage =
           'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
 
-        await this.sendWithWindowCheck(
+        await this.whatsappAdapter.sendText(
           request.user.phone,
-          'USER',
           userMessage,
-          'nora_user_horario_alternativo',
-          [request.assignedProfessional?.name || 'El profesional', scheduleText],
+          'USER',
         );
 
         await this.botRepository.upsert(request.user.phone, {
@@ -464,18 +464,19 @@ export class CoordinationService {
 
       if (request.user?.phone) {
         const professionalName = request.assignedProfessional?.name || 'El profesional';
+        const categoryName = request.category?.name || 'el servicio';
         const availability = clientAvailability || 'ese horario';
 
         const alternativeText = formatDateTimeArgentina(scheduledAt);
 
-        const userMessage = `${professionalName} no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+        const userMessage = `${professionalName}, tu ${categoryName}, no puede ${availability}. Propone el ${alternativeText}. ¿Te viene bien?\n1. Sí\n2. No`;
 
         await this.sendWithWindowCheck(
           request.user.phone,
           'USER',
           userMessage,
           'nora_user_horario_alternativo',
-          [professionalName, alternativeText],
+          [professionalName, categoryName, alternativeText],
         );
 
         await this.botRepository.upsert(request.user.phone, {
@@ -519,20 +520,21 @@ export class CoordinationService {
 
     if (request.user?.phone) {
       const professionalName = request.assignedProfessional?.name || 'El profesional';
+      const categoryName = request.category?.name || 'el servicio';
 
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       const dayName = dayNames[getDayArgentina(scheduledAt)];
       const hours2 = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
       const minutes2 = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
-      const userMessage = `${professionalName} llega el ${dayName} a las ${hours2}:${minutes2}. Para que pueda encontrarte, respondé con tu dirección exacta (calle, número, piso/depto, referencia de acceso) y compartí tu ubicación desde WhatsApp.`;
+      const userMessage = `¡Buenas noticias! ${professionalName}, tu ${categoryName}, confirmó la visita para el ${dayName} a las ${hours2}:${minutes2}. Para que pueda encontrarte, indicanos tu dirección exacta.`;
 
       await this.sendWithWindowCheck(
         request.user.phone,
         'USER',
         userMessage,
         'nora_user_visita_confirmada',
-        [professionalName, dayName, `${hours2}:${minutes2}`],
+        [professionalName, categoryName, dayName, `${hours2}:${minutes2}`],
       );
 
       await this.botRepository.upsert(request.user.phone, {

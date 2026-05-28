@@ -619,10 +619,9 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 | `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
 | `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout)|
 | `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2)       |
-| `notifyUserReassigning()`           | Notifica al usuario que se está buscando otro profesional             |
 | `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible         |
 | `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló el pedido             |
-| `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido              |
+| `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido; usa template distinto según si había visita confirmada |
 
 **Lógica de negocio:**
 - Todos los métodos capturan errores de envío y loguean sin propagar la excepción
@@ -652,12 +651,12 @@ Número profesional: 7665 / Número usuario: 7668
 | 8 | `nora_user_pedido_aceptado` | ¡Buenas noticias! {{1}} aceptó tu pedido de {{2}}. Te vamos a coordinar la visita. | professionalName, categoryName |
 | 9 | `nora_user_sin_profesional` | No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde. | ninguno |
 | 10 | `nora_user_visita_recordatorio` | Recordatorio: {{1}} visita tu domicilio mañana a las {{2}}. Si necesitás reprogramar, escribinos. | professionalName, hora |
-| 11 | `nora_user_trabajo_finalizado` | {{1}} indicó que finalizó el trabajo. ¿Cómo quedó? Respondé: conforme, con observaciones o no conforme. | professionalName |
-| 12 | `nora_user_horario_alternativo` | {{1}} propone el {{2}} como horario alternativo. ¿Te viene bien? Respondé Sí o No. | professionalName, fechaHora |
-| 13 | `nora_user_visita_confirmada` | {{1}} confirmó la visita para el {{2}} a las {{3}}. Indicá tu dirección exacta para que pueda encontrarte. | professionalName, día, hora |
-| 14 | `nora_user_reasignando_por_negociacion` | {{1}} no puede en ese horario. Estamos buscando otro profesional. | professionalName |
-| 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | ninguno |
-| 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | ninguno |
+| 11 | `nora_user_trabajo_finalizado` | {{1}}, tu {{2}}, indicó que finalizó el trabajo. ¿Cómo te fue? | professionalName, categoryName |
+| 12 | `nora_user_horario_alternativo` | {{1}}, tu {{2}}, no puede {{3}}. Propone el {{4}}. ¿Te viene bien? | professionalName, categoryName, availability, fechaHora |
+| 13 | `nora_user_visita_confirmada` | {{1}}, tu {{2}}, confirmó la visita para el {{3}} a las {{4}}. Para que pueda encontrarte, indicanos tu dirección exacta. | professionalName, categoryName, día, hora |
+| 14 | `nora_user_reasignando_por_negociacion` | No pudimos coordinar un horario con {{1}}, tu {{2}}. Estamos buscando otro profesional disponible para tu pedido. | professionalName, categoryName |
+| 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | professionalName, categoryName |
+| 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | professionalName, categoryName, fechaHora |
 
 *Nota: Las templates 17, 18 (`nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`) y 19-20 (templates de profesional para finalización y calificación) están definidas pero aún no tienen punto de consumo en el código. Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223.*
 
@@ -671,9 +670,34 @@ Número profesional: 7665 / Número usuario: 7668
 - `notification.service.ts` — `sendWithWindowCheck()` + 8 templates asignadas a métodos públicos
 - `coordination.service.ts` — `sendWithWindowCheck()` + 6 templates para confirmVisit/sendReminders/notifyWorkFinished
 - `payments.service.ts` — `sendWithWindowCheck()` + 3 templates (upgrade, membresía activada con/sin pedido) + `APP_URL` para link de planes
-- `requests.controller.ts` — window check en `cancelByProfessional` con `nora_user_profesional_cancelo`
+- `requests.controller.ts` — `cancelByProfessional` usa `nora_user_pro_cancelo_pedido` o `nora_user_pro_cancelo_visita` según `hadConfirmedVisit`
 - `requests.repository.ts` — `findWaitingRequestForProfessional` incluye `category.name` y `geoNode.name` para params de template
 - `backend/.env` / `.env.example` — `APP_URL` configurado para link de planes en `payments.service.ts`
+
+### AUT-224 — Ajustes de lógica de bot para templates de usuario rediseñados
+
+Alineación de textos, parámetros y casos de uso con los templates rediseñados en AUT-223.
+
+**Cambios en `notification.service.ts`:**
+- `notifyUserRequestAccepted`: texto actualizado para incluir instrucciones de formato de fecha/hora
+- `notifyUserProfessionalCancelled`: firma extendida con `hadConfirmedVisit`, `scheduledAt`, `professionalName`, `categoryName`; usa `nora_user_pro_cancelo_visita` o `nora_user_pro_cancelo_pedido` según el caso
+
+**Cambios en `coordination.service.ts`:**
+- `notifyWorkFinished`: incluye `category` en la query; parámetros `[professionalName, categoryName]` y texto actualizado con opciones numeradas
+- `confirmVisit`: bug corregido — mensaje de error de formato inválido no usa template; horario alternativo incluye `categoryName` como parámetro y opciones numeradas; visita confirmada incluye `categoryName` como parámetro
+
+**Cambios en `coordination.flow.ts`:**
+- Todas las opciones presentadas al usuario ahora están numeradas (`1. Sí\n2. No`, `1. Confirmo\n2. Cancelar`)
+- Paso de negociación agotada: mensaje actualizado con nombre del profesional y categoría para el template `nora_user_reasignando_por_negociacion`
+
+**Cambios en `requests.controller.ts`:**
+- `cancelByProfessional`: usa `nora_user_pro_cancelo_visita` (con `professionalName`, `categoryName`, `formattedDate`) cuando hay visita confirmada, o `nora_user_pro_cancelo_pedido` (con `professionalName`, `categoryName`) en caso contrario
+
+**Cambios en `requests.service.ts`:**
+- `cancelByProfessional`: agrega `professionalName` y `categoryName` al retorno
+
+**Cambios en `user-request.flow.ts` y `feedback.flow.ts`:**
+- Todas las opciones presentadas al usuario ahora están numeradas (`1. Conforme\n2. Con observaciones\n3. No conforme`, `1. Sí\n2. No`, etc.)
 
 ### Notifications (AUT-199)
 
@@ -1711,7 +1735,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `submitFeedback`: solo para pedidos COMPLETED; un solo feedback por pedido → 409 si ya existe
 - Timeout job (dos etapas, AUT-177, AUT-195): 
   - **Etapa 1 — Recordatorio (entre 60 y 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 minutos atrás cuyo profesional asignado no tenga `reminderSentAt` en su `BotSession`. Registra `reminderSentAt` y envía WhatsApp inmediato al profesional via `NotificationService.notifyProfessionalReminder()`. Si `NotificationService` no está disponible, loggea el mensaje como fallback.
-  - **Etapa 2 — Reasignación (más de 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` > 90 minutos atrás. Crea evento `NO_RESPONSE` para el profesional actual y limpia su `reminderSentAt`. Excluye al profesional vencido + rejectores previos y reasigna. Si hay nuevo candidato → notifica al nuevo profesional (`notifyProfessionalReassigned`) y al usuario (`notifyUserReassigning`). Si no hay candidatos → `NO_RESPONSE` + notifica al usuario (`notifyUserNoResponse`).
+  - **Etapa 2 — Reasignación (más de 90 minutos sin respuesta):** Busca pedidos ASSIGNED con `updatedAt` > 90 minutos atrás. Crea evento `NO_RESPONSE` para el profesional actual y limpia su `reminderSentAt`. Excluye al profesional vencido + rejectores previos y reasigna. Si hay nuevo candidato → notifica al nuevo profesional (`notifyProfessionalReassigned`). Si no hay candidatos → `NO_RESPONSE` + notifica al usuario (`notifyUserNoResponse`).
   - El cron corre cada 15 minutos (`*/15 * * * *`).
 - Auto-complete job: busca PENDING_CONFIRMATION con `updatedAt < now() - AUTO_COMPLETE_HOURS` (default: 24h) → COMPLETED + evento con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. El cron corre cada hora (`node-cron` en `server.ts`). No dispara flujo de calificación.
 - **Reminders job:** busca SCHEDULED con `scheduledAt` entre 23h y 24h en el futuro → envía WhatsApp inmediato a usuario y profesional via `CoordinationService.sendReminders()` (AUT-195). Al profesional lo deja en `COORDINATION/AWAITING_VISIT_CONFIRMATION` para responder `Confirmo` o `Cancelar`; si cancela, se ejecuta `cancelByProfessional` y se dispara la reasignación (AUT-215). El cron corre cada hora (`node-cron` en `server.ts`).

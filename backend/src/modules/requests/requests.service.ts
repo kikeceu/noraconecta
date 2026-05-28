@@ -1128,16 +1128,6 @@ export class RequestsService {
                 console.error('[RequestsService] Failed to notify professional reassigned:', err);
               });
             }
-
-            const userData = await prisma.user.findUnique({
-              where: { id: request.userId },
-              select: { phone: true, name: true },
-            });
-            if (userData?.phone) {
-              this.notificationService.notifyUserReassigning(userData).catch((err) => {
-                console.error('[RequestsService] Failed to notify user reassigning:', err);
-              });
-            }
           }
         }
 
@@ -1159,12 +1149,19 @@ export class RequestsService {
     userMessage: string;
     hadConfirmedVisit: boolean;
     scheduledAt: Date | null;
+    professionalName: string;
+    categoryName: string;
   }> {
     const request = await this.requestsRepository.findById(requestId);
 
     if (!request) {
       throw new AppError('Request not found', 404);
     }
+
+    const professionalName =
+      ((request as unknown as Record<string, unknown>).assignedProfessional as Record<string, unknown>)?.name as string || 'El profesional';
+    const categoryName =
+      ((request as unknown as Record<string, unknown>).category as Record<string, unknown>)?.name as string || 'el servicio';
 
     if (request.status !== 'ACCEPTED') {
       throw new AppError(
@@ -1274,6 +1271,8 @@ export class RequestsService {
       userMessage,
       hadConfirmedVisit: hasConfirmedVisit,
       scheduledAt,
+      professionalName,
+      categoryName,
     };
   }
 

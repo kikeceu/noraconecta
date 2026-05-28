@@ -636,21 +636,19 @@ export class CoordinationFlow implements FlowHandler {
           const botRepo = new BotRepository();
           const requestsService = new RequestsService(requestsRepo, usersRepo, matchingRepo, botRepo);
 
-          let reassigned = false;
           try {
-            const result = await requestsService.reassignAfterNegotiation(requestId, professionalId);
-            reassigned = true;
+            await requestsService.reassignAfterNegotiation(requestId, professionalId);
             console.log(
-              '[CoordinationFlow] Negotiation exhausted, reassigned:',
-              { requestId, professionalId, newStatus: result?.status },
+              '[CoordinationFlow] Negotiation exhausted, reassigning:',
+              { requestId, professionalId },
             );
           } catch (err) {
             console.error('[CoordinationFlow] Failed to reassign after negotiation:', err);
           }
 
-          const message = reassigned
-            ? `No pudimos coordinar un horario con ${professionalName}. Buscamos otro profesional disponible.`
-            : `No pudimos coordinar un horario con ${professionalName}. Voy a buscar otro profesional para tu pedido.`;
+          const professionalName = (tempData.professionalName as string) || 'el profesional';
+          const categoryName = (tempData.categoryName as string) || 'el servicio';
+          const message = `No pudimos coordinar un horario con ${professionalName}, tu ${categoryName}. Estamos buscando otro profesional disponible para tu pedido.`;
 
           return {
             response: {
@@ -706,7 +704,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: `${professionalName} propone ${alternativeText}. ¿Te viene bien? (Respondé "Sí" o "No")`,
+        text: `${professionalName} propone ${alternativeText}. ¿Te viene bien?\n1. Sí\n2. No`,
       },
       nextStep: 'AWAITING_USER_CONFIRMATION',
       tempData,
@@ -880,7 +878,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: 'No entendí. Respondé "Confirmo" para confirmar o "Cancelar" si no podés asistir.',
+        text: 'No entendí. Respondé:\n1. Confirmo\n2. Cancelar',
       },
       nextStep: 'AWAITING_VISIT_CONFIRMATION',
       tempData,
