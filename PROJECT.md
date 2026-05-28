@@ -32,7 +32,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-223)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -644,7 +644,7 @@ Número profesional: 7665 / Número usuario: 7668
 | 1 | `nora_pro_nuevo_pedido` | Tenés un nuevo pedido de {{1}} en {{2}}. Ingresá a tu panel para aceptarlo o rechazarlo. | categoryName, zoneName |
 | 2 | `nora_pro_recordatorio_pedido` | Tenés un pedido pendiente de respuesta. Aceptalo o rechazalo desde tu panel antes de que venza el tiempo. | ninguno |
 | 3 | `nora_pro_visita_recordatorio` | Recordatorio: mañana a las {{1}} tenés visita en {{2}}. ¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir. | hora, dirección |
-| 4 | `nora_pro_pedido_cancelado` | El usuario canceló el pedido. Quedás disponible para nuevas asignaciones. | ninguno |
+| 4 | `nora_pro_pedido_cancelado` | ~~El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.~~ (eliminada en AUT-225, template huérfana) | ninguno |
 | 5 | `nora_pro_membresia_activada_con_pedido` | ¡Tu membresía fue activada! El pedido de {{1}} en {{2}} ya está asignado a vos. Aceptalo o rechazalo desde tu panel. | categoryName, zoneName |
 | 6 | `nora_pro_membresia_activada` | ¡Tu membresía fue activada! Ya podés recibir pedidos en NORA. | ninguno |
 | 7 | `nora_pro_upgrade_membresia` | Hay un pedido de {{1}} en {{2}} esperándote. Activá tu membresía para recibirlo: {{3}} | categoryName, zoneName, url |
@@ -658,7 +658,7 @@ Número profesional: 7665 / Número usuario: 7668
 | 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | professionalName, categoryName |
 | 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | professionalName, categoryName, fechaHora |
 
-*Nota: Las templates 17, 18 (`nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`) y 19-20 (templates de profesional para finalización y calificación) están definidas pero aún no tienen punto de consumo en el código. Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223.*
+*Nota: Las templates 17, 18 (`nora_pro_visita_confirmada_ubicacion`, `nora_pro_cliente_acepto_horario`) y 19-20 (templates de profesional para finalización y calificación) están definidas pero aún no tienen punto de consumo en el código. Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Tres nuevas constantes de templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido` (usuario canceló sin visita), `nora_pro_usuario_cancelo_visita` (usuario canceló con visita), `nora_pro_visita_confirmada` (visita confirmada sin GPS).*
 
 **Método `sendWithWindowCheck()` presente en 3 servicios:**
 
