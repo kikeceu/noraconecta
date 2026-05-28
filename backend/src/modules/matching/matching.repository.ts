@@ -341,14 +341,16 @@ export class MatchingRepository {
   async findRequestsForReminder(
     nowMinus60: Date,
     nowMinus90: Date,
-  ): Promise<(Request & { assignedProfessional: { phone: string } | null })[]> {
+  ): Promise<(Request & { assignedProfessional: { phone: string; name: string } | null; category: { name: string } | null; geoNode: { name: string } | null })[]> {
     return prisma.request.findMany({
       where: {
         status: 'ASSIGNED',
         updatedAt: { lt: nowMinus60, gt: nowMinus90 },
       },
       include: {
-        assignedProfessional: { select: { phone: true } },
+        assignedProfessional: { select: { phone: true, name: true } },
+        category: { select: { name: true } },
+        geoNode: { select: { name: true } },
       },
     });
   }

@@ -251,7 +251,7 @@ export class RequestsService {
         this.notificationService.notifyUserRequestAccepted(
           fullRequest.user,
           fullRequest.assignedProfessional,
-          { id: fullRequest.id, categoryName: fullRequest.category?.name || 'el servicio' },
+          { id: fullRequest.id, categoryName: fullRequest.category?.name || 'el servicio', zoneName: fullRequest.geoNode?.name || 'tu zona' },
         ).catch((err) => {
           console.error('[RequestsService] Failed to notify user request accepted:', err);
         });
@@ -997,9 +997,12 @@ export class RequestsService {
         await this.botRepository.setReminderSent(phone, 'PROFESSIONAL', now);
 
         if (this.notificationService) {
+          const categoryName = request.category?.name || 'el servicio';
+          const zoneName = request.geoNode?.name || 'tu zona';
+
           await this.notificationService.notifyProfessionalReminder(
-            { phone, name: '' },
-            { id: request.id, categoryName: '' },
+            { phone, name: request.assignedProfessional?.name || '' },
+            { id: request.id, categoryName, zoneName },
           );
         } else {
           const message =

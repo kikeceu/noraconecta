@@ -285,6 +285,7 @@ export class RequestsRepository {
         assignedProfessional: { select: { name: true, phone: true } },
         user: { select: { name: true, phone: true } },
         category: { select: { name: true } },
+        geoNode: { select: { name: true } },
       },
     });
   }

@@ -6,6 +6,7 @@ import { RequestsRepository } from '../../requests/requests.repository';
 import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
+import { CoordinationService } from '../coordination.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption } from './option-resolver.helper';
 
@@ -14,7 +15,10 @@ const MAX_NEGOTIATION_ROUNDS = 3;
 export class CoordinationFlow implements FlowHandler {
   readonly flowName = 'COORDINATION';
 
-  constructor(private readonly requestsService: RequestsService) {}
+  constructor(
+    private readonly requestsService: RequestsService,
+    private readonly coordinationService: CoordinationService,
+  ) {}
 
   getInitialStep(): string {
     return 'AWAITING_AVAILABILITY';
@@ -578,6 +582,7 @@ export class CoordinationFlow implements FlowHandler {
       if (resolved === 'YES') {
         const alternativeScheduledAt = new Date(tempData.alternativeScheduledAt as string);
         const professionalName = (tempData.professionalName as string) || 'El profesional';
+        const userName = (tempData.userName as string) || 'el usuario';
 
         await prisma.request.update({
           where: { id: requestId },
@@ -592,7 +597,15 @@ export class CoordinationFlow implements FlowHandler {
         const hours = getHoursArgentina(alternativeScheduledAt).toString().padStart(2, '0');
         const minutes = getMinutesArgentina(alternativeScheduledAt).toString().padStart(2, '0');
 
-        const professionalMessage = `El cliente aceptó el ${dayName} a las ${hours}:${minutes}. Visita confirmada.`;
+        this.coordinationService.notifyProfessionalClientAcceptedSchedule(
+          tempData.professionalPhone as string,
+          userName,
+          dayName,
+          hours,
+          minutes,
+        ).catch((err) => {
+          console.error('[CoordinationFlow] Failed to notify professional client accepted:', err);
+        });
 
         const userMessage = `¡Buenísimo! Le confirmo a ${professionalName} la visita para el ${dayName} a las ${hours}:${minutes}.\n\nPor favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
@@ -612,14 +625,6 @@ export class CoordinationFlow implements FlowHandler {
             professionalPhone: tempData.professionalPhone,
             categoryName: tempData.categoryName,
             description: tempData.description,
-            pendingNotification: {
-              targetPhone: tempData.professionalPhone,
-              targetRole: 'PROFESSIONAL',
-              message: professionalMessage,
-              flow: null,
-              step: null,
-              tempData: {},
-            },
           } as Record<string, unknown>,
         };
       }
@@ -750,7 +755,6 @@ export class CoordinationFlow implements FlowHandler {
       where: { id: requestId },
       select: {
         scheduledAt: true,
-        description: true,
         userLatitude: true,
         userLongitude: true,
         user: { select: { name: true, phone: true } },
@@ -758,7 +762,6 @@ export class CoordinationFlow implements FlowHandler {
     });
 
     const scheduledAt = request?.scheduledAt;
-    const userPhone = request?.user?.phone;
 
     let scheduleText = '';
     if (scheduledAt) {
@@ -769,24 +772,20 @@ export class CoordinationFlow implements FlowHandler {
       scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
     }
 
-    const hasUserCoordinates =
-      request?.userLatitude !== null &&
-      request?.userLatitude !== undefined &&
-      request?.userLongitude !== null &&
-      request?.userLongitude !== undefined;
+    const userName = request?.user?.name || 'el usuario';
+    const userPhone = request?.user?.phone || 'No disponible';
 
-    const mapsLink = hasUserCoordinates
-      ? `https://maps.google.com/?q=${request.userLatitude},${request.userLongitude}`
-      : null;
-
-    const professionalMessage =
-      `Visita confirmada ✅\n` +
-      `Cliente: ${request?.user?.name || 'el usuario'}\n` +
-      `Pedido: ${request?.description || 'Sin descripción'}\n` +
-      (scheduleText ? `Día y hora: ${scheduleText}\n` : '') +
-      `Dirección: ${address}\n` +
-      (mapsLink ? `Ubicación: ${mapsLink}\n` : '') +
-      `Teléfono del cliente: ${userPhone || 'No disponible'}`;
+    this.coordinationService.notifyProfessionalVisitConfirmed(
+      tempData.professionalPhone as string,
+      userName,
+      scheduleText,
+      address,
+      userPhone,
+      request?.userLatitude ?? null,
+      request?.userLongitude ?? null,
+    ).catch((err) => {
+      console.error('[CoordinationFlow] Failed to notify professional visit confirmed:', err);
+    });
 
     return {
       response: {
@@ -795,14 +794,6 @@ export class CoordinationFlow implements FlowHandler {
       nextStep: null,
       tempData: {
         requestId,
-        pendingNotification: {
-          targetPhone: tempData.professionalPhone,
-          targetRole: 'PROFESSIONAL',
-          message: professionalMessage,
-          flow: null,
-          step: null,
-          tempData: {},
-        },
       } as Record<string, unknown>,
     };
   }

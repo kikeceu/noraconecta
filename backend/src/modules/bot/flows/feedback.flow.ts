@@ -96,6 +96,22 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     if (resolved === 'PENDING') {
+      const completionAttempt = tempData.completionAttempt as number || 0;
+
+      if (completionAttempt >= 2) {
+        try {
+          await this.requestsService.reportNoncompliance(requestId);
+        } catch {
+          // ignore if already exists
+        }
+
+        return {
+          response: { text: 'Entendido. Derivamos el caso a nuestro equipo para revisarlo.' },
+          nextStep: null,
+          tempData: {},
+        };
+      }
+
       return {
         response: {
           text: 'Entendido. Lo dejamos pendiente y te volvemos a consultar más adelante.',
@@ -307,12 +323,14 @@ export class FeedbackFlow implements FlowHandler {
     const professionalPhone = professionalPhoneFromTemp || request?.assignedProfessional?.phone;
 
     if (professionalPhone) {
+      const userName = (tempData.userName as string) || 'el usuario';
+
       await this.coordinationService.sendMessageWithWindowCheck(
         professionalPhone,
         'PROFESSIONAL',
-        'El usuario ya calificó el trabajo. Del 1 al 5, ¿cómo evaluás al usuario?',
+        `El usuario ya calificó el trabajo. ¿Cómo evaluás a ${userName} del 1 al 5?`,
         'nora_pro_pedir_calificacion_usuario',
-        [],
+        [userName],
       );
 
       await this.botRepository.upsert(professionalPhone, {
