@@ -310,6 +310,59 @@ export class WhatsAppAdapter {
     }
   }
 
+  async sendTemplateWithButton(
+    phone: string,
+    templateName: string,
+    bodyParams: string[],
+    buttonUrlSuffix: string,
+    role: WhatsAppRole,
+  ): Promise<void> {
+    const { token, phoneNumberId } = this.getCredentials(role);
+
+    const res = await fetch(
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          ...this.getAuthHeaders(token),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: 'es_AR' },
+            components: [
+              {
+                type: 'body',
+                parameters: bodyParams.map((p) => ({ type: 'text', text: p })),
+              },
+              {
+                type: 'button',
+                sub_type: 'url',
+                index: 0,
+                parameters: [
+                  { type: 'text', text: buttonUrlSuffix },
+                ],
+              },
+            ],
+          },
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      // eslint-disable-next-line no-console
+      console.error(
+        `[WhatsAppAdapter] sendTemplateWithButton failed: ${res.status} ${body}`,
+      );
+    }
+  }
+
   async downloadAndUploadToR2(
     mediaId: string,
     folder: string,
