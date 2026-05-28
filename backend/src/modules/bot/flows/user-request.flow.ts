@@ -383,7 +383,7 @@ export class UserRequestFlow implements FlowHandler {
       text += `Audio: Si\n`;
     }
 
-    text += `\nConfirmo la busqueda de un profesional? (Si / No)`;
+    text += `\n¿Confirmo la búsqueda de un profesional?\n1. Sí\n2. No`;
     return text;
   }
 
@@ -474,7 +474,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: { text: 'Confirma la busqueda? Responde Si o No', options: ['Si', 'No'] },
+      response: { text: '¿Confirmá la búsqueda?\n1. Sí\n2. No', options: ['Si', 'No'] },
       nextStep: 'CONFIRM',
       tempData,
     };

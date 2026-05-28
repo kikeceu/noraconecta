@@ -9,7 +9,6 @@ import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 import { NotificationService } from '../notifications/notification.service';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
-import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -594,11 +593,24 @@ export class RequestsController {
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
       try {
-        const needsTemplate = await shouldUseTemplate(result.userPhone, 'USER', botRepository);
-        if (needsTemplate) {
-          await whatsappAdapter.sendTemplate(result.userPhone, 'nora_user_profesional_cancelo', [], 'USER');
+        const proName = result.professionalName || 'El profesional';
+        const categoryName = result.categoryName || 'el servicio';
+
+        if (result.hadConfirmedVisit && result.scheduledAt) {
+          const formattedDate = formatDateTimeArgentina(result.scheduledAt);
+          await whatsappAdapter.sendTemplate(
+            result.userPhone,
+            'nora_user_pro_cancelo_visita',
+            [proName, categoryName, formattedDate],
+            'USER',
+          );
         } else {
-          await whatsappAdapter.sendText(result.userPhone, result.userMessage, 'USER');
+          await whatsappAdapter.sendTemplate(
+            result.userPhone,
+            'nora_user_pro_cancelo_pedido',
+            [proName, categoryName],
+            'USER',
+          );
         }
       } catch (err) {
         console.error(

@@ -110,7 +110,7 @@ export class FeedbackFlow implements FlowHandler {
 
     return {
       response: {
-        text: 'No entendí tu respuesta. Respondé "Finalicé" o "Pendiente".',
+        text: 'No entendí tu respuesta.\n1. Finalicé\n2. Pendiente',
       },
       nextStep: 'AWAITING_WORK_COMPLETION',
       tempData,
@@ -145,7 +145,7 @@ export class FeedbackFlow implements FlowHandler {
     if (!resolved) {
       return {
         response: {
-          text: 'Respondé con una opción: "conforme", "con observaciones" o "no conforme".',
+          text: 'Respondé:\n1. Conforme\n2. Con observaciones\n3. No conforme',
         },
         nextStep: 'FEEDBACK_SATISFACTION',
         tempData,
@@ -203,7 +203,7 @@ export class FeedbackFlow implements FlowHandler {
 
     return {
       response: {
-        text: '¿Lo recomendarías? Respondé Sí o No.',
+          text: '¿Lo recomendarías?\n1. Sí\n2. No',
       },
       nextStep: 'FEEDBACK_RECOMMEND',
       tempData: {
@@ -231,7 +231,7 @@ export class FeedbackFlow implements FlowHandler {
 
     if (!resolved) {
       return {
-        response: { text: 'Respondé Sí o No.' },
+        response: { text: '1. Sí\n2. No' },
         nextStep: 'FEEDBACK_RECOMMEND',
         tempData,
       };
@@ -364,7 +364,7 @@ export class FeedbackFlow implements FlowHandler {
 
     return {
       response: {
-        text: '¿Volvería a atenderlo? Respondé Sí o No.',
+        text: '¿Volvería a atenderlo?\n1. Sí\n2. No',
       },
       nextStep: 'FEEDBACK_PRO_RECOMMEND',
       tempData: {
@@ -403,7 +403,7 @@ export class FeedbackFlow implements FlowHandler {
 
     if (!resolved) {
       return {
-        response: { text: 'Respondé Sí o No.' },
+        response: { text: '1. Sí\n2. No' },
         nextStep: 'FEEDBACK_PRO_RECOMMEND',
         tempData,
       };
