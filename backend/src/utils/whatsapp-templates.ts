@@ -45,9 +45,6 @@ export const TEMPLATE_PRO_PEDIR_CALIFICACION_USUARIO = 'nora_pro_pedir_calificac
 /** Template 10 — Professional accepted the request */
 export const TEMPLATE_USER_PEDIDO_ACEPTADO = 'nora_user_pedido_aceptado';
 
-/** Template 11 — Still searching for a professional */
-export const TEMPLATE_USER_BUSCANDO_PROFESIONAL = 'nora_user_buscando_profesional';
-
 /** Template 12 — No professional found */
 export const TEMPLATE_USER_SIN_PROFESIONAL = 'nora_user_sin_profesional';
 
@@ -60,20 +57,14 @@ export const TEMPLATE_USER_TRABAJO_FINALIZADO = 'nora_user_trabajo_finalizado';
 /** Template 15 — Professional proposed alternative schedule */
 export const TEMPLATE_USER_HORARIO_ALTERNATIVO = 'nora_user_horario_alternativo';
 
-/** Template 16 — Professional cancelled the request */
-export const TEMPLATE_USER_PROFESIONAL_CANCELADO = 'nora_user_profesional_cancelado';
-
 /** Template 17 — Visit confirmed: professional name, day, time */
 export const TEMPLATE_USER_VISITA_CONFIRMADA = 'nora_user_visita_confirmada';
-
-/** Template 18 — Professional proposed a schedule (alternative wording) */
-export const TEMPLATE_USER_HORARIO_PROPUESTO_PRO = 'nora_user_horario_propuesto_pro';
 
 /** Template 19 — Reassigning after failed negotiation */
 export const TEMPLATE_USER_REASIGNANDO_POR_NEGOCIACION = 'nora_user_reasignando_por_negociacion';
 
-/** Template 20 — Professional assigned to your request cancelled */
-export const TEMPLATE_USER_PROFESIONAL_CANCELO = 'nora_user_profesional_cancelo';
+/** Profesional cancelled the request without confirmed visit */
+export const TEMPLATE_USER_PRO_CANCELO_PEDIDO = 'nora_user_pro_cancelo_pedido';
 
-/** Template 24 — Ask user to rate the professional */
-export const TEMPLATE_USER_PEDIR_CALIFICACION = 'nora_user_pedir_calificacion';
+/** Profesional cancelled with confirmed visit */
+export const TEMPLATE_USER_PRO_CANCELO_VISITA = 'nora_user_pro_cancelo_visita';
