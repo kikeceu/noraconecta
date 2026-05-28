@@ -45,27 +45,51 @@ function getWhatsappAdapter(): WhatsAppAdapter | null {
   return whatsappAdapter;
 }
 
-function validateHmac(rawBody: Buffer, signatureHeader: string): boolean {
-  const webhookSecret = process.env.WHATSAPP_APP_SECRET;
-  if (!webhookSecret) return false;
+function validateHmac(rawBody: Buffer, req: Request): boolean {
+  const kapsoSignature = req.headers['x-webhook-signature'] as
+    | string
+    | undefined;
+  const metaSignature = req.headers['x-hub-signature-256'] as
+    | string
+    | undefined;
 
-  if (!signatureHeader?.startsWith('sha256=')) return false;
+  if (kapsoSignature) {
+    const webhookSecret = process.env.WHATSAPP_WEBHOOK_SECRET;
+    if (!webhookSecret) return false;
 
-  const expectedSignature = signatureHeader.slice(7);
-  const computedSignature = createHmac('sha256', webhookSecret)
-    .update(rawBody)
-    .digest('hex');
+    const computedSignature = createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
 
-  try {
-    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
-    const computedBuffer = Buffer.from(computedSignature, 'hex');
-    return (
-      expectedBuffer.length === computedBuffer.length &&
-      timingSafeEqual(expectedBuffer, computedBuffer)
-    );
-  } catch {
-    return false;
+    try {
+      const expectedBuffer = Buffer.from(kapsoSignature, 'hex');
+      const computedBuffer = Buffer.from(computedSignature, 'hex');
+      return timingSafeEqual(expectedBuffer, computedBuffer);
+    } catch {
+      return false;
+    }
   }
+
+  if (metaSignature) {
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+    if (!appSecret) return false;
+    if (!metaSignature.startsWith('sha256=')) return false;
+
+    const expectedSignature = metaSignature.slice(7);
+    const computedSignature = createHmac('sha256', appSecret)
+      .update(rawBody)
+      .digest('hex');
+
+    try {
+      const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+      const computedBuffer = Buffer.from(computedSignature, 'hex');
+      return timingSafeEqual(expectedBuffer, computedBuffer);
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 const router = Router();
@@ -101,11 +125,7 @@ router.post('/whatsapp', (req: Request, res: Response) => {
     return;
   }
 
-  const signatureHeader = req.headers['x-hub-signature-256'] as
-    | string
-    | undefined;
-
-  if (!validateHmac(rawBody, signatureHeader || '')) {
+  if (!validateHmac(rawBody, req)) {
     res.status(401).json({
       error: 'Invalid signature',
       statusCode: 401,
