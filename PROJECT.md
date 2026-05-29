@@ -110,11 +110,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks
-│   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein
+│   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
-│   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow
+│   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow (AUT-216)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
