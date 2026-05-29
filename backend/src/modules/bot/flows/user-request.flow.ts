@@ -237,7 +237,7 @@ export class UserRequestFlow implements FlowHandler {
     tempData.categoryId = selected.id;
     tempData.categoryName = selected.name;
 
-    return this.proceedToProvinceStep(tempData);
+    return this.proceedAfterService(tempData);
   }
 
   private async handleAskServiceFreeText(
@@ -271,7 +271,28 @@ export class UserRequestFlow implements FlowHandler {
     tempData.categoryId = nlpResult.match.id;
     tempData.categoryName = nlpResult.match.name;
 
-    return this.proceedToProvinceStep(tempData);
+    return this.proceedAfterService(tempData);
+  }
+
+  private async proceedAfterService(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const zoneMode = await this.configRepository.findByKey('USER_ZONE_SELECTION_MODE');
+    const useZoneList = !zoneMode || zoneMode.value !== 'FREE_TEXT';
+
+    if (useZoneList) {
+      return this.proceedToProvinceStep(tempData);
+    }
+
+    const categoryName = tempData.categoryName as string;
+
+    return {
+      response: {
+        text: `Entendido: ${categoryName}. ¿En qué zona necesitás el servicio? (Ej: Maipú, Godoy Cruz, Capital)`,
+      },
+      nextStep: 'ASK_ZONE',
+      tempData,
+    };
   }
 
   private async proceedToProvinceStep(
@@ -399,6 +420,20 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    const zoneMode = await this.configRepository.findByKey('USER_ZONE_SELECTION_MODE');
+    const useZoneList = !zoneMode || zoneMode.value !== 'FREE_TEXT';
+
+    if (useZoneList) {
+      return this.handleAskZoneList(message, tempData);
+    }
+
+    return this.handleAskZoneFreeText(message, tempData);
+  }
+
+  private async handleAskZoneList(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
     if (!tempData._zonesListed) {
       const provinceId = tempData._provinceId as string;
       const zones = await this.locationsRepository.findActiveChildNodes(provinceId);
@@ -444,6 +479,46 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: { text: `Zona: ${selected.name}. Contame brevemente el problema.` },
+      nextStep: 'ASK_DESCRIPTION',
+      tempData,
+    };
+  }
+
+  private async handleAskZoneFreeText(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = message.text?.trim();
+
+    if (!inputText) {
+      return {
+        response: {
+          text: '¿En qué zona necesitás el servicio? (Ej: Maipú, Godoy Cruz, Capital)',
+        },
+        nextStep: 'ASK_ZONE',
+        tempData,
+      };
+    }
+
+    const nlpResult = await nlpService.resolveZone(inputText);
+
+    if (!nlpResult.match) {
+      return {
+        response: {
+          text: 'No encontré esa zona. ¿Podés indicarme otra? (Ej: Maipú, Godoy Cruz)',
+        },
+        nextStep: 'ASK_ZONE',
+        tempData,
+      };
+    }
+
+    tempData.geoNodeId = nlpResult.match.id;
+    tempData.geoNodeName = nlpResult.match.name;
+
+    return {
+      response: {
+        text: `Zona: ${nlpResult.match.name}. Contame brevemente el problema.`,
+      },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
     };
