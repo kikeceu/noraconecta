@@ -5,7 +5,7 @@ export interface StepOption {
 
 export const STEP_OPTIONS: Record<string, StepOption[]> = {
   AWAITING_ACCEPTANCE: [
-    { value: 'ACCEPT', aliases: ['1', 'aceptar', 'acepto', 'si', 'sí', 'dale', 'ok', 'ver_detalles'] },
+    { value: 'ACCEPT', aliases: ['1', 'aceptar', 'acepto', 'si', 'sí', 'dale', 'ok'] },
     { value: 'REJECT', aliases: ['2', 'rechazar', 'rechazo', 'no', 'no_puedo'] },
   ],
   AWAITING_CONFIRMATION: [
