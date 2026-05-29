@@ -1,10 +1,8 @@
-import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
 import { LocationsRepository } from '../../locations/locations.repository';
-
-const nlpService = new NlpService();
+import prisma from '../../../lib/prisma';
 
 export class ProfessionalRegisterFlow implements FlowHandler {
   readonly flowName = 'PROFESSIONAL_REGISTER';
@@ -93,41 +91,59 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     tempData.name = inputName;
 
-    return {
-      response: { text: 'Cual es tu oficio principal?' },
-      nextStep: 'ASK_SERVICE',
-      tempData,
-    };
+    return this.handleAskService({}, tempData);
   }
 
   private async handleAskService(
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim();
+    if (!tempData._categoryListed) {
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      });
 
-    if (!inputText) {
-      return {
-        response: { text: 'Cual es tu oficio principal? (Ej: plomero, electricista, pintor)' },
-        nextStep: 'ASK_SERVICE',
-        tempData,
-      };
-    }
+      if (categories.length === 0) {
+        return {
+          response: { text: 'No hay categorias disponibles por el momento.' },
+          nextStep: null,
+          tempData,
+        };
+      }
 
-    const nlpResult = await nlpService.resolveCategory(inputText);
+      tempData._availableCategories = categories.map((c) => ({ id: c.id, name: c.name }));
+      tempData._categoryListed = true;
 
-    if (!nlpResult.match) {
+      const list = categories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+
       return {
         response: {
-          text: 'No encontre esa categoria. Podrias ser mas especifico? (Ej: plomero, gasista, albanil)',
+          text: `Cual es tu oficio principal?\n\n${list}\n\nResponde con el numero.`,
         },
         nextStep: 'ASK_SERVICE',
         tempData,
       };
     }
 
-    tempData.categoryId = nlpResult.match.id;
-    tempData.categoryName = nlpResult.match.name;
+    const inputText = message.text?.trim() || '';
+    const availableCategories = tempData._availableCategories as { id: string; name: string }[];
+    const number = parseInt(inputText, 10);
+
+    if (isNaN(number) || number < 1 || number > availableCategories.length) {
+      const list = availableCategories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      return {
+        response: {
+          text: `Elegi un numero entre 1 y ${availableCategories.length}:\n\n${list}`,
+        },
+        nextStep: 'ASK_SERVICE',
+        tempData,
+      };
+    }
+
+    const selected = availableCategories[number - 1];
+    tempData.categoryId = selected.id;
+    tempData.categoryName = selected.name;
 
     const phone = tempData.phone as string;
     const countryId = this.detectCountryId(phone);
@@ -158,7 +174,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Entendido, sos ${nlpResult.match.name}. En que provincia trabajas?\n\n${list}\n\nResponde con el numero.`,
+        text: `Entendido, sos ${selected.name}. En que provincia trabajas?\n\n${list}\n\nResponde con el numero.`,
       },
       nextStep: 'ASK_PROVINCE',
       tempData,
