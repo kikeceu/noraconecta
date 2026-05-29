@@ -72,6 +72,10 @@ export class NotificationService {
       message,
       'nora_pro_recordatorio_pedido',
       [request.categoryName, request.zoneName],
+      [
+        { payload: 'ver_detalles', text: 'Ver detalles' },
+        { payload: 'no_puedo', text: 'No puedo tomarlo' },
+      ],
     );
   }
 
@@ -93,10 +97,14 @@ export class NotificationService {
     );
 
     if (needsTemplate) {
-      await this.whatsappAdapter.sendTemplate(
+      await this.whatsappAdapter.sendTemplateWithQuickReplies(
         professionalPhone,
         'nora_pro_nuevo_pedido',
         [request.categoryName, request.zoneName],
+        [
+          { payload: 'ver_detalles', text: 'Ver los detalles' },
+          { payload: 'no_puedo', text: 'No puedo tomarlo' },
+        ],
         'PROFESSIONAL',
       );
       // Photos and audio are sent after the professional asks for details.
@@ -223,12 +231,17 @@ export class NotificationService {
     text: string,
     templateName: string,
     templateParams: string[],
+    buttons?: Array<{ payload: string; text?: string }>,
   ): Promise<void> {
     try {
       const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
 
       if (needsTemplate) {
-        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        if (buttons) {
+          await this.whatsappAdapter.sendTemplateWithQuickReplies(phone, templateName, templateParams, buttons, role);
+        } else {
+          await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        }
       } else {
         await this.whatsappAdapter.sendText(phone, text, role);
       }

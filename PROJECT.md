@@ -129,7 +129,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226)
+│   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
 │   │   ├── migrations/
@@ -737,6 +737,44 @@ Alineación de textos, parámetros y casos de uso con los templates de profesion
 **Cambios en `requests.repository.ts`:**
 - `findByIdWithCoordination`: incluye `geoNode.name` en la query
 
+### AUT-229 — Soporte de quick reply buttons en templates de WhatsApp
+
+Implementación de botones de quick reply en templates de WhatsApp para reemplazar la necesidad de tipear opciones. El usuario/profesional toca un botón y el sistema interpreta el payload como texto.
+
+**Cambios en `whatsapp-adapter.ts`:**
+- Nueva interfaz `WhatsAppInteractiveMessage` con `type: 'interactive'` y `interactive.button_reply`
+- `parseWebhook`: nuevo caso para mensajes `interactive.button_reply` — mapea `button_reply.id` a `message.text` y `message.buttonPayload` para compatibilidad con `resolveOption`
+- Nuevo método `sendTemplateWithQuickReplies(phone, templateName, bodyParams, buttons, role)`: envía templates con quick reply buttons vía `sub_type: 'quick_reply'` y `type: 'payload'`
+
+**Cambios en `types.ts` (bot/flows):**
+- `IncomingMessage`: agregado campo opcional `buttonPayload?: string`
+
+**Cambios en `option-resolver.helper.ts`:**
+- 8 steps actualizados con payloads de botones como aliases:
+  - `AWAITING_ACCEPTANCE`: `ver_detalles`, `no_puedo`
+  - `AWAITING_USER_CONFIRMATION`: `si_me_viene`, `no_me_viene`
+  - `AWAITING_VISIT_CONFIRMATION`: `confirmo_visita`, `no_puedo_ir`
+  - `AWAITING_WORK_COMPLETION`: `si_finalice`, `no_pude`
+  - `FEEDBACK_SATISFACTION`: `conforme_btn`, `observaciones_btn`, `no_conforme_btn` + numéricos `1`, `2`, `3`
+  - `FEEDBACK_RECOMMEND`: `si_recomiendo`, `no_recomiendo` + numéricos `1`, `2`
+  - `FEEDBACK_PRO_RECOMMEND`: `si_volveria`, `no_volveria` + numéricos `1`, `2`
+
+**Cambios en `sendWithWindowCheck()` (3 servicios):**
+- `NotificationService`, `CoordinationService` y `PaymentsService`: método `sendWithWindowCheck()` acepta parámetro opcional `buttons: Array<{ payload: string; text?: string }>`. Cuando está fuera de ventana de 24hs y hay buttons, usa `sendTemplateWithQuickReplies` en vez de `sendTemplate`.
+
+**Templates con quick reply buttons (8 templates):**
+
+| Template | Botones | Servicio/Método |
+|----------|---------|-----------------|
+| `nora_pro_nuevo_pedido` | `ver_detalles` / `no_puedo` | `NotificationService.notifyProfessionalWithDetails` |
+| `nora_pro_recordatorio_pedido` | `ver_detalles` / `no_puedo` | `NotificationService.notifyProfessionalReminder` |
+| `nora_pro_membresia_activada_con_pedido` | `ver_detalles` / `no_puedo` | `PaymentsService.processPaymentWebhook` |
+| `nora_pro_visita_recordatorio` | `confirmo_visita` / `no_puedo_ir` | `CoordinationService.sendReminders` |
+| `nora_pro_check_finalizacion` | `si_finalice` / `pendiente` | `CoordinationService.checkWorkCompletion` (1er intento) |
+| `nora_pro_check_finalizacion_ultimo` | `si_finalice` / `no_pude` | `CoordinationService.checkWorkCompletion` (2do intento) |
+| `nora_user_trabajo_finalizado` | `conforme_btn` / `observaciones_btn` / `no_conforme_btn` | `CoordinationService.notifyWorkFinished` |
+| `nora_user_horario_alternativo` | `si_me_viene` / `no_me_viene` | `CoordinationService.confirmVisit` |
+
 ### Notifications (AUT-199)
 
 Extensión del módulo de notificaciones para envío de media del pedido al profesional (fotos y audio) con comportamiento adaptativo según ventana de 24hs de WhatsApp.
@@ -1092,6 +1130,8 @@ Proveedor WhatsApp (Kapso o Meta) → POST /webhooks/whatsapp
 | `sendText()`          | Envía texto libre (o template si fuera de ventana de 24hs)                 |
 | `sendImage()`         | Envía imagen por URL pública                                              |
 | `sendTemplate()`      | Envía mensaje de template con parámetros                                  |
+| `sendTemplateWithButton()` | Envía template con botón URL (AUT-226)                                  |
+| `sendTemplateWithQuickReplies()` | Envía template con quick reply buttons (payload) (AUT-229)          |
 | `downloadAndUploadToR2()` | Descarga archivo de Meta → sube a R2 → retorna URL pública           |
 
 **Autenticación saliente adaptable por BSP (AUT-220):**
