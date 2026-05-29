@@ -3,6 +3,7 @@ import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { RequestsService } from '../../requests/requests.service';
 import { PaymentsService } from '../../payments/payments.service';
 import { LocationsRepository } from '../../locations/locations.repository';
+import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
@@ -16,6 +17,7 @@ export class UserRequestFlow implements FlowHandler {
     private readonly requestsService: RequestsService,
     private readonly paymentsService: PaymentsService,
     private readonly locationsRepository: LocationsRepository,
+    private readonly configRepository: ConfigRepository,
   ) {}
 
   private readonly COUNTRY_PHONE_PREFIXES: { prefix: string; countryId: string }[] = [
@@ -125,11 +127,7 @@ export class UserRequestFlow implements FlowHandler {
     const hasName = currentName && currentName !== phone;
 
     if (hasName) {
-      return {
-        response: { text: `Hola ${currentName}! Que tipo de servicio necesitas?` },
-        nextStep: 'ASK_SERVICE',
-        tempData,
-      };
+      return this.handleAskService({}, tempData);
     }
 
     return {
@@ -160,14 +158,89 @@ export class UserRequestFlow implements FlowHandler {
 
     tempData.name = inputName;
 
-    return {
-      response: { text: `Hola ${inputName}! Que tipo de servicio necesitas?` },
-      nextStep: 'ASK_SERVICE',
-      tempData,
-    };
+    return this.handleAskService({}, tempData);
   }
 
   private async handleAskService(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const config = await this.configRepository.findByKey('USER_SERVICE_SELECTION_MODE');
+    const useList = !config || config.value !== 'FREE_TEXT';
+
+    if (useList) {
+      return this.handleAskServiceList(message, tempData);
+    }
+
+    return this.handleAskServiceFreeText(message, tempData);
+  }
+
+  private async handleAskServiceList(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    if (!tempData._categoryListed) {
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      });
+
+      if (categories.length === 0) {
+        return {
+          response: { text: 'No hay categorias disponibles por el momento.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableCategories = categories.map((c) => ({ id: c.id, name: c.name }));
+      tempData._categoryListed = true;
+
+      const list = categories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+
+      return {
+        response: {
+          text: `¿Que tipo de servicio necesitas?\n\n${list}\n\nResponde con el numero.`,
+        },
+        nextStep: 'ASK_SERVICE',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim();
+
+    if (!inputText) {
+      const available = tempData._availableCategories as { id: string; name: string }[];
+      const list = available.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      return {
+        response: {
+          text: `¿Que tipo de servicio necesitas?\n\n${list}\n\nResponde con el numero.`,
+        },
+        nextStep: 'ASK_SERVICE',
+        tempData,
+      };
+    }
+
+    const availableCategories = tempData._availableCategories as { id: string; name: string }[];
+    const number = parseInt(inputText, 10);
+
+    if (isNaN(number) || number < 1 || number > availableCategories.length) {
+      const list = availableCategories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      return {
+        response: { text: `Elegi un numero entre 1 y ${availableCategories.length}:\n\n${list}` },
+        nextStep: 'ASK_SERVICE',
+        tempData,
+      };
+    }
+
+    const selected = availableCategories[number - 1];
+    tempData.categoryId = selected.id;
+    tempData.categoryName = selected.name;
+
+    return this.proceedToProvinceStep(tempData);
+  }
+
+  private async handleAskServiceFreeText(
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
@@ -198,7 +271,14 @@ export class UserRequestFlow implements FlowHandler {
     tempData.categoryId = nlpResult.match.id;
     tempData.categoryName = nlpResult.match.name;
 
+    return this.proceedToProvinceStep(tempData);
+  }
+
+  private async proceedToProvinceStep(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
     const phone = tempData.phone as string;
+    const categoryName = tempData.categoryName as string;
     const countryId = this.detectCountryId(phone);
 
     if (!countryId) {
@@ -227,7 +307,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Entendido: ${nlpResult.match.name}. En que provincia necesitas el servicio?\n\n${list}\n\nResponde con el numero.`,
+        text: `Entendido: ${categoryName}. En que provincia necesitas el servicio?\n\n${list}\n\nResponde con el numero.`,
       },
       nextStep: 'ASK_PROVINCE',
       tempData,

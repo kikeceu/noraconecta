@@ -1009,12 +1009,12 @@ POST /bot/message
 - `ASK_PROVINCE`: procesa selección única por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`), eliminando un paso extra.
 - `ASK_ZONES`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección múltiple por números separados por coma. Acepta números válidos aunque haya inválidos. Los `zoneIds` guardados corresponden a zonas reales de la DB.
 
-**Lógica de flujo USER_REQUEST (ACTUALIZADO AUT-231):**
-- `ASK_SERVICE`: resuelve categoría vía NLP, detecta país por prefijo telefónico, carga provincias activas y las muestra como lista numerada. Redirige a `ASK_PROVINCE`.
+**Lógica de flujo USER_REQUEST (ACTUALIZADO AUT-232):**
+- `ASK_SERVICE`: modo configurable via `USER_SERVICE_SELECTION_MODE`. En modo `LIST` (default): obtiene categorías activas de la DB y las muestra como lista numerada para selección por número. En modo `FREE_TEXT`: mantiene resolución vía NLP (`nlpService.resolveCategory`). Al confirmar categoría, detecta país por prefijo telefónico, carga provincias activas y las muestra como lista numerada. Redirige a `ASK_PROVINCE`.
 - `ASK_PROVINCE`: procesa selección única de provincia por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`).
 - `ASK_ZONE`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección de una sola zona por número. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
 - NLP (`nlpService.resolveZone`) eliminado del flujo de usuario — la zona se selecciona por lista numerada.
-- `UserRequestFlow` recibe `LocationsRepository` por inyección de dependencias (mismo patrón que `ProfessionalRegisterFlow`).
+- `UserRequestFlow` recibe `LocationsRepository` y `ConfigRepository` por inyección de dependencias.
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
 - `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
@@ -1090,13 +1090,14 @@ POST /bot/message
   - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
-### Config (ACTUALIZADO AUT-186)
+### Config (ACTUALIZADO AUT-232)
 
 | Key                            | Default | Descripción                              |
 |-------------------------------|---------|------------------------------------------|
 | `BADGE_MIN_COMPLETED_REQUESTS` | 10     | Mínimo de pedidos completados para badge |
 | `TRIAL_REQUESTS_LIMIT`         | 3      | Máximo de pedidos de prueba por profesional |
 | `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` | 2 | Timeout de respuesta del profesional |
+| `USER_SERVICE_SELECTION_MODE`   | LIST   | Modo de selección de categoría: LIST (numerada) o FREE_TEXT (NLP) |
 | `WORK_COMPLETION_CHECK_HOURS` | 24 | Horas para volver a consultar al profesional si ya venció la visita programada |
 | `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
 | `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
