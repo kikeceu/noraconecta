@@ -775,6 +775,28 @@ Implementación de botones de quick reply en templates de WhatsApp para reemplaz
 | `nora_user_trabajo_finalizado` | `conforme_btn` / `observaciones_btn` / `no_conforme_btn` | `CoordinationService.notifyWorkFinished` |
 | `nora_user_horario_alternativo` | `si_me_viene` / `no_me_viene` | `CoordinationService.confirmVisit` |
 
+### AUT-230 — Correcciones en flujos del bot: bug ver_detalles, opciones numeradas en AWAITING_CONFIRMATION y WAITING_CONSENT
+
+Correcciones de bugs y UX en los flows de coordinación y pedido de usuario.
+
+**Bug `ver_detalles` mapeado incorrectamente en `AWAITING_ACCEPTANCE`:**
+
+El alias `ver_detalles` estaba dentro de `ACCEPT` en `option-resolver.helper.ts`, lo que causaba que al tocar el botón "Ver los detalles" del template de WhatsApp, el bot aceptara el pedido directamente sin mostrar los detalles.
+
+- **`option-resolver.helper.ts`**: removido `'ver_detalles'` de los aliases de `ACCEPT` en `AWAITING_ACCEPTANCE`
+- **`coordination.flow.ts` — `handleAwaitingAcceptance`**: agregado `'ver_detalles'` a la lista de inputs que disparan mostrar detalles
+- **`coordination.flow.ts` — fallback `AWAITING_ACCEPTANCE`**: actualizado a `1. Ver detalles\n2. Rechazar`
+
+**Opciones numeradas en `AWAITING_CONFIRMATION`:**
+
+- **`coordination.flow.ts` — línea 284**: mensaje al profesional ahora incluye opciones numeradas: `\n1. Sí\n2. Proponer otro horario (escribí: DD/MM HH:MM)`
+- **`coordination.flow.ts` — fallback línea 563**: mismo cambio en el mensaje de fallback
+
+**Opciones numeradas en `WAITING_CONSENT`:**
+
+- **`user-request.flow.ts` — primera ocurrencia (~línea 437)**: texto agregado `\n1. Sí\n2. No` al final del mensaje
+- **`user-request.flow.ts` — segunda ocurrencia/fallback (~línea 517)**: mismo cambio
+
 ### Notifications (AUT-199)
 
 Extensión del módulo de notificaciones para envío de media del pedido al profesional (fotos y audio) con comportamiento adaptativo según ventana de 24hs de WhatsApp.

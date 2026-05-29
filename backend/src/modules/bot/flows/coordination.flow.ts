@@ -74,7 +74,7 @@ export class CoordinationFlow implements FlowHandler {
 
     const inputText = message.text?.trim().toLowerCase() || '';
 
-    if (['ver detalles', 'detalle', 'detalles', 'ver pedido'].includes(inputText)) {
+    if (['ver detalles', 'detalle', 'detalles', 'ver pedido', 'ver_detalles'].includes(inputText)) {
       let categoryName = tempData.categoryName as string | undefined;
       let zoneName = tempData.zoneName as string | undefined;
       let description = tempData.description as string | undefined;
@@ -178,7 +178,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: 'Respondé con una opción:\n\n1. Aceptar\n2. Rechazar',
+        text: 'Respondé con una opción:\n\n1. Ver detalles\n2. Rechazar',
       },
       nextStep: 'AWAITING_ACCEPTANCE',
       tempData,
@@ -281,7 +281,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const formattedDate = formatDateTimeArgentina(parsedDate);
 
-      const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede el ${formattedDate}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)`;
+      const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario (escribí: DD/MM HH:MM)`;
 
       return {
         response: {
@@ -560,7 +560,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)`,
+        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario (escribí: DD/MM HH:MM)`,
       },
       nextStep: 'AWAITING_CONFIRMATION',
       tempData,
