@@ -2,6 +2,7 @@ import { NlpService } from '../nlp.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { RequestsService } from '../../requests/requests.service';
 import { PaymentsService } from '../../payments/payments.service';
+import { LocationsRepository } from '../../locations/locations.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
@@ -14,7 +15,21 @@ export class UserRequestFlow implements FlowHandler {
   constructor(
     private readonly requestsService: RequestsService,
     private readonly paymentsService: PaymentsService,
+    private readonly locationsRepository: LocationsRepository,
   ) {}
+
+  private readonly COUNTRY_PHONE_PREFIXES: { prefix: string; countryId: string }[] = [
+    { prefix: '54', countryId: 'cmoojlpis0000mc7g7kxf8z1q' },
+    { prefix: '51', countryId: 'cmopxb2ts0002mcqak2883mvh' },
+  ];
+
+  private detectCountryId(phone: string): string | null {
+    const normalized = phone.replace(/^\+/, '');
+    for (const { prefix, countryId } of this.COUNTRY_PHONE_PREFIXES) {
+      if (normalized.startsWith(prefix)) return countryId;
+    }
+    return null;
+  }
 
   getInitialStep(): string {
     return 'INIT';
@@ -31,6 +46,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
         return this.handleAskService(message, tempData);
+      case 'ASK_PROVINCE':
+        return this.handleAskProvince(message, tempData);
       case 'ASK_ZONE':
         return this.handleAskZone(message, tempData);
       case 'ASK_DESCRIPTION':
@@ -181,9 +198,117 @@ export class UserRequestFlow implements FlowHandler {
     tempData.categoryId = nlpResult.match.id;
     tempData.categoryName = nlpResult.match.name;
 
+    const phone = tempData.phone as string;
+    const countryId = this.detectCountryId(phone);
+
+    if (!countryId) {
+      return {
+        response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+
+    if (provinces.length === 0) {
+      return {
+        response: { text: 'No hay provincias habilitadas por el momento. Intenta mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    tempData._countryId = countryId;
+    tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
+    tempData._provinceListed = true;
+
+    const list = provinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+
     return {
       response: {
-        text: `Entendido: ${nlpResult.match.name}. En que zona necesitas el servicio?`,
+        text: `Entendido: ${nlpResult.match.name}. En que provincia necesitas el servicio?\n\n${list}\n\nResponde con el numero.`,
+      },
+      nextStep: 'ASK_PROVINCE',
+      tempData,
+    };
+  }
+
+  private async handleAskProvince(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    if (!tempData._provinceListed) {
+      const phone = tempData.phone as string;
+      const countryId = this.detectCountryId(phone);
+
+      if (!countryId) {
+        return {
+          response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+
+      if (provinces.length === 0) {
+        return {
+          response: { text: 'No hay provincias habilitadas. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
+      tempData._provinceListed = true;
+
+      const list = provinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+
+      return {
+        response: {
+          text: `En que provincia necesitas el servicio?\n\n${list}\n\nResponde con el numero.`,
+        },
+        nextStep: 'ASK_PROVINCE',
+        tempData,
+      };
+    }
+
+    const inputText = message.text?.trim() || '';
+    const availableProvinces = tempData._availableProvinces as { id: string; name: string }[];
+    const number = parseInt(inputText, 10);
+
+    if (isNaN(number) || number < 1 || number > availableProvinces.length) {
+      const list = availableProvinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+      return {
+        response: { text: `Elegi un numero entre 1 y ${availableProvinces.length}:\n\n${list}` },
+        nextStep: 'ASK_PROVINCE',
+        tempData,
+      };
+    }
+
+    const selected = availableProvinces[number - 1];
+    tempData._provinceId = selected.id;
+    tempData._provinceName = selected.name;
+
+    const zones = await this.locationsRepository.findActiveChildNodes(selected.id);
+
+    if (zones.length === 0) {
+      return {
+        response: { text: 'No hay zonas habilitadas en esa provincia. Intenta mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+    tempData._zonesListed = true;
+
+    const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
+    return {
+      response: {
+        text: `Provincia: ${selected.name}. En que zona exactamente?\n\n${list}\n\nResponde con el numero.`,
       },
       nextStep: 'ASK_ZONE',
       tempData,
@@ -194,31 +319,51 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim();
+    if (!tempData._zonesListed) {
+      const provinceId = tempData._provinceId as string;
+      const zones = await this.locationsRepository.findActiveChildNodes(provinceId);
 
-    if (!inputText) {
+      if (zones.length === 0) {
+        return {
+          response: { text: 'No hay zonas habilitadas en esa provincia. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+      tempData._zonesListed = true;
+
+      const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
       return {
-        response: { text: 'En que zona necesitas el servicio? (Ej: Maipu, Godoy Cruz, Capital)' },
+        response: {
+          text: `En que zona de ${tempData._provinceName} necesitas el servicio?\n\n${list}\n\nResponde con el numero.`,
+        },
         nextStep: 'ASK_ZONE',
         tempData,
       };
     }
 
-    const nlpResult = await nlpService.resolveZone(inputText);
+    const inputText = message.text?.trim() || '';
+    const availableZones = tempData._availableZones as { id: string; name: string }[];
+    const number = parseInt(inputText, 10);
 
-    if (!nlpResult.match) {
+    if (isNaN(number) || number < 1 || number > availableZones.length) {
+      const list = availableZones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
       return {
-        response: { text: 'No encontre esa zona. Podrias indicarme otra? (Ej: Maipu, Godoy Cruz)' },
+        response: { text: `Elegi un numero entre 1 y ${availableZones.length}:\n\n${list}` },
         nextStep: 'ASK_ZONE',
         tempData,
       };
     }
 
-    tempData.geoNodeId = nlpResult.match.id;
-    tempData.geoNodeName = nlpResult.match.name;
+    const selected = availableZones[number - 1];
+    tempData.geoNodeId = selected.id;
+    tempData.geoNodeName = selected.name;
 
     return {
-      response: { text: `Zona: ${nlpResult.match.name}. Contame brevemente el problema` },
+      response: { text: `Zona: ${selected.name}. Contame brevemente el problema.` },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
     };

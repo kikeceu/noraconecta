@@ -70,7 +70,7 @@ const paymentsService = new PaymentsService(
   configRepository,
 );
 
-const userRequestFlow = new UserRequestFlow(requestsService, paymentsService);
+const userRequestFlow = new UserRequestFlow(requestsService, paymentsService, locationsRepository);
 const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository);
 const coordinationFlow = new CoordinationFlow(requestsService, coordinationService);
 const feedbackFlow = new FeedbackFlow(requestsService, botRepository, coordinationService);
