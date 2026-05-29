@@ -1009,18 +1009,17 @@ POST /bot/message
 - `ASK_PROVINCE`: procesa selección única por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`), eliminando un paso extra.
 - `ASK_ZONES`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección múltiple por números separados por coma. Acepta números válidos aunque haya inválidos. Los `zoneIds` guardados corresponden a zonas reales de la DB.
 
-**Lógica de flujo USER_REQUEST (ACTUALIZADO AUT-232):**
-- `ASK_SERVICE`: modo configurable via `USER_SERVICE_SELECTION_MODE`. En modo `LIST` (default): obtiene categorías activas de la DB y las muestra como lista numerada para selección por número. En modo `FREE_TEXT`: mantiene resolución vía NLP (`nlpService.resolveCategory`). Al confirmar categoría, detecta país por prefijo telefónico, carga provincias activas y las muestra como lista numerada. Redirige a `ASK_PROVINCE`.
-- `ASK_PROVINCE`: procesa selección única de provincia por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`).
-- `ASK_ZONE`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección de una sola zona por número. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
-- NLP (`nlpService.resolveZone`) eliminado del flujo de usuario — la zona se selecciona por lista numerada.
+**Lógica de flujo USER_REQUEST (ACTUALIZADO AUT-233):**
+- `ASK_SERVICE`: modo configurable via `USER_SERVICE_SELECTION_MODE`. En modo `LIST` (default): obtiene categorías activas de la DB y las muestra como lista numerada para selección por número. En modo `FREE_TEXT`: mantiene resolución vía NLP (`nlpService.resolveCategory`). Al confirmar categoría, según `USER_ZONE_SELECTION_MODE`: en `LIST` detecta país por prefijo telefónico, carga provincias activas y las muestra como lista numerada redirigiendo a `ASK_PROVINCE`; en `FREE_TEXT` saltea provincia y va directo a `ASK_ZONE` con NLP.
+- `ASK_PROVINCE`: procesa selección única de provincia por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`). Solo se usa en modo `LIST`.
+- `ASK_ZONE`: modo configurable via `USER_ZONE_SELECTION_MODE`. En modo `LIST` (default): las zonas ya están precargadas desde `ASK_PROVINCE`, procesa selección por número. En modo `FREE_TEXT`: resuelve zona vía NLP (`nlpService.resolveZone`), reintenta si no hay match. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
 - `UserRequestFlow` recibe `LocationsRepository` y `ConfigRepository` por inyección de dependencias.
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
 - `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
-**NLP (nlp.service.ts) (ACTUALIZADO AUT-211):**
+**NLP (nlp.service.ts) (ACTUALIZADO AUT-233):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
-- `resolveZone(text)`: ídem para GeoNode (no usado en PROFESSIONAL_REGISTER desde AUT-211 ni en USER_REQUEST desde AUT-231; las zonas se seleccionan por lista numerada)
+- `resolveZone(text)`: ídem para GeoNode (usado en USER_REQUEST cuando `USER_ZONE_SELECTION_MODE = FREE_TEXT`)
 - Retorna `{ match, confidence: 'exact' | 'fuzzy' | 'none' }`
 
 **Flujo de cancelación de pedido por el usuario (AUT-169):**
@@ -1090,7 +1089,7 @@ POST /bot/message
   - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
-### Config (ACTUALIZADO AUT-232)
+### Config (ACTUALIZADO AUT-233)
 
 | Key                            | Default | Descripción                              |
 |-------------------------------|---------|------------------------------------------|
@@ -1098,6 +1097,7 @@ POST /bot/message
 | `TRIAL_REQUESTS_LIMIT`         | 3      | Máximo de pedidos de prueba por profesional |
 | `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` | 2 | Timeout de respuesta del profesional |
 | `USER_SERVICE_SELECTION_MODE`   | LIST   | Modo de selección de categoría: LIST (numerada) o FREE_TEXT (NLP) |
+| `USER_ZONE_SELECTION_MODE`     | LIST   | Modo de selección de zona: LIST (provincia → zona numerada) o FREE_TEXT (NLP) |
 | `WORK_COMPLETION_CHECK_HOURS` | 24 | Horas para volver a consultar al profesional si ya venció la visita programada |
 | `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
 | `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
@@ -1806,6 +1806,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `TRIAL_REQUESTS_LIMIT` define el máximo de pedidos de prueba por profesional (default: 3)
   - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` define el timeout de respuesta del profesional asignado (default: 2)
   - `AUTO_COMPLETE_HOURS` define las horas sin confirmación para auto-completar un pedido (default: 24)
+  - `USER_SERVICE_SELECTION_MODE` define el modo de selección de categoría en el flujo de usuario: `LIST` (numerada, default) o `FREE_TEXT` (NLP)
+  - `USER_ZONE_SELECTION_MODE` define el modo de selección de zona: `LIST` (provincia → zona numerada, default) o `FREE_TEXT` (NLP directo, sin paso de provincia)
   - Las claves de configuración se crean/actualizan vía upsert
 - Motor de matching (ACTUALIZADO AUT-186):
   - Scoring en tiempo real, no persistido en DB
