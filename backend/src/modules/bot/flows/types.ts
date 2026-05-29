@@ -11,6 +11,7 @@ export interface IncomingMessage {
   imageUrls?: string[];
   audioUrl?: string;
   location?: LocationData;
+  buttonPayload?: string;
 }
 
 export interface BotResponse {

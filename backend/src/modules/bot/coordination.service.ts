@@ -84,6 +84,11 @@ export class CoordinationService {
       message,
       'nora_user_trabajo_finalizado',
       [professionalName, categoryName],
+      [
+        { payload: 'conforme_btn', text: 'Conforme' },
+        { payload: 'observaciones_btn', text: 'Con observaciones' },
+        { payload: 'no_conforme_btn', text: 'No conforme' },
+      ],
     );
 
     const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
@@ -180,6 +185,10 @@ export class CoordinationService {
           `¡Hola ${userName}! ¿Cómo te fue con el trabajo en ${address}? ¿Pudiste terminarlo?\n1. Sí, lo finalicé\n2. Todavía está pendiente`,
           'nora_pro_check_finalizacion',
           [address, userName],
+          [
+            { payload: 'si_finalice', text: 'Sí, lo finalicé' },
+            { payload: 'pendiente', text: 'Todavía está pendiente' },
+          ],
         );
 
         await this.botRepository.upsert(professionalPhone, {
@@ -210,6 +219,10 @@ export class CoordinationService {
           `¡Hola ${userName}! Es nuestra última consulta sobre el trabajo en ${address}. ¿Lo pudiste terminar?\n1. Sí, lo finalicé\n2. No pude completarlo`,
           'nora_pro_check_finalizacion_ultimo',
           [address, userName],
+          [
+            { payload: 'si_finalice', text: 'Sí, lo finalicé' },
+            { payload: 'no_pude', text: 'No pude completarlo' },
+          ],
         );
 
         await this.botRepository.upsert(professionalPhone, {
@@ -376,6 +389,10 @@ export class CoordinationService {
           professionalMessage,
           'nora_pro_visita_recordatorio',
           [`${hours}:${minutes}`, userName, address],
+          [
+            { payload: 'confirmo_visita', text: 'Confirmo' },
+            { payload: 'no_puedo_ir', text: 'No puedo ir' },
+          ],
         );
 
         await this.botRepository.upsert(professionalPhone, {
@@ -509,6 +526,10 @@ export class CoordinationService {
           userMessage,
           'nora_user_horario_alternativo',
           [professionalName, categoryName, alternativeText],
+          [
+            { payload: 'si_me_viene', text: 'Sí, me viene bien' },
+            { payload: 'no_me_viene', text: 'No' },
+          ],
         );
 
         await this.botRepository.upsert(request.user.phone, {
@@ -595,12 +616,17 @@ export class CoordinationService {
     text: string,
     templateName: string,
     templateParams: string[],
+    buttons?: Array<{ payload: string; text?: string }>,
   ): Promise<void> {
     try {
       const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
 
       if (needsTemplate) {
-        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        if (buttons) {
+          await this.whatsappAdapter.sendTemplateWithQuickReplies(phone, templateName, templateParams, buttons, role);
+        } else {
+          await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        }
       } else {
         await this.whatsappAdapter.sendText(phone, text, role);
       }

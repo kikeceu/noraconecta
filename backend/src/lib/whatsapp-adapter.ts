@@ -48,11 +48,26 @@ interface WhatsAppLocationMessage {
   location: { latitude: number; longitude: number };
 }
 
+interface WhatsAppInteractiveMessage {
+  from: string;
+  id: string;
+  timestamp: string;
+  type: 'interactive';
+  interactive: {
+    type: 'button_reply';
+    button_reply: {
+      id: string;
+      title: string;
+    };
+  };
+}
+
 type WhatsAppInboundMessage =
   | WhatsAppTextMessage
   | WhatsAppImageMessage
   | WhatsAppAudioMessage
-  | WhatsAppLocationMessage;
+  | WhatsAppLocationMessage
+  | WhatsAppInteractiveMessage;
 
 interface WhatsAppWebhookValue {
   messaging_product: string;
@@ -147,6 +162,14 @@ export class WhatsAppAdapter {
         'request-audio',
         role,
       );
+    }
+
+    if (msg.type === 'interactive') {
+      const interactiveMsg = msg as unknown as WhatsAppInteractiveMessage;
+      if (interactiveMsg.interactive?.type === 'button_reply') {
+        message.text = interactiveMsg.interactive.button_reply.id;
+        message.buttonPayload = interactiveMsg.interactive.button_reply.id;
+      }
     }
 
     return { message, role };
@@ -363,6 +386,58 @@ export class WhatsAppAdapter {
     }
   }
 
+  async sendTemplateWithQuickReplies(
+    phone: string,
+    templateName: string,
+    bodyParams: string[],
+    buttons: Array<{ payload: string; text?: string }>,
+    role: WhatsAppRole,
+  ): Promise<void> {
+    const { token, phoneNumberId } = this.getCredentials(role);
+
+    const buttonComponents = buttons.map((btn, index) => ({
+      type: 'button',
+      sub_type: 'quick_reply',
+      index,
+      parameters: [{ type: 'payload', payload: btn.payload }],
+    }));
+
+    const res = await fetch(
+      `${this.baseUrl}/${this.apiVersion}/${phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          ...this.getAuthHeaders(token),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: 'es_AR' },
+            components: [
+              {
+                type: 'body',
+                parameters: bodyParams.map((p) => ({ type: 'text', text: p })),
+              },
+              ...buttonComponents,
+            ],
+          },
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      // eslint-disable-next-line no-console
+      console.error(
+        `[WhatsAppAdapter] sendTemplateWithQuickReplies failed: ${res.status} ${body}`,
+      );
+    }
+  }
   async downloadAndUploadToR2(
     mediaId: string,
     folder: string,

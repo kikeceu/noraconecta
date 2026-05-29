@@ -245,6 +245,10 @@ export class PaymentsService {
           `¡Tu membresía fue activada! Te asignamos un pedido de la categoría. Aceptalo o rechazalo desde tu panel.`,
           'nora_pro_membresia_activada_con_pedido',
           [matchedRequest.category.name, matchedRequest.geoNode.name],
+          [
+            { payload: 'ver_detalles', text: 'Ver los detalles' },
+            { payload: 'no_puedo', text: 'No puedo tomarlo' },
+          ],
         );
 
         // Notify user via pending message in bot session
@@ -302,12 +306,17 @@ export class PaymentsService {
     text: string,
     templateName: string,
     templateParams: string[],
+    buttons?: Array<{ payload: string; text?: string }>,
   ): Promise<void> {
     try {
       const needsTemplate = await shouldUseTemplate(phone, role as BotRole, this.botRepository);
 
       if (needsTemplate) {
-        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        if (buttons) {
+          await this.whatsappAdapter.sendTemplateWithQuickReplies(phone, templateName, templateParams, buttons, role);
+        } else {
+          await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+        }
       } else {
         await this.whatsappAdapter.sendText(phone, text, role);
       }
