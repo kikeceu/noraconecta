@@ -979,7 +979,7 @@ POST /bot/message
 
 | Flow                    | Estados                                                                 |
 |------------------------|-------------------------------------------------------------------------|
-| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
+| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). Recordatorio pre-visita: AWAITING_VISIT_CONFIRMATION (profesional responde Confirmo/Cancelar). |
 | `FEEDBACK`             | AWAITING_WORK_COMPLETION → FEEDBACK_SATISFACTION → FEEDBACK_RATING → FEEDBACK_RECOMMEND → FEEDBACK_COMMENT → FEEDBACK_PRO_RATING → FEEDBACK_PRO_RECOMMEND |
@@ -1008,12 +1008,19 @@ POST /bot/message
 - `ASK_SERVICE`: resuelve el oficio vía NLP (exacto + Levenshtein). Al encontrar match, detecta país por prefijo telefónico, carga provincias activas y las muestra en el mismo mensaje junto con la confirmación de categoría.
 - `ASK_PROVINCE`: procesa selección única por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`), eliminando un paso extra.
 - `ASK_ZONES`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección múltiple por números separados por coma. Acepta números válidos aunque haya inválidos. Los `zoneIds` guardados corresponden a zonas reales de la DB.
+
+**Lógica de flujo USER_REQUEST (ACTUALIZADO AUT-231):**
+- `ASK_SERVICE`: resuelve categoría vía NLP, detecta país por prefijo telefónico, carga provincias activas y las muestra como lista numerada. Redirige a `ASK_PROVINCE`.
+- `ASK_PROVINCE`: procesa selección única de provincia por número. Al confirmar, carga zonas activas de la provincia y las muestra en el mismo mensaje (`_zonesListed = true`).
+- `ASK_ZONE`: las zonas ya están precargadas desde `ASK_PROVINCE` (`_zonesListed = true`). Procesa selección de una sola zona por número. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
+- NLP (`nlpService.resolveZone`) eliminado del flujo de usuario — la zona se selecciona por lista numerada.
+- `UserRequestFlow` recibe `LocationsRepository` por inyección de dependencias (mismo patrón que `ProfessionalRegisterFlow`).
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
 - `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
 **NLP (nlp.service.ts) (ACTUALIZADO AUT-211):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
-- `resolveZone(text)`: ídem para GeoNode (no usado en PROFESSIONAL_REGISTER desde AUT-211; las zonas se seleccionan por lista numerada)
+- `resolveZone(text)`: ídem para GeoNode (no usado en PROFESSIONAL_REGISTER desde AUT-211 ni en USER_REQUEST desde AUT-231; las zonas se seleccionan por lista numerada)
 - Retorna `{ match, confidence: 'exact' | 'fuzzy' | 'none' }`
 
 **Flujo de cancelación de pedido por el usuario (AUT-169):**
