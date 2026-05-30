@@ -41,6 +41,7 @@ export class BotService {
     };
 
     if (role === 'USER' && (user as { status: string }).status === 'BLOCKED') {
+      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
       return {
         text: 'Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com',
         flow: undefined,
@@ -51,6 +52,7 @@ export class BotService {
     if (role === 'PROFESSIONAL') {
       const professional = await this.professionalsRepository.findByPhone(input.phone);
       if (professional?.status === 'SUSPENDED') {
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
         return {
           text: 'Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com',
           flow: undefined,
@@ -141,6 +143,7 @@ export class BotService {
           });
 
           if (!state.flowName) {
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
             return {
               text: state.responseText,
               flow: undefined,
@@ -239,6 +242,7 @@ export class BotService {
           });
 
           if (!state.flowName) {
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
             return {
               text: state.responseText,
               flow: undefined,
@@ -257,6 +261,7 @@ export class BotService {
 
     const flowHandler = getFlowHandlerByName(session.currentFlow);
     if (!flowHandler) {
+      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
       return {
         text: 'Error interno: flujo no encontrado. Reinicia la conversacion con "hola".',
         flow: undefined,
