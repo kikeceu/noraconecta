@@ -115,7 +115,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
-│   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234)
+│   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + hours — AUT-238)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow (AUT-216)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
@@ -952,6 +952,11 @@ POST /bot/message
 **Soporte de ubicación (WhatsApp location):**
 - `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body
 - Si el proveedor no soporta reenvío de mensajes `location`, se genera un link de Google Maps: `https://maps.google.com/?q={lat},{lng}`
+
+**Flujo PROFESSIONAL_REGISTER — disponibilidad estructurada (AUT-238):**
+- Paso `ASK_AVAILABILITY` reemplazado por flujo interactivo de 5 sub-pasos (ASK_DAYS → ASK_FROM → ASK_TO → CONFIRM → guardar)
+- Guarda `availabilityStructured` (JSON: `{ slots: [{ day, from, to }] }`) y `availability` (texto legible) en `Professional`
+- Confirmación con opción de corregir antes de guardar
 
 **Validación de estado del profesional al iniciar sesión (AUT-193):**
 - Cuando un profesional escribe al canal de profesionales (7665) y no tiene sesión activa en `BotSession`, el bot consulta `ProfessionalsRepository.findByPhone(phone)` antes de arrancar cualquier flujo.
