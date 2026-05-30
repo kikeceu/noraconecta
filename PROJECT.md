@@ -32,7 +32,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH con minutos opcionales) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
 │   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
@@ -278,7 +278,7 @@ src/
 │   └── require-super-admin.ts # SUPERADMIN role guard
 ├── utils/
 │   ├── jwt.ts                 # signToken / verifyToken
-│   ├── date-utils.ts          # parseExactDate + funciones de timezone Argentina (AUT-166, AUT-167)
+│   ├── date-utils.ts          # parseExactDate + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + funciones de timezone Argentina (AUT-166, AUT-167, AUT-237)
 │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp (AUT-171)
 ├── types/
   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -997,12 +997,12 @@ POST /bot/message
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). Recordatorio pre-visita: AWAITING_VISIT_CONFIRMATION (profesional responde Confirmo/Cancelar). |
 | `FEEDBACK`             | AWAITING_WORK_COMPLETION → FEEDBACK_SATISFACTION → FEEDBACK_RATING → FEEDBACK_RECOMMEND → FEEDBACK_COMMENT → FEEDBACK_PRO_RATING → FEEDBACK_PRO_RECOMMEND |
 
-**Parseo de fecha estricto (AUT-166):** Ambos — usuario y profesional — deben escribir en formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00` si se omite). El backend usa `parseExactDate()` (`utils/date-utils.ts`) que valida el regex `^(\d{2})\/(\d{2})\s+(\d{2})(?::(\d{2}))?$` con validación de rangos (día 1-31, mes 1-12, hora 0-23, minuto 0-59), construye la fecha con timezone Argentina (`-03:00`) y rechaza fechas en el pasado. Si el formato no es válido, NORA responde con el mensaje de corrección y se queda en el mismo paso.
+**Parseo de fecha con lenguaje natural (AUT-237):** `parseDateTimeNatural()` (`utils/date-utils.ts`) acepta tanto el formato exacto `DD/MM HH:MM` (mediante `parseExactDate`) como expresiones en lenguaje natural ("mañana a las 4", "el viernes a las 10") usando `callLLM()` como fallback. Si el LLM también falla, retorna `null` y NORA pide aclaración con ejemplos. El formato exacto se evalúa primero para evitar llamadas innecesarias al LLM.
 
 **Flujo de coordinación actualizado (AUT-166):**
 - **`handleAwaitingAcceptance` (AUT-197)**: Profesional responde asignación desde WhatsApp. `resolveOption('AWAITING_ACCEPTANCE', input)` acepta número o alias (`1/aceptar/acepto/sí` o `2/rechazar/rechazo/no`). Si acepta llama `RequestsService.accept()`. Si rechaza llama `RequestsService.reject()`.
-- **`handleAwaitingAvailability`**: Mensaje al usuario en singular: "...indicá un día y horario..." y recordatorio de cancelación: `escribí "cancelar"`. Valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
-- **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseExactDate`. Si no cumple → "El formato no es válido..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
+- **`handleAwaitingAvailability`**: Mensaje al usuario en singular: "...indicá un día y horario..." y recordatorio de cancelación: `escribí "cancelar"`. Valida con `parseDateTimeNatural` (primero exacto, luego LLM). Si no entiende → "No entendí la fecha..." → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
+- **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseDateTimeNatural`. Si no entiende → "No entendí la fecha..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
 - **`CoordinationService.confirmVisit`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Misma lógica de detección de horario alternativo vía `isSameSchedule` (margen 15 min).
 - **`RequestsService.confirmSchedule`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Sin fallback a `clientAvailability`.
 - **Timezone**: `parseExactDate` construye la fecha en zona horaria argentina (`-03:00`). `getDayArgentina`, `getHoursArgentina`, `getMinutesArgentina`, `formatDateTimeArgentina` (`utils/date-utils.ts`) aplican offset UTC-3 al formatear fechas para mostrar.
@@ -1088,6 +1088,28 @@ Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LL
 - Si no hay match, envía prompt al LLM con las opciones disponibles y la respuesta del usuario
 - El LLM debe responder SOLO con el valor exacto de la opción (ej: `ACCEPT`, `YES`, `CONFIRM`) o `"null"` si no está claro
 - Si el LLM falla (API error, timeout, etc.), el sistema cae al mensaje de aclaración tradicional sin interrumpir el flujo
+
+**No modifica** `schema.prisma`.
+
+**Parseo de fecha/hora en lenguaje natural (AUT-237):**
+
+`parseDateTimeNatural()` en `utils/date-utils.ts` permite que usuarios y profesionales escriban fechas en lenguaje natural durante la coordinación de visitas.
+
+**Archivos modificados:**
+- `utils/date-utils.ts`: nueva función exportada `parseDateTimeNatural(input, referenceDate)`. Intenta primero `parseExactDate()` (formato exacto `DD/MM HH:MM`), luego fallback a `callLLM()` para interpretar lenguaje natural. Si ambos fallan, retorna `null`.
+- `coordination.flow.ts`: reemplaza `parseExactDate` por `parseDateTimeNatural` en `handleAwaitingAvailability` (usuario propone horario) y `handleAwaitingConfirmation` (profesional propone horario alternativo). Mensajes de error y prompts actualizados con ejemplos en lenguaje natural ("mañana a las 4", "el viernes a las 10").
+
+**Ejemplos que entiende:**
+- "mañana a las 4" → fecha de mañana, 16:00
+- "el viernes a las 10" → próximo viernes, 10:00
+- "pasado mañana a las 10:30" → fecha correcta, 10:30
+- "20/06 16:00" → formato exacto (sin llamar al LLM)
+- "la semana que viene" → null (ambiguo, pide aclaración)
+
+**Lógica de negocio:**
+- El formato exacto se evalúa primero para evitar latencia innecesaria del LLM
+- Si el LLM falla, la experiencia se degrada al formato exacto (el usuario recibe instrucciones de formato)
+- El mensaje de error ahora incluye ejemplos en lenguaje natural para educar al usuario
 
 **No modifica** `schema.prisma`.
 
@@ -1942,7 +1964,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - El polling del simulador (`useChat`) detecta cambios de `coordinationStatus` y muestra mensajes automáticos: disponibilidad solicitada, horario confirmado, pedido de ubicación, visita coordinada
   - El `POST /bot/message` acepta campo `location: { latitude, longitude }` en el body para simular pines de WhatsApp
   - `negotiationRounds` cuenta la cantidad de rondas de negociación; se resetea a 0 tras reasignación o cuando se retoma el flujo con otro profesional
-  - **Parseo de fecha estricto (AUT-166):** El texto del usuario y profesional debe usar formato `DD/MM HH` o `DD/MM HH:MM` (minutos opcionales, asume `:00`). Se valida con `parseExactDate()` (`utils/date-utils.ts`). Si el formato es inválido, NORA pide corrección y se queda en el mismo paso. Sin dependencia de LLM.
+  - **Parseo de fecha con lenguaje natural (AUT-237):** `parseDateTimeNatural()` acepta formato exacto `DD/MM HH:MM` y expresiones como "mañana a las 4" o "el viernes a las 10" mediante LLM (`callLLM()`). El formato exacto se verifica primero; si falla usa LLM; si ambos fallan pide aclaración.
   - **Timezone Argentina (AUT-167):** Al formatear fechas para mostrar al usuario o profesional, se usan `getDayArgentina`, `getHoursArgentina`, `getMinutesArgentina`, `formatDateTimeArgentina` (`utils/date-utils.ts`) que aplican offset UTC-3. Esto corrige el día de semana y la hora cuando el panel envía fechas en UTC.
 - Todos los cambios de estado (asignación, aceptación, rechazo, cancelación, finalización, no respuesta) registran su `RequestEvent` inmutable
 - Penalizaciones automáticas: 1er NOT_FULFILLED → OBSERVATION, 2do+ → SUSPENDED + alerta. Se ejecutan en la misma transacción que el evento.

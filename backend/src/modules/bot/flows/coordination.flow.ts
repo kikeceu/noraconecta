@@ -1,6 +1,6 @@
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import prisma from '../../../lib/prisma';
-import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
+import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
 import { MatchingRepository } from '../../matching/matching.repository';
@@ -242,12 +242,13 @@ export class CoordinationFlow implements FlowHandler {
       }
 
       const availability = message.text.trim();
-      const parsedDate = parseExactDate(availability);
+      const now = new Date();
+      const parsedDate = await parseDateTimeNatural(availability, now);
 
       if (!parsedDate) {
         return {
           response: {
-            text: 'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)',
+            text: 'No entendí la fecha. Podés escribir "mañana a las 4", "el viernes a las 10" o en formato DD/MM HH:MM (ejemplo: 20/06 16:00)',
           },
           nextStep: 'AWAITING_AVAILABILITY',
           tempData: { ...tempData, negotiationRounds },
@@ -271,7 +272,7 @@ export class CoordinationFlow implements FlowHandler {
         if (hasConflict) {
           return {
             response: {
-              text: 'Ese horario no está disponible para el profesional. Proponé otro día y hora: DD/MM HH:MM (ejemplo: 20/06 16:00)',
+              text: 'Ese horario no está disponible para el profesional. Proponé otro día y hora, por ejemplo "mañana a las 4", "el viernes a las 10" o DD/MM HH:MM (ejemplo: 20/06 16:00)',
             },
             nextStep: 'AWAITING_AVAILABILITY',
             tempData: { ...tempData, negotiationRounds },
@@ -369,8 +370,8 @@ export class CoordinationFlow implements FlowHandler {
     const categoryName = request.category?.name || 'el servicio';
 
     const messageText = negotiationRounds > 0
-      ? `¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`
-      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. Para coordinar la visita, indicá un día y horario en que podés recibir al profesional. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar, escribí "cancelar".`;
+      ? `¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Podés escribir "mañana a las 4", "el viernes a las 10" o DD/MM HH:MM (ejemplo: 20/06 16:00)`
+      : `¡Buenas noticias! ${professionalName} aceptó tu pedido de ${categoryName}. Para coordinar la visita, indicá un día y horario en que podés recibir al profesional. Podés escribir "mañana a las 4", "el viernes a las 10" o en formato DD/MM HH:MM (ejemplo: 20/06 16:00). Si necesitás cancelar, escribí "cancelar".`;
 
     return {
       response: {
@@ -444,12 +445,13 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
-      const newScheduledAt = parseExactDate(scheduleText);
+      const now = new Date();
+      const newScheduledAt = await parseDateTimeNatural(scheduleText, now);
 
       if (!newScheduledAt) {
         return {
           response: {
-            text: 'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 17:00)',
+            text: 'No entendí la fecha. Podés escribir "mañana a las 4", "el viernes a las 10" o en formato DD/MM HH:MM (ejemplo: 20/06 17:00)',
           },
           nextStep: 'AWAITING_CONFIRMATION',
           tempData,
@@ -469,7 +471,7 @@ export class CoordinationFlow implements FlowHandler {
         if (hasConflict) {
           return {
             response: {
-              text: 'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario: DD/MM HH:MM (ejemplo: 20/06 17:00)',
+              text: 'Ya tenés una visita confirmada en ese día y hora. Proponé otro horario, por ejemplo "mañana a las 4", "el viernes a las 10" o DD/MM HH:MM (ejemplo: 20/06 17:00)',
             },
             nextStep: 'AWAITING_CONFIRMATION',
             tempData,
@@ -589,7 +591,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario (escribí: DD/MM HH:MM)`,
+        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario (escribí "mañana a las 4", "el viernes a las 10" o DD/MM HH:MM)`,
       },
       nextStep: 'AWAITING_CONFIRMATION',
       tempData,
@@ -706,7 +708,7 @@ export class CoordinationFlow implements FlowHandler {
 
         return {
           response: {
-            text: `Entendido. ¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`,
+            text: `Entendido. ¿Qué otro día y horario tenés disponible para la visita de ${professionalName} (${categoryName})? Podés escribir "mañana a las 4", "el viernes a las 10" o DD/MM HH:MM (ejemplo: 20/06 16:00)`,
           },
           nextStep: 'AWAITING_AVAILABILITY',
           tempData: {

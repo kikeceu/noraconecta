@@ -1,3 +1,5 @@
+import { callLLM } from '../lib/llm-client';
+
 export function parseExactDate(input: string): Date | null {
   const trimmed = input.trim();
   console.log('[parseExactDate] input:', JSON.stringify(input), 'trimmed:', JSON.stringify(trimmed));
@@ -28,6 +30,37 @@ export function parseExactDate(input: string): Date | null {
   if (date < new Date()) return null;
 
   return date;
+}
+
+export async function parseDateTimeNatural(
+  input: string,
+  referenceDate: Date,
+): Promise<Date | null> {
+  const exact = parseExactDate(input);
+  if (exact) return exact;
+
+  const now = referenceDate.toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  const prompt = `Hoy es ${now}, zona horaria Argentina (UTC-3).
+El usuario escribió: "${input}"
+Interpretá la fecha y hora mencionada y devolvé SOLO un JSON válido sin markdown:
+{"date": "YYYY-MM-DDTHH:MM:00-03:00"}
+Si es ambiguo o no se puede determinar, devolvé:
+{"error": "ambiguo"}`;
+
+  try {
+    const response = await callLLM(prompt);
+    const parsed = JSON.parse(response.trim());
+    if (parsed.error) return null;
+    if (parsed.date) return new Date(parsed.date);
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 const ARGENTINA_OFFSET_MS = 3 * 60 * 60 * 1000;
