@@ -129,12 +129,14 @@ model Category {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  phone     String     @unique
-  name      String
-  status    UserStatus @default(ACTIVE)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                 String     @id @default(cuid())
+  phone              String     @unique
+  name               String
+  status             UserStatus @default(ACTIVE)
+  abuseWarningCount  Int        @default(0)
+  lastAbuseCheckAt   DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   requests    Request[]
   escalations Escalation[]
@@ -165,6 +167,10 @@ model Professional {
   lastAssignedAt        DateTime?
   latitude              Float?
   longitude             Float?
+  availabilityStructured Json?
+  problemTypeStats       Json?
+  abuseWarningCount      Int                @default(0)
+  lastAbuseCheckAt       DateTime?
 
   zones       ProfessionalZone[]
   memberships Membership[]
@@ -250,6 +256,7 @@ model Request {
   waitingActivationSince DateTime?
   userLatitude           Float?
   userLongitude          Float?
+  problemType            String?
 
   events     RequestEvent[]
   feedback   Feedback?
@@ -292,6 +299,8 @@ model Feedback {
   wouldServeAgain        Boolean?
   professionalComment    String?
   ratedByProfessionalAt  DateTime?
+
+  sentimentAnalysis Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

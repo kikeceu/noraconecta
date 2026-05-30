@@ -1522,14 +1522,16 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Relaciones: `professionals` → Professional[], `requests` → Request[]
 
 ### User
-| Columna   | Tipo     | Descripción                     |
-|----------|----------|---------------------------------|
-| id       | CUID     | PK, autogenerado                |
-| phone    | String   | Único, identificador del usuario|
-| name     | String   | Nombre del usuario              |
-| status   | Enum     | ACTIVE \| BLOCKED               |
-| createdAt| DateTime | Autogenerado                    |
-| updatedAt| DateTime | Autogenerado (on update)        |
+| Columna            | Tipo     | Descripción                     |
+|-------------------|----------|---------------------------------|
+| id                | CUID     | PK, autogenerado                |
+| phone             | String   | Único, identificador del usuario|
+| name              | String   | Nombre del usuario              |
+| status            | Enum     | ACTIVE \| BLOCKED               |
+| abuseWarningCount | Int      | Contador de advertencias anti-abuso (default: 0) (AUT-241) |
+| lastAbuseCheckAt  | DateTime?| Última verificación anti-abuso (AUT-241) |
+| createdAt         | DateTime | Autogenerado                    |
+| updatedAt         | DateTime | Autogenerado (on update)        |
 
 - Relaciones: `requests` → Request[], `escalations` → Escalation[]
 
@@ -1554,13 +1556,17 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | criminalRecordUrl    | String?  | URL Cloudflare R2: antecedentes penales |
 | references           | String?  | Referencias laborales                   |
 | presentationVideoUrl | String?  | URL Cloudflare R2: video presentación   |
-| hasBadge             | Boolean  | Insignia de reputación (default: false) |
-| trialRequestsUsed    | Int      | Pedidos de prueba usados (default: 0)   |
-| lastAssignedAt       | DateTime?| Última asignación de pedido             |
-| latitude             | Float?   | Latitud del profesional para matching geográfico |
-| longitude            | Float?   | Longitud del profesional para matching geográfico |
-| createdAt            | DateTime | Autogenerado                            |
-| updatedAt            | DateTime | Autogenerado (on update)                |
+| hasBadge              | Boolean  | Insignia de reputación (default: false) |
+| trialRequestsUsed     | Int      | Pedidos de prueba usados (default: 0)   |
+| lastAssignedAt        | DateTime?| Última asignación de pedido             |
+| latitude              | Float?   | Latitud del profesional para matching geográfico |
+| longitude             | Float?   | Longitud del profesional para matching geográfico |
+| availabilityStructured| Json?    | Slots de disponibilidad estructurada (AUT-241) |
+| problemTypeStats      | Json?    | Mapa tipo → cantidad completados (AUT-241) |
+| abuseWarningCount     | Int      | Contador de advertencias anti-abuso (default: 0) (AUT-241) |
+| lastAbuseCheckAt      | DateTime?| Última verificación anti-abuso (AUT-241) |
+| createdAt             | DateTime | Autogenerado                            |
+| updatedAt             | DateTime | Autogenerado (on update)                |
 
 - Relaciones: `zones` → ProfessionalZone[], `memberships` → Membership[], `requests` → Request[] (@relation "AssignedProfessional"), `events` → RequestEvent[]
 
@@ -1635,6 +1641,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | waitingActivationSince | DateTime? | Timestamp de inicio de espera de activación (24h timeout) (AUT-188) |
 | userLatitude           | Float?    | Latitud de referencia del usuario para matching por proximidad |
 | userLongitude          | Float?    | Longitud de referencia del usuario para matching por proximidad |
+| problemType            | String?   | Clasificación automática con LLM (AUT-241)   |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
@@ -1669,6 +1676,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | wouldServeAgain        | Boolean? | ¿Atendería de nuevo al usuario?                       |
 | professionalComment    | String?  | Comentario del profesional                            |
 | ratedByProfessionalAt  | DateTime?| Fecha de calificación del profesional                  |
+| sentimentAnalysis      | Json?    | Resultado del análisis IA de comentarios (AUT-241)     |
 | createdAt              | DateTime | Autogenerado                                          |
 | updatedAt              | DateTime | Autogenerado (on update)                              |
 
