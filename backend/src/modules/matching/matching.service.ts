@@ -29,11 +29,12 @@ interface ScoringConfig {
   rejectionPenalty: number;
   tendencyWeight: number;
   weightSentiment: number;
+  weightSpecialization: number;
 }
 
 const DEFAULT_WEIGHT_COMPLIANCE = 0.17;
 const DEFAULT_WEIGHT_RESPONSE_RATE = 0.20;
-const DEFAULT_WEIGHT_QUALITY_RATING = 0.15;
+const DEFAULT_WEIGHT_QUALITY_RATING = 0.10;
 const DEFAULT_WEIGHT_PROXIMITY = 0.10;
 const DEFAULT_WEIGHT_RECOMMENDATION = 0.10;
 const DEFAULT_WEIGHT_DISTRIBUTION = 0.05;
@@ -52,6 +53,7 @@ const DEFAULT_BADGE_BONUS = 5;
 const DEFAULT_REJECTION_PENALTY = 10;
 const DEFAULT_TENDENCY_WEIGHT = 0.15;
 const DEFAULT_WEIGHT_SENTIMENT = 0.05;
+const DEFAULT_WEIGHT_SPECIALIZATION = 0.08;
 
 const CONFIG_KEYS = {
   WEIGHT_COMPLIANCE: 'MATCHING_WEIGHT_COMPLIANCE',
@@ -75,6 +77,7 @@ const CONFIG_KEYS = {
   REJECTION_PENALTY: 'MATCHING_REJECTION_PENALTY',
   TENDENCY_WEIGHT: 'MATCHING_TENDENCY_WEIGHT',
   WEIGHT_SENTIMENT: 'MATCHING_WEIGHT_SENTIMENT',
+  WEIGHT_SPECIALIZATION: 'MATCHING_WEIGHT_SPECIALIZATION',
 } as const;
 
 export class MatchingService {
@@ -89,6 +92,7 @@ export class MatchingService {
     excludedProfessionalIds: string[],
     userLatitude: number | null,
     userLongitude: number | null,
+    problemType?: string,
   ): Promise<MatchResult | null> {
     const config = await this.loadScoringConfig();
 
@@ -133,6 +137,7 @@ export class MatchingService {
       userLatitude,
       userLongitude,
       config,
+      problemType,
     );
 
     if (scored.length === 0) {
@@ -205,6 +210,7 @@ export class MatchingService {
     userLat: number | null,
     userLon: number | null,
     config: ScoringConfig,
+    problemType?: string,
   ): Promise<MatchResult[]> {
     const [
       notFulfilled,
@@ -221,6 +227,7 @@ export class MatchingService {
       completionRates,
       avgResponseTimes,
       sentimentScores,
+      problemTypeStats,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents(ids),
       this.matchingRepository.countNoResponseEvents(ids),
@@ -236,6 +243,7 @@ export class MatchingService {
       this.matchingRepository.getCompletionRates(ids),
       this.matchingRepository.getAvgResponseTimes(ids),
       this.matchingRepository.getSentimentScores(ids),
+      this.matchingRepository.getProblemTypeStats(ids),
     ]);
 
     return ids.map((id) => ({
@@ -258,6 +266,8 @@ export class MatchingService {
         completionRates,
         avgResponseTimes,
         sentimentScores,
+        problemTypeStats,
+        problemType,
         config,
       ),
     }));
@@ -317,6 +327,8 @@ export class MatchingService {
       completionRates,
       avgResponseTimes,
       sentimentScores,
+      new Map(),
+      undefined,
       config,
     );
   }
@@ -339,6 +351,8 @@ export class MatchingService {
     completionRates: Map<string, number>,
     avgResponseTimes: Map<string, number>,
     sentimentScores: Map<string, number>,
+    problemTypeStats: Map<string, Record<string, number>>,
+    problemType: string | undefined,
     config: ScoringConfig,
   ): number {
     const compliance = this.computeCompliance(professionalId, notFulfilled, config);
@@ -369,6 +383,11 @@ export class MatchingService {
     const responseTime = this.computeResponseTime(professionalId, avgResponseTimes);
     const hasBadge = badgeStatus.get(professionalId) ?? false;
     const sentiment = this.computeSentiment(professionalId, sentimentScores);
+    const specialization = this.computeSpecialization(
+      professionalId,
+      problemTypeStats,
+      problemType,
+    );
 
     const baseScore =
       compliance * config.weightCompliance +
@@ -381,7 +400,8 @@ export class MatchingService {
       acceptance * config.weightAcceptance +
       completion * config.weightCompletion +
       responseTime * config.weightResponseTime +
-      sentiment * config.weightSentiment;
+      sentiment * config.weightSentiment +
+      specialization * config.weightSpecialization;
 
     const badgeBonus = hasBadge ? config.badgeBonus : 0;
 
@@ -516,6 +536,23 @@ export class MatchingService {
     return sentimentScores.get(professionalId) ?? 50;
   }
 
+  private computeSpecialization(
+    professionalId: string,
+    problemTypeStats: Map<string, Record<string, number>>,
+    problemType: string | undefined,
+  ): number {
+    if (!problemType) return 50;
+
+    const stats = problemTypeStats.get(professionalId) || {};
+    const count = stats[problemType] || 0;
+    const totalCompleted = Object.values(stats).reduce((a, b) => a + b, 0);
+
+    if (totalCompleted === 0) return 50;
+
+    const ratio = count / totalCompleted;
+    return Math.min(100, ratio * 100 * 3);
+  }
+
   private haversineDistanceKm(
     lat1: number,
     lon1: number,
@@ -606,6 +643,7 @@ export class MatchingService {
       rejectionPenalty: getFloat(CONFIG_KEYS.REJECTION_PENALTY, DEFAULT_REJECTION_PENALTY),
       tendencyWeight: getFloat(CONFIG_KEYS.TENDENCY_WEIGHT, DEFAULT_TENDENCY_WEIGHT),
       weightSentiment: getFloat(CONFIG_KEYS.WEIGHT_SENTIMENT, DEFAULT_WEIGHT_SENTIMENT),
+      weightSpecialization: getFloat(CONFIG_KEYS.WEIGHT_SPECIALIZATION, DEFAULT_WEIGHT_SPECIALIZATION),
     };
   }
 }

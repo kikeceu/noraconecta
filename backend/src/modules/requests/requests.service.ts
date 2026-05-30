@@ -121,6 +121,7 @@ export class RequestsService {
       [],
       input.userLatitude ?? null,
       input.userLongitude ?? null,
+      undefined,
     );
 
     if (match) {
@@ -293,6 +294,7 @@ export class RequestsService {
       rejectorIds,
       request.userLatitude,
       request.userLongitude,
+      request.problemType ?? undefined,
     );
 
     if (!match) {
@@ -547,6 +549,27 @@ export class RequestsService {
       await this.reputationService.evaluateBadge(
         request.assignedProfessionalId,
       );
+
+      const problemTypeRequest = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { problemType: true, assignedProfessionalId: true },
+      });
+
+      if (problemTypeRequest?.problemType && problemTypeRequest?.assignedProfessionalId) {
+        const professional = await prisma.professional.findUnique({
+          where: { id: problemTypeRequest.assignedProfessionalId },
+          select: { problemTypeStats: true },
+        });
+
+        const stats = (professional?.problemTypeStats as Record<string, number>) || {};
+        stats[problemTypeRequest.problemType] =
+          (stats[problemTypeRequest.problemType] || 0) + 1;
+
+        await prisma.professional.update({
+          where: { id: problemTypeRequest.assignedProfessionalId },
+          data: { problemTypeStats: stats },
+        });
+      }
 
       return updated;
     }
@@ -924,6 +947,7 @@ export class RequestsService {
           [],
           request.userLatitude,
           request.userLongitude,
+          request.problemType ?? undefined,
         );
 
         if (!match) {
@@ -1054,6 +1078,7 @@ export class RequestsService {
           [...excludedIds],
           request.userLatitude,
           request.userLongitude,
+          request.problemType ?? undefined,
         );
 
         if (!match) {
@@ -1219,6 +1244,7 @@ export class RequestsService {
       excludedIds,
       request.userLatitude,
       request.userLongitude,
+      request.problemType ?? undefined,
     );
 
     let userMessage: string;
@@ -1302,6 +1328,7 @@ export class RequestsService {
       excludedIds,
       request.userLatitude,
       request.userLongitude,
+      request.problemType ?? undefined,
     );
 
     if (!match) {

@@ -538,4 +538,19 @@ export class MatchingRepository {
     }
     return result;
   }
+
+  async getProblemTypeStats(
+    professionalIds: string[],
+  ): Promise<Map<string, Record<string, number>>> {
+    const professionals = await prisma.professional.findMany({
+      where: { id: { in: professionalIds } },
+      select: { id: true, problemTypeStats: true },
+    });
+
+    const result = new Map<string, Record<string, number>>();
+    for (const p of professionals) {
+      result.set(p.id, (p.problemTypeStats as Record<string, number>) || {});
+    }
+    return result;
+  }
 }

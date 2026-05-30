@@ -874,13 +874,13 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
 - Quitar: al recibir NOT_FULFILLED con badge activo → `hasBadge = false`
 - Evaluado en cada COMPLETED (confirmación y auto-complete)
 
-**Matching (actualizado, AUT-235, AUT-239):**
+**Matching (actualizado, AUT-235, AUT-239, AUT-240):**
 - `findEligibleProfessionals` ahora incluye status ACTIVE y OBSERVATION
 - SUSPENDED queda fuera del pool
-- **Factores de scoring (11 pesos configurables)**:
+- **Factores de scoring (12 pesos configurables)**:
   - `weightCompliance` (0.17): penalización por incumplimientos con decaimiento temporal
   - `weightResponseRate` (0.20): penalización por pedidos sin respuesta
-  - `weightQualityRating` (0.15): rating histórico con ajuste de tendencia reciente
+  - `weightQualityRating` (0.10): rating histórico con ajuste de tendencia reciente
   - `weightProximity` (0.10): distancia haversine entre usuario y profesional
   - `weightRecommendation` (0.10): tasa de recomendación del usuario
   - `weightDistribution` (0.05): distribución equitativa con bonus por días sin asignación
@@ -889,7 +889,9 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
   - `weightCompletion` (0.05): tasa de finalización sobre pedidos aceptados
   - `weightResponseTime` (0.03): penalización por tiempo de respuesta promedio
   - `weightSentiment` (0.05): análisis de sentimiento IA sobre comentarios de feedback (AUT-235)
+  - `weightSpecialization` (0.08): especialización por tipo de problema basada en historial acumulado (AUT-240)
 - **Sentiment analysis (AUT-235)**: `analyzeSentiment()` en `feedback.flow.ts` procesa comentarios de texto libre con LLM (`callLLM`) en background. Extrae 5 dimensiones (puntualidad, precio_justo, calidad_trabajo, limpieza, actitud) + recomendable. Guarda resultado en `Feedback.sentimentAnalysis` (JSON). `getSentimentScores()` en `MatchingRepository` calcula score normalizado 0-100 por profesional agregando todos sus feedbacks con análisis de sentimiento. El score base es 50 (neutro) para profesionales sin análisis.
+- **Problem type specialization (AUT-240)**: `classifyProblemType()` en `user-request.flow.ts` clasifica cada pedido con LLM (`callLLM`) en background al crearse. Guarda en `Request.problemType` (snake_case). Al completar trabajo con satisfacción (`SATISFIED`/`PARTIAL`), `requests.service.ts` acumula el `problemType` en `Professional.problemTypeStats` (JSON, contador por tipo). `getProblemTypeStats()` en `MatchingRepository` carga las estadísticas. `computeSpecialization()` en `MatchingService` las usa como factor de scoring: si no hay `problemType` en el pedido o el profesional no tiene historial → 50 (neutro); si tiene historial → ratio `count/total * 100 * 3` (máx 100). `findBestCandidate()` acepta parámetro opcional `problemType`. Peso configurable via `MATCHING_WEIGHT_SPECIALIZATION` (default 0.08).
 
 ### Storage
 
