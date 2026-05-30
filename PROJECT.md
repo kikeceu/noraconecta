@@ -112,6 +112,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
+│   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
@@ -1044,6 +1045,33 @@ POST /bot/message
 - **Escenario B (visita confirmada)**: Estado ACCEPTED con `coordinationStatus = SCHEDULED`. Si faltan más de 2 horas para `scheduledAt`: cancela y notifica al profesional con "El usuario canceló la visita programada para el [DD/MM HH:MM]. Quedás disponible para nuevas asignaciones." Si faltan menos de 2 horas: bloquea la cancelación con "Ya no es posible cancelar con menos de 2 horas de anticipación. Si tenés un problema, podés contactarnos."
 - **Manejo en flows**: `UserRequestFlow` y `CoordinationFlow` incluyen case `CANCEL_CONFIRMATION` que delega en `handleCancelConfirmation()` (`cancel-flow.helper.ts`). `RequestsService` se inyecta en ambos flows para ejecutar `cancelByUser()`.
 - **Sin request activo**: Si el usuario escribe "cancelar" pero no tiene pedidos activos, el mensaje no se intercepta y el flow handler lo procesa normalmente.
+
+**Sistema anti-abuso: detección y degradación gradual (AUT-243):**
+
+Detección de patrones de abuso en usuarios y profesionales con degradación gradual en 3 niveles: `clean`, `warn`, `suspend`. Nunca se usa silencio total para proteger la reputación del número ante Meta.
+
+**Servicio `AbuseDetectionService` (`abuse-detection.service.ts`):**
+
+| Método                      | Descripción                                                                 |
+|----------------------------|-----------------------------------------------------------------------------|
+| `checkUserAbuse(userId)`   | Cuenta `CANCELLED` en requests del usuario (últimos 7 días). Retorna `suspend` si ≥5 cancelaciones o `abuseWarningCount ≥ 2`, `warn` si ≥3, `clean` en caso contrario. |
+| `checkProfessionalAbuse(professionalId)` | Cuenta `CANCELLED` y `NO_RESPONSE` del profesional (últimos 7 días). Misma lógica: `suspend` si ≥5 eventos o `abuseWarningCount ≥ 2`, `warn` si ≥3. |
+
+**Puntos de consumo:**
+
+- **`bot.service.ts` — chequeo de estado al inicio de cada mensaje**: Después de resolver el rol, si el usuario está `BLOCKED` o el profesional está `SUSPENDED`, retorna mensaje de suspensión y no procesa el mensaje.
+- **`cancel-flow.helper.ts` — cuando el usuario confirma cancelación**: Después de `cancelByUser()`, ejecuta `checkUserAbuse(userId)`. En `warn`: incrementa `abuseWarningCount` y appendea advertencia al response. En `suspend`: cambia `status → BLOCKED`.
+- **`coordination.flow.ts` — cuando el profesional rechaza asignación o cancela visita**: Ejecuta `checkProfessionalAbuse(professionalId)`. En `warn`: incrementa `abuseWarningCount` y appendea advertencia. En `suspend`: cambia `status → SUSPENDED`.
+
+**Mensajes definidos:**
+
+| Escenario                           | Mensaje                                                                                                                     |
+|-------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| Cuenta suspendida intenta usar NORA | "Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com" |
+| Advertencia usuario (warn)          | "⚠️ Notamos que cancelaste varios pedidos recientemente. Por favor usá NORA solo cuando realmente necesités el servicio. Si esto continúa, tu cuenta podría ser suspendida." |
+| Advertencia profesional (warn)      | "⚠️ Notamos varias cancelaciones de tu parte. Esto afecta la experiencia de los usuarios. Si esto continúa, tu cuenta podría ser suspendida." |
+
+**No se modifica `schema.prisma`.** Los campos `abuseWarningCount` y `lastAbuseCheckAt` ya existen en `User` y `Professional` desde AUT-241.
 
 **Tracking de ventana de conversación de 24hs (WhatsApp) (AUT-171):**
 - `BotSession.lastInboundAt` registra el timestamp del último mensaje entrante recibido de un número
