@@ -76,6 +76,8 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
   ],
 };
 
+import { callLLM } from '../../../lib/llm-client';
+
 export function resolveOption(step: string, input: string): string | null {
   const options = STEP_OPTIONS[step];
   if (!options) return null;
@@ -88,4 +90,32 @@ export function resolveOption(step: string, input: string): string | null {
   }
 
   return null;
+}
+
+export async function resolveOptionWithFallback(
+  step: string,
+  input: string,
+): Promise<string | null> {
+  const exact = resolveOption(step, input);
+  if (exact !== null) return exact;
+
+  const options = STEP_OPTIONS[step];
+  if (!options) return null;
+
+  const optionsList = options.map(o => `${o.value}: ${o.aliases.slice(0, 3).join(', ')}`).join('\n');
+
+  const prompt = `El usuario está eligiendo una opción y escribió: "${input}"
+Las opciones disponibles son:
+${optionsList}
+¿A cuál opción se refiere? Respondé SOLO con el valor exacto (ej: ACCEPT, REJECT, YES, NO, CONFIRM, etc.) o "null" si no está claro.`;
+
+  try {
+    const response = await callLLM(prompt);
+    const trimmed = response.trim().toUpperCase();
+    const validValues = options.map(o => o.value);
+    if (validValues.includes(trimmed)) return trimmed;
+    return null;
+  } catch {
+    return null;
+  }
 }

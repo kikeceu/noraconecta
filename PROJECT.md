@@ -120,7 +120,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow (AUT-216)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases)
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
@@ -1072,6 +1072,24 @@ Detección de patrones de abuso en usuarios y profesionales con degradación gra
 | Advertencia profesional (warn)      | "⚠️ Notamos varias cancelaciones de tu parte. Esto afecta la experiencia de los usuarios. Si esto continúa, tu cuenta podría ser suspendida." |
 
 **No se modifica `schema.prisma`.** Los campos `abuseWarningCount` y `lastAbuseCheckAt` ya existen en `User` y `Professional` desde AUT-241.
+
+**Interpretación natural del lenguaje con LLM como fallback en opciones (AUT-236):**
+
+Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LLM como fallback para interpretar respuestas en lenguaje natural (ej: "me parece bien dale" → YES, "la verdad que no estoy seguro" → null).
+
+**Archivos modificados:**
+- `option-resolver.helper.ts`: nueva función exportada `resolveOptionWithFallback(step, input)`. Usa `callLLM` de `llm-client.ts` (AUT-242) para interpretar respuestas ambiguas. Si el LLM falla o retorna valor inválido, retorna `null` sin lanzar error. `resolveOption` sigue existiendo sin cambios.
+- `coordination.flow.ts`: reemplaza `resolveOption` por `resolveOptionWithFallback` en 4 pasos: `AWAITING_ACCEPTANCE`, `AWAITING_CONFIRMATION`, `AWAITING_USER_CONFIRMATION`, `AWAITING_VISIT_CONFIRMATION`.
+- `feedback.flow.ts`: reemplaza `resolveOption` por `resolveOptionWithFallback` en 3 pasos: `FEEDBACK_SATISFACTION`, `FEEDBACK_RECOMMEND`, `FEEDBACK_PRO_RECOMMEND`.
+- `user-request.flow.ts`: reemplaza `resolveOption` por `resolveOptionWithFallback` en el paso `WAITING_CONSENT`.
+
+**Lógica de negocio:**
+- Primero intenta match exacto con los aliases existentes (rápido, sin latencia)
+- Si no hay match, envía prompt al LLM con las opciones disponibles y la respuesta del usuario
+- El LLM debe responder SOLO con el valor exacto de la opción (ej: `ACCEPT`, `YES`, `CONFIRM`) o `"null"` si no está claro
+- Si el LLM falla (API error, timeout, etc.), el sistema cae al mensaje de aclaración tradicional sin interrumpir el flujo
+
+**No modifica** `schema.prisma`.
 
 **Tracking de ventana de conversación de 24hs (WhatsApp) (AUT-171):**
 - `BotSession.lastInboundAt` registra el timestamp del último mensaje entrante recibido de un número
