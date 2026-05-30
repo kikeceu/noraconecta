@@ -7,6 +7,7 @@ import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
+import { AbuseDetectionService } from '../abuse-detection.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption } from './option-resolver.helper';
 
@@ -158,9 +159,37 @@ export class CoordinationFlow implements FlowHandler {
       try {
         await this.requestsService.reject(requestId);
 
+        const req = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: { assignedProfessionalId: true },
+        });
+        const professionalId = req?.assignedProfessionalId;
+
+        let responseText = 'Entendido. Rechazaste el pedido.';
+
+        if (professionalId) {
+          const abuseDetection = new AbuseDetectionService();
+          const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);
+
+          if (abuseLevel === 'warn') {
+            await prisma.professional.update({
+              where: { id: professionalId },
+              data: { abuseWarningCount: { increment: 1 } },
+            });
+            responseText += '\n\n⚠️ Notamos varias cancelaciones de tu parte. Esto afecta la experiencia de los usuarios. Si esto continúa, tu cuenta podría ser suspendida.';
+          }
+
+          if (abuseLevel === 'suspend') {
+            await prisma.professional.update({
+              where: { id: professionalId },
+              data: { status: 'SUSPENDED' },
+            });
+          }
+        }
+
         return {
           response: {
-            text: 'Entendido. Rechazaste el pedido.',
+            text: responseText,
           },
           nextStep: null,
           tempData: {},
@@ -839,9 +868,29 @@ export class CoordinationFlow implements FlowHandler {
       try {
         const result = await this.requestsService.cancelByProfessional(requestId, professionalId);
 
+        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.';
+
+        const abuseDetection = new AbuseDetectionService();
+        const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);
+
+        if (abuseLevel === 'warn') {
+          await prisma.professional.update({
+            where: { id: professionalId },
+            data: { abuseWarningCount: { increment: 1 } },
+          });
+          responseText += '\n\n⚠️ Notamos varias cancelaciones de tu parte. Esto afecta la experiencia de los usuarios. Si esto continúa, tu cuenta podría ser suspendida.';
+        }
+
+        if (abuseLevel === 'suspend') {
+          await prisma.professional.update({
+            where: { id: professionalId },
+            data: { status: 'SUSPENDED' },
+          });
+        }
+
         return {
           response: {
-            text: 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.',
+            text: responseText,
           },
           nextStep: null,
           tempData: {

@@ -40,6 +40,25 @@ export class BotService {
       phone: user.phone,
     };
 
+    if (role === 'USER' && (user as { status: string }).status === 'BLOCKED') {
+      return {
+        text: 'Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com',
+        flow: undefined,
+        step: undefined,
+      };
+    }
+
+    if (role === 'PROFESSIONAL') {
+      const professional = await this.professionalsRepository.findByPhone(input.phone);
+      if (professional?.status === 'SUSPENDED') {
+        return {
+          text: 'Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com',
+          flow: undefined,
+          step: undefined,
+        };
+      }
+    }
+
     let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
 
     console.log('[processMessage] phone:', input.phone, 'role:', role, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);

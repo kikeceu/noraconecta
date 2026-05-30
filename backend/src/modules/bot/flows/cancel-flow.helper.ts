@@ -1,6 +1,8 @@
 import { FlowStepResult, FlowContext, PendingNotification } from './types';
 import { RequestsService } from '../../requests/requests.service';
+import { AbuseDetectionService } from '../abuse-detection.service';
 import { resolveOption } from './option-resolver.helper';
+import prisma from '../../../lib/prisma';
 
 const CANCEL_KEYWORDS = [
   'cancelar',
@@ -26,6 +28,7 @@ export async function handleCancelConfirmation(
   const inputText = message.text?.trim().toLowerCase();
 
   const requestId = tempData.requestId as string;
+  const userId = tempData.userId as string | undefined;
 
   if (!requestId) {
     return {
@@ -41,7 +44,27 @@ export async function handleCancelConfirmation(
     try {
       const result = await requestsService.cancelByUser(requestId);
 
-      const responseText = 'Tu pedido fue cancelado. Si necesitás algo más, escribime.';
+      let responseText = 'Tu pedido fue cancelado. Si necesitás algo más, escribime.';
+
+      if (userId) {
+        const abuseDetection = new AbuseDetectionService();
+        const abuseLevel = await abuseDetection.checkUserAbuse(userId);
+
+        if (abuseLevel === 'warn') {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { abuseWarningCount: { increment: 1 } },
+          });
+          responseText += '\n\n⚠️ Notamos que cancelaste varios pedidos recientemente. Por favor usá NORA solo cuando realmente necesités el servicio. Si esto continúa, tu cuenta podría ser suspendida.';
+        }
+
+        if (abuseLevel === 'suspend') {
+          await prisma.user.update({
+            where: { id: userId },
+            data: { status: 'BLOCKED' },
+          });
+        }
+      }
 
       const newTempData: Record<string, unknown> = {};
 
