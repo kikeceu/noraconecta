@@ -15,6 +15,9 @@ interface ScoringConfig {
   weightRecommendation: number;
   weightDistribution: number;
   weightPlan: number;
+  weightAcceptance: number;
+  weightCompletion: number;
+  weightResponseTime: number;
   maxDistanceKm: number;
   compliancePenalty: number;
   responsePenalty: number;
@@ -27,13 +30,16 @@ interface ScoringConfig {
   tendencyWeight: number;
 }
 
-const DEFAULT_WEIGHT_COMPLIANCE = 0.30;
-const DEFAULT_WEIGHT_RESPONSE_RATE = 0.22;
-const DEFAULT_WEIGHT_QUALITY_RATING = 0.18;
+const DEFAULT_WEIGHT_COMPLIANCE = 0.22;
+const DEFAULT_WEIGHT_RESPONSE_RATE = 0.20;
+const DEFAULT_WEIGHT_QUALITY_RATING = 0.15;
 const DEFAULT_WEIGHT_PROXIMITY = 0.10;
 const DEFAULT_WEIGHT_RECOMMENDATION = 0.10;
 const DEFAULT_WEIGHT_DISTRIBUTION = 0.05;
 const DEFAULT_WEIGHT_PLAN = 0.05;
+const DEFAULT_WEIGHT_ACCEPTANCE = 0.05;
+const DEFAULT_WEIGHT_COMPLETION = 0.05;
+const DEFAULT_WEIGHT_RESPONSE_TIME = 0.03;
 const DEFAULT_MAX_DISTANCE_KM = 50;
 const DEFAULT_COMPLIANCE_PENALTY = 50;
 const DEFAULT_RESPONSE_PENALTY = 25;
@@ -53,6 +59,9 @@ const CONFIG_KEYS = {
   WEIGHT_RECOMMENDATION: 'MATCHING_WEIGHT_RECOMMENDATION',
   WEIGHT_DISTRIBUTION: 'MATCHING_WEIGHT_DISTRIBUTION',
   WEIGHT_PLAN: 'MATCHING_WEIGHT_PLAN',
+  WEIGHT_ACCEPTANCE: 'MATCHING_WEIGHT_ACCEPTANCE',
+  WEIGHT_COMPLETION: 'MATCHING_WEIGHT_COMPLETION',
+  WEIGHT_RESPONSE_TIME: 'MATCHING_WEIGHT_RESPONSE_TIME',
   MAX_DISTANCE_KM: 'MATCHING_MAX_DISTANCE_KM',
   COMPLIANCE_PENALTY: 'MATCHING_COMPLIANCE_PENALTY',
   RESPONSE_PENALTY: 'MATCHING_RESPONSE_PENALTY',
@@ -205,6 +214,9 @@ export class MatchingService {
       badgeStatus,
       planPriorities,
       professionalCoords,
+      acceptanceRates,
+      completionRates,
+      avgResponseTimes,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents(ids),
       this.matchingRepository.countNoResponseEvents(ids),
@@ -216,6 +228,9 @@ export class MatchingService {
       this.matchingRepository.getBadgeStatus(ids),
       this.matchingRepository.getPlanPriorities(ids),
       this.matchingRepository.getProfessionalCoordinates(ids),
+      this.matchingRepository.getAcceptanceRates(ids),
+      this.matchingRepository.getCompletionRates(ids),
+      this.matchingRepository.getAvgResponseTimes(ids),
     ]);
 
     return ids.map((id) => ({
@@ -234,6 +249,9 @@ export class MatchingService {
         userLat,
         userLon,
         professionalCoords,
+        acceptanceRates,
+        completionRates,
+        avgResponseTimes,
         config,
       ),
     }));
@@ -254,6 +272,9 @@ export class MatchingService {
       badgeStatus,
       planPriorities,
       professionalCoords,
+      acceptanceRates,
+      completionRates,
+      avgResponseTimes,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents([professionalId]),
       this.matchingRepository.countNoResponseEvents([professionalId]),
@@ -265,6 +286,9 @@ export class MatchingService {
       this.matchingRepository.getBadgeStatus([professionalId]),
       this.matchingRepository.getPlanPriorities([professionalId]),
       this.matchingRepository.getProfessionalCoordinates([professionalId]),
+      this.matchingRepository.getAcceptanceRates([professionalId]),
+      this.matchingRepository.getCompletionRates([professionalId]),
+      this.matchingRepository.getAvgResponseTimes([professionalId]),
     ]);
 
     return this.computeScoreFromData(
@@ -281,6 +305,9 @@ export class MatchingService {
       null,
       null,
       professionalCoords,
+      acceptanceRates,
+      completionRates,
+      avgResponseTimes,
       config,
     );
   }
@@ -299,6 +326,9 @@ export class MatchingService {
     userLat: number | null,
     userLon: number | null,
     professionalCoords: Map<string, { latitude: number | null; longitude: number | null }>,
+    acceptanceRates: Map<string, number>,
+    completionRates: Map<string, number>,
+    avgResponseTimes: Map<string, number>,
     config: ScoringConfig,
   ): number {
     const compliance = this.computeCompliance(professionalId, notFulfilled, config);
@@ -324,6 +354,9 @@ export class MatchingService {
       professionalCoords,
       config,
     );
+    const acceptance = this.computeAcceptance(professionalId, acceptanceRates);
+    const completion = this.computeCompletion(professionalId, completionRates);
+    const responseTime = this.computeResponseTime(professionalId, avgResponseTimes);
     const hasBadge = badgeStatus.get(professionalId) ?? false;
 
     const baseScore =
@@ -333,7 +366,10 @@ export class MatchingService {
       proximity * config.weightProximity +
       recommendation * config.weightRecommendation +
       distribution * config.weightDistribution +
-      planScore * config.weightPlan;
+      planScore * config.weightPlan +
+      acceptance * config.weightAcceptance +
+      completion * config.weightCompletion +
+      responseTime * config.weightResponseTime;
 
     const badgeBonus = hasBadge ? config.badgeBonus : 0;
 
@@ -437,6 +473,30 @@ export class MatchingService {
     return Math.min(100, (priority / 3) * 100);
   }
 
+  private computeAcceptance(
+    professionalId: string,
+    acceptanceRates: Map<string, number>,
+  ): number {
+    const rate = acceptanceRates.get(professionalId) ?? 0.5;
+    return rate * 100;
+  }
+
+  private computeCompletion(
+    professionalId: string,
+    completionRates: Map<string, number>,
+  ): number {
+    const rate = completionRates.get(professionalId) ?? 0.5;
+    return rate * 100;
+  }
+
+  private computeResponseTime(
+    professionalId: string,
+    avgResponseTimes: Map<string, number>,
+  ): number {
+    const avgMinutes = avgResponseTimes.get(professionalId) ?? 60;
+    return Math.max(0, 100 - (avgMinutes / 120) * 100);
+  }
+
   private haversineDistanceKm(
     lat1: number,
     lon1: number,
@@ -513,6 +573,9 @@ export class MatchingService {
       weightRecommendation: getFloat(CONFIG_KEYS.WEIGHT_RECOMMENDATION, DEFAULT_WEIGHT_RECOMMENDATION),
       weightDistribution: getFloat(CONFIG_KEYS.WEIGHT_DISTRIBUTION, DEFAULT_WEIGHT_DISTRIBUTION),
       weightPlan: getFloat(CONFIG_KEYS.WEIGHT_PLAN, DEFAULT_WEIGHT_PLAN),
+      weightAcceptance: getFloat(CONFIG_KEYS.WEIGHT_ACCEPTANCE, DEFAULT_WEIGHT_ACCEPTANCE),
+      weightCompletion: getFloat(CONFIG_KEYS.WEIGHT_COMPLETION, DEFAULT_WEIGHT_COMPLETION),
+      weightResponseTime: getFloat(CONFIG_KEYS.WEIGHT_RESPONSE_TIME, DEFAULT_WEIGHT_RESPONSE_TIME),
       maxDistanceKm: getFloat(CONFIG_KEYS.MAX_DISTANCE_KM, DEFAULT_MAX_DISTANCE_KM),
       compliancePenalty: getInt(CONFIG_KEYS.COMPLIANCE_PENALTY, DEFAULT_COMPLIANCE_PENALTY),
       responsePenalty: getInt(CONFIG_KEYS.RESPONSE_PENALTY, DEFAULT_RESPONSE_PENALTY),
