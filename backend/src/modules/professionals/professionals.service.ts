@@ -6,9 +6,11 @@ import {
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationRepository } from '../reputation/reputation.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { BotRepository } from '../bot/bot.repository';
 import { AppError } from '../../middleware/error-handler';
 import { Professional, ProfessionalStatus } from '@prisma/client';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 
 const VERIFICATION_TOKEN_TTL_HOURS = 72;
 const SESSION_TOKEN_TTL_DAYS = 30;
@@ -57,6 +59,7 @@ export class ProfessionalsService {
     private readonly professionalsRepository: ProfessionalsRepository,
     private readonly whatsappAdapter: WhatsAppAdapter,
     private readonly configRepository: ConfigRepository,
+    private readonly botRepository: BotRepository,
   ) {
     this.reputationService = new ReputationService(reputationRepository);
   }
@@ -212,14 +215,29 @@ export class ProfessionalsService {
         ? parsedTrialRequestsLimit
         : 3;
 
-    const welcomeMessage = `¡Bienvenido a NORA, ${approvedProfessional.name}! Tu cuenta fue verificada y ya sos parte de nuestra comunidad de profesionales. A partir de ahora vas a empezar a recibir pedidos de clientes en tu zona. Tenés ${trialRequestsLimit} pedidos gratuitos para responder. ¡Éxitos!`;
+    const welcomeMessage = `🎉 ¡Bienvenido a NORA, ${approvedProfessional.name}! Tu cuenta fue verificada y ya sos parte de nuestra red de profesionales de confianza. A partir de ahora vas a empezar a recibir pedidos de clientes en tu zona. Tenés ${trialRequestsLimit} pedidos gratuitos para comenzar. ¡Mucho éxito y bienvenido al equipo! 💪`;
 
     try {
-      await this.whatsappAdapter.sendText(
+      const needsTemplate = await shouldUseTemplate(
         approvedProfessional.phone,
-        welcomeMessage,
         'PROFESSIONAL',
+        this.botRepository,
       );
+
+      if (needsTemplate) {
+        await this.whatsappAdapter.sendTemplate(
+          approvedProfessional.phone,
+          'nora_pro_bienvenida',
+          [approvedProfessional.name, String(trialRequestsLimit)],
+          'PROFESSIONAL',
+        );
+      } else {
+        await this.whatsappAdapter.sendText(
+          approvedProfessional.phone,
+          welcomeMessage,
+          'PROFESSIONAL',
+        );
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(

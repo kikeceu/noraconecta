@@ -48,6 +48,7 @@ const professionalsService = new ProfessionalsService(
   professionalsRepository,
   whatsappAdapter,
   configRepository,
+  botRepository,
 );
 
 const paymentsRepository = new PaymentsRepository();

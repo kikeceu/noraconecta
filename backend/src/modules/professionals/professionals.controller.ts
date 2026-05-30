@@ -15,6 +15,7 @@ const professionalsService = new ProfessionalsService(
   professionalsRepository,
   whatsappAdapter,
   configRepository,
+  botRepository,
 );
 
 export class ProfessionalsController {

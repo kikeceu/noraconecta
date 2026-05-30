@@ -61,7 +61,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── professionals/
 │   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
-│   │   │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session, panel
+│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel
 │   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
@@ -666,13 +666,14 @@ Número profesional: 7665 / Número usuario: 7668
 | 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | professionalName, categoryName |
 | 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | professionalName, categoryName, fechaHora |
 
-*Nota: Las templates 17 (`nora_pro_cliente_acepto_horario`), 18 (`nora_pro_visita_confirmada_ubicacion`) y 19-20 (templates de profesional para finalización y calificación: `nora_pro_check_finalizacion`, `nora_pro_check_finalizacion_ultimo`, `nora_pro_pedir_calificacion_usuario`) ya tienen punto de consumo en el código (AUT-227). Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido`, `nora_pro_usuario_cancelo_visita`, `nora_pro_visita_confirmada` (consumidas en AUT-227).*
+*Nota: Las templates 17 (`nora_pro_cliente_acepto_horario`), 18 (`nora_pro_visita_confirmada_ubicacion`) y 19-20 (templates de profesional para finalización y calificación: `nora_pro_check_finalizacion`, `nora_pro_check_finalizacion_ultimo`, `nora_pro_pedir_calificacion_usuario`) ya tienen punto de consumo en el código (AUT-227). Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido`, `nora_pro_usuario_cancelo_visita`, `nora_pro_visita_confirmada` (consumidas en AUT-227). Template agregada en AUT-244: `nora_pro_bienvenida` — mensaje de bienvenida al aprobar un profesional (params: name, trialRequestsLimit).*
 
-**Método `sendWithWindowCheck()` presente en 3 servicios:**
+**Método `sendWithWindowCheck()` presente en 4 servicios:**
 
 - `NotificationService.sendWithWindowCheck()` — consume `shouldUseTemplate()`, decide template vs texto libre
 - `CoordinationService.sendWithWindowCheck()` — ídem para notificaciones de coordinación
 - `PaymentsService.sendWithWindowCheck()` — ídem para notificaciones de pago/membresía
+- `ProfessionalsService.approve()` — consume `shouldUseTemplate()` directamente para decidir entre `sendTemplate('nora_pro_bienvenida')` y `sendText` (AUT-244)
 
 **Archivos modificados (AUT-213):**
 - `notification.service.ts` — `sendWithWindowCheck()` + 8 templates asignadas a métodos públicos
@@ -1922,7 +1923,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - `POST /professionals/verify/:token` acepta `{ dniNumber, cuil, dniFrontUrl, dniBackUrl, criminalRecordUrl?, references?, presentationVideoUrl? }` — todos los campos son opcionales en backend; el frontend valida obligatoriedad de DNI, CUIL, dniFrontUrl y dniBackUrl
   - El frontend de onboarding (`/verify/:token`) es standalone (sin header ni nav), mobile-first (375px), con barra de progreso de 8 pasos y upload de archivos a R2 vía presigned URLs
   - El sistema nunca aprueba profesionales automáticamente — siempre requiere revisión manual de un SUPERADMIN
-  - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE y envía WhatsApp inmediato de bienvenida al profesional aprobado con la cantidad de pedidos gratuitos (`TRIAL_REQUESTS_LIMIT`, default 3)
+  - Aprobación: solo permite transición UNDER_REVIEW → ACTIVE y envía WhatsApp de bienvenida. Si el profesional está dentro de la ventana de 24hs se envía texto directo; si está fuera se usa el template `nora_pro_bienvenida`. Incluye la cantidad de pedidos gratuitos (`TRIAL_REQUESTS_LIMIT`, default 3)
   - Rechazo: solo permite transición UNDER_REVIEW → REJECTED. El motivo se registra en logs (no hay campo en DB para rejectionReason en MVP)
   - Suspensión: cualquier estado → SUSPENDED (excepto si ya está suspendido → 409)
   - Reactivación: solo permite transición SUSPENDED → ACTIVE
