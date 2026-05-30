@@ -450,6 +450,54 @@ export class MatchingRepository {
     return result;
   }
 
+  async getSentimentScores(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        request: { assignedProfessionalId: { in: professionalIds } },
+        sentimentAnalysis: { not: undefined },
+      },
+      select: {
+        sentimentAnalysis: true,
+        request: { select: { assignedProfessionalId: true } },
+      },
+    });
+
+    const accumulator = new Map<string, { sum: number; count: number }>();
+
+    for (const f of feedbacks) {
+      const profId = f.request.assignedProfessionalId;
+      if (!profId || !f.sentimentAnalysis) continue;
+
+      const analysis = f.sentimentAnalysis as Record<string, number | boolean>;
+      const score =
+        (Number(analysis.puntualidad) || 0) +
+        (Number(analysis.precio_justo) || 0) +
+        (Number(analysis.calidad_trabajo) || 0) +
+        (Number(analysis.limpieza) || 0) +
+        (Number(analysis.actitud) || 0) +
+        (analysis.recomendable === true ? 1 : analysis.recomendable === false ? -1 : 0);
+
+      const entry = accumulator.get(profId) ?? { sum: 0, count: 0 };
+      entry.sum += score;
+      entry.count++;
+      accumulator.set(profId, entry);
+    }
+
+    const result = new Map<string, number>();
+    for (const profId of professionalIds) {
+      const entry = accumulator.get(profId);
+      if (!entry || entry.count === 0) {
+        result.set(profId, 50);
+      } else {
+        const normalized = ((entry.sum / entry.count) + 6) / 12 * 100;
+        result.set(profId, Math.min(100, Math.max(0, normalized)));
+      }
+    }
+    return result;
+  }
+
   async getAvgResponseTimes(
     professionalIds: string[],
   ): Promise<Map<string, number>> {

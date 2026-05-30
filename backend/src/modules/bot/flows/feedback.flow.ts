@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../../../lib/prisma';
+import { callLLM } from '../../../lib/llm-client';
 import { BotRepository } from '../bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { RequestsService, Satisfaction } from '../../requests/requests.service';
@@ -312,6 +313,12 @@ export class FeedbackFlow implements FlowHandler {
       };
     }
 
+    if (userComment) {
+      void this.analyzeSentiment(requestId, userComment).catch((err) => {
+        console.error('[FeedbackFlow] sentiment analysis failed:', err);
+      });
+    }
+
     const professionalPhoneFromTemp = tempData.professionalPhone as string | undefined;
     const request = await prisma.request.findUnique({
       where: { id: requestId },
@@ -507,6 +514,24 @@ export class FeedbackFlow implements FlowHandler {
           status: 'OPEN',
         },
       });
+    }
+  }
+
+  private async analyzeSentiment(requestId: string, comment: string): Promise<void> {
+    const prompt = `Analizá este comentario de un cliente sobre un trabajo: "${comment}"
+Respondé SOLO con un JSON válido sin markdown:
+{"puntualidad":1,"precio_justo":0,"calidad_trabajo":1,"limpieza":0,"actitud":1,"recomendable":true}
+Valores: 1=positivo, -1=negativo, 0=no mencionado. recomendable: true/false/null`;
+
+    try {
+      const text = await callLLM(prompt);
+      const analysis = JSON.parse(text) as Record<string, number | boolean | null>;
+      await prisma.feedback.update({
+        where: { requestId },
+        data: { sentimentAnalysis: analysis },
+      });
+    } catch {
+      // ignore if fails — background task
     }
   }
 }
