@@ -28,9 +28,10 @@ interface ScoringConfig {
   badgeBonus: number;
   rejectionPenalty: number;
   tendencyWeight: number;
+  weightSentiment: number;
 }
 
-const DEFAULT_WEIGHT_COMPLIANCE = 0.22;
+const DEFAULT_WEIGHT_COMPLIANCE = 0.17;
 const DEFAULT_WEIGHT_RESPONSE_RATE = 0.20;
 const DEFAULT_WEIGHT_QUALITY_RATING = 0.15;
 const DEFAULT_WEIGHT_PROXIMITY = 0.10;
@@ -50,6 +51,7 @@ const DEFAULT_TRIAL_REQUESTS_LIMIT = 3;
 const DEFAULT_BADGE_BONUS = 5;
 const DEFAULT_REJECTION_PENALTY = 10;
 const DEFAULT_TENDENCY_WEIGHT = 0.15;
+const DEFAULT_WEIGHT_SENTIMENT = 0.05;
 
 const CONFIG_KEYS = {
   WEIGHT_COMPLIANCE: 'MATCHING_WEIGHT_COMPLIANCE',
@@ -72,6 +74,7 @@ const CONFIG_KEYS = {
   BADGE_BONUS: 'MATCHING_BADGE_BONUS',
   REJECTION_PENALTY: 'MATCHING_REJECTION_PENALTY',
   TENDENCY_WEIGHT: 'MATCHING_TENDENCY_WEIGHT',
+  WEIGHT_SENTIMENT: 'MATCHING_WEIGHT_SENTIMENT',
 } as const;
 
 export class MatchingService {
@@ -217,6 +220,7 @@ export class MatchingService {
       acceptanceRates,
       completionRates,
       avgResponseTimes,
+      sentimentScores,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents(ids),
       this.matchingRepository.countNoResponseEvents(ids),
@@ -231,6 +235,7 @@ export class MatchingService {
       this.matchingRepository.getAcceptanceRates(ids),
       this.matchingRepository.getCompletionRates(ids),
       this.matchingRepository.getAvgResponseTimes(ids),
+      this.matchingRepository.getSentimentScores(ids),
     ]);
 
     return ids.map((id) => ({
@@ -252,6 +257,7 @@ export class MatchingService {
         acceptanceRates,
         completionRates,
         avgResponseTimes,
+        sentimentScores,
         config,
       ),
     }));
@@ -275,6 +281,7 @@ export class MatchingService {
       acceptanceRates,
       completionRates,
       avgResponseTimes,
+      sentimentScores,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents([professionalId]),
       this.matchingRepository.countNoResponseEvents([professionalId]),
@@ -289,6 +296,7 @@ export class MatchingService {
       this.matchingRepository.getAcceptanceRates([professionalId]),
       this.matchingRepository.getCompletionRates([professionalId]),
       this.matchingRepository.getAvgResponseTimes([professionalId]),
+      this.matchingRepository.getSentimentScores([professionalId]),
     ]);
 
     return this.computeScoreFromData(
@@ -308,6 +316,7 @@ export class MatchingService {
       acceptanceRates,
       completionRates,
       avgResponseTimes,
+      sentimentScores,
       config,
     );
   }
@@ -329,6 +338,7 @@ export class MatchingService {
     acceptanceRates: Map<string, number>,
     completionRates: Map<string, number>,
     avgResponseTimes: Map<string, number>,
+    sentimentScores: Map<string, number>,
     config: ScoringConfig,
   ): number {
     const compliance = this.computeCompliance(professionalId, notFulfilled, config);
@@ -358,6 +368,7 @@ export class MatchingService {
     const completion = this.computeCompletion(professionalId, completionRates);
     const responseTime = this.computeResponseTime(professionalId, avgResponseTimes);
     const hasBadge = badgeStatus.get(professionalId) ?? false;
+    const sentiment = this.computeSentiment(professionalId, sentimentScores);
 
     const baseScore =
       compliance * config.weightCompliance +
@@ -369,7 +380,8 @@ export class MatchingService {
       planScore * config.weightPlan +
       acceptance * config.weightAcceptance +
       completion * config.weightCompletion +
-      responseTime * config.weightResponseTime;
+      responseTime * config.weightResponseTime +
+      sentiment * config.weightSentiment;
 
     const badgeBonus = hasBadge ? config.badgeBonus : 0;
 
@@ -497,6 +509,13 @@ export class MatchingService {
     return Math.max(0, 100 - (avgMinutes / 120) * 100);
   }
 
+  private computeSentiment(
+    professionalId: string,
+    sentimentScores: Map<string, number>,
+  ): number {
+    return sentimentScores.get(professionalId) ?? 50;
+  }
+
   private haversineDistanceKm(
     lat1: number,
     lon1: number,
@@ -586,6 +605,7 @@ export class MatchingService {
       badgeBonus: getFloat(CONFIG_KEYS.BADGE_BONUS, DEFAULT_BADGE_BONUS),
       rejectionPenalty: getFloat(CONFIG_KEYS.REJECTION_PENALTY, DEFAULT_REJECTION_PENALTY),
       tendencyWeight: getFloat(CONFIG_KEYS.TENDENCY_WEIGHT, DEFAULT_TENDENCY_WEIGHT),
+      weightSentiment: getFloat(CONFIG_KEYS.WEIGHT_SENTIMENT, DEFAULT_WEIGHT_SENTIMENT),
     };
   }
 }

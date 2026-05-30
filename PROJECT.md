@@ -84,8 +84,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── config.service.ts    # Key-value config get/update
 │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
 │   │   │   ├── matching/
-│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
-│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching
+│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + sentimiento IA (sin endpoints, AUT-235)
+│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores (AUT-235)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
@@ -118,7 +118,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + hours — AUT-238)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
-│   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow (AUT-216)
+│   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
@@ -874,9 +874,22 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
 - Quitar: al recibir NOT_FULFILLED con badge activo → `hasBadge = false`
 - Evaluado en cada COMPLETED (confirmación y auto-complete)
 
-**Matching (actualizado):**
+**Matching (actualizado, AUT-235, AUT-239):**
 - `findEligibleProfessionals` ahora incluye status ACTIVE y OBSERVATION
 - SUSPENDED queda fuera del pool
+- **Factores de scoring (11 pesos configurables)**:
+  - `weightCompliance` (0.17): penalización por incumplimientos con decaimiento temporal
+  - `weightResponseRate` (0.20): penalización por pedidos sin respuesta
+  - `weightQualityRating` (0.15): rating histórico con ajuste de tendencia reciente
+  - `weightProximity` (0.10): distancia haversine entre usuario y profesional
+  - `weightRecommendation` (0.10): tasa de recomendación del usuario
+  - `weightDistribution` (0.05): distribución equitativa con bonus por días sin asignación
+  - `weightPlan` (0.05): prioridad por plan de membresía
+  - `weightAcceptance` (0.05): tasa de aceptación sobre asignaciones
+  - `weightCompletion` (0.05): tasa de finalización sobre pedidos aceptados
+  - `weightResponseTime` (0.03): penalización por tiempo de respuesta promedio
+  - `weightSentiment` (0.05): análisis de sentimiento IA sobre comentarios de feedback (AUT-235)
+- **Sentiment analysis (AUT-235)**: `analyzeSentiment()` en `feedback.flow.ts` procesa comentarios de texto libre con LLM (`callLLM`) en background. Extrae 5 dimensiones (puntualidad, precio_justo, calidad_trabajo, limpieza, actitud) + recomendable. Guarda resultado en `Feedback.sentimentAnalysis` (JSON). `getSentimentScores()` en `MatchingRepository` calcula score normalizado 0-100 por profesional agregando todos sus feedbacks con análisis de sentimiento. El score base es 50 (neutro) para profesionales sin análisis.
 
 ### Storage
 
