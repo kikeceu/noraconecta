@@ -1088,6 +1088,29 @@ Detección de patrones de abuso en usuarios y profesionales con degradación gra
 
 **No se modifica `schema.prisma`.** Los campos `abuseWarningCount` y `lastAbuseCheckAt` ya existen en `User` y `Professional` desde AUT-241.
 
+### AUT-245 — Correcciones flujo de confirmación: opciones duplicadas, negrita en resumen y datos de visita al profesional
+
+Correcciones de bugs en el flujo de confirmación de pedido y visita.
+
+**Bug 1 — Opciones duplicadas en resumen del pedido (`user-request.flow.ts`):**
+- `handleAskAudio` tenía `options: ['Si', 'No']` en dos respuestas que llamaban a `buildConfirmation`, que ya incluye `\n1. Sí\n2. No` en el texto.
+- Se eliminó `options` de ambas respuestas (líneas ~639 y ~650) para que las opciones aparezcan una sola vez.
+
+**Bug 2 — Resumen del pedido sin negrita (`user-request.flow.ts`):**
+- `buildConfirmation` ahora usa asteriscos para negrita en WhatsApp: `*Resumen del pedido:*`, `*Nombre:*`, `*Servicio:*`, `*Zona:*`, `*Problema:*`, `*Fotos:*`, `*Audio:*`.
+
+**Bug 3 — Datos del cliente no llegan al profesional al confirmar visita (`coordination.service.ts`):**
+- `notifyProfessionalVisitConfirmed` ignoraba `sendWithWindowCheck` cuando `hasCoordinates = true`, llamando directo a `sendTemplateWithButton`.
+- Ahora ambos casos (con y sin coordenadas) pasan por la verificación de ventana de 24hs:
+  - Dentro de la ventana → texto plano con nombre, teléfono, dirección y fecha/hora (con negrita).
+  - Fuera de la ventana → template con botón de maps si hay coordenadas, template sin botón si no hay.
+
+**Archivos modificados:**
+- `backend/src/modules/bot/flows/user-request.flow.ts`
+- `backend/src/modules/bot/coordination.service.ts`
+
+**No modifica** `schema.prisma`.
+
 **Interpretación natural del lenguaje con LLM como fallback en opciones (AUT-236):**
 
 Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LLM como fallback para interpretar respuestas en lenguaje natural (ej: "me parece bien dale" → YES, "la verdad que no estoy seguro" → null).

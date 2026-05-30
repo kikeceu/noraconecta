@@ -636,7 +636,7 @@ export class UserRequestFlow implements FlowHandler {
       tempData.audioUrl = message.audioUrl;
       const confirmText = this.buildConfirmation(tempData);
       return {
-        response: { text: confirmText, options: ['Si', 'No'] },
+        response: { text: confirmText },
         nextStep: 'CONFIRM',
         tempData,
       };
@@ -647,7 +647,7 @@ export class UserRequestFlow implements FlowHandler {
     if (inputText === 'listo' || !!inputText) {
       const confirmText = this.buildConfirmation(tempData);
       return {
-        response: { text: confirmText, options: ['Si', 'No'] },
+        response: { text: confirmText },
         nextStep: 'CONFIRM',
         tempData,
       };
@@ -670,18 +670,18 @@ export class UserRequestFlow implements FlowHandler {
     const photos = (tempData.photoUrls as string[]) || [];
     const hasAudio = !!tempData.audioUrl;
 
-    let text = `Resumen del pedido:\n\n`;
-    text += `Nombre: ${name}\n`;
-    text += `Servicio: ${category}\n`;
-    text += `Zona: ${zone}\n`;
-    text += `Problema: ${description}\n`;
+    let text = `*Resumen del pedido:*\n\n`;
+    text += `*Nombre:* ${name}\n`;
+    text += `*Servicio:* ${category}\n`;
+    text += `*Zona:* ${zone}\n`;
+    text += `*Problema:* ${description}\n`;
 
     if (photos.length > 0) {
-      text += `Fotos: ${photos.length} adjunta(s)\n`;
+      text += `*Fotos:* ${photos.length} adjunta(s)\n`;
     }
 
     if (hasAudio) {
-      text += `Audio: Si\n`;
+      text += `*Audio:* Sí\n`;
     }
 
     text += `\n¿Confirmo la búsqueda de un profesional?\n1. Sí\n2. No`;

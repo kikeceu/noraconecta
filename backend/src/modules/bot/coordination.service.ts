@@ -286,6 +286,24 @@ export class CoordinationService {
   ): Promise<void> {
     const hasCoordinates = !!(userLatitude && userLongitude);
 
+    const message =
+      `✅ Visita confirmada\n` +
+      `*Cliente:* ${userName}\n` +
+      `*Día y hora:* ${scheduleText}\n` +
+      `*Dirección:* ${address}\n` +
+      `*Teléfono:* ${userPhone}`;
+
+    const needsTemplate = await shouldUseTemplate(
+      professionalPhone,
+      'PROFESSIONAL',
+      this.botRepository,
+    );
+
+    if (!needsTemplate) {
+      await this.whatsappAdapter.sendText(professionalPhone, message, 'PROFESSIONAL');
+      return;
+    }
+
     if (hasCoordinates) {
       const coords = `${userLatitude},${userLongitude}`;
       await this.whatsappAdapter.sendTemplateWithButton(
@@ -296,19 +314,11 @@ export class CoordinationService {
         'PROFESSIONAL',
       );
     } else {
-      const message =
-        `Visita confirmada ✅\n` +
-        `Cliente: ${userName}\n` +
-        `Día y hora: ${scheduleText}\n` +
-        `Dirección: ${address}\n` +
-        `Teléfono del cliente: ${userPhone}`;
-
-      await this.sendWithWindowCheck(
+      await this.whatsappAdapter.sendTemplate(
         professionalPhone,
-        'PROFESSIONAL',
-        message,
         'nora_pro_visita_confirmada',
         [userName, scheduleText, address, userPhone],
+        'PROFESSIONAL',
       );
     }
   }
