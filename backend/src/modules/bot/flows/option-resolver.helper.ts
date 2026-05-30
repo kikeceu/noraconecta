@@ -1,3 +1,5 @@
+import { callLLM } from '../../../lib/llm-client';
+
 export interface StepOption {
   value: string;
   aliases: string[];
@@ -75,8 +77,6 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NO', aliases: ['no', '2', 'no_volveria'] },
   ],
 };
-
-import { callLLM } from '../../../lib/llm-client';
 
 export function resolveOption(step: string, input: string): string | null {
   const options = STEP_OPTIONS[step];
