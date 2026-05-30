@@ -5,7 +5,7 @@ import { PaymentsService } from '../../payments/payments.service';
 import { LocationsRepository } from '../../locations/locations.repository';
 import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
-import { resolveOption } from './option-resolver.helper';
+import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -785,7 +785,7 @@ export class UserRequestFlow implements FlowHandler {
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const inputText = message.text?.trim().toLowerCase();
-    const resolved = inputText ? resolveOption('WAITING_CONSENT', inputText) : null;
+    const resolved = inputText ? await resolveOptionWithFallback('WAITING_CONSENT', inputText) : null;
 
     if (resolved === 'YES') {
       return this.handleWaiting(tempData);

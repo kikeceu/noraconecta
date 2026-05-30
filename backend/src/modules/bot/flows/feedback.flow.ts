@@ -4,7 +4,7 @@ import { BotRepository } from '../bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { RequestsService, Satisfaction } from '../../requests/requests.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
-import { resolveOption } from './option-resolver.helper';
+import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
 
 export class FeedbackFlow implements FlowHandler {
   readonly flowName = 'FEEDBACK';
@@ -156,7 +156,7 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
-    const resolved = resolveOption('FEEDBACK_SATISFACTION', inputText);
+    const resolved = await resolveOptionWithFallback('FEEDBACK_SATISFACTION', inputText);
 
     if (!resolved) {
       return {
@@ -243,7 +243,7 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
-    const resolved = resolveOption('FEEDBACK_RECOMMEND', inputText);
+    const resolved = await resolveOptionWithFallback('FEEDBACK_RECOMMEND', inputText);
 
     if (!resolved) {
       return {
@@ -417,7 +417,7 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
-    const resolved = resolveOption('FEEDBACK_PRO_RECOMMEND', inputText);
+    const resolved = await resolveOptionWithFallback('FEEDBACK_PRO_RECOMMEND', inputText);
 
     if (!resolved) {
       return {

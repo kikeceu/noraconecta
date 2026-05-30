@@ -9,7 +9,7 @@ import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
-import { resolveOption } from './option-resolver.helper';
+import { resolveOptionWithFallback } from './option-resolver.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
@@ -131,7 +131,7 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
-    const resolved = resolveOption('AWAITING_ACCEPTANCE', inputText);
+    const resolved = await resolveOptionWithFallback('AWAITING_ACCEPTANCE', inputText);
 
     if (resolved === 'ACCEPT') {
       try {
@@ -390,7 +390,7 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role === 'PROFESSIONAL' && message.text?.trim()) {
       const scheduleText = message.text.trim();
-      const resolved = resolveOption('AWAITING_CONFIRMATION', scheduleText);
+      const resolved = await resolveOptionWithFallback('AWAITING_CONFIRMATION', scheduleText);
 
       if (resolved === 'CONFIRM') {
         const existingScheduledAt = tempData.scheduledAt as string;
@@ -606,7 +606,7 @@ export class CoordinationFlow implements FlowHandler {
     if (role === 'USER' && message.text?.trim()) {
       const response = message.text.trim().toLowerCase();
 
-      const resolved = resolveOption('AWAITING_USER_CONFIRMATION', response);
+      const resolved = await resolveOptionWithFallback('AWAITING_USER_CONFIRMATION', response);
 
       if (resolved === 'YES') {
         const alternativeScheduledAt = new Date(tempData.alternativeScheduledAt as string);
@@ -841,7 +841,7 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
-    const resolved = resolveOption('AWAITING_VISIT_CONFIRMATION', inputText);
+    const resolved = await resolveOptionWithFallback('AWAITING_VISIT_CONFIRMATION', inputText);
 
     if (resolved === 'CONFIRM') {
       return {
