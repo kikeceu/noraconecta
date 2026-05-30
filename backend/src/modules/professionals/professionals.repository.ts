@@ -15,6 +15,7 @@ export interface UpdateProfessionalInput {
   name?: string;
   categoryId?: string;
   availability?: string;
+  availabilityStructured?: Prisma.InputJsonValue;
   dniNumber?: string;
   dniFrontUrl?: string;
   dniBackUrl?: string;
