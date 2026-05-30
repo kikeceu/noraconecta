@@ -32,7 +32,7 @@ interface ScoringConfig {
   weightSpecialization: number;
 }
 
-const DEFAULT_WEIGHT_COMPLIANCE = 0.17;
+const DEFAULT_WEIGHT_COMPLIANCE = 0.14;
 const DEFAULT_WEIGHT_RESPONSE_RATE = 0.20;
 const DEFAULT_WEIGHT_QUALITY_RATING = 0.10;
 const DEFAULT_WEIGHT_PROXIMITY = 0.10;
