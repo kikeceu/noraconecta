@@ -6,6 +6,7 @@ import { LocationsRepository } from '../../locations/locations.repository';
 import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
+import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -709,6 +710,17 @@ export class UserRequestFlow implements FlowHandler {
 
         tempData.requestId = request.id;
 
+        void this.classifyProblemType(
+          request.id,
+          tempData.description as string,
+          tempData.categoryName as string,
+        ).catch((err) => {
+          console.error(
+            '[UserRequestFlow] problem type classification failed:',
+            err,
+          );
+        });
+
         // Matching found a professional -> normal flow
         if (request.status === 'ASSIGNED') {
           return {
@@ -883,5 +895,32 @@ export class UserRequestFlow implements FlowHandler {
       nextStep: null,
       tempData: {},
     };
+  }
+
+  private async classifyProblemType(
+    requestId: string,
+    description: string,
+    categoryName: string,
+  ): Promise<void> {
+    const prompt = `Descripción de un pedido de ${categoryName}: "${description}"
+Clasificá el tipo de problema en snake_case inglés, máximo 3 palabras.
+Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
+Respondé SOLO con la clasificación, sin explicación.`;
+
+    try {
+      const problemType = (await callLLM(prompt))
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+
+      if (!problemType) return;
+
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { problemType },
+      });
+    } catch {
+      // ignore if it fails — background task
+    }
   }
 }
