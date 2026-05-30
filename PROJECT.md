@@ -24,6 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
@@ -129,6 +130,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
@@ -390,6 +392,11 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 | `APP_URL` (marca) | `https://noraconecta.com`     | URL pública del sitio (AUT-187) |
 | `MERCADOPAGO_ACCESS_TOKEN` | — | Access token de MercadoPago (producción o sandbox) (AUT-188) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | — | Secret para validar firma HMAC del webhook (AUT-188) |
+| `LLM_PROVIDER` | `openai` | Proveedor de LLM: `openai` o `anthropic` (AUT-242) |
+| `OPENAI_API_KEY` | — | API key de OpenAI (AUT-242) |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Modelo de OpenAI (AUT-242) |
+| `ANTHROPIC_API_KEY` | — | API key de Anthropic (AUT-242) |
+| `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Modelo de Anthropic (AUT-242) |
 
 ### Archivos de entorno por target (frontend)
 
