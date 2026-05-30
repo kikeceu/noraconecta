@@ -389,4 +389,105 @@ export class MatchingRepository {
       },
     });
   }
+
+  async getAcceptanceRates(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const assigned = await prisma.requestEvent.groupBy({
+      by: ['professionalId'],
+      where: {
+        professionalId: { in: professionalIds },
+        type: 'ASSIGNED',
+      },
+      _count: { id: true },
+    });
+
+    const accepted = await prisma.requestEvent.groupBy({
+      by: ['professionalId'],
+      where: {
+        professionalId: { in: professionalIds },
+        type: 'ACCEPTED',
+      },
+      _count: { id: true },
+    });
+
+    const assignedMap = new Map(assigned.map(r => [r.professionalId!, r._count.id]));
+    const acceptedMap = new Map(accepted.map(r => [r.professionalId!, r._count.id]));
+
+    const result = new Map<string, number>();
+    for (const profId of professionalIds) {
+      const total = assignedMap.get(profId) ?? 0;
+      const acc = acceptedMap.get(profId) ?? 0;
+      result.set(profId, total > 0 ? acc / total : 0.5);
+    }
+    return result;
+  }
+
+  async getCompletionRates(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const accepted = await prisma.requestEvent.groupBy({
+      by: ['professionalId'],
+      where: { professionalId: { in: professionalIds }, type: 'ACCEPTED' },
+      _count: { id: true },
+    });
+
+    const completed = await prisma.requestEvent.groupBy({
+      by: ['professionalId'],
+      where: { professionalId: { in: professionalIds }, type: 'COMPLETED' },
+      _count: { id: true },
+    });
+
+    const acceptedMap = new Map(accepted.map(r => [r.professionalId!, r._count.id]));
+    const completedMap = new Map(completed.map(r => [r.professionalId!, r._count.id]));
+
+    const result = new Map<string, number>();
+    for (const profId of professionalIds) {
+      const total = acceptedMap.get(profId) ?? 0;
+      const comp = completedMap.get(profId) ?? 0;
+      result.set(profId, total > 0 ? comp / total : 0.5);
+    }
+    return result;
+  }
+
+  async getAvgResponseTimes(
+    professionalIds: string[],
+  ): Promise<Map<string, number>> {
+    const assignedEvents = await prisma.requestEvent.findMany({
+      where: {
+        professionalId: { in: professionalIds },
+        type: 'ASSIGNED',
+      },
+      select: { professionalId: true, requestId: true, createdAt: true },
+    });
+
+    const acceptedEvents = await prisma.requestEvent.findMany({
+      where: {
+        professionalId: { in: professionalIds },
+        type: 'ACCEPTED',
+      },
+      select: { professionalId: true, requestId: true, createdAt: true },
+    });
+
+    const assignedByRequest = new Map(assignedEvents.map(e => [e.requestId, e]));
+    const accumulator = new Map<string, { sum: number; count: number }>();
+
+    for (const accepted of acceptedEvents) {
+      const assigned = assignedByRequest.get(accepted.requestId);
+      if (!assigned || !accepted.professionalId) continue;
+
+      const diffMinutes = (accepted.createdAt.getTime() - assigned.createdAt.getTime()) / 60000;
+      const entry = accumulator.get(accepted.professionalId) ?? { sum: 0, count: 0 };
+      entry.sum += diffMinutes;
+      entry.count++;
+      accumulator.set(accepted.professionalId, entry);
+    }
+
+    const result = new Map<string, number>();
+    for (const profId of professionalIds) {
+      const entry = accumulator.get(profId);
+      result.set(profId, entry ? entry.sum / entry.count : 60);
+    }
+    return result;
+  }
 }

@@ -1169,7 +1169,7 @@ Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LL
   - **Ubicación simulada (AUT-152)**: Cuando NORA pide compartir ubicación desde WhatsApp, aparece un botón "📍 Compartir ubicación (simulada)" en la barra de herramientas del chat. Envía coordenadas hardcodeadas de Mendoza (`-32.8908, -68.8272`) como `location` en el body de `POST /bot/message`. Exclusivo para testing en desarrollo.
   - Se detiene al llegar a estado final (CANCELLED, COMPLETED, NOT_FULFILLED, NO_RESPONSE)
 
-### Config (ACTUALIZADO AUT-233)
+### Config (ACTUALIZADO AUT-233, AUT-239)
 
 | Key                            | Default | Descripción                              |
 |-------------------------------|---------|------------------------------------------|
@@ -1181,13 +1181,16 @@ Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LL
 | `WORK_COMPLETION_CHECK_HOURS` | 24 | Horas para volver a consultar al profesional si ya venció la visita programada |
 | `AUTO_COMPLETE_HOURS`          | 24     | Horas sin confirmación para auto-completar |
 | `REPUTATION_PENALTY_DECAY_DAYS` | 90    | Días de decaimiento de penalizaciones |
-| `MATCHING_WEIGHT_COMPLIANCE`   | 0.30   | Peso de compliance en el score |
-| `MATCHING_WEIGHT_RESPONSE_RATE` | 0.22  | Peso de response rate en el score |
+| `MATCHING_WEIGHT_COMPLIANCE`   | 0.22   | Peso de compliance en el score |
+| `MATCHING_WEIGHT_RESPONSE_RATE` | 0.20  | Peso de response rate en el score |
 | `MATCHING_WEIGHT_RECOMMENDATION` | 0.10 | Peso de wouldRecommend en el score |
 | `MATCHING_WEIGHT_DISTRIBUTION` | 0.05   | Peso de distribución en el score |
-| `MATCHING_WEIGHT_QUALITY_RATING` | 0.18 | Peso de quality rating (4 ejes) en el score |
+| `MATCHING_WEIGHT_QUALITY_RATING` | 0.15 | Peso de quality rating (4 ejes) en el score |
 | `MATCHING_WEIGHT_PROXIMITY`    | 0.10   | Peso de cercanía geográfica (Haversine) |
 | `MATCHING_WEIGHT_PLAN`         | 0.05   | Peso de plan priority en el score |
+| `MATCHING_WEIGHT_ACCEPTANCE`   | 0.05   | Peso de tasa de aceptación (ASSIGNED→ACCEPTED) (AUT-239) |
+| `MATCHING_WEIGHT_COMPLETION`   | 0.05   | Peso de tasa de completitud (ACCEPTED→COMPLETED) (AUT-239) |
+| `MATCHING_WEIGHT_RESPONSE_TIME`| 0.03   | Peso de tiempo promedio de respuesta (minutos) (AUT-239) |
 | `MATCHING_MAX_DISTANCE_KM`     | 50     | Distancia máxima para escalar score de proximidad |
 | `MATCHING_BADGE_BONUS`         | 5      | Bonus fijo por hasBadge (no ponderado) |
 | `MATCHING_REJECTION_PENALTY`   | 10     | Penalización por cada REJECTED event en distribución |
@@ -1260,7 +1263,7 @@ const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
 
 **Sin variables configuradas:** Si `WHATSAPP_API_TOKEN_USER`, `WHATSAPP_API_TOKEN_PROFESSIONAL`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
-### Matching (ACTUALIZADO AUT-186)
+### Matching (ACTUALIZADO AUT-186, AUT-239)
 
 Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
@@ -1277,34 +1280,43 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `getRecentAverageRatings()`     | Igual que `getAverageRatings` pero filtrado a últimos 30 días para calcular tendencia |
 | `countRejectedEvents()`         | Cantidad de eventos REJECTED por profesional (para penalización en distribución) |
 | `getBadgeStatus()`              | Si el profesional tiene badge de excelencia activo            |
+| `getAcceptanceRates()`          | Tasa de aceptación: eventos ACCEPTED / ASSIGNED por profesional. Default 0.5 sin historial (AUT-239) |
+| `getCompletionRates()`          | Tasa de completitud: eventos COMPLETED / ACCEPTED por profesional. Default 0.5 sin historial (AUT-239) |
+| `getAvgResponseTimes()`         | Tiempo promedio en minutos entre ASSIGNED y ACCEPTED. Default 60 min sin historial (AUT-239) |
 | `findRequestsForReminder()`     | Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 min atrás (incluye `assignedProfessional.phone`) |
 | `findRequestsForReassignment()` | Busca pedidos ASSIGNED con `updatedAt` > 90 min atrás          |
 
 **Filtros duros**: status ACTIVE | OBSERVATION, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo de pedidos activos configurable, no rechazó el pedido actual.
 
-**Fórmula de scoring (AUT-186, AUT-201):**
+**Fórmula de scoring (AUT-186, AUT-201, AUT-239):**
 ```
-score_final = compliance        × 0.30
-            + responseRate      × 0.22
-            + qualityRating     × 0.18   (promedio 4 ejes, reemplaza wouldRecommend como componente principal)
+score_final = compliance        × 0.22
+            + responseRate      × 0.20
+            + qualityRating     × 0.15   (promedio 4 ejes, reemplaza wouldRecommend como componente principal)
             + proximity         × 0.10   (distancia real usuario-profesional con Haversine)
             + recommendation    × 0.10   (wouldRecommend se mantiene con menos peso)
             + distribution      × 0.05   (reducido, penaliza rechazos)
-            + planScore         × 0.05   (nuevo con peso real: Básico=33, Profesional=66, Premium=100)
+            + planScore         × 0.05   (prioridad: Básico=33, Profesional=66, Premium=100)
+            + acceptanceRate    × 0.05   (tasa de aceptación, 0-1 → 0-100) (AUT-239)
+            + completionRate    × 0.05   (tasa de completitud, 0-1 → 0-100) (AUT-239)
+            + responseTime      × 0.03   (tiempo respuesta, 0min=100, 120min=0) (AUT-239)
             + badgeBonus        (fijo +5 si hasBadge, configurable)
             ± tendencyBonus     (mejora reciente en ratings, máx ±15 puntos)
 ```
 
-**Pesos**: 0.30 + 0.22 + 0.18 + 0.10 + 0.10 + 0.05 + 0.05 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
+**Pesos**: 0.22 + 0.20 + 0.15 + 0.10 + 0.10 + 0.05 + 0.05 + 0.05 + 0.05 + 0.03 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
 
 **Componentes del scoring:**
-- **Compliance (30%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
-- **ResponseRate (22%)**: base 100, penalización por NO_RESPONSE
-- **QualityRating (18%)**: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5 → 0-100). Sin datos → 60 (score neutro, para no penalizar nuevos). Con datos recientes → bonus/penalización de tendencia (máx ±15)
+- **Compliance (22%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
+- **ResponseRate (20%)**: base 100, penalización por NO_RESPONSE
+- **QualityRating (15%)**: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5 → 0-100). Sin datos → 60 (score neutro, para no penalizar nuevos). Con datos recientes → bonus/penalización de tendencia (máx ±15)
 - **Proximity (10%)**: cercanía real en km con Haversine entre `Request.userLatitude/userLongitude` y `Professional.latitude/longitude`; sin coordenadas en cualquiera de los dos lados retorna 50 (neutro), con tope configurable por `MATCHING_MAX_DISTANCE_KM`.
 - **Recommendation (10%)**: % de feedbacks con wouldRecommend = true. Sin feedbacks → 50
 - **Distribution (5%)**: bonus por tiempo desde última asignación, penalizado por rechazos (REJECTED events)
 - **PlanScore (5%)**: priority 1 (Básico) → 33, 2 (Profesional) → 66, 3 (Premium) → 100. El plan NUNCA puede hacer que un profesional con mala reputación supere a uno con buena (diferencia máxima por plan: ~5 puntos)
+- **AcceptanceRate (5%)**: tasa de aceptación (ACCEPTED / ASSIGNED). Sin historial → 50. Rango 0-100. Pondera compromiso y disponibilidad real del profesional (AUT-239)
+- **CompletionRate (5%)**: tasa de completitud (COMPLETED / ACCEPTED). Sin historial → 50. Rango 0-100. Mide cuántos trabajos aceptados llegan a buen término sin escalada (AUT-239)
+- **ResponseTime (3%)**: tiempo promedio de respuesta entre asignación y aceptación. 0 min = 100, 120 min = 0. Sin historial → 50. Penaliza profesionales que demoran en responder (AUT-239)
 - **BadgeBonus**: +5 fijo si hasBadge = true (configurable vía MATCHING_BADGE_BONUS)
 
 **Parámetros configurables vía `SystemConfig` con defaults: `MATCHING_*` keys.**
