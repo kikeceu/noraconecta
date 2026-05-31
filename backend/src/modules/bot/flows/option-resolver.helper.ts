@@ -33,6 +33,14 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
       ],
     },
   ],
+  CONFIRM_AVAILABILITY: [
+    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'confirmo', '1'] },
+    { value: 'NO', aliases: ['no', 'nop', 'corregir', '2'] },
+  ],
+  CONFIRM_PRO_AVAILABILITY: [
+    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'confirmo', '1'] },
+    { value: 'NO', aliases: ['no', 'nop', 'corregir', '2'] },
+  ],
   AWAITING_USER_CONFIRMATION: [
     { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'okey', 'vale', 'claro', 'de acuerdo', '1', 'si_me_viene'] },
     { value: 'NO', aliases: ['no', 'nop', 'nope', 'negativo', 'no puedo', '2', 'no_me_viene'] },

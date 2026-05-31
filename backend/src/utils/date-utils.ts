@@ -58,7 +58,8 @@ Si es ambiguo o no se puede determinar, devolvé:
     if (parsed.error) return null;
     if (parsed.date) return new Date(parsed.date);
     return null;
-  } catch {
+  } catch (err) {
+    console.error('[parseDateTimeNatural] LLM call failed:', err);
     return null;
   }
 }
@@ -80,9 +81,14 @@ export function getMinutesArgentina(date: Date): number {
 
 export function formatDateTimeArgentina(date: Date): string {
   const ar = new Date(date.getTime() - ARGENTINA_OFFSET_MS);
-  const day = ar.getUTCDate().toString().padStart(2, '0');
-  const month = (ar.getUTCMonth() + 1).toString().padStart(2, '0');
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  const dayName = dayNames[ar.getUTCDay()];
+  const day = ar.getUTCDate();
+  const monthName = monthNames[ar.getUTCMonth()];
   const hours = ar.getUTCHours().toString().padStart(2, '0');
   const minutes = ar.getUTCMinutes().toString().padStart(2, '0');
-  return `${day}/${month} ${hours}:${minutes}`;
+
+  return `${dayName} ${day} de ${monthName} a las ${hours}:${minutes}`;
 }

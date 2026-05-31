@@ -48,7 +48,7 @@ export class NotificationService {
     professional: ProfessionalInfo,
     request: RequestBasicInfo,
   ): Promise<void> {
-    const message = `¡${professional.name} aceptó tu pedido de ${request.categoryName}! 🎉 Para coordinar la visita, indicanos qué día y horario te viene bien. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)`;
+    const message = `¡${professional.name} aceptó tu pedido de ${request.categoryName}! 🎉 ¿Qué día y horario te viene bien para la visita? Si necesitás cancelar, escribí "cancelar".`;
 
     await this.sendWithWindowCheck(
       user.phone,

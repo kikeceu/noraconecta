@@ -32,7 +32,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (AUT-166, AUT-167)
+│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
 │   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
@@ -117,10 +117,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + hours — AUT-238)
-│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow
+│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236)
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
