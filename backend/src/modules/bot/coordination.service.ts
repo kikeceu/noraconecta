@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
-import { parseExactDate, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
+import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 import { ConfigRepository } from '../config/config.repository';
 
 const DEFAULT_WORK_COMPLETION_CHECK_HOURS = 24;
@@ -449,9 +449,13 @@ export class CoordinationService {
       clientAvailability: request.clientAvailability,
     });
 
-    const scheduledAt = parseExactDate(scheduleText);
+    const scheduleResult = await parseDateTimeNatural(scheduleText, new Date());
 
-    if (!scheduledAt) {
+    if (!scheduleResult.success) {
+      const errorText = scheduleResult.reason === 'past'
+        ? 'La fecha que indicaste ya pasó. Indicá una fecha futura. Por ejemplo: *viernes 13/06 a las 16:00*'
+        : 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
+
       console.log('[CoordinationService.confirmVisit] Could not parse schedule, resetting to AWAITING_AVAILABILITY');
       await prisma.request.update({
         where: { id: requestId },
@@ -462,12 +466,9 @@ export class CoordinationService {
       });
 
       if (request.user?.phone) {
-        const userMessage =
-          'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
-
         await this.whatsappAdapter.sendText(
           request.user.phone,
-          userMessage,
+          errorText,
           'USER',
         );
 
@@ -493,13 +494,22 @@ export class CoordinationService {
       return;
     }
 
+    const scheduledAt = scheduleResult.date;
+
     console.log('[CoordinationService.confirmVisit] Parsed schedule:', {
       scheduleText,
       scheduledAt: scheduledAt.toISOString(),
     });
 
     const clientAvailability = request.clientAvailability ?? undefined;
-    const userProposedAt = clientAvailability ? parseExactDate(clientAvailability) : null;
+
+    let userProposedAt: Date | null = null;
+    if (clientAvailability) {
+      const availabilityResult = await parseDateTimeNatural(clientAvailability, new Date());
+      if (availabilityResult.success) {
+        userProposedAt = availabilityResult.date;
+      }
+    }
 
     const isAlternative = !userProposedAt || !isSameSchedule(scheduledAt, userProposedAt);
 

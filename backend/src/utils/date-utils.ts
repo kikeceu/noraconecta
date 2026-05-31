@@ -1,5 +1,9 @@
 import { callLLM } from '../lib/llm-client';
 
+export type ParseDateTimeResult =
+  | { success: true; date: Date }
+  | { success: false; reason: 'ambiguous' | 'past' };
+
 export function parseExactDate(input: string): Date | null {
   const trimmed = input.trim();
   console.log('[parseExactDate] input:', JSON.stringify(input), 'trimmed:', JSON.stringify(trimmed));
@@ -27,7 +31,6 @@ export function parseExactDate(input: string): Date | null {
   const date = new Date(`${year}-${mm}-${dd}T${hh}:${min}:00-03:00`);
 
   if (isNaN(date.getTime())) return null;
-  if (date < new Date()) return null;
 
   return date;
 }
@@ -35,9 +38,14 @@ export function parseExactDate(input: string): Date | null {
 export async function parseDateTimeNatural(
   input: string,
   referenceDate: Date,
-): Promise<Date | null> {
+): Promise<ParseDateTimeResult> {
   const exact = parseExactDate(input);
-  if (exact) return exact;
+  if (exact) {
+    if (exact <= new Date()) {
+      return { success: false, reason: 'past' };
+    }
+    return { success: true, date: exact };
+  }
 
   const now = referenceDate.toLocaleString('es-AR', {
     timeZone: 'America/Argentina/Buenos_Aires',
@@ -55,12 +63,16 @@ Si es ambiguo o no se puede determinar, devolvé:
   try {
     const response = await callLLM(prompt);
     const parsed = JSON.parse(response.trim());
-    if (parsed.error) return null;
-    if (parsed.date) return new Date(parsed.date);
-    return null;
+    if (parsed.error) return { success: false, reason: 'ambiguous' };
+    if (parsed.date) {
+      const date = new Date(parsed.date);
+      if (date <= new Date()) return { success: false, reason: 'past' };
+      return { success: true, date };
+    }
+    return { success: false, reason: 'ambiguous' };
   } catch (err) {
     console.error('[parseDateTimeNatural] LLM call failed:', err);
-    return null;
+    return { success: false, reason: 'ambiguous' };
   }
 }
 
