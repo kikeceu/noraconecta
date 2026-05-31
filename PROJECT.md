@@ -32,7 +32,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── require-super-admin.ts # SUPERADMIN role guard
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
-│   │   │   ├── date-utils.ts          # parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
+│   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
 │   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
 │   │   ├── types/
@@ -110,14 +110,14 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
-│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks
+│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + hours — AUT-238)
-│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos)
+│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY)
@@ -278,7 +278,7 @@ src/
 │   └── require-super-admin.ts # SUPERADMIN role guard
 ├── utils/
 │   ├── jwt.ts                 # signToken / verifyToken
-│   ├── date-utils.ts          # parseExactDate + parseDateTimeNatural (lenguaje natural con LLM, AUT-237) + funciones de timezone Argentina (AUT-166, AUT-167, AUT-237)
+│   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate + parseDateTimeNatural (lenguaje natural con LLM, discriminated union, AUT-237, AUT-248) + funciones de timezone Argentina (AUT-166, AUT-167, AUT-237)
 │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp (AUT-171)
 ├── types/
   │   └── express.d.ts           # Express Request augmentation (req.admin)

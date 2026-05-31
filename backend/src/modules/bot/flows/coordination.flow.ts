@@ -247,18 +247,23 @@ export class CoordinationFlow implements FlowHandler {
 
       const availability = message.text.trim();
       const now = new Date();
-      const parsedDate = await parseDateTimeNatural(availability, now);
+      const result = await parseDateTimeNatural(availability, now);
 
-      if (!parsedDate) {
+      if (!result.success) {
+        const errorText = result.reason === 'past'
+          ? 'La fecha que indicaste ya pasó. Indicá una fecha futura. Por ejemplo: *viernes 13/06 a las 16:00*'
+          : 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
+
         return {
           response: {
-            text: 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*',
+            text: errorText,
           },
           nextStep: 'AWAITING_AVAILABILITY',
           tempData: { ...tempData, negotiationRounds },
         };
       }
 
+      const parsedDate = result.date;
       const formattedDate = formatDateTimeArgentina(parsedDate);
       return {
         response: {
@@ -358,7 +363,7 @@ export class CoordinationFlow implements FlowHandler {
         where: { id: requestId },
         data: {
           coordinationStatus: 'AWAITING_CONFIRMATION',
-          clientAvailability: availability,
+          clientAvailability: formatDateTimeArgentina(parsedDate),
           scheduledAt: parsedDate,
         },
         include: {
@@ -485,18 +490,23 @@ export class CoordinationFlow implements FlowHandler {
       }
 
       const now = new Date();
-      const newScheduledAt = await parseDateTimeNatural(scheduleText, now);
+      const result = await parseDateTimeNatural(scheduleText, now);
 
-      if (!newScheduledAt) {
+      if (!result.success) {
+        const errorText = result.reason === 'past'
+          ? 'La fecha que indicaste ya pasó. Indicá una fecha futura. Por ejemplo: *viernes 13/06 a las 16:00*'
+          : 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
+
         return {
           response: {
-            text: 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*',
+            text: errorText,
           },
           nextStep: 'AWAITING_CONFIRMATION',
           tempData,
         };
       }
 
+      const newScheduledAt = result.date;
       const alternativeText = formatDateTimeArgentina(newScheduledAt);
       return {
         response: {
@@ -592,6 +602,7 @@ export class CoordinationFlow implements FlowHandler {
         where: { id: requestId },
         data: {
           coordinationStatus: 'AWAITING_LOCATION',
+          clientAvailability: formatDateTimeArgentina(newScheduledAt),
           scheduledAt: newScheduledAt,
         },
       });
@@ -641,6 +652,7 @@ export class CoordinationFlow implements FlowHandler {
       where: { id: requestId },
       data: {
         coordinationStatus: 'AWAITING_USER_CONFIRMATION',
+        clientAvailability: formatDateTimeArgentina(newScheduledAt),
         scheduledAt: newScheduledAt,
       },
     });
