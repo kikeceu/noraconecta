@@ -463,7 +463,7 @@ export class CoordinationService {
 
       if (request.user?.phone) {
         const userMessage =
-          'El formato no es válido. Escribí así: DD/MM HH:MM (ejemplo: 20/06 16:00)';
+          'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
 
         await this.whatsappAdapter.sendText(
           request.user.phone,
