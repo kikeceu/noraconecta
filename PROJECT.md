@@ -1112,6 +1112,23 @@ Correcciones de bugs en el flujo de confirmación de pedido y visita.
 
 **No modifica** `schema.prisma`.
 
+### AUT-252 — Saltear selección de provincia cuando hay una sola activa
+
+Mejora de UX en los flujos `USER_REQUEST` y `PROFESSIONAL_REGISTER`: si el país del usuario tiene una única provincia activa, el sistema la auto-selecciona y salta directo a la lista de departamentos sin mostrar el paso de selección de provincia.
+
+**Cambios en `user-request.flow.ts`:**
+- `proceedToProvinceStep`: después de obtener `provinces`, si `provinces.length === 1`, auto-selecciona la provincia, carga las zonas activas y redirige a `ASK_ZONE` con mensaje contextualizado: "¿En qué departamento de {provincia} necesitás el servicio?"
+
+**Cambios en `professional-register.flow.ts`:**
+- `handleAskService`: después de seleccionar la categoría y obtener provincias, si `provinces.length === 1`, auto-selecciona la provincia, carga las zonas activas y redirige a `ASK_ZONES` con mensaje contextualizado: "¿En qué departamento de {provincia} trabajás?"
+
+**Comportamiento:**
+- 1 provincia activa → salta a zonas con contexto de la provincia
+- 2+ provincias activas → flujo normal (lista de provincias)
+- Si no hay zonas activas → mensaje de error y flujo terminado
+
+**No modifica** `schema.prisma`.
+
 **Interpretación natural del lenguaje con LLM como fallback en opciones (AUT-236):**
 
 Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LLM como fallback para interpretar respuestas en lenguaje natural (ej: "me parece bien dale" → YES, "la verdad que no estoy seguro" → null).
