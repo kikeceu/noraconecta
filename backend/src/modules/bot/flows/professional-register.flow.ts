@@ -4,6 +4,7 @@ import { ProfessionalsRepository } from '../../professionals/professionals.repos
 import { LocationsRepository } from '../../locations/locations.repository';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
+import { callLLM } from '../../../lib/llm-client';
 
 export class ProfessionalRegisterFlow implements FlowHandler {
   readonly flowName = 'PROFESSIONAL_REGISTER';
@@ -314,7 +315,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     const availableZones = tempData._availableZones as { id: string; name: string }[];
 
     const numbers = inputText
-      .split(/[\s,]+/)
+      .split(/[\s,y]+/)
       .map((s) => parseInt(s.trim(), 10))
       .filter((n) => !isNaN(n));
 
@@ -412,7 +413,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     // Step 2 — Parse selected days
     if (step === 'ASK_DAYS') {
       const numbers = inputText
-        .split(/[\s,]+/)
+        .split(/[\s,y]+/)
         .map((s) => parseInt(s.trim(), 10))
         .filter((n) => !isNaN(n));
       const selectedDays = numbers.filter((n) => n >= 1 && n <= 7).map((n) => this.DAY_MAP[n]);
@@ -428,61 +429,97 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       }
 
       tempData._selectedDays = selectedDays;
-      tempData._availabilityStep = 'ASK_FROM';
+      tempData._availabilityStep = 'ASK_HOURS';
 
       return {
-        response: { text: '¿A qué hora empezás a trabajar? (Ej: 08:00)' },
+        response: { text: '¿De qué hora a qué hora trabajás? (Ej: de 8 a 18, de 9 a 17:30, mañana y tarde)' },
         nextStep: 'ASK_AVAILABILITY',
         tempData,
       };
     }
 
-    // Step 3 — Start time
-    if (step === 'ASK_FROM') {
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    // Step 3 — Working hours (single question with LLM parsing)
+    if (step === 'ASK_HOURS') {
+      const hoursStep = tempData._hoursStep as string | undefined;
 
-      if (!timeRegex.test(inputText)) {
-        return {
-          response: { text: 'Formato inválido. Escribí la hora así: 08:00' },
-          nextStep: 'ASK_AVAILABILITY',
-          tempData,
-        };
+      if (!hoursStep || hoursStep === 'WAITING_INPUT') {
+        tempData._hoursStep = 'WAITING_INPUT';
+        const prompt = `Extraé el horario de inicio y fin de trabajo de este texto: "${inputText}"
+Devolvé SOLO un JSON con este formato exacto:
+{"from": "HH:MM", "to": "HH:MM"}
+Si no podés determinarlo con certeza, devolvé: {"error": "ambiguo"}
+Ejemplos válidos de entrada:
+- "de 8 a 18" → {"from": "08:00", "to": "18:00"}
+- "de 9 a 17:30" → {"from": "09:00", "to": "17:30"}
+- "mañana y tarde" → {"error": "ambiguo"}
+- "8 a 6 de la tarde" → {"from": "08:00", "to": "18:00"}`;
+
+        try {
+          const llmResponse = await callLLM(prompt);
+
+          let parsed: { from?: string; to?: string; error?: string };
+          try {
+            parsed = JSON.parse(llmResponse);
+          } catch {
+            return {
+              response: {
+                text: 'No pude entender el horario. Escribilo en formato exacto, por ejemplo: 08:00 a 18:00',
+              },
+              nextStep: 'ASK_AVAILABILITY',
+              tempData,
+            };
+          }
+
+          if (parsed.error === 'ambiguo' || !parsed.from || !parsed.to) {
+            return {
+              response: {
+                text: 'No me quedó claro el horario. ¿Podés ser más específico? Por ejemplo:\n- "de 8 a 18 hs"\n- "de 9 de la mañana a 5 de la tarde"\n- "de 14:00 a 20:00"',
+              },
+              nextStep: 'ASK_AVAILABILITY',
+              tempData,
+            };
+          }
+
+          const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+          if (!timeRegex.test(parsed.from) || !timeRegex.test(parsed.to)) {
+            return {
+              response: {
+                text: 'El horario que entendí no tiene el formato correcto. Escribilo así: 08:00 a 18:00',
+              },
+              nextStep: 'ASK_AVAILABILITY',
+              tempData,
+            };
+          }
+
+          tempData._fromTime = parsed.from;
+          tempData._toTime = parsed.to;
+
+          const selectedDays = tempData._selectedDays as number[];
+          const dayNames = selectedDays.map((d) => this.DAY_NAMES[d]).join(', ');
+
+          tempData._availabilityStep = 'CONFIRM';
+
+          return {
+            response: {
+              text: `Trabajás ${dayNames} de ${parsed.from} a ${parsed.to}. ¿Es correcto?\n1. Sí\n2. No, corregir`,
+            },
+            nextStep: 'ASK_AVAILABILITY',
+            tempData,
+          };
+        } catch {
+          return {
+            response: {
+              text: 'Tuve un problema para interpretar el horario. Por favor escribilo en formato exacto: 08:00 a 18:00',
+            },
+            nextStep: 'ASK_AVAILABILITY',
+            tempData,
+          };
+        }
       }
 
-      tempData._fromTime = inputText;
-      tempData._availabilityStep = 'ASK_TO';
-
       return {
-        response: { text: '¿A qué hora terminás de trabajar? (Ej: 18:00)' },
-        nextStep: 'ASK_AVAILABILITY',
-        tempData,
-      };
-    }
-
-    // Step 4 — End time and confirmation
-    if (step === 'ASK_TO') {
-      const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
-
-      if (!timeRegex.test(inputText)) {
-        return {
-          response: { text: 'Formato inválido. Escribí la hora así: 18:00' },
-          nextStep: 'ASK_AVAILABILITY',
-          tempData,
-        };
-      }
-
-      tempData._toTime = inputText;
-
-      const selectedDays = tempData._selectedDays as number[];
-      const dayNames = selectedDays.map((d) => this.DAY_NAMES[d]).join(', ');
-
-      tempData._availabilityStep = 'CONFIRM';
-
-      return {
-        response: {
-          text: `Trabajás ${dayNames} de ${tempData._fromTime as string} a ${tempData._toTime as string}. ¿Es correcto?\n1. Sí\n2. No, corregir`,
-        },
-        nextStep: 'ASK_AVAILABILITY',
+        response: { text: 'Algo salió mal. Intentá de nuevo.' },
+        nextStep: null,
         tempData,
       };
     }
@@ -496,6 +533,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
         delete tempData._selectedDays;
         delete tempData._fromTime;
         delete tempData._toTime;
+        delete tempData._hoursStep;
 
         const daysList = '1. Lunes\n2. Martes\n3. Miércoles\n4. Jueves\n5. Viernes\n6. Sábado\n7. Domingo';
 
