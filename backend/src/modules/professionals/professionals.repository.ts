@@ -24,6 +24,8 @@ export interface UpdateProfessionalInput {
   references?: string;
   presentationVideoUrl?: string;
   status?: ProfessionalStatus;
+  verificationToken?: string;
+  verificationTokenExp?: Date | null;
   verificationTokenUsed?: boolean;
   hasBadge?: boolean;
   sessionToken?: string | null;
