@@ -84,12 +84,12 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── config.service.ts    # Key-value config get/update
 │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
 │   │   │   ├── matching/
-│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + sentimiento IA (sin endpoints, AUT-235)
-│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores (AUT-235)
+│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización (AUT-235, AUT-240, AUT-251)
+│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts + análisis LLM síncrono en create() (AUT-251)
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
@@ -115,7 +115,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
-│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow (análisis LLM movido a requests.service.ts create() — AUT-251)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
@@ -892,7 +892,7 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
   - `weightSentiment` (0.05): análisis de sentimiento IA sobre comentarios de feedback (AUT-235)
   - `weightSpecialization` (0.08): especialización por tipo de problema basada en historial acumulado (AUT-240)
 - **Sentiment analysis (AUT-235)**: `analyzeSentiment()` en `feedback.flow.ts` procesa comentarios de texto libre con LLM (`callLLM`) en background. Extrae 5 dimensiones (puntualidad, precio_justo, calidad_trabajo, limpieza, actitud) + recomendable. Guarda resultado en `Feedback.sentimentAnalysis` (JSON). `getSentimentScores()` en `MatchingRepository` calcula score normalizado 0-100 por profesional agregando todos sus feedbacks con análisis de sentimiento. El score base es 50 (neutro) para profesionales sin análisis.
-- **Problem type specialization (AUT-240)**: `classifyProblemType()` en `user-request.flow.ts` clasifica cada pedido con LLM (`callLLM`) en background al crearse. Guarda en `Request.problemType` (snake_case). Al completar trabajo con satisfacción (`SATISFIED`/`PARTIAL`), `requests.service.ts` acumula el `problemType` en `Professional.problemTypeStats` (JSON, contador por tipo). `getProblemTypeStats()` en `MatchingRepository` carga las estadísticas. `computeSpecialization()` en `MatchingService` las usa como factor de scoring: si no hay `problemType` en el pedido o el profesional no tiene historial → 50 (neutro); si tiene historial → ratio `count/total * 100 * 3` (máx 100). `findBestCandidate()` acepta parámetro opcional `problemType`. Peso configurable via `MATCHING_WEIGHT_SPECIALIZATION` (default 0.08).
+- **Problem type specialization (AUT-240, ACTUALIZADO AUT-251)**: el análisis LLM se ejecuta de forma síncrona dentro de `create()` en `requests.service.ts` antes de `findBestCandidate`. Clasifica cada pedido extrayendo `problemType` (snake_case), `isUrgent` y `mentionedDate`. Estos valores se pasan directamente al matching inicial y se persisten en DB via fire-and-forget después del match. Al completar trabajo con satisfacción (`SATISFIED`/`PARTIAL`), `requests.service.ts` acumula el `problemType` en `Professional.problemTypeStats` (JSON, contador por tipo). `getProblemTypeStats()` en `MatchingRepository` carga las estadísticas. `computeSpecialization()` en `MatchingService` las usa como factor de scoring: si no hay `problemType` en el pedido o el profesional no tiene historial → 50 (neutro); si tiene historial → ratio `count/total * 100 * 3` (máx 100). `findBestCandidate()` acepta parámetro opcional `problemType`. Peso configurable via `MATCHING_WEIGHT_SPECIALIZATION` (default 0.08).
 
 ### Storage
 
@@ -1137,18 +1137,17 @@ Extensión del análisis LLM post-descripción para detectar dos señales clave 
 - `Request`: agregados `isUrgent Boolean @default(false)` y `mentionedDate String?` después de `problemType`
 - Migración: `add_request_urgency_fields`
 
-**Cambios en `user-request.flow.ts`:**
-- `classifyProblemType()` renombrado a `analyzeDescription()` con prompt extendido que retorna JSON con tres campos: `problemType` (snake_case inglés), `isUrgent` (booleano) y `mentionedDate` (string o null)
-- El parsing soporta JSON directo y fallback a regex `{...}` si el LLM devuelve texto con markdown
-- Valores default si el LLM falla: `isUrgent: false`, `mentionedDate: null`
-- La llamada sigue siendo background (`void`) para no bloquear el flujo del usuario
+**Cambios en `requests.service.ts` (ACTUALIZADO AUT-251 — Opción B):**
+- El análisis LLM se ejecuta síncrono dentro de `create()`, antes de `findBestCandidate`, extrayendo `problemType`, `isUrgent` y `mentionedDate`
+- Si el LLM falla, se usan defaults (`isUrgent: false`, `mentionedDate: null`) sin bloquear la creación del pedido
+- `findBestCandidate` recibe los valores analizados para el matching inicial (antes solo disponibles en reasignaciones)
+- Los valores se persisten en DB via fire-and-forget después del match: `requestsRepository.update(request.id, { problemType, isUrgent, mentionedDate })`
+- El método `analyzeDescription()` fue removido de `user-request.flow.ts` (la lógica está ahora en `create()`)
 
 **Criterios de detección (via prompt al LLM):**
 - `isUrgent`: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
 - `mentionedDate`: extrae día/fecha mencionada (ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio"). null si no se menciona fecha.
 - `problemType`: clasificación breve en snake_case inglés (sin cambios respecto al comportamiento anterior)
-
-**No modifica** `requests.service.ts` — los campos se guardan asincrónicamente desde el flow, mismo patrón que `problemType`.
 
 **Interpretación natural del lenguaje con LLM como fallback en opciones (AUT-236):**
 
@@ -1340,13 +1339,13 @@ const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
 
 **Sin variables configuradas:** Si `WHATSAPP_API_TOKEN_USER`, `WHATSAPP_API_TOKEN_PROFESSIONAL`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
-### Matching (ACTUALIZADO AUT-186, AUT-239)
+### Matching (ACTUALIZADO AUT-186, AUT-239, AUT-251)
 
 Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
 | Método                  | Descripción                                         |
 |-------------------------|-----------------------------------------------------|
-| `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona |
+| `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona. Acepta `isUrgent`, `mentionedDate` y `problemType` opcionales para bonus de disponibilidad contextual y especialización (AUT-251, AUT-240) |
 | `calculateScore()`      | Calcula el score individual de un profesional       |
 
 **Repository (matching.repository.ts) — queries de scoring:**
@@ -1362,10 +1361,11 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `getAvgResponseTimes()`         | Tiempo promedio en minutos entre ASSIGNED y ACCEPTED. Default 60 min sin historial (AUT-239) |
 | `findRequestsForReminder()`     | Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 min atrás (incluye `assignedProfessional.phone`) |
 | `findRequestsForReassignment()` | Busca pedidos ASSIGNED con `updatedAt` > 90 min atrás          |
+| `getProfessionalAvailability()` | Lee `availabilityStructured` de profesionales y retorna Map con slots por día/hora (AUT-251) |
 
 **Filtros duros**: status ACTIVE | OBSERVATION, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo de pedidos activos configurable, no rechazó el pedido actual.
 
-**Fórmula de scoring (AUT-186, AUT-201, AUT-239):**
+**Fórmula de scoring (AUT-186, AUT-201, AUT-239, AUT-251):**
 ```
 score_final = compliance        × 0.22
             + responseRate      × 0.20
@@ -1379,9 +1379,10 @@ score_final = compliance        × 0.22
             + responseTime      × 0.03   (tiempo respuesta, 0min=100, 120min=0) (AUT-239)
             + badgeBonus        (fijo +5 si hasBadge, configurable)
             ± tendencyBonus     (mejora reciente en ratings, máx ±15 puntos)
+            + availabilityBonus (contextual: +25 urgente/disponible ahora, +15 fecha/coincide día) (AUT-251)
 ```
 
-**Pesos**: 0.22 + 0.20 + 0.15 + 0.10 + 0.10 + 0.05 + 0.05 + 0.05 + 0.05 + 0.03 = 1.00 ✓. El badge bonus es fijo (no ponderado), agregado al final del score.
+**Pesos**: 0.22 + 0.20 + 0.15 + 0.10 + 0.10 + 0.05 + 0.05 + 0.05 + 0.05 + 0.03 = 1.00 ✓. El badgeBonus y el availabilityBonus son fijos (no ponderados), agregados al final del score.
 
 **Componentes del scoring:**
 - **Compliance (22%)**: base 100, penalización por NOT_FULFILLED con decaimiento temporal
@@ -1395,6 +1396,12 @@ score_final = compliance        × 0.22
 - **CompletionRate (5%)**: tasa de completitud (COMPLETED / ACCEPTED). Sin historial → 50. Rango 0-100. Mide cuántos trabajos aceptados llegan a buen término sin escalada (AUT-239)
 - **ResponseTime (3%)**: tiempo promedio de respuesta entre asignación y aceptación. 0 min = 100, 120 min = 0. Sin historial → 50. Penaliza profesionales que demoran en responder (AUT-239)
 - **BadgeBonus**: +5 fijo si hasBadge = true (configurable vía MATCHING_BADGE_BONUS)
+
+- **AvailabilityBonus** (AUT-251): bonus contextual que evalúa `availabilityStructured` del profesional solo cuando el pedido tiene urgencia o fecha mencionada. Sin urgencia/fecha → no se consulta (comportamiento sin cambios).
+  - **Urgencia** (`isUrgent: true`): verifica si el profesional tiene un slot activo para el día y hora actuales en Argentina. Si está disponible → +25 puntos. Si no → 0 (no penaliza).
+  - **Fecha mencionada** (`mentionedDate`): parsea el día de la semana (domingo=0 → sábado=6) desde lenguaje natural (ej: "sábado", "mañana", "lunes"), incluyendo "hoy" y "mañana" dinámicamente. Si el profesional trabaja ese día → +15 puntos. Si no → 0 (no penaliza).
+  - **La disponibilidad nunca descarta** a un profesional del pool de matching, solo suma bonus.
+  - Helper `parseDayFromMentionedDate()`: convierte texto en número de día (0-6). Retorna null si no se puede determinar.
 
 **Parámetros configurables vía `SystemConfig` con defaults: `MATCHING_*` keys.**
 
@@ -1991,7 +1998,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Motor de matching (ACTUALIZADO AUT-186):
   - Scoring en tiempo real, no persistido en DB
   - Filtros duros: status ACTIVE | OBSERVATION, zona, categoría, canReceiveRequests, máximo activos configurable, no rechazó el pedido
-  - Fórmula: Compliance × 0.30 + ResponseRate × 0.22 + QualityRating × 0.18 + Proximity × 0.10 + Recommendation × 0.10 + Distribution × 0.05 + PlanScore × 0.05 + BadgeBonus (fijo) + TendencyBonus (máx ±15)
+  - Fórmula: Compliance × 0.30 + ResponseRate × 0.22 + QualityRating × 0.18 + Proximity × 0.10 + Recommendation × 0.10 + Distribution × 0.05 + PlanScore × 0.05 + BadgeBonus (fijo) + TendencyBonus (máx ±15) + AvailabilityBonus (contextual, AUT-251)
   - Compliance: base 100, -50 por NOT_FULFILLED atenuado linealmente hasta `REPUTATION_DECAY_DAYS` (default: 90). Mín 0.
   - ResponseRate: base 100, -25 por NO_RESPONSE. Mín 0.
   - QualityRating: promedio de puntualidad, calidad, comunicación y precio justo (escala 1-5). Sin datos → 60 (score neutro). Con datos recientes (30d) → bonus/penalización de tendencia (máx ±15).
@@ -2000,6 +2007,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Distribution: bonus por tiempo desde última asignación (días × dailyBonus). Penalizado por rechazos (REJECTED events, -10 c/u por default).
   - PlanScore: Básico=33, Profesional=66, Premium=100. Con peso 0.05, la diferencia máxima por plan es ~3 puntos.
   - BadgeBonus: +5 fijo si hasBadge = true (configurable). No ponderado — se agrega al final.
+  - AvailabilityBonus (AUT-251): bonus contextual que nunca descarta profesionales, solo suma puntos extra. Solo se activa cuando el pedido tiene `isUrgent: true` o `mentionedDate` no nulo.
+    - Urgencia: si el profesional tiene un slot de disponibilidad que cubre el día y hora actual → +25. No penaliza si no está disponible.
+    - Fecha mencionada: parsea el día mencionado por el usuario (ej: "sábado" → día 6) y suma +15 si el profesional trabaja ese día. No penaliza si no trabaja.
+    - Helper `parseDayFromMentionedDate()`: convierte menciones de días en español a número de día (0=domingo → 6=sábado), incluyendo "hoy" y "mañana" con resolución dinámica. Retorna null si no se puede determinar.
   - Ordenamiento por score descendente simple (sin desempate manual por plan).
   - El plan NUNCA puede compensar mala reputación.
   - Todos los pesos, penalizaciones y límites son configurables vía `SystemConfig` con defaults en `MATCHING_*` keys.

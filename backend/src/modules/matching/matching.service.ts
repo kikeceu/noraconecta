@@ -55,6 +55,29 @@ const DEFAULT_TENDENCY_WEIGHT = 0.15;
 const DEFAULT_WEIGHT_SENTIMENT = 0.05;
 const DEFAULT_WEIGHT_SPECIALIZATION = 0.08;
 
+function parseDayFromMentionedDate(mentionedDate: string): number | null {
+  const lower = mentionedDate.toLowerCase();
+  const dayMap: Record<string, number> = {
+    'domingo': 0,
+    'lunes': 1,
+    'martes': 2,
+    'miércoles': 3,
+    'miercoles': 3,
+    'jueves': 4,
+    'viernes': 5,
+    'sábado': 6,
+    'sabado': 6,
+    'hoy': new Date().getDay(),
+    'mañana': (new Date().getDay() + 1) % 7,
+  };
+
+  for (const [key, value] of Object.entries(dayMap)) {
+    if (lower.includes(key)) return value;
+  }
+
+  return null;
+}
+
 const CONFIG_KEYS = {
   WEIGHT_COMPLIANCE: 'MATCHING_WEIGHT_COMPLIANCE',
   WEIGHT_RESPONSE_RATE: 'MATCHING_WEIGHT_RESPONSE_RATE',
@@ -93,6 +116,8 @@ export class MatchingService {
     userLatitude: number | null,
     userLongitude: number | null,
     problemType?: string,
+    isUrgent?: boolean,
+    mentionedDate?: string | null,
   ): Promise<MatchResult | null> {
     const config = await this.loadScoringConfig();
 
@@ -138,6 +163,8 @@ export class MatchingService {
       userLongitude,
       config,
       problemType,
+      isUrgent,
+      mentionedDate,
     );
 
     if (scored.length === 0) {
@@ -211,6 +238,8 @@ export class MatchingService {
     userLon: number | null,
     config: ScoringConfig,
     problemType?: string,
+    isUrgent?: boolean,
+    mentionedDate?: string | null,
   ): Promise<MatchResult[]> {
     const [
       notFulfilled,
@@ -228,6 +257,7 @@ export class MatchingService {
       avgResponseTimes,
       sentimentScores,
       problemTypeStats,
+      availabilityMap,
     ] = await Promise.all([
       this.matchingRepository.findNotFulfilledEvents(ids),
       this.matchingRepository.countNoResponseEvents(ids),
@@ -244,11 +274,11 @@ export class MatchingService {
       this.matchingRepository.getAvgResponseTimes(ids),
       this.matchingRepository.getSentimentScores(ids),
       this.matchingRepository.getProblemTypeStats(ids),
+      this.matchingRepository.getProfessionalAvailability(ids),
     ]);
 
-    return ids.map((id) => ({
-      professionalId: id,
-      score: this.computeScoreFromData(
+    return ids.map((id) => {
+      const baseScore = this.computeScoreFromData(
         id,
         notFulfilled,
         noResponseCounts,
@@ -269,8 +299,20 @@ export class MatchingService {
         problemTypeStats,
         problemType,
         config,
-      ),
-    }));
+      );
+
+      const availabilityBonus = this.computeAvailabilityBonus(
+        id,
+        availabilityMap,
+        isUrgent,
+        mentionedDate,
+      );
+
+      return {
+        professionalId: id,
+        score: Math.min(100, baseScore + availabilityBonus),
+      };
+    });
   }
 
   private async computeScore(
@@ -551,6 +593,41 @@ export class MatchingService {
 
     const ratio = count / totalCompleted;
     return Math.min(100, ratio * 100 * 3);
+  }
+
+  private computeAvailabilityBonus(
+    professionalId: string,
+    availabilityMap: Map<string, { slots: { day: number; from: string; to: string }[] }>,
+    isUrgent: boolean | undefined,
+    mentionedDate: string | null | undefined,
+  ): number {
+    const availability = availabilityMap.get(professionalId);
+
+    let bonus = 0;
+
+    if (availability?.slots?.length) {
+      if (isUrgent) {
+        const now = new Date();
+        const currentDay = now.getDay();
+        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const isAvailableNow = availability.slots.some(
+          (s) => s.day === currentDay && s.from <= currentTime && s.to >= currentTime,
+        );
+        bonus = isAvailableNow ? 25 : 0;
+      } else if (mentionedDate) {
+        const dayNumber = parseDayFromMentionedDate(mentionedDate);
+        bonus = dayNumber !== null && availability.slots.some((s) => s.day === dayNumber) ? 15 : 0;
+      }
+    }
+
+    console.log('[Matching] computeAvailabilityBonus:', {
+      professionalId,
+      isUrgent: isUrgent ?? false,
+      mentionedDate: mentionedDate ?? null,
+      bonus,
+    });
+
+    return bonus;
   }
 
   private haversineDistanceKm(

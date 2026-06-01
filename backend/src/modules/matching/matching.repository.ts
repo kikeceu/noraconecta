@@ -539,6 +539,24 @@ export class MatchingRepository {
     return result;
   }
 
+  async getProfessionalAvailability(
+    ids: string[],
+  ): Promise<Map<string, { slots: { day: number; from: string; to: string }[] }>> {
+    const professionals = await prisma.professional.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, availabilityStructured: true },
+    });
+
+    const map = new Map<string, { slots: { day: number; from: string; to: string }[] }>();
+    for (const p of professionals) {
+      const structured = p.availabilityStructured as { slots: { day: number; from: string; to: string }[] } | null;
+      if (structured?.slots?.length) {
+        map.set(p.id, { slots: structured.slots });
+      }
+    }
+    return map;
+  }
+
   async getProblemTypeStats(
     professionalIds: string[],
   ): Promise<Map<string, Record<string, number>>> {

@@ -12,6 +12,7 @@ import { NotificationService } from '../notifications/notification.service';
 import { CoordinationService } from '../bot/coordination.service';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
+import { callLLM } from '../../lib/llm-client';
 import { parseExactDate, formatDateTimeArgentina } from '../../utils/date-utils';
 import { Request, Feedback } from '@prisma/client';
 
@@ -115,14 +116,76 @@ export class RequestsService {
       status: 'CREATED',
     });
 
+    let isUrgent = false;
+    let mentionedDate: string | null = null;
+    let problemType: string | undefined;
+
+    try {
+      const category = await prisma.category.findUnique({
+        where: { id: input.categoryId },
+        select: { name: true },
+      });
+      const categoryName = category?.name ?? 'desconocido';
+
+      const prompt = `Descripción de un pedido de ${categoryName}: "${input.description.trim()}"
+
+Devolvé SOLO un JSON con este formato exacto:
+{
+  "problemType": "clasificación en snake_case inglés, máximo 3 palabras",
+  "isUrgent": true o false,
+  "mentionedDate": "descripción de la fecha/día mencionado o null si no hay"
+}
+
+Criterios:
+- problemType: clasificación breve. Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
+- isUrgent: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
+- mentionedDate: extraer si el usuario menciona un día o fecha. Ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio". Si no menciona fecha, null.`;
+
+      const rawResponse = await callLLM(prompt);
+      const trimmed = rawResponse.trim();
+
+      let parsed: { problemType?: string; isUrgent?: boolean; mentionedDate?: string | null } | null = null;
+
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch {
+        const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      }
+
+      if (parsed) {
+        problemType = parsed.problemType
+          ? parsed.problemType.trim().toLowerCase().replace(/\s+/g, '_')
+          : undefined;
+
+        isUrgent = parsed.isUrgent === true;
+        mentionedDate =
+          parsed.mentionedDate && parsed.mentionedDate !== 'null'
+            ? parsed.mentionedDate
+            : null;
+      }
+    } catch {
+      // defaults already set — LLM failure is non-blocking
+    }
+
     const match = await this.matchingService.findBestCandidate(
       input.categoryId,
       input.geoNodeId,
       [],
       input.userLatitude ?? null,
       input.userLongitude ?? null,
-      undefined,
+      problemType,
+      isUrgent,
+      mentionedDate,
     );
+
+    void this.requestsRepository.update(request.id, {
+      problemType: problemType || undefined,
+      isUrgent,
+      mentionedDate,
+    }).catch((err) => {
+      console.error('[Requests] failed to update request analysis:', err);
+    });
 
     if (match) {
       const responseTimeoutHours = await this.getResponseTimeoutHours();
@@ -295,6 +358,8 @@ export class RequestsService {
       request.userLatitude,
       request.userLongitude,
       request.problemType ?? undefined,
+      request.isUrgent,
+      request.mentionedDate,
     );
 
     if (!match) {
@@ -948,6 +1013,8 @@ export class RequestsService {
           request.userLatitude,
           request.userLongitude,
           request.problemType ?? undefined,
+          request.isUrgent,
+          request.mentionedDate,
         );
 
         if (!match) {
@@ -1079,6 +1146,8 @@ export class RequestsService {
           request.userLatitude,
           request.userLongitude,
           request.problemType ?? undefined,
+          request.isUrgent,
+          request.mentionedDate,
         );
 
         if (!match) {
@@ -1245,6 +1314,8 @@ export class RequestsService {
       request.userLatitude,
       request.userLongitude,
       request.problemType ?? undefined,
+      request.isUrgent,
+      request.mentionedDate,
     );
 
     let userMessage: string;
@@ -1329,6 +1400,8 @@ export class RequestsService {
       request.userLatitude,
       request.userLongitude,
       request.problemType ?? undefined,
+      request.isUrgent,
+      request.mentionedDate,
     );
 
     if (!match) {
