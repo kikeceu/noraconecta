@@ -180,6 +180,36 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       };
     }
 
+    if (provinces.length === 1) {
+      const province = provinces[0];
+      tempData._provinceId = province.id;
+      tempData._provinceName = province.name;
+      tempData._countryId = countryId;
+
+      const zones = await this.locationsRepository.findActiveChildNodes(province.id);
+
+      if (zones.length === 0) {
+        return {
+          response: { text: 'No hay zonas habilitadas por el momento. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+      tempData._zonesListed = true;
+
+      const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
+      return {
+        response: {
+          text: `Entendido, sos ${selected.name}. ¿En qué departamento de ${province.name} trabajás?\n\n${list}\n\nResponde con los numeros separados por coma. Podes elegir mas de una. (Ej: 1, 3)`,
+        },
+        nextStep: 'ASK_ZONES',
+        tempData,
+      };
+    }
+
     tempData._countryId = countryId;
     tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
     tempData._provinceListed = true;
