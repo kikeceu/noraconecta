@@ -1129,6 +1129,27 @@ Mejora de UX en los flujos `USER_REQUEST` y `PROFESSIONAL_REGISTER`: si el país
 
 **No modifica** `schema.prisma`.
 
+### AUT-250 — Detección de urgencia y fecha mencionada en descripción del problema
+
+Extensión del análisis LLM post-descripción para detectar dos señales clave en el matching: urgencia del pedido y fecha/día mencionada por el usuario.
+
+**Cambios en `schema.prisma`:**
+- `Request`: agregados `isUrgent Boolean @default(false)` y `mentionedDate String?` después de `problemType`
+- Migración: `add_request_urgency_fields`
+
+**Cambios en `user-request.flow.ts`:**
+- `classifyProblemType()` renombrado a `analyzeDescription()` con prompt extendido que retorna JSON con tres campos: `problemType` (snake_case inglés), `isUrgent` (booleano) y `mentionedDate` (string o null)
+- El parsing soporta JSON directo y fallback a regex `{...}` si el LLM devuelve texto con markdown
+- Valores default si el LLM falla: `isUrgent: false`, `mentionedDate: null`
+- La llamada sigue siendo background (`void`) para no bloquear el flujo del usuario
+
+**Criterios de detección (via prompt al LLM):**
+- `isUrgent`: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
+- `mentionedDate`: extrae día/fecha mencionada (ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio"). null si no se menciona fecha.
+- `problemType`: clasificación breve en snake_case inglés (sin cambios respecto al comportamiento anterior)
+
+**No modifica** `requests.service.ts` — los campos se guardan asincrónicamente desde el flow, mismo patrón que `problemType`.
+
 **Interpretación natural del lenguaje con LLM como fallback en opciones (AUT-236):**
 
 Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LLM como fallback para interpretar respuestas en lenguaje natural (ej: "me parece bien dale" → YES, "la verdad que no estoy seguro" → null).
@@ -1790,6 +1811,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | userLatitude           | Float?    | Latitud de referencia del usuario para matching por proximidad |
 | userLongitude          | Float?    | Longitud de referencia del usuario para matching por proximidad |
 | problemType            | String?   | Clasificación automática con LLM (AUT-241)   |
+| isUrgent               | Boolean   | El usuario indicó urgencia (AUT-250)         |
+| mentionedDate          | String?   | Fecha/día mencionado por el usuario (AUT-250) |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 

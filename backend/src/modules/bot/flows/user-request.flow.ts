@@ -740,13 +740,13 @@ export class UserRequestFlow implements FlowHandler {
 
         tempData.requestId = request.id;
 
-        void this.classifyProblemType(
+        void this.analyzeDescription(
           request.id,
           tempData.description as string,
           tempData.categoryName as string,
         ).catch((err) => {
           console.error(
-            '[UserRequestFlow] problem type classification failed:',
+            '[UserRequestFlow] description analysis failed:',
             err,
           );
         });
@@ -927,27 +927,56 @@ export class UserRequestFlow implements FlowHandler {
     };
   }
 
-  private async classifyProblemType(
+  private async analyzeDescription(
     requestId: string,
     description: string,
     categoryName: string,
   ): Promise<void> {
     const prompt = `Descripción de un pedido de ${categoryName}: "${description}"
-Clasificá el tipo de problema en snake_case inglés, máximo 3 palabras.
-Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
-Respondé SOLO con la clasificación, sin explicación.`;
+
+Devolvé SOLO un JSON con este formato exacto:
+{
+  "problemType": "clasificación en snake_case inglés, máximo 3 palabras",
+  "isUrgent": true o false,
+  "mentionedDate": "descripción de la fecha/día mencionado o null si no hay"
+}
+
+Criterios:
+- problemType: clasificación breve. Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
+- isUrgent: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
+- mentionedDate: extraer si el usuario menciona un día o fecha. Ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio". Si no menciona fecha, null.`;
 
     try {
-      const problemType = (await callLLM(prompt))
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '_');
+      const rawResponse = await callLLM(prompt);
+      const trimmed = rawResponse.trim();
 
-      if (!problemType) return;
+      let parsed: { problemType?: string; isUrgent?: boolean; mentionedDate?: string | null };
+
+      try {
+        parsed = JSON.parse(trimmed);
+      } catch {
+        const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) return;
+        parsed = JSON.parse(jsonMatch[0]);
+      }
+
+      const problemType = parsed.problemType
+        ? parsed.problemType.trim().toLowerCase().replace(/\s+/g, '_')
+        : undefined;
+
+      const isUrgent = parsed.isUrgent === true;
+      const mentionedDate =
+        parsed.mentionedDate && parsed.mentionedDate !== 'null'
+          ? parsed.mentionedDate
+          : null;
 
       await prisma.request.update({
         where: { id: requestId },
-        data: { problemType },
+        data: {
+          problemType: problemType || undefined,
+          isUrgent,
+          mentionedDate,
+        },
       });
     } catch {
       // ignore if it fails — background task
