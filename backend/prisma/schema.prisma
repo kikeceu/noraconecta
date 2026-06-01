@@ -257,6 +257,8 @@ model Request {
   userLatitude           Float?
   userLongitude          Float?
   problemType            String?
+  isUrgent               Boolean  @default(false)
+  mentionedDate          String?
 
   events     RequestEvent[]
   feedback   Feedback?
