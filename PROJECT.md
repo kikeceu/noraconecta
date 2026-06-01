@@ -982,7 +982,8 @@ POST /bot/message
 | Estado | Flow iniciado | Step | Mensaje |
 |--------|--------------|------|---------|
 | No existe (sin registro) | `PROFESSIONAL_REGISTER` | `ASK_NAME` | Comportamiento actual — arranca registro |
-| `PENDING` | — | — | "Tu registro está siendo procesado. Te enviamos un enlace de verificación. Si no lo recibiste, escribinos." |
+| `PENDING` (token vigente) | — | — | "¡Hola [nombre]! Todavía tenés el registro pendiente. Para activar tu cuenta en NORA completá la verificación desde este enlace: [verificationUrl]" |
+| `PENDING` (token expirado) | — | — | "¡Hola [nombre]! Tu enlace anterior venció. Te generamos uno nuevo para que puedas completar tu verificación: [verificationUrl]" |
 | `UNDER_REVIEW` | — | — | "Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo." |
 | `ACTIVE` (con pedido ASSIGNED) | `COORDINATION` | `AWAITING_ACCEPTANCE` | Profesional puede responder por WhatsApp: `1. Aceptar` / `2. Rechazar`; `tempData` incluye `requestId` |
 | `ACTIVE` (con pedido ACCEPTED) | `COORDINATION` | `AWAITING_AVAILABILITY` | Arranca coordinación de visita; `tempData` incluye `requestId` |
@@ -1044,7 +1045,7 @@ POST /bot/message
 - `ASK_ZONE`: modo configurable via `USER_ZONE_SELECTION_MODE`. En modo `LIST` (default): las zonas ya están precargadas desde `ASK_PROVINCE`, procesa selección por número. En modo `FREE_TEXT`: resuelve zona vía NLP (`nlpService.resolveZone`), reintenta si no hay match. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
 - `UserRequestFlow` recibe `LocationsRepository` y `ConfigRepository` por inyección de dependencias.
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
-- `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 72h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
+- `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 7 días / 168h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
 **NLP (nlp.service.ts) (ACTUALIZADO AUT-233):**
 - `resolveCategory(text)`: búsqueda exacta por nombre/slug, luego Levenshtein con max distance 3 como fallback
@@ -1126,6 +1127,22 @@ Mejora de UX en los flujos `USER_REQUEST` y `PROFESSIONAL_REGISTER`: si el país
 - 1 provincia activa → salta a zonas con contexto de la provincia
 - 2+ provincias activas → flujo normal (lista de provincias)
 - Si no hay zonas activas → mensaje de error y flujo terminado
+
+**No modifica** `schema.prisma`.
+
+### AUT-253 — Gestión humanizada de token de verificación vigente y expirado en estado PENDING
+
+Cuando un profesional en estado `PENDING` escribe al bot, `resolveProfessionalState` ahora distingue dos sub-casos:
+
+- **Token vigente** (no expirado, no usado): responde con un mensaje humanizado que incluye el nombre del profesional y el link de verificación existente.
+- **Token expirado o usado**: genera un nuevo `verificationToken` (UUID), lo persiste en la DB con `verificationTokenExp` a 168hs desde ahora y `verificationTokenUsed: false`, y responde con un mensaje humanizado que incluye el nuevo link.
+
+**TTL del token de verificación:** cambiado de 72hs a 168hs (7 días) en `professionals.service.ts`.
+
+**Archivos modificados:**
+- `backend/src/modules/professionals/professionals.service.ts`: TTL cambiado de 72 a 168.
+- `backend/src/modules/professionals/professionals.repository.ts`: `UpdateProfessionalInput` extendido con `verificationToken` y `verificationTokenExp`.
+- `backend/src/modules/bot/bot.service.ts`: lógica humanizada en `resolveProfessionalState` para el case `PENDING`.
 
 **No modifica** `schema.prisma`.
 

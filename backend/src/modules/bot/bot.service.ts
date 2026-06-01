@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { BotRepository } from './bot.repository';
 import { resolveFlowHandler, getFlowHandlerByName } from './flows/flow-handler.factory';
 import { FlowContext, BotResponse, LocationData, PendingNotification } from './flows/types';
@@ -398,9 +399,40 @@ export class BotService {
     let requestId: string | undefined;
 
     switch (existing.status) {
-      case ProfessionalStatus.PENDING:
-        responseText = 'Tu registro está siendo procesado. Te enviamos un enlace de verificación. Si no lo recibiste, escribinos.';
+      case ProfessionalStatus.PENDING: {
+        const APP_URL = process.env.APP_URL || 'http://app.noraconecta.local';
+        const now = new Date();
+
+        const isTokenExpired =
+          !existing.verificationToken ||
+          !existing.verificationTokenExp ||
+          now > existing.verificationTokenExp ||
+          existing.verificationTokenUsed;
+
+        let verificationToken = existing.verificationToken;
+
+        if (isTokenExpired) {
+          verificationToken = randomUUID();
+          const verificationTokenExp = new Date(
+            Date.now() + 168 * 60 * 60 * 1000,
+          );
+
+          await this.professionalsRepository.update(existing.id, {
+            verificationToken,
+            verificationTokenExp,
+            verificationTokenUsed: false,
+          });
+        }
+
+        const verificationUrl = `${APP_URL}/verify/${verificationToken}`;
+
+        if (isTokenExpired) {
+          responseText = `¡Hola ${existing.name}! Tu enlace anterior venció. Te generamos uno nuevo para que puedas completar tu verificación: ${verificationUrl}`;
+        } else {
+          responseText = `¡Hola ${existing.name}! Todavía tenés el registro pendiente. Para activar tu cuenta en NORA completá la verificación desde este enlace: ${verificationUrl}`;
+        }
         break;
+      }
       case ProfessionalStatus.UNDER_REVIEW:
         responseText = 'Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo.';
         break;

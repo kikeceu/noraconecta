@@ -12,7 +12,7 @@ import { Professional, ProfessionalStatus } from '@prisma/client';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 
-const VERIFICATION_TOKEN_TTL_HOURS = 72;
+const VERIFICATION_TOKEN_TTL_HOURS = 168; // 7 days
 const SESSION_TOKEN_TTL_DAYS = 30;
 
 const APP_URL = process.env.APP_URL || 'http://app.noraconecta.local';
