@@ -80,9 +80,16 @@ export class ProfessionalsRepository {
     });
   }
 
-  async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
-    return prisma.professional.update({ where: { id }, data });
-  }
+async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
+  const { categoryId, ...rest } = data;
+  return prisma.professional.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(categoryId && { category: { connect: { id: categoryId } } }),
+    },
+  });
+}
 
   async updateStatus(id: string, status: ProfessionalStatus): Promise<Professional> {
     return prisma.professional.update({
