@@ -85,7 +85,7 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
   return prisma.professional.update({
     where: { id },
     data: {
-      ...rest,
+      ...(rest as Prisma.ProfessionalUpdateInput),
       ...(categoryId && { category: { connect: { id: categoryId } } }),
     },
   });
