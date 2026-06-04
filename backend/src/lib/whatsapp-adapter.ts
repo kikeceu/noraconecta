@@ -180,6 +180,12 @@ export class WhatsAppAdapter {
     text: string,
     role: WhatsAppRole,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] → ${role} ${phone}: "${text}"`);
+      return;
+    }
+
     const needsTemplate = await shouldUseTemplate(phone, role, this.botRepository);
 
     if (needsTemplate) {
@@ -223,6 +229,12 @@ export class WhatsAppAdapter {
     role: WhatsAppRole,
     caption?: string,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] IMAGE → ${role} ${phone}: ${imageUrl}${caption ? ` caption: "${caption}"` : ''}`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const imagePayload: Record<string, unknown> = { link: imageUrl };
@@ -262,6 +274,12 @@ export class WhatsAppAdapter {
     audioUrl: string,
     role: WhatsAppRole,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] AUDIO → ${role} ${phone}: ${audioUrl}`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
@@ -295,6 +313,12 @@ export class WhatsAppAdapter {
     params: string[],
     role: WhatsAppRole,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] TEMPLATE → ${role} ${phone}: ${templateName} ${JSON.stringify(params)}`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
@@ -340,6 +364,12 @@ export class WhatsAppAdapter {
     buttonUrlSuffix: string,
     role: WhatsAppRole,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] TEMPLATE+URL → ${role} ${phone}: ${templateName} ${JSON.stringify(bodyParams)} url_suffix: ${buttonUrlSuffix}`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
@@ -393,6 +423,13 @@ export class WhatsAppAdapter {
     buttons: Array<{ payload: string; text?: string }>,
     role: WhatsAppRole,
   ): Promise<void> {
+    if (!this.isConfigured()) {
+      const buttonLabels = buttons.map((b) => b.text || b.payload).join(' | ');
+      // eslint-disable-next-line no-console
+      console.log(`[SIMULATOR] TEMPLATE+BUTTONS → ${role} ${phone}: ${templateName} ${JSON.stringify(bodyParams)} buttons: [${buttonLabels}]`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const buttonComponents = buttons.map((btn, index) => ({

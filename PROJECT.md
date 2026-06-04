@@ -25,7 +25,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
 │   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
-│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226)
+│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226). Modo simulador automático cuando tokens vacíos (AUT-267)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -61,7 +61,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── professionals/
 │   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
-│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel
+│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message al aprobar actualizado con énfasis en sistema de ranking (sin emojis)
 │   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
