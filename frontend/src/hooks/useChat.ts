@@ -115,6 +115,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
   const [session, setSession] = useState<{ flow?: string; step?: string }>({});
   const messageIdRef = useRef(0);
   const pollIntervalRef = useRef<number | null>(null);
+  const simulatorPollRef = useRef<number | null>(null);
   const lastStatusRef = useRef<string | null>(null);
   const lastCoordinationRef = useRef<string | null>(null);
   const lastReassignmentCountRef = useRef<number>(0);
@@ -157,6 +158,10 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     if (pollIntervalRef.current !== null) {
       clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
+    }
+    if (simulatorPollRef.current !== null) {
+      clearInterval(simulatorPollRef.current);
+      simulatorPollRef.current = null;
     }
     activeRequestIdRef.current = null;
     scheduleConfirmationRef.current = null;
@@ -248,6 +253,33 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
       });
     },
     [addMessage, stopPolling],
+  );
+
+  const startSimulatorPolling = useCallback(
+    (targetPhone: string, targetRole: 'USER' | 'PROFESSIONAL') => {
+      if (simulatorPollRef.current !== null) {
+        clearInterval(simulatorPollRef.current);
+        simulatorPollRef.current = null;
+      }
+
+      simulatorPollRef.current = window.setInterval(async () => {
+        try {
+          const res = await fetch(
+            `/api/simulator/messages?phone=${encodeURIComponent(targetPhone)}&role=${targetRole}`,
+          );
+          if (!res.ok) return;
+          const data = (await res.json()) as { messages?: Array<{ content: string }> };
+          if (data.messages && data.messages.length > 0) {
+            data.messages.forEach((msg) => {
+              addMessage('nora', msg.content);
+            });
+          }
+        } catch {
+          // silently fail
+        }
+      }, 2000);
+    },
+    [addMessage],
   );
 
   const startRatingFlow = useCallback(
@@ -720,6 +752,16 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
       stopPolling();
     };
   }, [stopPolling]);
+
+  useEffect(() => {
+    startSimulatorPolling(phone, role);
+    return () => {
+      if (simulatorPollRef.current !== null) {
+        clearInterval(simulatorPollRef.current);
+        simulatorPollRef.current = null;
+      }
+    };
+  }, [phone, role, startSimulatorPolling]);
 
   return {
     messages,

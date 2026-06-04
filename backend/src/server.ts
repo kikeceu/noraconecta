@@ -22,6 +22,7 @@ import storageRoutes from './modules/storage/storage.routes';
 import botRoutes from './modules/bot/bot.routes';
 import webhooksRoutes from './routes/webhooks.routes';
 import paymentsRoutes from './modules/payments/payments.routes';
+import simulatorRoutes from './routes/simulator.routes';
 import { RequestsService } from './modules/requests/requests.service';
 import { RequestsRepository } from './modules/requests/requests.repository';
 import { MatchingRepository } from './modules/matching/matching.repository';
@@ -88,6 +89,7 @@ app.use('/bot', botRoutes);
 app.use('/webhooks', webhooksRoutes);
 app.use('/webhooks', paymentsRoutes);
 app.use('/payments', paymentsRoutes);
+app.use('/simulator', simulatorRoutes);
 
 app.use(errorHandler);
 
