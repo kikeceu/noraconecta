@@ -224,6 +224,7 @@ export class ProfessionalsService {
         this.botRepository,
       );
 
+console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfessional.phone);
       if (needsTemplate) {
         await this.whatsappAdapter.sendTemplate(
           approvedProfessional.phone,
