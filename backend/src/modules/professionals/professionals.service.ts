@@ -215,7 +215,7 @@ export class ProfessionalsService {
         ? parsedTrialRequestsLimit
         : 3;
 
-    const welcomeMessage = `🎉 ¡Bienvenido a NORA, ${approvedProfessional.name}! Tu cuenta fue verificada y ya sos parte de nuestra red de profesionales de confianza. A partir de ahora vas a empezar a recibir pedidos de clientes en tu zona. Tenés ${trialRequestsLimit} pedidos gratuitos para comenzar. ¡Mucho éxito y bienvenido al equipo! 💪`;
+    const welcomeMessage = `¡Bienvenido a NORA, ${approvedProfessional.name}! Ya sos parte de nuestra red de profesionales de confianza. Vas a empezar a recibir pedidos en tu zona — tu posición en la red depende de tu actividad: *responder rápido, aceptar pedidos y completar trabajos bien te hace subir y recibir más. Los que no responden, bajan.* Tenés ${trialRequestsLimit} pedidos gratuitos para comenzar. ¡Mucho éxito!`;
 
     try {
       const needsTemplate = await shouldUseTemplate(
