@@ -1,4 +1,5 @@
 import { callLLM } from '../../../lib/llm-client';
+import { BOT_PAYLOADS } from '../constants/bot-payloads';
 
 export interface StepOption {
   value: string;
@@ -8,7 +9,7 @@ export interface StepOption {
 export const STEP_OPTIONS: Record<string, StepOption[]> = {
   AWAITING_ACCEPTANCE: [
     { value: 'ACCEPT', aliases: ['1', 'aceptar', 'acepto', 'si', 'sí', 'dale', 'ok'] },
-    { value: 'REJECT', aliases: ['2', 'rechazar', 'rechazo', 'no', 'no_puedo'] },
+    { value: 'REJECT', aliases: ['2', 'rechazar', 'rechazo', 'no', BOT_PAYLOADS.NO_PUEDO] },
   ],
   AWAITING_CONFIRMATION: [
     {
@@ -42,17 +43,17 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NO', aliases: ['no', 'nop', 'corregir', '2'] },
   ],
   AWAITING_USER_CONFIRMATION: [
-    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'okey', 'vale', 'claro', 'de acuerdo', '1', 'si_me_viene'] },
-    { value: 'NO', aliases: ['no', 'nop', 'nope', 'negativo', 'no puedo', '2', 'no_me_viene'] },
+    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'okey', 'vale', 'claro', 'de acuerdo', '1', BOT_PAYLOADS.SI_ME_VIENE] },
+    { value: 'NO', aliases: ['no', 'nop', 'nope', 'negativo', 'no puedo', '2', BOT_PAYLOADS.NO_ME_VIENE] },
   ],
   AWAITING_VISIT_CONFIRMATION: [
     {
       value: 'CONFIRM',
-      aliases: ['confirmo', 'si', 'sí', 'ok', 'dale', 'confirmar', 'confirmado', '1', 'confirmo_visita'],
+      aliases: ['confirmo', 'si', 'sí', 'ok', 'dale', 'confirmar', 'confirmado', '1', BOT_PAYLOADS.CONFIRMO_VISITA],
     },
     {
       value: 'CANCEL',
-      aliases: ['cancelar', 'cancelo', 'no puedo', 'no voy', '2', 'no_puedo_ir'],
+      aliases: ['cancelar', 'cancelo', 'no puedo', 'no voy', '2', BOT_PAYLOADS.NO_PUEDO_IR],
     },
   ],
   CANCEL_CONFIRMATION: [
@@ -64,17 +65,17 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NO', aliases: ['no', 'nop', '2'] },
   ],
   WAITING_CONSENT: [
-    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1'] },
-    { value: 'NO', aliases: ['no', 'nop', '2'] },
+    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1', BOT_PAYLOADS.NOTIFY_WHEN_AVAILABLE] },
+    { value: 'NO', aliases: ['no', 'nop', '2', BOT_PAYLOADS.NO_NOTIFY] },
   ],
   AWAITING_WORK_COMPLETION: [
-    { value: 'DONE', aliases: ['1', 'finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho', 'si_finalice'] },
-    { value: 'PENDING', aliases: ['2', 'pendiente', 'no', 'todavia no', 'todavía no', 'no pude completarlo', 'no_pude'] },
+    { value: 'DONE', aliases: ['1', 'finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho', BOT_PAYLOADS.SI_FINALICE] },
+    { value: 'PENDING', aliases: ['2', 'pendiente', 'no', 'todavia no', 'todavía no', 'no pude completarlo', BOT_PAYLOADS.NO_PUDE] },
   ],
   FEEDBACK_SATISFACTION: [
-    { value: 'SATISFIED', aliases: ['conforme', 'todo bien', 'bien', 'ok', '1', 'conforme_btn'] },
-    { value: 'PARTIAL', aliases: ['con observaciones', 'observaciones', 'mas o menos', 'más o menos', '2', 'observaciones_btn'] },
-    { value: 'UNSATISFIED', aliases: ['no conforme', 'mal', 'no', 'insatisfecho', '3', 'no_conforme_btn'] },
+    { value: 'SATISFIED', aliases: ['conforme', 'todo bien', 'bien', 'ok', '1', BOT_PAYLOADS.CONFORME_BTN] },
+    { value: 'PARTIAL', aliases: ['con observaciones', 'observaciones', 'mas o menos', 'más o menos', '2', BOT_PAYLOADS.OBSERVACIONES_BTN] },
+    { value: 'UNSATISFIED', aliases: ['no conforme', 'mal', 'no', 'insatisfecho', '3', BOT_PAYLOADS.NO_CONFORME_BTN] },
   ],
   FEEDBACK_RECOMMEND: [
     { value: 'YES', aliases: ['si', 'sí', 'claro', 'por supuesto', '1', 'si_recomiendo'] },

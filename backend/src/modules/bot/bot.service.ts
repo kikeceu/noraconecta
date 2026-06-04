@@ -6,6 +6,7 @@ import { isCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import { BOT_PAYLOADS } from './constants/bot-payloads';
 import prisma from '../../lib/prisma';
 import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 
@@ -56,6 +57,25 @@ export class BotService {
         await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
         return {
           text: 'Tu cuenta está suspendida temporalmente por uso irregular. Si creés que es un error, escribinos a soporte@noraconecta.com',
+          flow: undefined,
+          step: undefined,
+        };
+      }
+
+      // Handle ver_como_funciona payload from membership activation notification
+      if (input.text?.trim() === BOT_PAYLOADS.VER_COMO_FUNCIONA) {
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+        return {
+          text: [
+            'Así funciona NORA:',
+            '',
+            '1. Cuando un usuario necesite tu servicio en tu zona, te llegará un pedido directo.',
+            '2. Vas a ver los detalles y podés aceptarlo o indicar que ahora no podés.',
+            '3. Si aceptás, coordinás la visita con el usuario por acá mismo.',
+            '4. Al terminar el trabajo, el usuario te califica.',
+            '',
+            'Cuanto mejor sea tu respuesta y tus calificaciones, más pedidos vas a recibir. ¡Éxitos!',
+          ].join('\n'),
           flow: undefined,
           step: undefined,
         };

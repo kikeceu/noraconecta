@@ -6,6 +6,7 @@ import { LocationsRepository } from '../../locations/locations.repository';
 import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
+import { BOT_PAYLOADS } from '../constants/bot-payloads';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -20,17 +21,35 @@ export class UserRequestFlow implements FlowHandler {
     private readonly configRepository: ConfigRepository,
   ) {}
 
-  private readonly COUNTRY_PHONE_PREFIXES: { prefix: string; countryId: string }[] = [
-    { prefix: '54', countryId: 'cmoojlpis0000mc7g7kxf8z1q' },
-    { prefix: '51', countryId: 'cmopxb2ts0002mcqak2883mvh' },
-  ];
+  private readonly PHONE_PREFIX_TO_COUNTRY: Record<string, string> = {
+    '54': 'Argentina',
+    '51': 'Perú',
+  };
 
-  private detectCountryId(phone: string): string | null {
+  private async resolveCountryId(phone: string): Promise<string | null> {
     const normalized = phone.replace(/^\+/, '');
-    for (const { prefix, countryId } of this.COUNTRY_PHONE_PREFIXES) {
-      if (normalized.startsWith(prefix)) return countryId;
+
+    let matchedCountryName: string | null = null;
+
+    for (const [prefix, countryName] of Object.entries(this.PHONE_PREFIX_TO_COUNTRY)) {
+      if (normalized.startsWith(prefix)) {
+        matchedCountryName = countryName;
+        break;
+      }
     }
-    return null;
+
+    if (!matchedCountryName) return null;
+
+    const countryNode = await prisma.geoNode.findFirst({
+      where: {
+        parentId: null,
+        name: matchedCountryName,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    return countryNode?.id ?? null;
   }
 
   getInitialStep(): string {
@@ -40,6 +59,25 @@ export class UserRequestFlow implements FlowHandler {
   async handleStep(step: string, context: FlowContext): Promise<FlowStepResult> {
     const { session, message } = context;
     const tempData = (session.tempData as Record<string, unknown>) || {};
+
+    // Handle button payloads that arrive when user has no active flow context
+    if (step === 'INIT' && message.text) {
+      const payload = message.text.trim();
+      switch (payload) {
+        case BOT_PAYLOADS.NOTIFY_WHEN_AVAILABLE:
+          return this.handleNotifyWhenAvailable(tempData);
+        case BOT_PAYLOADS.NO_NOTIFY:
+          return this.handleNoNotify(tempData);
+        case BOT_PAYLOADS.CONFIRMO_VISITA_USER:
+          return this.handleConfirmoVisitaUser();
+        case BOT_PAYLOADS.CANCELAR_VISITA:
+          return this.handleCancelarVisita(tempData);
+        case BOT_PAYLOADS.SEGUIR_ESPERANDO:
+          return this.handleSeguirEsperando();
+        case BOT_PAYLOADS.CANCELAR_PEDIDO:
+          return this.handleCancelarPedido(tempData);
+      }
+    }
 
     switch (step) {
       case 'INIT':
@@ -300,7 +338,7 @@ export class UserRequestFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     const phone = tempData.phone as string;
     const categoryName = tempData.categoryName as string;
-    const countryId = this.detectCountryId(phone);
+    const countryId = await this.resolveCountryId(phone);
 
     if (!countryId) {
       return {
@@ -371,7 +409,7 @@ export class UserRequestFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     if (!tempData._provinceListed) {
       const phone = tempData.phone as string;
-      const countryId = this.detectCountryId(phone);
+      const countryId = await this.resolveCountryId(phone);
 
       if (!countryId) {
         return {
@@ -909,6 +947,210 @@ export class UserRequestFlow implements FlowHandler {
     return {
       response: {
         text: 'Buscando el profesional ideal... te aviso cuando confirme.',
+      },
+      nextStep: null,
+      tempData: {},
+    };
+  }
+
+  private async handleNotifyWhenAvailable(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const userId = tempData.userId as string | undefined;
+
+    if (userId) {
+      const request = await prisma.request.findFirst({
+        where: {
+          userId,
+          status: { in: ['NO_RESPONSE', 'CREATED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (request) {
+        try {
+          await prisma.request.update({
+            where: { id: request.id },
+            data: {
+              waitingUserConsent: true,
+              waitingActivationSince: new Date(),
+            },
+          });
+        } catch (err) {
+          console.error('[UserRequestFlow] handleNotifyWhenAvailable: update failed', err);
+        }
+      }
+    }
+
+    return {
+      response: {
+        text: 'Perfecto, te avisamos en cuanto encontremos un profesional disponible para tu pedido.',
+      },
+      nextStep: null,
+      tempData: {},
+    };
+  }
+
+  private async handleNoNotify(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const userId = tempData.userId as string | undefined;
+
+    if (userId) {
+      const request = await prisma.request.findFirst({
+        where: {
+          userId,
+          status: { in: ['CREATED', 'ASSIGNED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (request) {
+        try {
+          await this.requestsService.cancel(request.id);
+        } catch (err) {
+          console.error('[UserRequestFlow] handleNoNotify: cancel failed', err);
+        }
+      }
+    }
+
+    return {
+      response: {
+        text: 'Entendido, no te molestamos más por este pedido. Si necesitás ayuda en otro momento, escribinos cuando quieras.',
+      },
+      nextStep: null,
+      tempData: {},
+    };
+  }
+
+  private async handleConfirmoVisitaUser(): Promise<FlowStepResult> {
+    return {
+      response: {
+        text: '¡Perfecto! Te esperamos. Cualquier cambio avisanos.',
+      },
+      nextStep: null,
+      tempData: {},
+    };
+  }
+
+  private async handleCancelarVisita(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const userId = tempData.userId as string | undefined;
+
+    if (!userId) {
+      return {
+        response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    const request = await prisma.request.findFirst({
+      where: {
+        userId,
+        status: 'ACCEPTED',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!request) {
+      return {
+        response: { text: 'No encontré una visita activa para cancelar.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    try {
+      const result = await this.requestsService.cancelByUser(request.id);
+
+      const newTempData: Record<string, unknown> = {};
+
+      if (result.shouldNotifyProfessional && result.professionalPhone && result.professionalMessage) {
+        newTempData.pendingNotification = {
+          targetPhone: result.professionalPhone,
+          targetRole: 'PROFESSIONAL',
+          message: result.professionalMessage,
+          flow: null,
+          step: null,
+          tempData: {},
+        };
+      }
+
+      return {
+        response: {
+          text: 'Tu visita fue cancelada. Le avisamos al profesional. Si necesitás programar otra, escribinos cuando quieras.',
+        },
+        nextStep: null,
+        tempData: newTempData,
+      };
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'No se pudo cancelar la visita';
+      return {
+        response: { text: errorMessage },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+  }
+
+  private async handleSeguirEsperando(): Promise<FlowStepResult> {
+    return {
+      response: {
+        text: 'Perfecto, seguimos buscando. Te avisamos en cuanto encontremos otro profesional disponible.',
+      },
+      nextStep: null,
+      tempData: {},
+    };
+  }
+
+  private async handleCancelarPedido(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const userId = tempData.userId as string | undefined;
+
+    if (!userId) {
+      return {
+        response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    const request = await prisma.request.findFirst({
+      where: {
+        userId,
+        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'NO_RESPONSE'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!request) {
+      return {
+        response: { text: 'No encontré un pedido activo para cancelar.' },
+        nextStep: null,
+        tempData: {},
+      };
+    }
+
+    try {
+      if (['CREATED', 'ASSIGNED', 'ACCEPTED'].includes(request.status)) {
+        await this.requestsService.cancelByUser(request.id);
+      } else {
+        // NO_RESPONSE status — direct update
+        await prisma.request.update({
+          where: { id: request.id },
+          data: { status: 'CANCELLED' },
+        });
+      }
+    } catch (err) {
+      console.error('[UserRequestFlow] handleCancelarPedido: cancel failed', err);
+    }
+
+    return {
+      response: {
+        text: 'Entendido, cancelamos tu pedido. Si necesitás ayuda en otro momento, escribinos cuando quieras.',
       },
       nextStep: null,
       tempData: {},

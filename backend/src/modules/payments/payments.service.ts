@@ -9,6 +9,7 @@ import { BotRepository } from '../bot/bot.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { createPaymentLink, fetchPayment } from '../../lib/mercadopago-client';
+import { BOT_PAYLOADS } from '../bot/constants/bot-payloads';
 
 const TRIAL_REQUESTS_LIMIT_KEY = 'TRIAL_REQUESTS_LIMIT';
 const DEFAULT_TRIAL_LIMIT = 3;
@@ -246,8 +247,8 @@ export class PaymentsService {
           'nora_pro_membresia_activada_con_pedido',
           [matchedRequest.category.name, matchedRequest.geoNode.name],
           [
-            { payload: 'ver_detalles', text: 'Ver los detalles' },
-            { payload: 'no_puedo', text: 'No puedo tomarlo' },
+            { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver los detalles' },
+            { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
           ],
         );
 
@@ -269,9 +270,10 @@ export class PaymentsService {
         await this.sendWithWindowCheck(
           professional.phone,
           'PROFESSIONAL',
-          `¡Tu membresía fue activada! Ya podés recibir pedidos.`,
+          `¡Tu membresía fue activada! Ya podés recibir pedidos.\n\n1. Ver cómo funciona`,
           'nora_pro_membresia_activada',
           [],
+          [{ payload: BOT_PAYLOADS.VER_COMO_FUNCIONA, text: 'Ver cómo funciona' }],
         );
       }
     } catch (err) {

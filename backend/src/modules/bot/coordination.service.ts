@@ -6,6 +6,7 @@ import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 import { ConfigRepository } from '../config/config.repository';
+import { BOT_PAYLOADS } from './constants/bot-payloads';
 
 const DEFAULT_WORK_COMPLETION_CHECK_HOURS = 24;
 
@@ -85,9 +86,9 @@ export class CoordinationService {
       'nora_user_trabajo_finalizado',
       [professionalName, categoryName],
       [
-        { payload: 'conforme_btn', text: 'Conforme' },
-        { payload: 'observaciones_btn', text: 'Con observaciones' },
-        { payload: 'no_conforme_btn', text: 'No conforme' },
+        { payload: BOT_PAYLOADS.CONFORME_BTN, text: 'Conforme' },
+        { payload: BOT_PAYLOADS.OBSERVACIONES_BTN, text: 'Con observaciones' },
+        { payload: BOT_PAYLOADS.NO_CONFORME_BTN, text: 'No conforme' },
       ],
     );
 
@@ -186,8 +187,8 @@ export class CoordinationService {
           'nora_pro_check_finalizacion',
           [address, userName],
           [
-            { payload: 'si_finalice', text: 'Sí, lo finalicé' },
-            { payload: 'pendiente', text: 'Todavía está pendiente' },
+            { payload: BOT_PAYLOADS.SI_FINALICE, text: 'Sí, lo finalicé' },
+            { payload: BOT_PAYLOADS.PENDIENTE, text: 'Todavía está pendiente' },
           ],
         );
 
@@ -220,8 +221,8 @@ export class CoordinationService {
           'nora_pro_check_finalizacion_ultimo',
           [address, userName],
           [
-            { payload: 'si_finalice', text: 'Sí, lo finalicé' },
-            { payload: 'no_pude', text: 'No pude completarlo' },
+            { payload: BOT_PAYLOADS.SI_FINALICE, text: 'Sí, lo finalicé' },
+            { payload: BOT_PAYLOADS.NO_PUDE, text: 'No pude completarlo' },
           ],
         );
 
@@ -375,7 +376,7 @@ export class CoordinationService {
 
       if (userPhone) {
         const categoryName = visit.category?.name || 'el servicio';
-        const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}. Si necesitás reprogramar, escribime.`;
+        const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}.\n\n1. Confirmo\n2. Necesito cancelar`;
 
         await this.sendWithWindowCheck(
           userPhone,
@@ -383,6 +384,10 @@ export class CoordinationService {
           userMessage,
           'nora_user_visita_recordatorio',
           [professionalName, categoryName, `${hours}:${minutes}`],
+          [
+            { payload: BOT_PAYLOADS.CONFIRMO_VISITA_USER, text: 'Confirmo' },
+            { payload: BOT_PAYLOADS.CANCELAR_VISITA, text: 'Necesito cancelar' },
+          ],
         );
       }
 
@@ -400,8 +405,8 @@ export class CoordinationService {
           'nora_pro_visita_recordatorio',
           [`${hours}:${minutes}`, userName, address],
           [
-            { payload: 'confirmo_visita', text: 'Confirmo' },
-            { payload: 'no_puedo_ir', text: 'No puedo ir' },
+            { payload: BOT_PAYLOADS.CONFIRMO_VISITA, text: 'Confirmo' },
+            { payload: BOT_PAYLOADS.NO_PUEDO_IR, text: 'No puedo ir' },
           ],
         );
 
@@ -547,8 +552,8 @@ export class CoordinationService {
           'nora_user_horario_alternativo',
           [professionalName, categoryName, alternativeText],
           [
-            { payload: 'si_me_viene', text: 'Sí, me viene bien' },
-            { payload: 'no_me_viene', text: 'No' },
+            { payload: BOT_PAYLOADS.SI_ME_VIENE, text: 'Sí, me viene bien' },
+            { payload: BOT_PAYLOADS.NO_ME_VIENE, text: 'No' },
           ],
         );
 
