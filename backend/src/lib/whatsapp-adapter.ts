@@ -3,6 +3,7 @@ import { IncomingMessage, LocationData } from '../modules/bot/flows/types';
 import { shouldUseTemplate } from '../utils/whatsapp-utils';
 import { BotRepository } from '../modules/bot/bot.repository';
 import { R2Client } from './r2-client';
+import { simulatorQueue } from './simulator-queue';
 
 export type WhatsAppRole = 'USER' | 'PROFESSIONAL';
 
@@ -183,6 +184,7 @@ export class WhatsAppAdapter {
     if (!this.isConfigured()) {
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] → ${role} ${phone}: "${text}"`);
+      simulatorQueue.enqueue({ phone, role, type: 'text', content: text });
       return;
     }
 
@@ -232,6 +234,8 @@ export class WhatsAppAdapter {
     if (!this.isConfigured()) {
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] IMAGE → ${role} ${phone}: ${imageUrl}${caption ? ` caption: "${caption}"` : ''}`);
+      const content = caption ? `[Imagen] ${caption}` : `[Imagen] ${imageUrl}`;
+      simulatorQueue.enqueue({ phone, role, type: 'image', content });
       return;
     }
 
@@ -277,6 +281,7 @@ export class WhatsAppAdapter {
     if (!this.isConfigured()) {
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] AUDIO → ${role} ${phone}: ${audioUrl}`);
+      simulatorQueue.enqueue({ phone, role, type: 'audio', content: `[Audio] ${audioUrl}` });
       return;
     }
 
@@ -316,6 +321,8 @@ export class WhatsAppAdapter {
     if (!this.isConfigured()) {
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] TEMPLATE → ${role} ${phone}: ${templateName} ${JSON.stringify(params)}`);
+      const content = params.length > 0 ? `[${templateName}] ${params.join(' | ')}` : `[${templateName}]`;
+      simulatorQueue.enqueue({ phone, role, type: 'template', content });
       return;
     }
 
@@ -367,6 +374,11 @@ export class WhatsAppAdapter {
     if (!this.isConfigured()) {
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] TEMPLATE+URL → ${role} ${phone}: ${templateName} ${JSON.stringify(bodyParams)} url_suffix: ${buttonUrlSuffix}`);
+      const content =
+        bodyParams.length > 0
+          ? `[${templateName}] ${bodyParams.join(' | ')} [url: ${buttonUrlSuffix}]`
+          : `[${templateName}] [url: ${buttonUrlSuffix}]`;
+      simulatorQueue.enqueue({ phone, role, type: 'template_url', content });
       return;
     }
 
@@ -427,6 +439,11 @@ export class WhatsAppAdapter {
       const buttonLabels = buttons.map((b) => b.text || b.payload).join(' | ');
       // eslint-disable-next-line no-console
       console.log(`[SIMULATOR] TEMPLATE+BUTTONS → ${role} ${phone}: ${templateName} ${JSON.stringify(bodyParams)} buttons: [${buttonLabels}]`);
+      const content =
+        bodyParams.length > 0
+          ? `[${templateName}] ${bodyParams.join(' | ')} [botones: ${buttonLabels}]`
+          : `[${templateName}] [botones: ${buttonLabels}]`;
+      simulatorQueue.enqueue({ phone, role, type: 'template_buttons', content });
       return;
     }
 

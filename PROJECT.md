@@ -25,7 +25,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
 │   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
-│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226). Modo simulador automático cuando tokens vacíos (AUT-267)
+│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
+│   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   │   │   ├── require-auth.ts        # JWT validation middleware
@@ -167,7 +168,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── EmptyState.tsx      # Centered empty state with icon and instructions
 │   │   │       └── TypingIndicator.tsx # Animated typing dots with "Procesando..." label
 │   │   ├── hooks/
-│   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls
+│   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls. Polling de mensajes externos del simulador cada 2s vía /simulator/messages (AUT-268)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
@@ -323,7 +324,8 @@ src/
 │       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
 │       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
-│   └── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
+│   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
+│   └── simulator.routes.ts     # GET /simulator/messages — disponible solo en modo simulador (AUT-268)
 ├── services/                  # (placeholder for future shared services)
 └── repositories/              # (placeholder for future shared repositories)
 ```
@@ -818,6 +820,25 @@ Extensión del módulo de notificaciones para envío de media del pedido al prof
 - `AWAITING_ACCEPTANCE` en `CoordinationFlow` reconoce "Ver detalles", prioriza `tempData` del flujo (con fallback a DB) y devuelve `mediaUrls` + `audioUrl` para despacho por webhook
 - `BotResponse` incorpora `audioUrl?: string` y `webhooks.routes.ts` envía fotos/audio luego del texto con `try/catch` por archivo para no cortar el flujo
 - `sendAudio()` falla silenciosamente con logging y no interrumpe el flujo
+
+### Simulator (AUT-268)
+
+Endpoint de polling para mensajes externos enviados por el backend cuando el modo simulador está activo (tokens de WhatsApp vacíos). Permite que la ventana del simulador muestre mensajes como el de bienvenida al aprobar un profesional.
+
+| Endpoint                    | Método | Descripción                                                      | Auth      |
+|-----------------------------|--------|------------------------------------------------------------------|-----------|
+| `/simulator/messages`       | GET    | Retorna y vacía mensajes pendientes para phone+role. Solo disponible en modo simulador; retorna array vacío si los tokens están configurados. | Sin auth  |
+
+**Query params:** `phone` (requerido), `role` (`USER` | `PROFESSIONAL`, requerido)
+
+**Response:**
+```json
+{ "messages": [{ "id": "sim-...", "phone": "...", "role": "PROFESSIONAL", "type": "text", "content": "...", "timestamp": "..." }] }
+```
+
+- Implementado en `backend/src/routes/simulator.routes.ts`
+- Cola en memoria: `backend/src/lib/simulator-queue.ts` (max 100 mensajes, FIFO)
+- El frontend hace polling cada 2 segundos vía `useChat.ts` → `startSimulatorPolling()`
 
 ### Payments (AUT-188)
 
