@@ -10,6 +10,7 @@ import { CoordinationService } from '../coordination.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback } from './option-resolver.helper';
+import { BOT_PAYLOADS } from '../constants/bot-payloads';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
@@ -79,7 +80,7 @@ export class CoordinationFlow implements FlowHandler {
 
     const inputText = message.text?.trim().toLowerCase() || '';
 
-    if (['ver detalles', 'detalle', 'detalles', 'ver pedido', 'ver_detalles'].includes(inputText)) {
+    if (['ver detalles', 'detalle', 'detalles', 'ver pedido', BOT_PAYLOADS.VER_DETALLES].includes(inputText)) {
       let categoryName = tempData.categoryName as string | undefined;
       let zoneName = tempData.zoneName as string | undefined;
       let description = tempData.description as string | undefined;
@@ -783,7 +784,7 @@ export class CoordinationFlow implements FlowHandler {
 
           const professionalName = (tempData.professionalName as string) || 'el profesional';
           const categoryName = (tempData.categoryName as string) || 'el servicio';
-          const message = `No pudimos coordinar un horario con ${professionalName}, tu ${categoryName}. Estamos buscando otro profesional disponible para tu pedido.`;
+          const message = `No pudimos coordinar un horario con ${professionalName}, tu ${categoryName}. Estamos buscando otro profesional disponible para tu pedido.\n\n1. Seguir esperando\n2. Cancelar mi pedido`;
 
           return {
             response: {

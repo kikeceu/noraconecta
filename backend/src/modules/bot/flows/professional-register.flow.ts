@@ -27,21 +27,35 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     6: 'Sábado',
   };
 
-  private readonly COUNTRY_PHONE_PREFIXES: { prefix: string; countryId: string }[] = [
-    { prefix: '54', countryId: 'cmoojlpis0000mc7g7kxf8z1q' },
-    { prefix: '51', countryId: 'cmopxb2ts0002mcqak2883mvh' },
-  ];
+  private readonly PHONE_PREFIX_TO_COUNTRY: Record<string, string> = {
+    '54': 'Argentina',
+    '51': 'Perú',
+  };
 
-  private detectCountryId(phone: string): string | null {
+  private async resolveCountryId(phone: string): Promise<string | null> {
     const normalized = phone.replace(/^\+/, '');
 
-    for (const { prefix, countryId } of this.COUNTRY_PHONE_PREFIXES) {
+    let matchedCountryName: string | null = null;
+
+    for (const [prefix, countryName] of Object.entries(this.PHONE_PREFIX_TO_COUNTRY)) {
       if (normalized.startsWith(prefix)) {
-        return countryId;
+        matchedCountryName = countryName;
+        break;
       }
     }
 
-    return null;
+    if (!matchedCountryName) return null;
+
+    const countryNode = await prisma.geoNode.findFirst({
+      where: {
+        parentId: null,
+        name: matchedCountryName,
+        isActive: true,
+      },
+      select: { id: true },
+    });
+
+    return countryNode?.id ?? null;
   }
 
   getInitialStep(): string {
@@ -160,7 +174,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     tempData.categoryName = selected.name;
 
     const phone = tempData.phone as string;
-    const countryId = this.detectCountryId(phone);
+    const countryId = await this.resolveCountryId(phone);
 
     if (!countryId) {
       return {
@@ -232,7 +246,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     if (!tempData._provinceListed) {
       const phone = tempData.phone as string;
-      const countryId = this.detectCountryId(phone);
+      const countryId = await this.resolveCountryId(phone);
 
       if (!countryId) {
         return {

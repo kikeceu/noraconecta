@@ -108,19 +108,21 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169)
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169), ver_como_funciona handler (AUT-266)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
+│   │   │   │   ├── constants/
+│   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
-│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow (análisis LLM movido a requests.service.ts create() — AUT-251)
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow + handlers para payloads de botones: notify_when_available, no_notify, confirmo_visita_user, cancelar_visita, seguir_esperando, cancelar_pedido (AUT-266)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY)
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link

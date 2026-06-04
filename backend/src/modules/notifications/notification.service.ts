@@ -3,6 +3,7 @@ import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import { BotRepository } from '../bot/bot.repository';
+import { BOT_PAYLOADS } from '../bot/constants/bot-payloads';
 
 export interface ProfessionalInfo {
   phone: string;
@@ -73,8 +74,8 @@ export class NotificationService {
       'nora_pro_recordatorio_pedido',
       [request.categoryName, request.zoneName],
       [
-        { payload: 'ver_detalles', text: 'Ver detalles' },
-        { payload: 'no_puedo', text: 'No puedo tomarlo' },
+        { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver detalles' },
+        { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
       ],
     );
   }
@@ -102,8 +103,8 @@ export class NotificationService {
         'nora_pro_nuevo_pedido',
         [request.categoryName, request.zoneName],
         [
-          { payload: 'ver_detalles', text: 'Ver los detalles' },
-          { payload: 'no_puedo', text: 'No puedo tomarlo' },
+          { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver los detalles' },
+          { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
         ],
         'PROFESSIONAL',
       );
@@ -156,7 +157,7 @@ export class NotificationService {
 
   async notifyUserNoResponse(user: UserInfo): Promise<void> {
     const message =
-      'No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde.';
+      'No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde.\n\n1. Sí, avisame\n2. Por ahora no, gracias';
 
     await this.sendWithWindowCheck(
       user.phone,
@@ -164,6 +165,10 @@ export class NotificationService {
       message,
       'nora_user_sin_profesional',
       [],
+      [
+        { payload: BOT_PAYLOADS.NOTIFY_WHEN_AVAILABLE, text: 'Sí, avisame' },
+        { payload: BOT_PAYLOADS.NO_NOTIFY, text: 'Por ahora no' },
+      ],
     );
   }
 
