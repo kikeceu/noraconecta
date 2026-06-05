@@ -1231,7 +1231,7 @@ html {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 .hero-bg {
-  background-color: #111827;
+  background: linear-gradient(135deg, #052e1c 0%, #0B6E4F 45%, #1a9c72 100%);
 }
 .whatsapp-bubble-user {
   background-color: #DCF8C6;
@@ -1511,4 +1511,9 @@ html {
       --tw-scale-z: 1;
     }
   }
+}
+
+.hero-bg .bg-primary {
+  background-color: #ffffff !important;
+  color: #0B6E4F !important;
 }
