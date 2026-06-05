@@ -115,7 +115,6 @@ export class WhatsAppAdapter {
   isConfigured(): boolean {
     return !!(
       this.tokenUser &&
-      this.tokenProfessional &&
       this.phoneNumberIdUser &&
       this.phoneNumberIdProfessional
     );
@@ -544,12 +543,10 @@ export class WhatsAppAdapter {
     return result.publicUrl;
   }
 
-  private getCredentials(
-    role: WhatsAppRole,
-  ): { token: string; phoneNumberId: string } {
+  private getCredentials(role: WhatsAppRole): { token: string; phoneNumberId: string } {
     return role === 'PROFESSIONAL'
       ? {
-          token: this.tokenProfessional,
+          token: this.tokenProfessional || this.tokenUser,
           phoneNumberId: this.phoneNumberIdProfessional,
         }
       : {
