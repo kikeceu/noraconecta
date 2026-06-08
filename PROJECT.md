@@ -25,7 +25,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
 │   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
-│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
+│   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
 │   │   │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
@@ -35,7 +35,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
 │   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
-│   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de decisión de ventana de 24hs WhatsApp (AUT-171)
+│   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
 │   │   ├── modules/
@@ -110,7 +110,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169), ver_como_funciona handler (AUT-266)
-│   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model
+│   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
@@ -274,7 +274,7 @@ src/
 ├── lib/
 │   └── prisma.ts              # Prisma client singleton
 │   └── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
-│   └── whatsapp-adapter.ts    # WhatsApp Business API adapter (AUT-134)
+│   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-272)
 ├── middleware/
 │   ├── error-handler.ts       # Global error handler (AppError, 500 fallback)
 │   ├── require-auth.ts        # JWT validation middleware
@@ -282,7 +282,7 @@ src/
 ├── utils/
 │   ├── jwt.ts                 # signToken / verifyToken
 │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate + parseDateTimeNatural (lenguaje natural con LLM, discriminated union, AUT-237, AUT-248) + funciones de timezone Argentina (AUT-166, AUT-167, AUT-237)
-│   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp (AUT-171)
+│   └── whatsapp-utils.ts      # shouldUseTemplate() + canSendTemplate(): helpers de ventana de 24hs WhatsApp (AUT-171, AUT-272)
 ├── types/
   │   └── express.d.ts           # Express Request augmentation (req.admin)
   ├── modules/

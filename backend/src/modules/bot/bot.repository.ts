@@ -68,6 +68,21 @@ export class BotRepository {
     });
   }
 
+  async wasTemplateSentInLast24h(phone: string, role: BotRole): Promise<boolean> {
+    const session = await prisma.botSession.findUnique({
+      where: { phone_role: { phone, role } },
+    });
+    if (!session?.lastTemplateSentAt) return false;
+    return Date.now() - session.lastTemplateSentAt.getTime() < 24 * 60 * 60 * 1000;
+  }
+
+  async setLastTemplateSentAt(phone: string, role: BotRole, at: Date): Promise<void> {
+    await prisma.botSession.update({
+      where: { phone_role: { phone, role } },
+      data: { lastTemplateSentAt: at },
+    });
+  }
+
   async deleteByPhone(phone: string): Promise<void> {
     await prisma.botSession.deleteMany({ where: { phone } });
   }

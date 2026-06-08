@@ -9,3 +9,12 @@ export async function shouldUseTemplate(
   const withinWindow = await botRepository.isWithin24hWindow(phone, role);
   return !withinWindow;
 }
+
+export async function canSendTemplate(
+  phone: string,
+  role: BotRole,
+  botRepository: BotRepository,
+): Promise<boolean> {
+  const alreadySent = await botRepository.wasTemplateSentInLast24h(phone, role);
+  return !alreadySent;
+}
