@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
+import { BotRole } from '@prisma/client';
 import { IncomingMessage, LocationData } from '../modules/bot/flows/types';
-import { shouldUseTemplate } from '../utils/whatsapp-utils';
+import { shouldUseTemplate, canSendTemplate } from '../utils/whatsapp-utils';
 import { BotRepository } from '../modules/bot/bot.repository';
 import { R2Client } from './r2-client';
 import { simulatorQueue } from './simulator-queue';
@@ -325,6 +326,12 @@ export class WhatsAppAdapter {
       return;
     }
 
+    const allowed = await canSendTemplate(phone, role as BotRole, this.botRepository);
+    if (!allowed) {
+      console.warn(`[WhatsAppAdapter] Template blocked for ${phone} (${role}): template already sent in the last 24h`);
+      return;
+    }
+
     const { token, phoneNumberId } = this.getCredentials(role);
 
     const res = await fetch(
@@ -360,7 +367,10 @@ export class WhatsAppAdapter {
       console.error(
         `[WhatsAppAdapter] sendTemplate failed: ${res.status} ${body}`,
       );
+      return;
     }
+
+    await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
   }
 
   async sendTemplateWithButton(
@@ -378,6 +388,12 @@ export class WhatsAppAdapter {
           ? `[${templateName}] ${bodyParams.join(' | ')} [url: ${buttonUrlSuffix}]`
           : `[${templateName}] [url: ${buttonUrlSuffix}]`;
       simulatorQueue.enqueue({ phone, role, type: 'template_url', content });
+      return;
+    }
+
+    const allowed = await canSendTemplate(phone, role as BotRole, this.botRepository);
+    if (!allowed) {
+      console.warn(`[WhatsAppAdapter] Template blocked for ${phone} (${role}): template already sent in the last 24h`);
       return;
     }
 
@@ -424,7 +440,10 @@ export class WhatsAppAdapter {
       console.error(
         `[WhatsAppAdapter] sendTemplateWithButton failed: ${res.status} ${body}`,
       );
+      return;
     }
+
+    await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
   }
 
   async sendTemplateWithQuickReplies(
@@ -443,6 +462,12 @@ export class WhatsAppAdapter {
           ? `[${templateName}] ${bodyParams.join(' | ')} [botones: ${buttonLabels}]`
           : `[${templateName}] [botones: ${buttonLabels}]`;
       simulatorQueue.enqueue({ phone, role, type: 'template_buttons', content });
+      return;
+    }
+
+    const allowed = await canSendTemplate(phone, role as BotRole, this.botRepository);
+    if (!allowed) {
+      console.warn(`[WhatsAppAdapter] Template blocked for ${phone} (${role}): template already sent in the last 24h`);
       return;
     }
 
@@ -489,7 +514,10 @@ export class WhatsAppAdapter {
       console.error(
         `[WhatsAppAdapter] sendTemplateWithQuickReplies failed: ${res.status} ${body}`,
       );
+      return;
     }
+
+    await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
   }
   async downloadAndUploadToR2(
     mediaId: string,
