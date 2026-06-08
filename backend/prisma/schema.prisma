@@ -259,6 +259,7 @@ model Request {
   problemType            String?
   isUrgent               Boolean  @default(false)
   mentionedDate          String?
+  technicalBrief         String?
 
   events     RequestEvent[]
   feedback   Feedback?
