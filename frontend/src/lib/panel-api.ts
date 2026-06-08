@@ -1,6 +1,7 @@
 import type { PanelData, PanelOrdersResponse, PendingRequestsResponse, ActivityStatsResponse } from '../types/panel';
 
-const API_BASE = '/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api`;
+
 
 async function request<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
@@ -85,7 +86,7 @@ export async function rateUser(
     professionalComment?: string;
   },
 ): Promise<void> {
-  const res = await fetch(`/api/requests/${encodeURIComponent(requestId)}/rate-user`, {
+  const res = await fetch(`${API_BASE}/requests/${encodeURIComponent(requestId)}/rate-user`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
