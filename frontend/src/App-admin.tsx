@@ -20,27 +20,27 @@ export function AppAdmin() {
       <AuthProvider>
         <Routes>
           {/* Admin login (public) */}
-          <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
           {/* Admin protected routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<DashboardPage />} />
-              <Route path="/admin/professionals" element={<ProfessionalsPage />} />
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/professionals" element={<ProfessionalsPage />} />
               <Route
-                path="/admin/professionals/:id"
+                path="/professionals/:id"
                 element={<ProfessionalDetailPage />}
               />
-              <Route path="/admin/users" element={<UsersPage />} />
-              <Route path="/admin/orders" element={<OrdersPage />} />
-              <Route path="/admin/escalations" element={<EscalationsPage />} />
-              <Route path="/admin/zones" element={<ZonesPage />} />
-              <Route path="/admin/categories" element={<CategoriesPage />} />
-              <Route path="/admin/plans" element={<PlansPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/escalations" element={<EscalationsPage />} />
+              <Route path="/zones" element={<ZonesPage />} />
+              <Route path="/categories" element={<CategoriesPage />} />
+              <Route path="/plans" element={<PlansPage />} />
 
               {/* SUPERADMIN only */}
               <Route element={<ProtectedRoute requiredRole="SUPERADMIN" />}>
-                <Route path="/admin/settings" element={<SettingsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
           </Route>

@@ -17,5 +17,5 @@ export function resolveHostContext(): HostContext {
 }
 
 export function getAdminDashboardPath(): string {
-  return '/admin';
+  return '/';
 }
