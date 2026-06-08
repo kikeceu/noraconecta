@@ -1,7 +1,7 @@
 import { presignUpload, uploadToR2 } from './api';
 import { TokenValidationResponse, OnboardingFormData } from '../types/onboarding';
 
-const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api`;
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const json = await res.json();
