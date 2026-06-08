@@ -13,9 +13,9 @@ function getCookieOptions() {
 
   return {
     httpOnly: true,
-    sameSite: 'lax' as const,
+    sameSite: isProduction ? ('none' as const) : ('lax' as const),
     secure: isProduction,
-    domain: isProduction ? '.nora.com.ar' : undefined,
+    domain: isProduction ? '.noraconecta.com' : undefined,
   };
 }
 
