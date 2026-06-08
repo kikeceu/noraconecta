@@ -1244,6 +1244,11 @@ Cuando `resolveOption` no encuentra match exacto por alias, el sistema usa un LL
 - `BotRepository.clearReminderSent(phone, role)`: limpia el timestamp cuando el pedido se reasigna
 - Se usa en `RequestsService.processTimeouts()` para evitar recordatorios duplicados y limpiar tras reasignación
 
+**Tracking de último template enviado (AUT-271):**
+- `BotSession.lastTemplateSentAt` registra el timestamp del último template de WhatsApp enviado por NORA a cada usuario/rol
+- Se usará para validar la regla de Beplic/Marcelo: no enviar más de 1 template al mismo usuario en 24hs
+- Diferente de `lastInboundAt`: este campo registra mensajes **salientes** (templates), mientras que `lastInboundAt` registra mensajes **entrantes**
+
 **Validación de colisión de fechas en coordinación (AUT-172):**
 - Antes de procesar una fecha propuesta (usuario o profesional), el sistema verifica que el profesional asignado no tenga otra visita confirmada (`coordinationStatus = SCHEDULED`) en el mismo día y hora exactos (timezone Argentina).
 - `RequestsRepository.findConflictingSchedule(professionalId, scheduledAt, excludeRequestId)`: busca pedidos del profesional con `coordinationStatus = SCHEDULED`, mismo día/mes/hora/minuto en UTC-3, excluyendo el pedido actual.
@@ -1921,9 +1926,10 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | currentStep  | String?  | Paso actual dentro del flujo                     |
 | tempData     | Json?    | Datos temporales de la conversación              |
 | lastInboundAt| DateTime?| Timestamp del último mensaje entrante recibido   |
-| reminderSentAt| DateTime?| Timestamp del recordatorio de timeout enviado (AUT-177) |
-| createdAt    | DateTime | Autogenerado                                     |
-| updatedAt    | DateTime | Autogenerado (on update)                         |
+| reminderSentAt    | DateTime?| Timestamp del recordatorio de timeout enviado (AUT-177) |
+| lastTemplateSentAt | DateTime?| Timestamp del último template enviado por rol (AUT-271) |
+| createdAt         | DateTime | Autogenerado                                     |
+| updatedAt         | DateTime | Autogenerado (on update)                         |
 
 - Unique constraint: `@@unique([phone, role])` — permite dos sesiones simultáneas e independientes del mismo teléfono (USER y PROFESSIONAL) (AUT-192)
 

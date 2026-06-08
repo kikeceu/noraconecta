@@ -330,8 +330,9 @@ model BotSession {
   currentStep String?
   tempData      Json?
   lastInboundAt   DateTime?
-  reminderSentAt  DateTime?
-  createdAt       DateTime @default(now())
+  reminderSentAt     DateTime?
+  lastTemplateSentAt DateTime?
+  createdAt          DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@unique([phone, role])
