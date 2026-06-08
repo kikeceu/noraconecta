@@ -1865,6 +1865,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | problemType            | String?   | Clasificación automática con LLM (AUT-241)   |
 | isUrgent               | Boolean   | El usuario indicó urgencia (AUT-250)         |
 | mentionedDate          | String?   | Fecha/día mencionado por el usuario (AUT-250) |
+| technicalBrief         | String?   | Brief técnico generado por IA para el profesional asignado (AUT-273) |
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
