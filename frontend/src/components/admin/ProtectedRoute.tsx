@@ -10,8 +10,8 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({
   requiredRole,
-  loginPath = '/admin/login',
-  fallbackPath = '/admin',
+  loginPath = '/login',
+  fallbackPath = '/',
 }: ProtectedRouteProps) {
   const { isAuthenticated, admin, isLoading } = useAuth();
 
