@@ -90,8 +90,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts + análisis LLM síncrono en create() (AUT-251)
-│   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts + technicalBrief support + análisis LLM síncrono en create() (AUT-251)
+│   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback + CreateRequestInput con technicalBrief
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
 │   │   │   │   └── reputation.repository.ts # NOT_FULFILLED counting, status/badge updates
@@ -118,7 +118,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows
-│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST conversation flow + handlers para payloads de botones: notify_when_available, no_notify, confirmo_visita_user, cancelar_visita, seguir_esperando, cancelar_pedido (AUT-266)
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-275) + generateTechnicalBrief (LLM multimodal, AUT-275)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
@@ -1032,7 +1032,7 @@ POST /bot/message
 
 | Flow                    | Estados                                                                 |
 |------------------------|-------------------------------------------------------------------------|
-| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
+| `USER_REQUEST`         | INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING |
 | `PROFESSIONAL_REGISTER`| ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONES → ASK_LOCATION → ASK_AVAILABILITY → SEND_LINK     |
 | `COORDINATION`         | AWAITING_ACCEPTANCE (solo pedido ASSIGNED) → AWAITING_AVAILABILITY → AWAITING_CONFIRMATION → AWAITING_LOCATION → SCHEDULED. Si el profesional propone horario alternativo: AWAITING_USER_CONFIRMATION (máximo 3 rondas de negociación, tras las cuales se intenta con otro profesional del matching). Recordatorio pre-visita: AWAITING_VISIT_CONFIRMATION (profesional responde Confirmo/Cancelar). |
 | `FEEDBACK`             | AWAITING_WORK_COMPLETION → FEEDBACK_SATISFACTION → FEEDBACK_RATING → FEEDBACK_RECOMMEND → FEEDBACK_COMMENT → FEEDBACK_PRO_RATING → FEEDBACK_PRO_RECOMMEND |
@@ -1068,6 +1068,7 @@ POST /bot/message
 - `ASK_ZONE`: modo configurable via `USER_ZONE_SELECTION_MODE`. En modo `LIST` (default): las zonas ya están precargadas desde `ASK_PROVINCE`, procesa selección por número. En modo `FREE_TEXT`: resuelve zona vía NLP (`nlpService.resolveZone`), reintenta si no hay match. Guarda `geoNodeId` y `geoNodeName` en `tempData`. Continúa a `ASK_DESCRIPTION`.
 - `UserRequestFlow` recibe `LocationsRepository` y `ConfigRepository` por inyección de dependencias.
 - `ASK_LOCATION`: requiere mensaje de tipo `location`, guarda `latitude` y `longitude` en `tempData` para usarlo en el alta.
+- `CLARIFICATION` (AUT-275): después de que el usuario describe el problema, la IA analiza la descripción (y fotos si ya las hubiera) para detectar información faltante. Si genera UNA pregunta de clarificación, la envía al usuario en español rioplatense. Si la info es suficiente, procede directamente. Resuelta la pregunta (o sin necesidad), genera el `technicalBrief` vía LLM multimodal y lo guarda en `tempData.technicalBrief`. Luego continúa con `ASK_LOCATION`. El `technicalBrief` se persiste en `Request.technicalBrief` al crear el pedido. Si el LLM falla, el flujo continúa sin preguntas ni brief (non-blocking).
 - `ASK_AVAILABILITY`: recolecta disponibilidad, luego llama a `ProfessionalsService.register()` que genera UUID v4 real como `verificationToken` (expira 7 días / 168h), crea el registro en DB con `latitude`/`longitude`, asocia las zonas vía `ProfessionalsRepository.addZone()`, actualiza `availability`, y retorna la URL de verificación con el token real.
 
 **NLP (nlp.service.ts) (ACTUALIZADO AUT-233):**
@@ -2068,6 +2069,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Usuario bloqueado no puede crear pedidos → 403
   - Al crear pedido desde bot, `userLatitude` y `userLongitude` son opcionales (step `ASK_LOCATION`). Si el usuario omite ubicación, el pedido se crea igual.
   - Creación dispara matching automáticamente vía `findBestCandidate()`; si encuentra candidato → notifica al profesional via WhatsApp (`NotificationService.notifyProfessionalAssigned()`). Si no hay candidatos → NO_RESPONSE
+- `technicalBrief` (AUT-275): al crear el pedido desde el flujo `USER_REQUEST`, el campo `technicalBrief` se genera vía LLM multimodal (`generateTechnicalBrief`) analizando la descripción, categoría, respuesta de clarificación (si hubo) y fotos. Se persiste en `Request.technicalBrief` para que el profesional asignado tenga un brief técnico generado por IA.
   - `assignmentTimeoutAt` se setea al asignar: `now() + PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` (default: 2h)
   - Aceptar: incrementa `trialRequestsUsed` si el profesional no tiene membresía ACTIVA vigente. Limpia `assignmentTimeoutAt`. Inicia flujo de coordinación (`CoordinationService.initAfterAccept()`) y notifica al usuario via WhatsApp (`NotificationService.notifyUserRequestAccepted()`) (AUT-195).
   - Rechazar: registra evento REJECTED, recolecta todos los rejectores anteriores (incluyendo al actual) y reasigna excluyéndolos

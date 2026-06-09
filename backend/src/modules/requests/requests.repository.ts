@@ -16,6 +16,7 @@ export type CreateRequestInput = {
   assignedProfessionalId?: string;
   assignedAt?: Date;
   assignmentTimeoutAt?: Date;
+  technicalBrief?: string;
 };
 
 export type CreateEventInput = {
