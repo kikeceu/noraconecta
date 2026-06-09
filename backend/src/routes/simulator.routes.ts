@@ -6,7 +6,6 @@ const router = Router();
 function isSimulatorMode(): boolean {
   return !(
     process.env.WHATSAPP_API_TOKEN_USER &&
-    process.env.WHATSAPP_API_TOKEN_PROFESSIONAL &&
     process.env.WHATSAPP_PHONE_NUMBER_ID_USER &&
     process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
   );

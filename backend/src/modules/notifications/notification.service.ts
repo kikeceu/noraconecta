@@ -137,34 +137,7 @@ export class NotificationService {
       'nora_pro_nuevo_pedido',
       [request.categoryName, request.zoneName, buildBriefParam(request.technicalBrief)],
     );
-    await this.sendRequestMedia(professionalPhone, request);
-  }
-
-  private async sendRequestMedia(
-    phone: string,
-    request: RequestInfo,
-  ): Promise<void> {
-    for (const photoUrl of request.photoUrls) {
-      try {
-        await this.whatsappAdapter.sendImage(phone, photoUrl, 'PROFESSIONAL');
-      } catch (err) {
-        console.error('[NotificationService] Failed to send request photo:', err);
-      }
-    }
-
-    if (!request.audioUrl) {
-      return;
-    }
-
-    try {
-      await this.whatsappAdapter.sendAudio(
-        phone,
-        request.audioUrl,
-        'PROFESSIONAL',
-      );
-    } catch (err) {
-      console.error('[NotificationService] Failed to send request audio:', err);
-    }
+    // Photos and audio are sent after the professional asks for details.
   }
 
   async notifyUserNoResponse(user: UserInfo): Promise<void> {

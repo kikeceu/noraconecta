@@ -1,10 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
 import { BotService } from './bot.service';
 import { BotRepository } from './bot.repository';
 import { UsersService } from '../users/users.service';
 import { UsersRepository } from '../users/users.repository';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { R2Client } from '../../lib/r2-client';
 
 const botRepository = new BotRepository();
 const usersRepository = new UsersRepository();
@@ -38,6 +41,31 @@ export class BotController {
         location,
         role,
       });
+
+      if (result.pendingNotification) {
+        const { targetPhone, targetRole, message } = result.pendingNotification;
+        const r2Client = new R2Client();
+        const adapter = new WhatsAppAdapter(r2Client, botRepository);
+
+        try {
+          await adapter.sendText(targetPhone, message, targetRole);
+
+          const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
+          if (targetSession) {
+            const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
+            const { pendingMessage: _, ...cleanTempData } = targetTempData;
+
+            await botRepository.upsert(targetPhone, {
+              role: targetRole,
+              currentFlow: targetSession.currentFlow,
+              currentStep: targetSession.currentStep,
+              tempData: cleanTempData as Prisma.InputJsonValue,
+            });
+          }
+        } catch (err) {
+          console.error('[BotController] Failed to send pending notification:', err);
+        }
+      }
 
       res.status(200).json(result);
     } catch (err) {

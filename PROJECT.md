@@ -101,17 +101,17 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
 │   │   │   └── notifications/              # (AUT-195, AUT-199)
-│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy + request media delivery (photos/audio)
+│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281)
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
 │   │   │       └── storage.service.ts    # Folder/contentType validation, R2 delegation
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
-│   │   │   │   ├── bot.controller.ts     # Request validation, response formatting
+│   │   │   │   ├── bot.controller.ts     # Request validation, response formatting + pendingNotification dispatch para simulador (AUT-281)
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169), ver_como_funciona handler (AUT-266)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
-│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248)
+│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), sendRequestMedia público para envío de fotos/audio al pedir detalles (AUT-281)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── constants/
@@ -123,7 +123,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266)
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
@@ -325,7 +325,7 @@ src/
 │       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
 │   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
-│   └── simulator.routes.ts     # GET /simulator/messages — disponible solo en modo simulador (AUT-268)
+│   └── simulator.routes.ts     # GET /simulator/messages — disponible solo en modo simulador (AUT-268). isSimulatorMode() alineado con isConfigured() del adapter (sin WHATSAPP_API_TOKEN_PROFESSIONAL, AUT-281)
 ├── services/                  # (placeholder for future shared services)
 └── repositories/              # (placeholder for future shared repositories)
 ```
@@ -836,7 +836,7 @@ Endpoint de polling para mensajes externos enviados por el backend cuando el mod
 { "messages": [{ "id": "sim-...", "phone": "...", "role": "PROFESSIONAL", "type": "text", "content": "...", "timestamp": "..." }] }
 ```
 
-- Implementado en `backend/src/routes/simulator.routes.ts`
+- Implementado en `backend/src/routes/simulator.routes.ts`. `isSimulatorMode()` verifica `WHATSAPP_API_TOKEN_USER` + `WHATSAPP_PHONE_NUMBER_ID_USER` + `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` (sin `WHATSAPP_API_TOKEN_PROFESSIONAL`, alineado con `isConfigured()` del adapter — AUT-281)
 - Cola en memoria: `backend/src/lib/simulator-queue.ts` (max 100 mensajes, FIFO)
 - El frontend hace polling cada 2 segundos vía `useChat.ts` → `startSimulatorPolling()`
 
@@ -1040,7 +1040,7 @@ POST /bot/message
 **Parseo de fecha con lenguaje natural (AUT-237):** `parseDateTimeNatural()` (`utils/date-utils.ts`) acepta tanto el formato exacto `DD/MM HH:MM` (mediante `parseExactDate`) como expresiones en lenguaje natural ("mañana a las 4", "el viernes a las 10") usando `callLLM()` como fallback. Si el LLM también falla, retorna `null` y NORA pide aclaración con ejemplos. El formato exacto se evalúa primero para evitar llamadas innecesarias al LLM.
 
 **Flujo de coordinación actualizado (AUT-166):**
-- **`handleAwaitingAcceptance` (AUT-197)**: Profesional responde asignación desde WhatsApp. `resolveOption('AWAITING_ACCEPTANCE', input)` acepta número o alias (`1/aceptar/acepto/sí` o `2/rechazar/rechazo/no`). Si acepta llama `RequestsService.accept()`. Si rechaza llama `RequestsService.reject()`.
+- **`handleAwaitingAcceptance` (AUT-197, AUT-281)**: Profesional responde asignación. Flag `_detailsShown` distingue 1er/2do intercambio. 1er intercambio: '1'/'ver detalles' muestra descripción + fotos/audio (enviados vía `CoordinationService.sendRequestMedia`) + opciones "1. Aceptar / 2. Rechazar". 2do intercambio (_detailsShown=true): '1' = ACCEPT, '2' = REJECT. `resolveOption('AWAITING_ACCEPTANCE', input)` mapea '1' → VER_DETALLES, ACCEPT solo por texto.
 - **`handleAwaitingAvailability`**: Mensaje al usuario en singular: "...indicá un día y horario..." y recordatorio de cancelación: `escribí "cancelar"`. Valida con `parseDateTimeNatural` (primero exacto, luego LLM). Si no entiende → "No entendí la fecha..." → se queda en `AWAITING_AVAILABILITY`. Si cumple → guarda `clientAvailability` y `scheduledAt` → `AWAITING_CONFIRMATION`.
 - **`handleAwaitingConfirmation`**: Mensaje al profesional: "Tu cliente puede el {DD/MM HH:MM}. ¿Confirmás? Respondé Sí, o escribí otro horario: DD/MM HH:MM (ejemplo: 10/05 17:00)". Si responde afirmativo → `AWAITING_LOCATION`. Si escribe otro horario → valida con `parseDateTimeNatural`. Si no entiende → "No entendí la fecha..." → se queda en `AWAITING_CONFIRMATION`. Si cumple y es distinto → `AWAITING_USER_CONFIRMATION`.
 - **`CoordinationService.confirmVisit`**: Reemplazó `parseScheduledAt` (LLM) por `parseExactDate`. Misma lógica de detección de horario alternativo vía `isSameSchedule` (margen 15 min).
