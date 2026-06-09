@@ -23,6 +23,18 @@ export interface RequestInfo {
   timeoutHours: number;
   photoUrls: string[];
   audioUrl?: string;
+  technicalBrief?: string | null;
+}
+
+const MAX_BRIEF_LENGTH = 800;
+
+function buildBriefParam(technicalBrief: string | null | undefined): string {
+  if (!technicalBrief || technicalBrief.trim() === '') {
+    return 'Sin detalles adicionales del problema.';
+  }
+  return technicalBrief.length > MAX_BRIEF_LENGTH
+    ? technicalBrief.substring(0, MAX_BRIEF_LENGTH) + '...'
+    : technicalBrief;
 }
 
 export interface RequestBasicInfo {
@@ -101,7 +113,7 @@ export class NotificationService {
       await this.whatsappAdapter.sendTemplateWithQuickReplies(
         professionalPhone,
         'nora_pro_nuevo_pedido',
-        [request.categoryName, request.zoneName],
+        [request.categoryName, request.zoneName, buildBriefParam(request.technicalBrief)],
         [
           { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver los detalles' },
           { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
@@ -112,18 +124,18 @@ export class NotificationService {
       return;
     }
 
-    const message = [
-      `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.`,
-      `Descripción: ${request.description}`,
-      '1. Aceptar\n2. Rechazar',
-    ].join('\n\n');
+    const briefSection = request.technicalBrief
+      ? `\n\n📋 ${request.technicalBrief.substring(0, MAX_BRIEF_LENGTH)}`
+      : '';
+
+    const message = `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.${briefSection}\n\n¿Lo tomás?\n1. Ver los detalles\n2. Ahora no puedo`;
 
     await this.sendWithWindowCheck(
       professionalPhone,
       'PROFESSIONAL',
       message,
       'nora_pro_nuevo_pedido',
-      [request.categoryName, request.zoneName],
+      [request.categoryName, request.zoneName, buildBriefParam(request.technicalBrief)],
     );
     await this.sendRequestMedia(professionalPhone, request);
   }
