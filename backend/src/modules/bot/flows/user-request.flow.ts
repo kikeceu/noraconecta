@@ -7,7 +7,7 @@ import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
-import { callLLM, callLLMWithImages } from '../../../lib/llm-client';
+import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -15,11 +15,9 @@ const nlpService = new NlpService();
 async function generateClarificationQuestions(
   description: string,
   categoryName: string,
-  imageUrls: string[],
 ): Promise<string | null> {
   const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
 El usuario necesita un ${categoryName} y describió su problema asi: "${description}".
-${imageUrls.length > 0 ? 'Tambien adjunto fotos del problema.' : ''}
 
 Tu tarea: determinar si falta informacion CLAVE que el profesional necesitaria saber antes de llegar.
 Si falta info importante, formula UNA sola pregunta corta y directa en español rioplatense.
@@ -32,13 +30,8 @@ Ejemplos de buenas preguntas:
 
 Responde SOLO la pregunta o NO_QUESTIONS. Sin explicaciones.`;
 
-  const hasImages = imageUrls.length > 0;
-  const response = hasImages
-    ? await callLLMWithImages({ prompt, imageUrls })
-    : await callLLM(prompt);
-
+  const response = await callLLM(prompt);
   const trimmed = response.trim();
-
   return trimmed === 'NO_QUESTIONS' ? null : trimmed;
 }
 
@@ -46,14 +39,12 @@ async function generateTechnicalBrief(
   description: string,
   categoryName: string,
   clarificationAnswer: string | null,
-  imageUrls: string[],
 ): Promise<string> {
   const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
 Genera un brief tecnico CORTO (maximo 3 lineas) para un profesional ${categoryName} que va a atender este pedido.
 
 Descripcion del usuario: "${description}"
-${clarificationAnswer ? `Informacion adicional: "${clarificationAnswer}"` : ''}
-${imageUrls.length > 0 ? 'El usuario adjunto fotos del problema.' : ''}
+${clarificationAnswer ? `Respuesta adicional del usuario: "${clarificationAnswer}"` : ''}
 
 El brief debe incluir:
 - Que es el problema en terminos tecnicos
@@ -62,10 +53,22 @@ El brief debe incluir:
 
 Responde solo el brief, sin saludos ni explicaciones.`;
 
-  const hasImages = imageUrls.length > 0;
-  return hasImages
-    ? await callLLMWithImages({ prompt, imageUrls })
-    : await callLLM(prompt);
+  return callLLM(prompt);
+}
+
+async function validateDescription(description: string): Promise<boolean> {
+  const prompt = `Sos un asistente que valida si un texto describe un problema del hogar que requiere un profesional de oficios (plomero, electricista, gasista, pintor, albanil, cerrajero, aire acondicionado).
+
+Texto: "${description}"
+
+Responde SOLO: SI o NO.`;
+
+  try {
+    const response = await callLLM(prompt);
+    return response.trim().toUpperCase().startsWith('SI');
+  } catch {
+    return true;
+  }
 }
 
 export class UserRequestFlow implements FlowHandler {
@@ -666,6 +669,18 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     tempData.description = description;
+
+    const isValid = await validateDescription(description);
+    if (!isValid) {
+      return {
+        response: {
+          text: 'No entendí bien el problema. ¿Podés contarme qué pasó en tu casa? Por ejemplo: "tengo una pérdida de agua", "se me fue la luz en un ambiente", "necesito pintar una habitación".',
+        },
+        nextStep: 'ASK_DESCRIPTION',
+        tempData: { ...tempData, description: undefined },
+      };
+    }
+
     return this.handleClarification({ text: undefined }, tempData);
   }
 
@@ -678,7 +693,7 @@ export class UserRequestFlow implements FlowHandler {
       tempData.userLongitude = message.location.longitude;
 
       return {
-        response: { text: 'Gracias. Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
+        response: { text: 'Gracias. Queres enviar fotos? (hasta 3) Escribi "continuar" para seguir sin fotos' },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -696,7 +711,7 @@ export class UserRequestFlow implements FlowHandler {
       tempData.userLongitude = undefined;
 
       return {
-        response: { text: 'Perfecto. Continuamos sin ubicacion. Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
+        response: { text: 'Perfecto. Continuamos sin ubicacion. Queres enviar fotos? (hasta 3) Escribi "continuar" para seguir sin fotos' },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -721,10 +736,17 @@ export class UserRequestFlow implements FlowHandler {
 
     if (newPhotos.length > 0) {
       tempData.photoUrls = mergedPhotos;
+
+      if (mergedPhotos.length >= 3) {
+        return {
+          response: { text: 'Recibi 3 fotos. ¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
+          nextStep: 'ASK_AUDIO',
+          tempData,
+        };
+      }
+
       return {
-        response: {
-          text: `Recibi ${newPhotos.length} foto(s). Total: ${mergedPhotos.length}/3. Escribi "listo" para continuar`,
-        },
+        response: { text: `Recibi ${mergedPhotos.length}/3 foto(s). Podés enviar más o escribí "continuar" para seguir.` },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -732,16 +754,16 @@ export class UserRequestFlow implements FlowHandler {
 
     const inputText = message.text?.trim().toLowerCase();
 
-    if (inputText === 'listo') {
+    if (inputText === 'continuar' || !!inputText) {
       return {
-        response: { text: 'Queres enviar un audio con mas detalle? Escribi "listo" para continuar' },
+        response: { text: '¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
         nextStep: 'ASK_AUDIO',
         tempData,
       };
     }
 
     return {
-      response: { text: 'Queres enviar fotos? (hasta 3) Escribi "listo" para continuar sin fotos' },
+      response: { text: 'Podés enviar hasta 3 fotos del problema o escribí "continuar" para seguir sin fotos.' },
       nextStep: 'ASK_PHOTOS',
       tempData,
     };
@@ -757,7 +779,7 @@ export class UserRequestFlow implements FlowHandler {
 
     const inputText = message.text?.trim().toLowerCase();
 
-    if (inputText === 'listo' || !!inputText || message.audioUrl) {
+    if (inputText === 'continuar' || !!inputText || message.audioUrl) {
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText },
@@ -767,9 +789,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: {
-        text: 'Queres enviar un audio con mas detalle? Escribi "listo" para continuar',
-      },
+      response: { text: '¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
       nextStep: 'ASK_AUDIO',
       tempData,
     };
@@ -781,14 +801,12 @@ export class UserRequestFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     const description = tempData.description as string;
     const categoryName = tempData.categoryName as string;
-    const photoUrls = (tempData.photoUrls as string[]) || [];
 
     if (!tempData._clarificationAsked) {
       try {
         const question = await generateClarificationQuestions(
           description,
           categoryName,
-          photoUrls,
         );
 
         if (question) {
@@ -817,7 +835,6 @@ export class UserRequestFlow implements FlowHandler {
         description,
         categoryName,
         clarificationAnswer,
-        photoUrls,
       );
 
       tempData.technicalBrief = technicalBrief;
