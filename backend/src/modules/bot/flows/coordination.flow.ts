@@ -33,7 +33,7 @@ export class CoordinationFlow implements FlowHandler {
 
     switch (step) {
       case 'AWAITING_ACCEPTANCE':
-        return this.handleAwaitingAcceptance(message, tempData, role);
+        return this.handleAwaitingAcceptance(message, tempData, role, session.phone);
       case 'AWAITING_AVAILABILITY':
         return this.handleAwaitingAvailability(message, tempData, role);
       case 'AWAITING_CONFIRMATION':
@@ -59,6 +59,7 @@ export class CoordinationFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
+    phone: string,
   ): Promise<FlowStepResult> {
     const requestId = tempData.requestId as string;
 
@@ -79,8 +80,36 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const inputText = message.text?.trim().toLowerCase() || '';
+    const detailsShown = tempData._detailsShown as boolean;
 
-    if (['ver detalles', 'detalle', 'detalles', 'ver pedido', BOT_PAYLOADS.VER_DETALLES].includes(inputText)) {
+    // Second exchange: after details are shown, interpret '1' as ACCEPT
+    if (detailsShown) {
+      const acceptAliases = ['1', 'aceptar', 'acepto', 'si', 'sí', 'dale', 'ok'];
+      if (acceptAliases.includes(inputText)) {
+        try {
+          await this.requestsService.accept(requestId);
+
+          return {
+            response: {
+              text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
+            },
+            nextStep: null,
+            tempData: {},
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'No se pudo aceptar el pedido.';
+
+          return {
+            response: { text: errorMessage },
+            nextStep: null,
+            tempData: {},
+          };
+        }
+      }
+      // REJECT falls through to the resolver below
+    }
+
+    if (['1', 'ver detalles', 'detalle', 'detalles', 'ver pedido', BOT_PAYLOADS.VER_DETALLES].includes(inputText)) {
       let categoryName = tempData.categoryName as string | undefined;
       let zoneName = tempData.zoneName as string | undefined;
       let description = tempData.description as string | undefined;
@@ -114,19 +143,18 @@ export class CoordinationFlow implements FlowHandler {
         audioUrl = request.audioUrl || undefined;
       }
 
-      return {
+      const detailsResponse: FlowStepResult = {
         response: {
           text: [
             `Pedido de ${categoryName} en ${zoneName}.`,
             `Descripción: ${description}`,
             '1. Aceptar\n2. Rechazar',
           ].join('\n\n'),
-          mediaUrls: photoUrls,
-          audioUrl,
         },
         nextStep: 'AWAITING_ACCEPTANCE',
         tempData: {
           ...tempData,
+          _detailsShown: true,
           categoryName,
           zoneName,
           description,
@@ -134,9 +162,74 @@ export class CoordinationFlow implements FlowHandler {
           audioUrl,
         },
       };
+
+      await this.coordinationService.sendRequestMedia(phone, photoUrls, audioUrl)
+        .catch(err => console.error('[CoordinationFlow] Failed to send request media:', err));
+
+      return detailsResponse;
     }
 
     const resolved = await resolveOptionWithFallback('AWAITING_ACCEPTANCE', inputText);
+
+    if (resolved === 'VER_DETALLES') {
+      let detailCategoryName = tempData.categoryName as string | undefined;
+      let detailZoneName = tempData.zoneName as string | undefined;
+      let detailDescription = tempData.description as string | undefined;
+      let detailPhotoUrls = (tempData.photoUrls as string[] | undefined) || [];
+      let detailAudioUrl = tempData.audioUrl as string | undefined;
+
+      if (!detailCategoryName || !detailZoneName || !detailDescription) {
+        const fetchedRequest = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: {
+            category: { select: { name: true } },
+            geoNode: { select: { name: true } },
+            description: true,
+            photoUrls: true,
+            audioUrl: true,
+          },
+        });
+
+        if (!fetchedRequest) {
+          return {
+            response: { text: 'No encontré los detalles del pedido asignado.' },
+            nextStep: null,
+            tempData: {},
+          };
+        }
+
+        detailCategoryName = fetchedRequest.category?.name || 'el servicio';
+        detailZoneName = fetchedRequest.geoNode?.name || 'tu zona';
+        detailDescription = fetchedRequest.description;
+        detailPhotoUrls = fetchedRequest.photoUrls;
+        detailAudioUrl = fetchedRequest.audioUrl || undefined;
+      }
+
+      const verDetallesResponse: FlowStepResult = {
+        response: {
+          text: [
+            `Pedido de ${detailCategoryName} en ${detailZoneName}.`,
+            `Descripción: ${detailDescription}`,
+            '1. Aceptar\n2. Rechazar',
+          ].join('\n\n'),
+        },
+        nextStep: 'AWAITING_ACCEPTANCE',
+        tempData: {
+          ...tempData,
+          _detailsShown: true,
+          categoryName: detailCategoryName,
+          zoneName: detailZoneName,
+          description: detailDescription,
+          photoUrls: detailPhotoUrls,
+          audioUrl: detailAudioUrl,
+        },
+      };
+
+      await this.coordinationService.sendRequestMedia(phone, detailPhotoUrls, detailAudioUrl)
+        .catch(err => console.error('[CoordinationFlow] Failed to send request media:', err));
+
+      return verDetallesResponse;
+    }
 
     if (resolved === 'ACCEPT') {
       try {

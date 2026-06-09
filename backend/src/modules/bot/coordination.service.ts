@@ -266,6 +266,24 @@ export class CoordinationService {
     }
   }
 
+  async sendRequestMedia(phone: string, photoUrls: string[], audioUrl?: string): Promise<void> {
+    for (const photoUrl of photoUrls) {
+      try {
+        await this.whatsappAdapter.sendImage(phone, photoUrl, 'PROFESSIONAL');
+      } catch (err) {
+        console.error('[CoordinationService] Failed to send request photo:', err);
+      }
+    }
+
+    if (audioUrl) {
+      try {
+        await this.whatsappAdapter.sendAudio(phone, audioUrl, 'PROFESSIONAL');
+      } catch (err) {
+        console.error('[CoordinationService] Failed to send request audio:', err);
+      }
+    }
+  }
+
   async sendMessageWithWindowCheck(
     phone: string,
     role: 'USER' | 'PROFESSIONAL',
