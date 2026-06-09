@@ -28,6 +28,7 @@ export interface CreateRequestInput {
   audioUrl?: string;
   userLatitude?: number;
   userLongitude?: number;
+  technicalBrief?: string;
 }
 
 export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
@@ -114,6 +115,7 @@ export class RequestsService {
       userLatitude: input.userLatitude,
       userLongitude: input.userLongitude,
       status: 'CREATED',
+      technicalBrief: input.technicalBrief,
     });
 
     let isUrgent = false;

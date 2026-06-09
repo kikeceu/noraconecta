@@ -7,9 +7,66 @@ import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
+import { callLLM, callLLMWithImages } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
+
+async function generateClarificationQuestions(
+  description: string,
+  categoryName: string,
+  imageUrls: string[],
+): Promise<string | null> {
+  const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
+El usuario necesita un ${categoryName} y describió su problema asi: "${description}".
+${imageUrls.length > 0 ? 'Tambien adjunto fotos del problema.' : ''}
+
+Tu tarea: determinar si falta informacion CLAVE que el profesional necesitaria saber antes de llegar.
+Si falta info importante, formula UNA sola pregunta corta y directa en español rioplatense.
+Si ya tenes suficiente informacion, responde exactamente: NO_QUESTIONS
+
+Ejemplos de buenas preguntas:
+- "El corte de luz es en todo el depto o solo en un ambiente?"
+- "La perdida es constante o intermitente?"
+- "Tenes acceso al medidor de gas?"
+
+Responde SOLO la pregunta o NO_QUESTIONS. Sin explicaciones.`;
+
+  const hasImages = imageUrls.length > 0;
+  const response = hasImages
+    ? await callLLMWithImages({ prompt, imageUrls })
+    : await callLLM(prompt);
+
+  const trimmed = response.trim();
+
+  return trimmed === 'NO_QUESTIONS' ? null : trimmed;
+}
+
+async function generateTechnicalBrief(
+  description: string,
+  categoryName: string,
+  clarificationAnswer: string | null,
+  imageUrls: string[],
+): Promise<string> {
+  const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
+Genera un brief tecnico CORTO (maximo 3 lineas) para un profesional ${categoryName} que va a atender este pedido.
+
+Descripcion del usuario: "${description}"
+${clarificationAnswer ? `Informacion adicional: "${clarificationAnswer}"` : ''}
+${imageUrls.length > 0 ? 'El usuario adjunto fotos del problema.' : ''}
+
+El brief debe incluir:
+- Que es el problema en terminos tecnicos
+- Detalles relevantes para el profesional
+- Nivel de urgencia si aplica
+
+Responde solo el brief, sin saludos ni explicaciones.`;
+
+  const hasImages = imageUrls.length > 0;
+  return hasImages
+    ? await callLLMWithImages({ prompt, imageUrls })
+    : await callLLM(prompt);
+}
 
 export class UserRequestFlow implements FlowHandler {
   readonly flowName = 'USER_REQUEST';
@@ -98,6 +155,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskPhotos(message, tempData);
       case 'ASK_AUDIO':
         return this.handleAskAudio(message, tempData);
+      case 'CLARIFICATION':
+        return this.handleClarification(message, tempData);
       case 'CONFIRM':
         return this.handleConfirm(message, tempData);
       case 'SEARCHING':
@@ -596,25 +655,18 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim();
+    const description = message.text?.trim();
 
-    if (!inputText) {
+    if (!description) {
       return {
-        response: { text: 'Contame brevemente que problema tenes' },
+        response: { text: 'Por favor contame brevemente el problema.' },
         nextStep: 'ASK_DESCRIPTION',
         tempData,
       };
     }
 
-    tempData.description = inputText;
-
-    return {
-      response: {
-        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion). Si no podes compartirla, escribi "omitir".',
-      },
-      nextStep: 'ASK_LOCATION',
-      tempData,
-    };
+    tempData.description = description;
+    return this.handleClarification({ text: undefined }, tempData);
   }
 
   private async handleAskLocation(
@@ -701,17 +753,11 @@ export class UserRequestFlow implements FlowHandler {
   ): Promise<FlowStepResult> {
     if (message.audioUrl) {
       tempData.audioUrl = message.audioUrl;
-      const confirmText = this.buildConfirmation(tempData);
-      return {
-        response: { text: confirmText },
-        nextStep: 'CONFIRM',
-        tempData,
-      };
     }
 
     const inputText = message.text?.trim().toLowerCase();
 
-    if (inputText === 'listo' || !!inputText) {
+    if (inputText === 'listo' || !!inputText || message.audioUrl) {
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText },
@@ -725,6 +771,65 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Queres enviar un audio con mas detalle? Escribi "listo" para continuar',
       },
       nextStep: 'ASK_AUDIO',
+      tempData,
+    };
+  }
+
+  private async handleClarification(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const description = tempData.description as string;
+    const categoryName = tempData.categoryName as string;
+    const photoUrls = (tempData.photoUrls as string[]) || [];
+
+    if (!tempData._clarificationAsked) {
+      try {
+        const question = await generateClarificationQuestions(
+          description,
+          categoryName,
+          photoUrls,
+        );
+
+        if (question) {
+          tempData._clarificationAsked = true;
+          tempData._clarificationQuestion = question;
+
+          return {
+            response: { text: `Antes de buscar un profesional, necesito una consulta: ${question}` },
+            nextStep: 'CLARIFICATION',
+            tempData,
+          };
+        }
+      } catch {
+        // LLM error — non-blocking, proceed to technical brief
+      }
+    } else {
+      const answer = message.text?.trim();
+      if (answer) {
+        tempData.clarificationAnswer = answer;
+      }
+    }
+
+    try {
+      const clarificationAnswer = (tempData.clarificationAnswer as string) || null;
+      const technicalBrief = await generateTechnicalBrief(
+        description,
+        categoryName,
+        clarificationAnswer,
+        photoUrls,
+      );
+
+      tempData.technicalBrief = technicalBrief;
+    } catch {
+      // LLM error — non-blocking, proceed without technical brief
+    }
+
+    return {
+      response: {
+        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion). Si no podes compartirla, escribi "omitir".',
+      },
+      nextStep: 'ASK_LOCATION',
       tempData,
     };
   }
@@ -773,6 +878,7 @@ export class UserRequestFlow implements FlowHandler {
           audioUrl: tempData.audioUrl as string | undefined,
           userLatitude: tempData.userLatitude as number | undefined,
           userLongitude: tempData.userLongitude as number | undefined,
+          technicalBrief: tempData.technicalBrief as string | undefined,
         });
 
         tempData.requestId = request.id;
