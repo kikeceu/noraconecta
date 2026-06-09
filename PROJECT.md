@@ -395,6 +395,9 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 | `APP_FULL_NAME`   | `NORA Conecta`                | Nombre completo para títulos, SEO, textos institucionales (AUT-187) |
 | `APP_TAGLINE`     | `Tu profesional de confianza` | Tagline de la marca (AUT-187) |
 | `APP_URL` (marca) | `https://noraconecta.com`     | URL pública del sitio (AUT-187) |
+| `WHATSAPP_APP_SECRET` | — | App Secret único para webhooks de Meta (single WABA) |
+| `WHATSAPP_APP_SECRET_USER` | — | App Secret de la app del BM de usuarios (dual BM) (AUT-282) |
+| `WHATSAPP_APP_SECRET_PROFESSIONAL` | — | App Secret de la app del BM de profesionales (dual BM) (AUT-282) |
 | `MERCADOPAGO_ACCESS_TOKEN` | — | Access token de MercadoPago (producción o sandbox) (AUT-188) |
 | `MERCADOPAGO_WEBHOOK_SECRET` | — | Secret para validar firma HMAC del webhook (AUT-188) |
 | `LLM_PROVIDER` | `openai` | Proveedor de LLM: `openai` o `anthropic` (AUT-242) |

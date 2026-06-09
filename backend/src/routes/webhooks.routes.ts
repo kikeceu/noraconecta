@@ -45,7 +45,22 @@ function getWhatsappAdapter(): WhatsAppAdapter | null {
   return whatsappAdapter;
 }
 
-function validateHmac(rawBody: Buffer, req: Request): boolean {
+function getAppSecret(parsedBody: unknown): string | undefined {
+  const secretUser = process.env.WHATSAPP_APP_SECRET_USER;
+  const secretPro = process.env.WHATSAPP_APP_SECRET_PROFESSIONAL;
+
+  if (secretUser && secretPro) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const phoneNumberId = (parsedBody as any)
+      ?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id;
+    const proNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL;
+    return phoneNumberId === proNumberId ? secretPro : secretUser;
+  }
+
+  return process.env.WHATSAPP_APP_SECRET;
+}
+
+function validateHmac(rawBody: Buffer, req: Request, parsedBody: unknown): boolean {
   const kapsoSignature = req.headers['x-webhook-signature'] as
     | string
     | undefined;
@@ -71,7 +86,7 @@ function validateHmac(rawBody: Buffer, req: Request): boolean {
   }
 
   if (metaSignature) {
-    const appSecret = process.env.WHATSAPP_APP_SECRET;
+    const appSecret = getAppSecret(parsedBody);
     if (!appSecret) return false;
     if (!metaSignature.startsWith('sha256=')) return false;
 
@@ -125,7 +140,7 @@ router.post('/whatsapp', (req: Request, res: Response) => {
     return;
   }
 
-  if (!validateHmac(rawBody, req)) {
+  if (!validateHmac(rawBody, req, req.body)) {
     res.status(401).json({
       error: 'Invalid signature',
       statusCode: 401,
