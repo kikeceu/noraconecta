@@ -208,7 +208,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'text',
           text: {
             preview_url: false,
@@ -257,7 +257,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'image',
           image: imagePayload,
         }),
@@ -298,7 +298,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'audio',
           audio: { link: audioUrl },
         }),
@@ -345,7 +345,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'template',
           template: {
             name: templateName,
@@ -410,7 +410,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'template',
           template: {
             name: templateName,
@@ -491,7 +491,7 @@ export class WhatsAppAdapter {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
-          to: phone,
+          to: this.normalizePhone(phone),
           type: 'template',
           template: {
             name: templateName,
@@ -569,6 +569,13 @@ export class WhatsAppAdapter {
 
     const result = await this.r2Client.uploadBuffer(key, buffer, mediaData.mime_type);
     return result.publicUrl;
+  }
+
+  private normalizePhone(phone: string): string {
+    if (process.env.NORMALIZE_AR_PHONES === 'true' && phone.startsWith('549') && phone.length === 13) {
+      return '54' + phone.slice(3);
+    }
+    return phone;
   }
 
   private getCredentials(role: WhatsAppRole): { token: string; phoneNumberId: string } {
