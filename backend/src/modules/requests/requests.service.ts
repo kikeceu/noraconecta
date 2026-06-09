@@ -232,6 +232,7 @@ Criterios:
               timeoutHours: responseTimeoutHours,
               photoUrls: request.photoUrls ?? [],
               audioUrl: request.audioUrl || undefined,
+              technicalBrief: request.technicalBrief,
             },
           ).catch((err) => {
             console.error('[RequestsService] Failed to notify professional assigned:', err);
@@ -1222,6 +1223,7 @@ Criterios:
                   timeoutHours: responseTimeoutHours,
                   photoUrls: request.photoUrls ?? [],
                   audioUrl: request.audioUrl || undefined,
+                  technicalBrief: request.technicalBrief,
                 },
               ).catch((err) => {
                 console.error('[RequestsService] Failed to notify professional reassigned:', err);
