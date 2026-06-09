@@ -24,7 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
@@ -134,7 +134,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
