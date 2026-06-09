@@ -73,3 +73,58 @@ export async function callLLM(prompt: string): Promise<string> {
     throw err;
   }
 }
+
+// --- Multimodal / Vision support (gpt-4o-mini only) ---
+
+export interface LLMImageInput {
+  prompt: string;
+  imageUrls: string[];
+}
+
+async function callOpenAIWithImages(input: LLMImageInput): Promise<LLMResponse> {
+  const imageContent = input.imageUrls.map(url => ({
+    type: 'image_url' as const,
+    image_url: { url, detail: 'low' as const },
+  }));
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY || ''}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 400,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: input.prompt },
+            ...imageContent,
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI Vision API error: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+
+  return { text: data.choices[0]?.message?.content?.trim() || '' };
+}
+
+export async function callLLMWithImages(input: LLMImageInput): Promise<string> {
+  try {
+    const result = await callOpenAIWithImages(input);
+    return result.text;
+  } catch (err) {
+    console.error('[LLMClient] callLLMWithImages failed:', err);
+    throw err;
+  }
+}
