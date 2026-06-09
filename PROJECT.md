@@ -627,10 +627,10 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 
 | Método                              | Descripción                                                          |
 |-------------------------------------|----------------------------------------------------------------------|
-| `notifyProfessionalAssigned()`      | Notifica al profesional cuando se le asigna un nuevo pedido           |
+| `notifyProfessionalAssigned()`      | Notifica al profesional cuando se le asigna un nuevo pedido. Incluye `technicalBrief` (truncado a 800 chars) como 3er parámetro del template o inline en texto libre (AUT-276) |
 | `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
 | `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout); template con `categoryName` y `zoneName` |
-| `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2)       |
+| `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2). Incluye `technicalBrief` (truncado a 800 chars) como 3er parámetro del template o inline en texto libre (AUT-276) |
 | `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible         |
 | `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló; usa `nora_pro_usuario_cancelo_pedido` (sin visita) o `nora_pro_usuario_cancelo_visita` (con visita) según `hasConfirmedVisit` |
 | `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido; usa template distinto según si había visita confirmada |
@@ -640,7 +640,7 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 - Método privado `sendWithWindowCheck()` centraliza la verificación de ventana de 24hs con `shouldUseTemplate()` antes de cada envío
 - Dentro de la ventana → envía texto libre; fuera de la ventana → envía template específica por evento
 - Cada método público usa su template correspondiente (ver tabla en AUT-213)
-- `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`
+- `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`, e incluyen el `technicalBrief` generado por IA en el mensaje (template o texto libre). Si no hay brief, se envía `'Sin detalles adicionales del problema.'`. El brief se trunca a 800 caracteres.
 - Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
 
 ### Notifications (AUT-213) — Centralización de ventana 24hs y templates WhatsApp
