@@ -577,7 +577,7 @@ Criterios:
   async confirm(
     requestId: string,
     satisfaction: Satisfaction,
-    comment?: string,
+    _comment?: string,
   ): Promise<Request> {
     const request = await this.requestsRepository.findById(requestId);
 
@@ -603,81 +603,50 @@ Criterios:
       );
     }
 
-    if (satisfaction === 'SATISFIED' || satisfaction === 'PARTIAL') {
-      const updated = await this.requestsRepository.update(requestId, {
-        status: 'COMPLETED',
+    // SATISFIED, PARTIAL, and UNSATISFIED all mark as COMPLETED
+    // Only UNSATISFIED creates an escalation for team review (no automatic penalization)
+    const updated = await this.requestsRepository.update(requestId, {
+      status: 'COMPLETED',
+    });
+
+    await this.requestsRepository.createEvent({
+      requestId,
+      professionalId: request.assignedProfessionalId,
+      type: 'COMPLETED',
+    });
+
+    await this.reputationService.evaluateBadge(
+      request.assignedProfessionalId,
+    );
+
+    const problemTypeRequest = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: { problemType: true, assignedProfessionalId: true },
+    });
+
+    if (problemTypeRequest?.problemType && problemTypeRequest?.assignedProfessionalId) {
+      const professional = await prisma.professional.findUnique({
+        where: { id: problemTypeRequest.assignedProfessionalId },
+        select: { problemTypeStats: true },
       });
 
-      await this.requestsRepository.createEvent({
-        requestId,
-        professionalId: request.assignedProfessionalId,
-        type: 'COMPLETED',
+      const stats = (professional?.problemTypeStats as Record<string, number>) || {};
+      stats[problemTypeRequest.problemType] =
+        (stats[problemTypeRequest.problemType] || 0) + 1;
+
+      await prisma.professional.update({
+        where: { id: problemTypeRequest.assignedProfessionalId },
+        data: { problemTypeStats: stats },
       });
-
-      await this.reputationService.evaluateBadge(
-        request.assignedProfessionalId,
-      );
-
-      const problemTypeRequest = await prisma.request.findUnique({
-        where: { id: requestId },
-        select: { problemType: true, assignedProfessionalId: true },
-      });
-
-      if (problemTypeRequest?.problemType && problemTypeRequest?.assignedProfessionalId) {
-        const professional = await prisma.professional.findUnique({
-          where: { id: problemTypeRequest.assignedProfessionalId },
-          select: { problemTypeStats: true },
-        });
-
-        const stats = (professional?.problemTypeStats as Record<string, number>) || {};
-        stats[problemTypeRequest.problemType] =
-          (stats[problemTypeRequest.problemType] || 0) + 1;
-
-        await prisma.professional.update({
-          where: { id: problemTypeRequest.assignedProfessionalId },
-          data: { problemTypeStats: stats },
-        });
-      }
-
-      return updated;
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
-      const result = await this.requestsRepository.update(
-        requestId,
-        { status: 'NOT_FULFILLED' },
-        tx,
-      );
-
-      await this.requestsRepository.createEvent(
-        {
-          requestId,
-          professionalId: request.assignedProfessionalId,
-          type: 'NOT_FULFILLED',
-          metadata: comment ? { comment } : undefined,
-        },
-        tx,
-      );
-
+    if (satisfaction === 'UNSATISFIED') {
       await this.escalationsService.create(
         requestId,
         request.userId,
-        request.assignedProfessionalId!,
-        tx,
+        request.assignedProfessionalId,
       );
-
-      await this.reputationService.applyPenalization(
-        request.assignedProfessionalId!,
-        tx,
-      );
-
-      await this.reputationService.removeBadgeIfActive(
-        request.assignedProfessionalId!,
-        tx,
-      );
-
-      return result;
-    });
+    }
 
     return updated;
   }
