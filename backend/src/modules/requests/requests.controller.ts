@@ -592,24 +592,18 @@ export class RequestsController {
 
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
-      if (result.userPhone && result.userName) {
-	  const proName = result.professionalName || 'El profesional';
-	  const categoryName = result.categoryName || 'el servicio';
-	  const message = result.hadConfirmedVisit && result.scheduledAt
-	    ? `${proName} canceló la visita. Estamos buscando otro profesional para tu pedido de ${categoryName}.`
-	    : `${proName} no puede atender tu pedido de ${categoryName}. Estamos buscando otro profesional.`;
-
+      if (result.userPhone) {
 	  notificationService.notifyUserProfessionalCancelled(
-	    { phone: result.userPhone, name: result.userName },
-	    message,
+	    { phone: result.userPhone, name: 'Usuario' },
+	    result.userMessage,
 	    result.hadConfirmedVisit,
 	    result.scheduledAt,
-	    proName,
-	    categoryName,
+	    result.professionalName,
+	    result.categoryName,
 	  ).catch((err) => {
 	    console.error('[RequestsController] Failed to notify user about professional cancellation:', err);
 	  });
-	}
+      }
 
       res.status(200).json({ data: result.request });
     } catch (err) {
