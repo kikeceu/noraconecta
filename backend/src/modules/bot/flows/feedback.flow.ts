@@ -170,14 +170,15 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     if (resolved === 'UNSATISFIED') {
+      await this.tryConfirmSatisfaction(requestId, 'UNSATISFIED');
       await this.handleUnsatisfiedFeedback(requestId);
 
       return {
         response: {
-          text: 'Gracias por contarnos. Abrimos una escalada para que el equipo revise tu caso.',
+          text: 'Lamentamos que no hayas quedado conforme. ¿Del 1 al 5, qué puntaje le das al profesional?',
         },
-        nextStep: null,
-        tempData: {},
+        nextStep: 'FEEDBACK_RATING',
+        tempData: { ...tempData, satisfaction: 'UNSATISFIED' },
       };
     }
 
@@ -481,16 +482,6 @@ export class FeedbackFlow implements FlowHandler {
   }
 
   private async handleUnsatisfiedFeedback(requestId: string): Promise<void> {
-    try {
-      await this.requestsService.confirm(requestId, 'UNSATISFIED');
-      return;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '';
-      if (!errorMessage.includes('Expected PENDING_CONFIRMATION')) {
-        throw error;
-      }
-    }
-
     const request = await prisma.request.findUnique({
       where: { id: requestId },
       select: { id: true, userId: true, assignedProfessionalId: true },

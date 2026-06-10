@@ -1471,7 +1471,7 @@ score_final = compliance        × 0.22
 | `/requests/:id/mark-completed`         | POST   | Profesional marca trabajo como completado      | Sin auth  |
 | `/requests/:id/finish`                 | POST   | Profesional finaliza pedido (ACCEPTED → PENDING_CONFIRMATION). Notifica al usuario vía pendingMessage. | Sin auth  |
 | `/requests/:id/confirm`                | POST   | Usuario confirma satisfacción (SATISFIED/PARTIAL/UNSATISFIED) | Sin auth  |
-| `/requests/:id/dispute`                | POST   | Usuario disputa pedido (→ NOT_FULFILLED + Escalation) | Sin auth  |
+| `/requests/:id/dispute`                | POST   | Usuario disputa pedido (→ COMPLETED + Escalation, sin penalización automática) | Sin auth  |
 | `/requests/:id/confirm-completion`     | POST   | Usuario confirma (Sí/No) el trabajo (legacy)   | Sin auth  |
 | `/requests/:id/report-noncompliance`   | POST   | Usuario reporta incumplimiento                 | Sin auth  |
 | `/requests/:id/submit-feedback`        | POST   | Usuario envía feedback del trabajo             | Sin auth  |
@@ -1506,8 +1506,8 @@ CREATED → [matching] → ASSIGNED → [acepta] → ACCEPTED
 CREATED/ASSIGNED → [usuario cancela] → CANCELLED
 ACCEPTED → [profesional cancela] → CANCELLED + [reasigna] → ASSIGNED (loop)
                                                          → [sin candidatos] → NO_RESPONSE
-ACCEPTED → [profesional marca completo] → PENDING_CONFIRMATION → [usuario confirma Sí] → COMPLETED → [feedback]
-                                                                   → [usuario confirma No] → NOT_FULFILLED
+ACCEPTED → [profesional marca completo] → PENDING_CONFIRMATION → [usuario confirma] → COMPLETED (con escalada si UNSATISFIED) → [feedback]
+         → [profesional no completa (completionAttempt >= 2)] → NOT_FULFILLED (con escalada y penalización automática)
          → [usuario reporta incumplimiento] → NOT_FULFILLED
 ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 ```
@@ -1524,8 +1524,8 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Finalización por cron (AUT-216): `CoordinationService.checkWorkCompletion()` busca pedidos `ACCEPTED + SCHEDULED` cuya visita ya venció según `WORK_COMPLETION_CHECK_HOURS` (default 24), consulta al profesional por WhatsApp (`AWAITING_WORK_COMPLETION`) y escala a `Escalation` si no hay confirmación tras 2 intentos.
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
   - SATISFIED/PARTIAL → COMPLETED + evento COMPLETED + evaluateBadge
-  - UNSATISFIED → NOT_FULFILLED + crea Escalation + evento NOT_FULFILLED + applyPenalization + removeBadgeIfActive
-- Disputa (dispute): alias de confirm con UNSATISFIED
+  - UNSATISFIED → COMPLETED + evento COMPLETED + crea Escalation + evaluateBadge (SIN penalización automática; la revisa el equipo) (AUT-284)
+- Disputa (dispute): alias de confirm con UNSATISFIED (→ COMPLETED, sin penalización)
 - Confirm-completion (legacy): usuario confirma Sí/No → COMPLETED o NOT_FULFILLED
 - Auto-complete: 24h después de `updatedAt` en PENDING_CONFIRMATION sin confirmación → COMPLETED automático con metadata `{ autoClosedAt, reason: "timeout_user_confirmation" }`. No dispara flujo de calificación.
 - Todos los cambios de estado registran su `RequestEvent`
