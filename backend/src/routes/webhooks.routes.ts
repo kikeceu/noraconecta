@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { Prisma } from '@prisma/client';
-import { WhatsAppAdapter } from '../lib/whatsapp-adapter';
+import { WhatsAppAdapter, WhatsAppRole, ParsedIncoming } from '../lib/whatsapp-adapter';
 import { BotService } from '../modules/bot/bot.service';
 import { BotRepository } from '../modules/bot/bot.repository';
 import { UsersService } from '../modules/users/users.service';
@@ -16,6 +16,17 @@ const usersService = new UsersService(usersRepository);
 const requestsRepository = new RequestsRepository();
 const professionalsRepository = new ProfessionalsRepository();
 const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository);
+
+interface PhotoAccumulator {
+  phone: string;
+  role: WhatsAppRole;
+  imageUrls: string[];
+  timer: ReturnType<typeof setTimeout>;
+  originalParsed: ParsedIncoming;
+}
+
+const photoAccumulators = new Map<string, PhotoAccumulator>();
+const PHOTO_DEBOUNCE_MS = 3000;
 
 let r2Client: R2Client | null = null;
 let whatsappAdapter: WhatsAppAdapter | null = null;
@@ -168,6 +179,41 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       `[webhooks] Processing WhatsApp message from ${parsed.message.phone} as ${parsed.role}`,
     );
 
+    // Photo debounce: accumulate images when the user is in ASK_PHOTOS step
+    if (parsed.message.imageUrls?.length) {
+      const session = await botRepository.findByPhoneAndRole(
+        parsed.message.phone,
+        parsed.role,
+      );
+      const isPhotoStep = session?.currentStep === 'ASK_PHOTOS';
+
+      if (isPhotoStep) {
+        const key = `${parsed.message.phone}:${parsed.role}`;
+
+        const existing = photoAccumulators.get(key);
+        if (existing) {
+          clearTimeout(existing.timer);
+          existing.imageUrls.push(...(parsed.message.imageUrls || []));
+        } else {
+          photoAccumulators.set(key, {
+            phone: parsed.message.phone,
+            role: parsed.role,
+            imageUrls: [...(parsed.message.imageUrls || [])],
+            timer: null as unknown as ReturnType<typeof setTimeout>,
+            originalParsed: parsed,
+          });
+        }
+
+        const accumulator = photoAccumulators.get(key)!;
+        accumulator.timer = setTimeout(() => {
+          photoAccumulators.delete(key);
+          void processWithAccumulatedPhotos(accumulator);
+        }, PHOTO_DEBOUNCE_MS);
+
+        return;
+      }
+    }
+
     const result = await botService.processMessage({
       phone: parsed.message.phone,
       text: parsed.message.text,
@@ -177,62 +223,108 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       role: parsed.role,
     });
 
-    let responseText = result.text;
+    await sendResponse(adapter, parsed.message.phone, parsed.role, result);
 
-    if (result.options?.length) {
-      responseText += `\n\n${result.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}`;
-    }
-
-    await adapter.sendText(parsed.message.phone, responseText, parsed.role);
-
-    if (result.mediaUrls?.length) {
-      for (const mediaUrl of result.mediaUrls) {
-        try {
-          await adapter.sendImage(parsed.message.phone, mediaUrl, parsed.role);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error('[Webhook] Failed to send media:', err);
-        }
-      }
-    }
-
-    if (result.audioUrl) {
-      try {
-        await adapter.sendAudio(parsed.message.phone, result.audioUrl, parsed.role);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[Webhook] Failed to send audio:', err);
-      }
-    }
-
-    // Send pending notification immediately via WhatsApp and clear from session
     if (result.pendingNotification) {
-      const { targetPhone, targetRole, message } = result.pendingNotification;
-
-      try {
-        await adapter.sendText(targetPhone, message, targetRole);
-
-        // Clear pendingMessage from target session so it's not delivered again
-        const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
-        if (targetSession) {
-          const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
-          const { pendingMessage: _, ...cleanTempData } = targetTempData;
-
-          await botRepository.upsert(targetPhone, {
-            role: targetRole,
-            currentFlow: targetSession.currentFlow,
-            currentStep: targetSession.currentStep,
-            tempData: cleanTempData as Prisma.InputJsonValue,
-          });
-        }
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[webhooks] Failed to send pending notification:', err);
-      }
+      await handlePendingNotification(adapter, result.pendingNotification);
     }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[webhooks] Error processing WhatsApp message:', err);
+  }
+}
+
+async function sendResponse(
+  adapter: WhatsAppAdapter,
+  phone: string,
+  role: WhatsAppRole,
+  result: Awaited<ReturnType<typeof botService.processMessage>>,
+): Promise<void> {
+  let responseText = result.text;
+
+  if (result.options?.length) {
+    responseText += `\n\n${result.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}`;
+  }
+
+  await adapter.sendText(phone, responseText, role);
+
+  if (result.mediaUrls?.length) {
+    for (const mediaUrl of result.mediaUrls) {
+      try {
+        await adapter.sendImage(phone, mediaUrl, role);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[webhooks] Failed to send media:', err);
+      }
+    }
+  }
+
+  if (result.audioUrl) {
+    try {
+      await adapter.sendAudio(phone, result.audioUrl, role);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[webhooks] Failed to send audio:', err);
+    }
+  }
+}
+
+async function handlePendingNotification(
+  adapter: WhatsAppAdapter,
+  pendingNotification: Awaited<ReturnType<typeof botService.processMessage>>['pendingNotification'],
+): Promise<void> {
+  if (!pendingNotification) return;
+
+  const { targetPhone, targetRole, message } = pendingNotification;
+
+  try {
+    await adapter.sendText(targetPhone, message, targetRole);
+
+    // Clear pendingMessage from target session so it's not delivered again
+    const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
+    if (targetSession) {
+      const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
+      const { pendingMessage: _, ...cleanTempData } = targetTempData;
+
+      await botRepository.upsert(targetPhone, {
+        role: targetRole,
+        currentFlow: targetSession.currentFlow,
+        currentStep: targetSession.currentStep,
+        tempData: cleanTempData as Prisma.InputJsonValue,
+      });
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[webhooks] Failed to send pending notification:', err);
+  }
+}
+
+async function processWithAccumulatedPhotos(
+  accumulator: PhotoAccumulator,
+): Promise<void> {
+  try {
+    const adapter = getWhatsappAdapter();
+    if (!adapter) return;
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[webhooks] Processing accumulated photos from ${accumulator.phone} as ${accumulator.role} (${accumulator.imageUrls.length} photos)`,
+    );
+
+    const result = await botService.processMessage({
+      phone: accumulator.phone,
+      imageUrls: accumulator.imageUrls,
+      role: accumulator.role,
+    });
+
+    await sendResponse(adapter, accumulator.phone, accumulator.role, result);
+
+    if (result.pendingNotification) {
+      await handlePendingNotification(adapter, result.pendingNotification);
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[webhooks] Error processing accumulated photos:', err);
   }
 }
 

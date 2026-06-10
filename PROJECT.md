@@ -324,7 +324,7 @@ src/
 │       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
 │       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
-│   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134)
+│   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134), photo debounce accumulation (AUT-283)
 │   └── simulator.routes.ts     # GET /simulator/messages — disponible solo en modo simulador (AUT-268). isSimulatorMode() alineado con isConfigured() del adapter (sin WHATSAPP_API_TOKEN_PROFESSIONAL, AUT-281)
 ├── services/                  # (placeholder for future shared services)
 └── repositories/              # (placeholder for future shared repositories)
@@ -2206,6 +2206,28 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
   - Cron `checkWaitingActivations()` corre cada 30 minutos y cierra pedidos con más de 24hs en espera
   - Si `MERCADOPAGO_ACCESS_TOKEN` no está configurado, el servidor arranca pero falla al generar links de pago
   - Los precios y nombres de planes siempre se leen desde DB, nunca hardcodeados
+
+### AUT-283 — Debounce de fotos en webhook de WhatsApp
+
+Cuando un usuario envía múltiples fotos en el paso `ASK_PHOTOS`, Meta las entrega como webhooks separados casi simultáneos. Para evitar que NORA responda múltiples veces (una por cada foto), se implementa un mecanismo de acumulación con debounce en `webhooks.routes.ts`.
+
+**Mecanismo de debounce:**
+- `PhotoAccumulator`: interfaz que almacena `phone`, `role`, `imageUrls`, `timer` y `originalParsed`
+- `photoAccumulators`: `Map<string, PhotoAccumulator>` en memoria (clave: `phone:role`)
+- `PHOTO_DEBOUNCE_MS = 3000`: tiempo de espera antes de procesar fotos acumuladas
+
+**Funciones agregadas:**
+- `sendResponse(adapter, phone, role, result)`: envía la respuesta del bot (texto, media, audio)
+- `handlePendingNotification(adapter, pendingNotification)`: procesa y limpia notificaciones pendientes
+- `processWithAccumulatedPhotos(accumulator)`: procesa todas las fotos acumuladas en un solo `processMessage` y despacha la respuesta
+
+**Comportamiento:**
+- El debounce solo aplica cuando `currentStep === 'ASK_PHOTOS'` — en cualquier otro step, las imágenes se procesan inmediatamente
+- Si el usuario envía 1 sola foto, espera 3 segundos antes de responder (aceptable)
+- Si el servidor se reinicia durante el debounce, las fotos acumuladas se pierden (aceptable para este caso de uso)
+- El comportamiento en el simulador no se ve afectado (el debounce solo aplica cuando `isConfigured()` es true)
+
+**No modifica** `bot.service.ts`, `user-request.flow.ts` ni ningún otro archivo.
 
 ## Scripts
 
