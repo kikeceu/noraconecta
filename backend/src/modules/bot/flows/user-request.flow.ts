@@ -763,7 +763,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: { text: 'Podés enviar hasta 3 fotos del problema o escribí "continuar" para seguir sin fotos.' },
+      response: { text: '' },
       nextStep: 'ASK_PHOTOS',
       tempData,
     };
