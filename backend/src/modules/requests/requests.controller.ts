@@ -592,32 +592,24 @@ export class RequestsController {
 
       const result = await requestsService.cancelByProfessional(id, professionalId);
 
-      try {
-        const proName = result.professionalName || 'El profesional';
-        const categoryName = result.categoryName || 'el servicio';
+      if (result.userPhone && result.userName) {
+	  const proName = result.professionalName || 'El profesional';
+	  const categoryName = result.categoryName || 'el servicio';
+	  const message = result.hadConfirmedVisit && result.scheduledAt
+	    ? `${proName} canceló la visita. Estamos buscando otro profesional para tu pedido de ${categoryName}.`
+	    : `${proName} no puede atender tu pedido de ${categoryName}. Estamos buscando otro profesional.`;
 
-        if (result.hadConfirmedVisit && result.scheduledAt) {
-          const formattedDate = formatDateTimeArgentina(result.scheduledAt);
-          await whatsappAdapter.sendTemplate(
-            result.userPhone,
-            'nora_user_pro_cancelo_visita',
-            [proName, categoryName, formattedDate],
-            'USER',
-          );
-        } else {
-          await whatsappAdapter.sendTemplate(
-            result.userPhone,
-            'nora_user_pro_cancelo_pedido',
-            [proName, categoryName],
-            'USER',
-          );
-        }
-      } catch (err) {
-        console.error(
-          '[RequestsController] Failed to notify user about professional cancellation:',
-          err,
-        );
-      }
+	  notificationService.notifyUserProfessionalCancelled(
+	    { phone: result.userPhone, name: result.userName },
+	    message,
+	    result.hadConfirmedVisit,
+	    result.scheduledAt,
+	    proName,
+	    categoryName,
+	  ).catch((err) => {
+	    console.error('[RequestsController] Failed to notify user about professional cancellation:', err);
+	  });
+	}
 
       res.status(200).json({ data: result.request });
     } catch (err) {
