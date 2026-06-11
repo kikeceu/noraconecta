@@ -1208,6 +1208,19 @@ Cuando un profesional en estado `PENDING` escribe al bot, `resolveProfessionalSt
 
 **No modifica** `schema.prisma`.
 
+### AUT-286 — Saludo cordial al usuario recurrente antes de mostrar opciones de servicio
+
+Cuando un usuario que ya tiene nombre registrado en la DB (recurrente) vuelve a escribirle a NORA, el bot lo saluda por nombre en el mismo mensaje que muestra las categorías de servicio.
+
+**Cambios en `user-request.flow.ts` (`handleAskServiceList`):**
+- Al mostrar la lista de categorías por primera vez, se verifica `tempData.name`. Si el usuario tiene nombre → `"¡Qué bueno volver a verte, {name}! ¿Qué servicio estás buscando?\n\n{lista}"`. Si es nuevo (sin nombre) → `"¿Que tipo de servicio necesitas?\n\n{lista}"`.
+- El `name` ya está disponible en `tempData` porque `bot.service.ts` lo inyecta desde `userIdentity` al crear la sesión.
+- Los mensajes de reintento (input vacío o inválido) mantienen el texto genérico sin saludo.
+
+**Saludo:** `"¡Qué bueno volver a verte, {name}! ¿Qué servicio estás buscando?"` — breve, cordial, español rioplatense.
+
+**No modifica** `schema.prisma`.
+
 ### AUT-250 — Detección de urgencia y fecha mencionada en descripción del problema
 
 Extensión del análisis LLM post-descripción para detectar dos señales clave en el matching: urgencia del pedido y fecha/día mencionada por el usuario.
