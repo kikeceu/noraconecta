@@ -90,7 +90,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts + technicalBrief support + análisis LLM síncrono en create() (AUT-251)
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251)
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback + CreateRequestInput con technicalBrief
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
@@ -622,7 +622,7 @@ Response shape:
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
 
-### Notifications (AUT-195, ACTUALIZADO AUT-213)
+### Notifications (AUT-195, ACTUALIZADO AUT-213, AUT-287)
 
 Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida del pedido. Encapsula `WhatsAppAdapter` y expone métodos semánticos por evento.
 
@@ -634,7 +634,7 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 | `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
 | `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout); template con `categoryName` y `zoneName` |
 | `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2). Incluye `technicalBrief` (truncado a 800 chars) como 3er parámetro del template o inline en texto libre (AUT-276) |
-| `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible         |
+| `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible. Se invoca en `processTimeouts` tanto para CREATED→NO_RESPONSE como para ASSIGNED timeout sin reemplazo (AUT-287) |
 | `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló; usa `nora_pro_usuario_cancelo_pedido` (sin visita) o `nora_pro_usuario_cancelo_visita` (con visita) según `hasConfirmedVisit` |
 | `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido; usa template distinto según si había visita confirmada |
 
@@ -645,6 +645,7 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 - Cada método público usa su template correspondiente (ver tabla en AUT-213)
 - `notifyProfessionalAssigned()` y `notifyProfessionalReassigned()` incluyen opciones de WhatsApp para respuesta directa del profesional: `1. Aceptar` / `2. Rechazar`, e incluyen el `technicalBrief` generado por IA en el mensaje (template o texto libre). Si no hay brief, se envía `'Sin detalles adicionales del problema.'`. El brief se trunca a 800 caracteres.
 - Inyectado en `RequestsService` y `RequestsController` para notificaciones inmediatas (no via `pendingMessage`)
+- `notifyUserNoResponse()` se invoca en `processTimeouts` tanto cuando un request ASSIGNED expira sin reemplazo como cuando un request CREATED expira sin candidatos (AUT-287)
 
 ### Notifications (AUT-213) — Centralización de ventana 24hs y templates WhatsApp
 
