@@ -1342,6 +1342,20 @@ Criterios:
 
     const updated = await this.requestsRepository.findById(requestId);
 
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId },
+      select: { phone: true },
+    });
+
+    if (professional?.phone) {
+      await this.botRepository.upsert(professional.phone, {
+        role: 'PROFESSIONAL',
+        currentFlow: null,
+        currentStep: null,
+        tempData: {},
+      });
+    }
+
     return {
       request: updated!,
       userPhone: userPhone.phone,
