@@ -4,6 +4,10 @@ import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import { BotRepository } from '../bot/bot.repository';
 import { BOT_PAYLOADS } from '../bot/constants/bot-payloads';
+import {
+  TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA,
+  TEMPLATE_USER_CONFIRMAR_SERVICIO,
+} from '../../utils/whatsapp-templates';
 
 export interface ProfessionalInfo {
   phone: string;
@@ -213,6 +217,44 @@ export class NotificationService {
         [professionalName, categoryName],
       );
     }
+  }
+
+  async notifyUserDescriptionMismatch(
+    phone: string,
+    categoryName: string,
+  ): Promise<void> {
+    const message = `Lo que describís no parece relacionado con un servicio de ${categoryName}. ¿Qué querés hacer?\n1. Cambiar el servicio\n2. Reformular la descripción`;
+
+    await this.sendWithWindowCheck(
+      phone,
+      'USER',
+      message,
+      TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA,
+      [categoryName],
+      [
+        { payload: BOT_PAYLOADS.CAMBIAR_SERVICIO, text: 'Cambiar el servicio' },
+        { payload: BOT_PAYLOADS.REFORMULAR_DESCRIPCION, text: 'Reformular descripción' },
+      ],
+    );
+  }
+
+  async notifyUserConfirmService(
+    phone: string,
+    categoryName: string,
+  ): Promise<void> {
+    const message = `Antes de continuar, ¿tu problema está relacionado con un servicio de ${categoryName}?\n1. Sí, es correcto\n2. Cambiar el servicio`;
+
+    await this.sendWithWindowCheck(
+      phone,
+      'USER',
+      message,
+      TEMPLATE_USER_CONFIRMAR_SERVICIO,
+      [categoryName],
+      [
+        { payload: BOT_PAYLOADS.SI_CORRECTO, text: 'Sí, es correcto' },
+        { payload: BOT_PAYLOADS.CAMBIAR_SERVICIO, text: 'Cambiar el servicio' },
+      ],
+    );
   }
 
   private async sendWithWindowCheck(

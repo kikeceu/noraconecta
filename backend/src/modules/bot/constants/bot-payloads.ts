@@ -21,6 +21,9 @@ export const BOT_PAYLOADS = {
   PENDIENTE: 'pendiente',
   NO_PUDE: 'no_pude',
   VER_COMO_FUNCIONA: 'ver_como_funciona',
+  CAMBIAR_SERVICIO: 'cambiar_servicio',
+  REFORMULAR_DESCRIPCION: 'reformular_descripcion',
+  SI_CORRECTO: 'si_correcto',
 } as const;
 
 export type BotPayload = (typeof BOT_PAYLOADS)[keyof typeof BOT_PAYLOADS];

@@ -98,8 +98,9 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NO', aliases: ['no', '2', 'no_volveria'] },
   ],
   DESCRIPTION_MISMATCH: [
-    { value: 'CHANGE_SERVICE', aliases: ['1', 'cambiar', 'cambiar servicio', 'cambiar el servicio'] },
-    { value: 'REFORMULATE', aliases: ['2', 'reformular', 'reformular descripcion', 'corregir'] },
+    { value: 'CHANGE_SERVICE', aliases: ['1', 'cambiar', 'cambiar servicio', 'cambiar el servicio', BOT_PAYLOADS.CAMBIAR_SERVICIO] },
+    { value: 'REFORMULATE', aliases: ['2', 'reformular', 'reformular descripcion', 'corregir', BOT_PAYLOADS.REFORMULAR_DESCRIPCION] },
+    { value: 'SI_CORRECTO', aliases: [BOT_PAYLOADS.SI_CORRECTO, 'si es correcto', 'sí es correcto', 'correcto'] },
   ],
 };
 
