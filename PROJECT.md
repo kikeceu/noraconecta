@@ -733,6 +733,20 @@ Corrige los mensajes al usuario cuando el profesional cancela desde el panel web
 
 **Archivos modificados:** `backend/src/modules/requests/requests.service.ts`
 
+### AUT-293 — Fix: reset de BotSession del profesional al cancelar desde el panel web
+
+Cuando el profesional cancela un pedido desde el panel web (`POST /requests/:id/cancel-by-professional`), se resetea su `BotSession` para evitar errores si el profesional escribe a WhatsApp después de cancelar.
+
+**Problema detectado:**
+- Al cancelar desde el panel, la sesión mantenía `currentFlow: COORDINATION` y `currentStep: AWAITING_CONFIRMATION` con el `requestId` del pedido cancelado en `tempData`
+- Si el profesional escribía a WhatsApp después de cancelar, el bot intentaba procesar el mensaje en el contexto del pedido cancelado → `PrismaClientValidationError` por `id: undefined`
+
+**Fix en `requests.service.ts`:**
+- `cancelByProfessional`: después de cancelar el request y antes de retornar, consulta el teléfono del profesional y resetea su `BotSession` vía `botRepository.upsert` con `currentFlow: null`, `currentStep: null`, `tempData: {}`
+- Esto asegura que si el profesional escribe a WhatsApp después de cancelar, el bot arranque desde cero sin errores
+
+**Archivos modificados:** `backend/src/modules/requests/requests.service.ts`
+
 ### AUT-227 — Ajustes de lógica de bot para templates de profesionales rediseñados
 
 Alineación de textos, parámetros y casos de uso con los templates de profesionales rediseñados en AUT-225.
