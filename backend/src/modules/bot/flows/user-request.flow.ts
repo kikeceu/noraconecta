@@ -311,9 +311,14 @@ export class UserRequestFlow implements FlowHandler {
 
       const list = categories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
 
+      const userName = tempData.name as string | undefined;
+      const greeting = userName
+        ? `¡Qué bueno volver a verte, ${userName}! ¿Qué servicio estás buscando?\n\n`
+        : '¿Que tipo de servicio necesitas?\n\n';
+
       return {
         response: {
-          text: `¿Que tipo de servicio necesitas?\n\n${list}\n\nResponde con el numero.`,
+          text: `${greeting}${list}\n\nResponde con el numero.`,
         },
         nextStep: 'ASK_SERVICE',
         tempData,
