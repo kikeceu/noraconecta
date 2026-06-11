@@ -1295,10 +1295,17 @@ Criterios:
 
     if (hasConfirmedVisit && scheduledAt) {
       const formattedDate = formatDateTimeArgentina(scheduledAt);
-      userMessage = `Lamentablemente el profesional canceló la visita programada para el ${formattedDate}. Estamos buscando otro profesional disponible.`;
+      if (match) {
+        userMessage = `Lamentablemente ${professionalName} canceló la visita del ${formattedDate}. Estamos buscando otro profesional para vos, te avisamos cuando confirme.`;
+      } else {
+        userMessage = `Lamentablemente ${professionalName} canceló la visita del ${formattedDate}. Intentamos encontrar otro profesional pero no tuvimos éxito. Te avisaremos cuando haya uno.`;
+      }
     } else {
-      userMessage =
-        'Lamentablemente el profesional no puede atenderte en este momento. Estamos buscando otro profesional disponible para tu pedido.';
+      if (match) {
+        userMessage = `Lamentablemente ${professionalName} no puede atenderte en este momento. Estamos buscando otro profesional para vos, te avisamos cuando confirme.`;
+      } else {
+        userMessage = `Lamentablemente ${professionalName} no puede atenderte en este momento. Intentamos encontrar otro profesional pero no tuvimos éxito. Te avisaremos cuando haya uno.`;
+      }
     }
 
     if (match) {
@@ -1323,9 +1330,6 @@ Criterios:
 
       await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
     } else {
-      userMessage =
-        'No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno.';
-
       await this.requestsRepository.update(requestId, {
         status: 'NO_RESPONSE',
       });
