@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NORA Conecta | Profesionales en minutos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'DM Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed-dim": "#83d7b1",
+                      "surface": "#F5F2EC",
+                      "on-secondary": "#ffffff",
+                      "surface-container-high": "#ebe7e7",
+                      "inverse-on-surface": "#f3f0ef",
+                      "primary-container": "#0b6e4f",
+                      "tertiary-fixed-dim": "#c9c6c1",
+                      "surface-container-lowest": "#ffffff",
+                      "outline-variant": "#bec9c1",
+                      "secondary-container": "#baeed5",
+                      "error-container": "#ffdad6",
+                      "on-tertiary-container": "#dedbd5",
+                      "surface-container": "#f0edec",
+                      "primary-fixed": "#9ff4cc",
+                      "on-primary-container": "#98edc6",
+                      "on-secondary-fixed": "#002116",
+                      "surface-container-highest": "#e5e2e1",
+                      "surface-dim": "#dcd9d9",
+                      "inverse-primary": "#83d7b1",
+                      "secondary-fixed-dim": "#9fd1ba",
+                      "on-error-container": "#93000a",
+                      "on-surface-variant": "#3f4943",
+                      "on-secondary-fixed-variant": "#1e4f3d",
+                      "tertiary-container": "#61605c",
+                      "tertiary": "#494844",
+                      "on-background": "#1c1b1b",
+                      "on-surface": "#1c1b1b",
+                      "on-error": "#ffffff",
+                      "primary": "#00543b",
+                      "surface-container-low": "#EDE9E1",
+                      "on-tertiary-fixed-variant": "#474743",
+                      "surface-variant": "#e5e2e1",
+                      "secondary-fixed": "#baeed5",
+                      "on-primary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "surface-tint": "#056c4d",
+                      "on-primary-fixed": "#002115",
+                      "tertiary-fixed": "#e5e2dc",
+                      "secondary": "#386754",
+                      "error": "#ba1a1a",
+                      "surface-bright": "#fcf9f8",
+                      "background": "#F5F2EC",
+                      "inverse-surface": "#313030",
+                      "on-tertiary-fixed": "#1c1c18",
+                      "outline": "#6f7a73",
+                      "on-secondary-container": "#3e6e5a",
+                      "on-primary-fixed-variant": "#005139",
+                      "forest": "#073D2C",
+                      "brutalist-border": "#D6D2CA"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xl": "80px",
+                      "unit": "4px",
+                      "sm": "16px",
+                      "margin": "32px",
+                      "lg": "48px",
+                      "xs": "8px",
+                      "gutter": "24px",
+                      "md": "24px"
+              },
+              "fontFamily": {
+                      "display-hero": ["DM Sans"],
+                      "label-caps": ["DM Sans"],
+                      "display-hero-mobile": ["DM Sans"],
+                      "body-md": ["DM Sans"],
+                      "headline-section": ["DM Sans"],
+                      "body-lg": ["DM Sans"],
+                      "headline-md": ["DM Sans"]
+              },
+              "fontSize": {
+                      "display-hero": ["96px", { "lineHeight": "96px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                      "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.08em", "fontWeight": "700" }],
+                      "display-hero-mobile": ["48px", { "lineHeight": "48px", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+                      "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                      "headline-section": ["64px", { "lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                      "body-lg": ["20px", { "lineHeight": "32px", "fontWeight": "400" }],
+                      "headline-md": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background selection:bg-secondary-container">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-white border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto flex justify-between items-center px-margin py-xs">
+<div class="font-headline-md text-headline-md font-bold text-primary">NORA Conecta</div>
+<nav class="hidden md:flex gap-lg items-center">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Cómo funciona</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Profesionales</a>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">FAQ</a>
+</nav>
+<button class="bg-primary text-on-primary px-lg py-sm rounded-xl font-label-caps text-label-caps hover:bg-forest transition-opacity">
+                WhatsApp
+            </button>
+</div>
+</header>
+<main class="mt-[64px]">
+<!-- Hero Section -->
+<section class="max-w-[1280px] mx-auto min-h-[600px] grid grid-cols-1 md:grid-cols-2 border-x border-brutalist-border">
+<div class="px-margin py-xl flex flex-col space-y-md border-b md:border-b-0 md:border-r border-brutalist-border bg-surface">
+<span class="font-label-caps text-label-caps text-primary tracking-widest">PROFESIONALES VERIFICADOS</span>
+<h1 class="font-display-hero-mobile md:font-display-hero text-display-hero-mobile md:text-display-hero text-on-surface leading-none">
+                    TU PROFESIONAL. <br/> EN MINUTOS.
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-md">
+                    Conectamos tu urgencia con el experto ideal. Sin vueltas, sin esperas, directamente a tu WhatsApp.
+                </p>
+<div class="flex flex-col sm:flex-row gap-gutter pt-md">
+<button class="bg-primary text-on-primary px-lg py-md rounded-xl font-label-caps text-label-caps hover:bg-forest transition-colors">
+                        Enviar WhatsApp
+                    </button>
+<button class="border-2 border-on-surface text-on-surface px-lg py-md rounded-xl font-label-caps text-label-caps hover:bg-surface-container-low transition-colors">
+                        Ver cómo funciona
+                    </button>
+</div>
+</div>
+<div class="bg-surface p-margin flex items-center justify-center relative overflow-hidden">
+<div class="w-full max-w-[260px] bg-on-background rounded-[3rem] p-3 aspect-[9/16] shadow-2xl relative z-10">
+<div class="bg-white h-full w-full rounded-[2.5rem] overflow-hidden flex flex-col">
+<!-- Simulated WhatsApp Header -->
+<div class="bg-[#075e54] p-4 text-white flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-primary font-bold">N</div>
+<div>
+<div class="text-sm font-bold">NORA Conecta</div>
+<div class="text-[10px] opacity-80">En línea</div>
+</div>
+</div>
+<!-- Simulated Chat Body -->
+<div class="flex-1 p-4 space-y-4 bg-[#e5ddd5]">
+<div class="bg-white p-3 rounded-lg rounded-tl-none max-w-[80%] text-sm shadow-sm">
+                                Hola! Necesito un plomero para arreglar una canilla que pierde en Palermo.
+                            </div>
+<div class="bg-[#dcf8c6] p-3 rounded-lg rounded-tr-none max-w-[80%] ml-auto text-sm shadow-sm">
+                                Hola! Tenemos a Carlos disponible en tu zona. ¿Te gustaría coordinar una visita para las 15hs?
+                            </div>
+</div>
+</div>
+</div>
+<!-- Background decorative elements for Brutalist feel -->
+<div class="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-5 pointer-events-none">
+<div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div>
+<div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div><div class="border border-on-surface"></div>
+</div>
+</div>
+</section>
+<!-- Rubros Strip -->
+<section class="bg-white border-y border-brutalist-border">
+<div class="max-w-[1280px] mx-auto grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 divide-x divide-brutalist-border">
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="home_repair_service">home_repair_service</span>
+<span class="font-label-caps text-label-caps">PLOMERÍA</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="bolt">bolt</span>
+<span class="font-label-caps text-label-caps">ELECTRICIDAD</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="local_fire_department">local_fire_department</span>
+<span class="font-label-caps text-label-caps">GAS</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="ac_unit">ac_unit</span>
+<span class="font-label-caps text-label-caps">AIRE ACOND.</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="format_paint">format_paint</span>
+<span class="font-label-caps text-label-caps">PINTURA</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="lock">lock</span>
+<span class="font-label-caps text-label-caps">CERRAJERÍA</span>
+</div>
+<div class="py-lg px-md flex flex-col items-center gap-xs">
+<span class="material-symbols-outlined text-headline-md" data-icon="construction">construction</span>
+<span class="font-label-caps text-label-caps">GENERAL</span>
+</div>
+</div>
+</section>
+<!-- Hook Section -->
+<section class="py-xl bg-surface border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<div class="max-w-4xl space-y-lg">
+<h2 class="font-headline-section text-headline-section text-on-surface leading-tight">
+                        Buscar un plomero no debería ser un trabajo de medio día.
+                    </h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                        Entendemos la frustración de llamar a diez personas y que ninguna atienda, o que prometan venir y desaparezcan. NORA nació para digitalizar la confianza. Filtramos a los mejores profesionales de Buenos Aires para que vos solo tengas que decir qué necesitás y cuándo.
+                    </p>
+</div>
+</div>
+</section>
+<!-- How It Works -->
+<section class="py-xl bg-white border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-xl">
+<div class="space-y-md">
+<div class="text-primary font-bold text-headline-section leading-none">01</div>
+<h3 class="font-headline-md text-headline-md">Enviás tu pedido</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                            Contanos por WhatsApp qué problema tenés y en qué zona estás. Fotos y videos ayudan un montón.
+                        </p>
+</div>
+<div class="space-y-md">
+<div class="text-primary font-bold text-headline-section leading-none">02</div>
+<h3 class="font-headline-md text-headline-md">NORA asigna al mejor</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                            Nuestro sistema busca al profesional verificado con mejor puntaje y disponibilidad inmediata cerca tuyo.
+                        </p>
+</div>
+<div class="space-y-md">
+<div class="text-primary font-bold text-headline-section leading-none">03</div>
+<h3 class="font-headline-md text-headline-md">Coordinan y listo</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                            Te conectamos directo con el experto. El pago se realiza tras finalizar el trabajo con total transparencia.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Differential Section -->
+<section class="py-xl bg-primary text-on-primary border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl items-center">
+<div class="space-y-lg">
+<h2 class="font-headline-section text-headline-section leading-tight">La diferencia de elegir bien.</h2>
+<div class="grid grid-cols-2 gap-md border border-on-primary-container p-lg rounded-xl">
+<div class="space-y-md border-r border-on-primary-container pr-md">
+<div class="font-label-caps text-label-caps opacity-60">OTRAS PLATAFORMAS</div>
+<ul class="space-y-sm">
+<li class="flex items-center gap-xs text-sm font-bold">✗ Esperas de horas</li>
+<li class="flex items-center gap-xs text-sm font-bold">✗ Precios ocultos</li>
+<li class="flex items-center gap-xs text-sm font-bold">✗ Sin garantía real</li>
+</ul>
+</div>
+<div class="space-y-md pl-md">
+<div class="font-label-caps text-label-caps text-on-primary-container">NORA CONECTA</div>
+<ul class="space-y-sm">
+<li class="flex items-center gap-xs text-sm font-bold">✓ Respuesta en &lt; 3 min</li>
+<li class="flex items-center gap-xs text-sm font-bold">✓ Presupuesto justo</li>
+<li class="flex items-center gap-xs text-sm font-bold">✓ Soporte 24/7</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="flex flex-col items-center md:items-end">
+<div class="bg-on-primary text-primary p-xl rounded-full w-64 h-64 flex flex-col justify-center items-center text-center space-y-xs rotate-3 hover:rotate-0 transition-transform cursor-pointer">
+<span class="font-headline-md text-headline-md font-bold">100%</span>
+<span class="font-label-caps text-label-caps">CONFIANZA</span>
+</div>
+<button class="mt-xl bg-white text-primary px-xl py-md rounded-xl font-label-caps text-label-caps hover:bg-surface-container-low transition-colors w-full md:w-auto">
+                            Enviar WhatsApp
+                        </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Metrics Section -->
+<section class="py-xl bg-surface border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-gutter text-center">
+<div class="space-y-xs">
+<div class="text-primary font-bold text-[80px] leading-none">7</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">RUBROS ACTIVOS</div>
+</div>
+<div class="space-y-xs">
+<div class="text-primary font-bold text-[80px] leading-none">18</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">BARRIOS CUBIERTOS</div>
+</div>
+<div class="space-y-xs">
+<div class="text-primary font-bold text-[80px] leading-none">100%</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">VERIFICADOS</div>
+</div>
+<div class="space-y-xs">
+<div class="text-primary font-bold text-[80px] leading-none">&lt; 3</div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">MINUTOS ESPERA</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Professional Section -->
+<section class="py-xl bg-forest text-on-primary border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin grid grid-cols-1 md:grid-cols-2 gap-xl items-center">
+<div class="space-y-lg">
+<h2 class="font-headline-section text-headline-section leading-tight">
+                        Recibí pedidos sin salir a buscarlos.
+                    </h2>
+<ul class="space-y-md">
+<li class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-lg text-body-lg">Más clientes en tu zona de influencia.</span>
+</li>
+<li class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-lg text-body-lg">Sin pagar por leads que no sirven.</span>
+</li>
+<li class="flex items-center gap-md">
+<span class="material-symbols-outlined text-primary-fixed" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-body-lg text-body-lg">Nora filtra las urgencias por vos.</span>
+</li>
+</ul>
+<button class="border-2 border-primary-fixed text-primary-fixed px-lg py-md rounded-xl font-label-caps text-label-caps hover:bg-primary-container transition-colors">
+                        Postularme como profesional
+                    </button>
+</div>
+<div class="relative aspect-video bg-primary-container rounded-xl overflow-hidden border border-on-primary-fixed-variant">
+<img alt="Professional worker" class="w-full h-full object-cover mix-blend-multiply opacity-60" data-alt="A cinematic, high-contrast photograph of a skilled professional tradesperson working meticulously in a modern, brightly lit apartment. The image is captured with professional camera gear, emphasizing crisp details of tools and materials. The lighting is high-key with soft shadows, maintaining an editorial brutalist aesthetic. The professional wears clean, high-quality work attire, conveying expertise and trust. The overall mood is focused, serene, and premium." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLUh5768ZaStrSpA9nKeod5W-uZAZzcMw1GuCTB423m4Ww-tmnc2E9yWT-lRcMyjJ24UGPnUIR0ZBy43GnJITPkTN29I80uZ1jIffuacUFB9I1DnQVD4o4STuMwqQEjVVz-JV-9PUxCn0HMF4UIPS9DQX_HTsX3E4fBLHH3cbln-xT5N_PCuZFhwRDaM1UFvxO1n0LPOSb4CLRmYa9OURbbA2iDZfzEdoCj_oK3Gk3Htn24wpXPVzGN9I5LHSPC2IcUsKxJvEk8uUf"/>
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="bg-white/10 backdrop-blur-md p-lg border border-white/20 rounded-xl">
+<span class="font-label-caps text-label-caps text-white">RED DE EXPERTOS</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-xl bg-surface border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<h2 class="font-headline-md text-headline-md text-center mb-xl">Lo que dicen en el barrio</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-white p-lg border border-brutalist-border space-y-md">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface">MA</div>
+<div>
+<div class="font-bold text-sm">María Alarcón</div>
+<div class="text-xs text-on-surface-variant">Palermo</div>
+</div>
+</div>
+<p class="font-body-md text-body-md italic text-on-surface-variant">"Increíble. Mandé un WhatsApp a las 10:00 y a las 11:30 ya estaba el plomero en casa. Todo muy transparente."</p>
+</div>
+<div class="bg-white p-lg border border-brutalist-border space-y-md">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface">JP</div>
+<div>
+<div class="font-bold text-sm">Juan Pérez</div>
+<div class="text-xs text-on-surface-variant">Belgrano</div>
+</div>
+</div>
+<p class="font-body-md text-body-md italic text-on-surface-variant">"Como profesional, NORA me cambió la forma de trabajar. No pierdo tiempo buscando, me mandan lo que sé hacer."</p>
+</div>
+<div class="bg-white p-lg border border-brutalist-border space-y-md">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center font-bold text-on-surface">LR</div>
+<div>
+<div class="font-bold text-sm">Lucía Rossi</div>
+<div class="text-xs text-on-surface-variant">Villa Urquiza</div>
+</div>
+</div>
+<p class="font-body-md text-body-md italic text-on-surface-variant">"Me sentí muy segura sabiendo que el técnico ya estaba verificado por la plataforma. Excelente servicio."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ Accordion -->
+<section class="py-xl bg-white border-b border-brutalist-border">
+<div class="max-w-[1280px] mx-auto px-margin">
+<h2 class="font-headline-md text-headline-md mb-xl">Preguntas Frecuentes</h2>
+<div class="w-full space-y-[-1px]">
+<!-- Accordion Item 1 -->
+<details class="group border border-brutalist-border overflow-hidden">
+<summary class="flex justify-between items-center p-md cursor-pointer list-none hover:bg-surface-container-low transition-colors">
+<span class="font-bold">¿Cómo se paga el servicio?</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-45" data-icon="add">add</span>
+</summary>
+<div class="p-md font-body-md text-on-surface-variant bg-surface-container-lowest">
+                            El pago se acuerda directamente con el profesional. Aceptamos efectivo, transferencia o Mercado Pago dependiendo del prestador. NORA no cobra comisión al usuario.
+                        </div>
+</details>
+<!-- Accordion Item 2 -->
+<details class="group border border-brutalist-border overflow-hidden">
+<summary class="flex justify-between items-center p-md cursor-pointer list-none hover:bg-surface-container-low transition-colors">
+<span class="font-bold">¿Los profesionales tienen garantía?</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-45" data-icon="add">add</span>
+</summary>
+<div class="p-md font-body-md text-on-surface-variant bg-surface-container-lowest">
+                            Sí, todos los trabajos realizados a través de NORA Conecta cuentan con una garantía de satisfacción. Si algo no quedó bien, lo solucionamos.
+                        </div>
+</details>
+<!-- Accordion Item 3 -->
+<details class="group border border-brutalist-border overflow-hidden">
+<summary class="flex justify-between items-center p-md cursor-pointer list-none hover:bg-surface-container-low transition-colors">
+<span class="font-bold">¿Tienen costo de visita?</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-45" data-icon="add">add</span>
+</summary>
+<div class="p-md font-body-md text-on-surface-variant bg-surface-container-lowest">
+                            Muchos profesionales ofrecen presupuesto sin cargo si estás en la zona, pero siempre te lo aclaramos antes de que el técnico salga hacia tu domicilio.
+                        </div>
+</details>
+<!-- Accordion Item 4 -->
+<details class="group border border-brutalist-border overflow-hidden">
+<summary class="flex justify-between items-center p-md cursor-pointer list-none hover:bg-surface-container-low transition-colors">
+<span class="font-bold">¿Cómo verifican a los profesionales?</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-45" data-icon="add">add</span>
+</summary>
+<div class="p-md font-body-md text-on-surface-variant bg-surface-container-lowest">
+                            Realizamos chequeo de antecedentes, validación de identidad y pruebas técnicas antes de subir a cualquier profesional a nuestra red.
+                        </div>
+</details>
+<!-- Accordion Item 5 -->
+<details class="group border border-brutalist-border overflow-hidden">
+<summary class="flex justify-between items-center p-md cursor-pointer list-none hover:bg-surface-container-low transition-colors">
+<span class="font-bold">¿En qué zonas operan?</span>
+<span class="material-symbols-outlined transition-transform group-open:rotate-45" data-icon="add">add</span>
+</summary>
+<div class="p-md font-body-md text-on-surface-variant bg-surface-container-lowest">
+                            Actualmente cubrimos CABA y gran parte de Zona Norte. Consultanos por tu barrio específico vía WhatsApp.
+                        </div>
+</details>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-inverse-surface text-inverse-on-surface">
+<div class="max-w-[1280px] mx-auto py-xl px-margin grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="space-y-md">
+<div class="font-headline-md text-headline-md font-bold text-primary-fixed">NORA Conecta</div>
+<p class="font-body-md text-body-md opacity-70">
+                    Tu puente directo a soluciones del hogar. Confiabilidad digital, ejecución tradicional.
+                </p>
+</div>
+<div class="space-y-md">
+<div class="font-label-caps text-label-caps">LEGAL</div>
+<nav class="flex flex-col gap-xs font-body-md">
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">Privacidad</a>
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">Términos</a>
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">Soporte</a>
+</nav>
+</div>
+<div class="space-y-md">
+<div class="font-label-caps text-label-caps">CONTACTO</div>
+<nav class="flex flex-col gap-xs font-body-md">
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">WhatsApp Directo</a>
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">Sumate como experto</a>
+<a class="hover:text-primary-fixed-dim transition-colors" href="#">Email</a>
+</nav>
+</div>
+<div class="space-y-md">
+<div class="font-label-caps text-label-caps">ESTADO DEL SERVICIO</div>
+<div class="flex items-center gap-xs">
+<span class="w-2 h-2 rounded-full bg-primary-fixed animate-pulse"></span>
+<span class="text-xs uppercase font-bold">Operando Normal</span>
+</div>
+</div>
+</div>
+<div class="max-w-[1280px] mx-auto px-margin py-lg border-t border-white/10 text-xs opacity-50 text-center md:text-left">
+            © 2024 NORA Conecta. Todos los derechos reservados.
+        </div>
+</footer>
+<script>
+        // Simple micro-interaction for the FAB or WhatsApp buttons
+        document.querySelectorAll('button').forEach(button => {
+            button.addEventListener('mousedown', () => {
+                button.style.transform = 'scale(0.98)';
+            });
+            button.addEventListener('mouseup', () => {
+                button.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

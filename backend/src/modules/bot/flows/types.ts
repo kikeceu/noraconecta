@@ -20,6 +20,7 @@ export interface BotResponse {
   audioUrl?: string;
   options?: string[];
   requestId?: string;
+  mediaFirst?: boolean;
 }
 
 export interface FlowContext {
