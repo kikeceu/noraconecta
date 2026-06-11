@@ -699,14 +699,8 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
-    const inputText = message.text?.trim().toLowerCase() || '';
-    const skipLocation =
-      inputText === 'omitir' ||
-      inputText.includes('no puedo') ||
-      inputText.includes('sin ubicacion') ||
-      inputText.includes('sin ubicación');
-
-    if (skipLocation) {
+    // Any text = user doesn't want to share location → advance
+    if (message.text) {
       tempData.userLatitude = undefined;
       tempData.userLongitude = undefined;
 
@@ -717,6 +711,7 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
+    // No text nor location → ask again
     return {
       response: {
         text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp. Si no podes compartirla, escribi "omitir".',
