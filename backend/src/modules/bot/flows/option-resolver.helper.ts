@@ -97,6 +97,10 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'YES', aliases: ['si', 'sí', 'claro', 'por supuesto', '1', 'si_volveria'] },
     { value: 'NO', aliases: ['no', '2', 'no_volveria'] },
   ],
+  DESCRIPTION_MISMATCH: [
+    { value: 'CHANGE_SERVICE', aliases: ['1', 'cambiar', 'cambiar servicio', 'cambiar el servicio'] },
+    { value: 'REFORMULATE', aliases: ['2', 'reformular', 'reformular descripcion', 'corregir'] },
+  ],
 };
 
 export function resolveOption(step: string, input: string): string | null {

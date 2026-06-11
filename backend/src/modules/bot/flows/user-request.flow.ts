@@ -56,18 +56,29 @@ Responde solo el brief, sin saludos ni explicaciones.`;
   return callLLM(prompt);
 }
 
-async function validateDescription(description: string): Promise<boolean> {
-  const prompt = `Sos un asistente que valida si un texto describe un problema del hogar que requiere un profesional de oficios (plomero, electricista, gasista, pintor, albanil, cerrajero, aire acondicionado).
+type DescriptionValidation = 'VALID' | 'INVALID' | 'UNCERTAIN';
 
-Texto: "${description}"
+async function validateDescription(description: string, categoryName: string): Promise<DescriptionValidation> {
+  const prompt = `Sos un validador de servicios del hogar en Argentina.
 
-Responde SOLO: SI o NO.`;
+Servicio solicitado: ${categoryName}
+Descripcion: "${description}"
+
+Analiza si la descripcion tiene relacion con el servicio:
+- INVALIDO: el problema describe CLARAMENTE un oficio completamente distinto (ej: pedir electricista y describir perdida de agua, pedir pintor y describir problema de gas)
+- INCIERTO: hay ambiguedad razonable, podria relacionarse con el servicio pero no es claro
+- VALIDO: la descripcion tiene relacion directa o indirecta con el servicio
+
+Responde SOLO con una palabra: VALIDO, INVALIDO o INCIERTO`;
 
   try {
     const response = await callLLM(prompt);
-    return response.trim().toUpperCase().startsWith('SI');
+    const trimmed = response.trim().toUpperCase();
+    if (trimmed.includes('INVALIDO')) return 'INVALID';
+    if (trimmed.includes('INCIERTO')) return 'UNCERTAIN';
+    return 'VALID';
   } catch {
-    return true;
+    return 'VALID';
   }
 }
 
@@ -152,6 +163,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskZone(message, tempData);
       case 'ASK_DESCRIPTION':
         return this.handleAskDescription(message, tempData);
+      case 'DESCRIPTION_MISMATCH':
+        return this.handleDescriptionMismatch(message, tempData);
       case 'ASK_LOCATION':
         return this.handleAskLocation(message, tempData);
       case 'ASK_PHOTOS':
@@ -377,6 +390,18 @@ export class UserRequestFlow implements FlowHandler {
   private async proceedAfterService(
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    if (tempData.geoNodeId) {
+      const categoryName = tempData.categoryName as string;
+      const zoneName = tempData.geoNodeName as string;
+      return {
+        response: {
+          text: `Entendido: ${categoryName} en ${zoneName}. Contame brevemente el problema.`,
+        },
+        nextStep: 'ASK_DESCRIPTION',
+        tempData,
+      };
+    }
+
     const zoneMode = await this.configRepository.findByKey('USER_ZONE_SELECTION_MODE');
     const useZoneList = !zoneMode || zoneMode.value !== 'FREE_TEXT';
 
@@ -668,19 +693,33 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
+    const categoryName = tempData.categoryName as string;
+
     tempData.description = description;
 
-    const isValid = await validateDescription(description);
-    if (!isValid) {
+    const validation = await validateDescription(description, categoryName);
+
+    if (validation === 'INVALID') {
       return {
         response: {
-          text: 'No entendí bien el problema. ¿Podés contarme qué pasó en tu casa? Por ejemplo: "tengo una pérdida de agua", "se me fue la luz en un ambiente", "necesito pintar una habitación".',
+          text: `Lo que describís no parece relacionado con un servicio de ${categoryName}. ¿Qué querés hacer?\n1. Cambiar el servicio\n2. Reformular la descripción`,
         },
-        nextStep: 'ASK_DESCRIPTION',
-        tempData: { ...tempData, description: undefined },
+        nextStep: 'DESCRIPTION_MISMATCH',
+        tempData,
       };
     }
 
+    if (validation === 'UNCERTAIN') {
+      return {
+        response: {
+          text: `Solo para confirmar: ¿tu problema está relacionado con un servicio de ${categoryName}?\n1. Sí, es correcto\n2. Quiero cambiar el servicio`,
+        },
+        nextStep: 'DESCRIPTION_MISMATCH',
+        tempData: { ...tempData, _uncertainDescription: description },
+      };
+    }
+
+    // VALID → continue normally
     return this.handleClarification({ text: undefined }, tempData);
   }
 
@@ -843,6 +882,35 @@ export class UserRequestFlow implements FlowHandler {
       },
       nextStep: 'ASK_LOCATION',
       tempData,
+    };
+  }
+
+  private async handleDescriptionMismatch(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = message.text?.trim().toLowerCase() || '';
+    const categoryName = tempData.categoryName as string;
+
+    const resolved = await resolveOptionWithFallback('DESCRIPTION_MISMATCH', inputText);
+
+    if (resolved === 'CHANGE_SERVICE') {
+      return this.handleAskService(message, {
+        ...tempData,
+        categoryId: undefined,
+        categoryName: undefined,
+        _uncertainDescription: undefined,
+        _categoryListed: undefined,
+        _availableCategories: undefined,
+      });
+    }
+
+    return {
+      response: {
+        text: `Contame brevemente el problema relacionado con ${categoryName}.`,
+      },
+      nextStep: 'ASK_DESCRIPTION',
+      tempData: { ...tempData, _uncertainDescription: undefined },
     };
   }
 
