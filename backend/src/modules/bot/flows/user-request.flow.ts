@@ -4,6 +4,7 @@ import { RequestsService } from '../../requests/requests.service';
 import { PaymentsService } from '../../payments/payments.service';
 import { LocationsRepository } from '../../locations/locations.repository';
 import { ConfigRepository } from '../../config/config.repository';
+import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
@@ -90,6 +91,7 @@ export class UserRequestFlow implements FlowHandler {
     private readonly paymentsService: PaymentsService,
     private readonly locationsRepository: LocationsRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly notificationService: NotificationService,
   ) {}
 
   private readonly PHONE_PREFIX_TO_COUNTRY: Record<string, string> = {
@@ -723,7 +725,7 @@ export class UserRequestFlow implements FlowHandler {
           text: `Lo que describís no parece relacionado con un servicio de ${categoryName}. ¿Qué querés hacer?\n1. Cambiar el servicio\n2. Reformular la descripción`,
         },
         nextStep: 'DESCRIPTION_MISMATCH',
-        tempData,
+        tempData: { ...tempData, _mismatchType: 'INVALID' },
       };
     }
 
@@ -733,7 +735,7 @@ export class UserRequestFlow implements FlowHandler {
           text: `Solo para confirmar: ¿tu problema está relacionado con un servicio de ${categoryName}?\n1. Sí, es correcto\n2. Quiero cambiar el servicio`,
         },
         nextStep: 'DESCRIPTION_MISMATCH',
-        tempData: { ...tempData, _uncertainDescription: description },
+        tempData: { ...tempData, _mismatchType: 'UNCERTAIN', _uncertainDescription: description },
       };
     }
 
@@ -910,6 +912,23 @@ export class UserRequestFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase() || '';
     const categoryName = tempData.categoryName as string;
 
+    if (!message.text?.trim()) {
+      const phone = tempData.phone as string;
+      const mismatchType = tempData._mismatchType as string;
+
+      if (mismatchType === 'UNCERTAIN') {
+        await this.notificationService.notifyUserConfirmService(phone, categoryName);
+      } else {
+        await this.notificationService.notifyUserDescriptionMismatch(phone, categoryName);
+      }
+
+      return {
+        response: { text: '' },
+        nextStep: 'DESCRIPTION_MISMATCH',
+        tempData,
+      };
+    }
+
     const resolved = await resolveOptionWithFallback('DESCRIPTION_MISMATCH', inputText);
 
     if (resolved === 'CHANGE_SERVICE') {
@@ -921,6 +940,10 @@ export class UserRequestFlow implements FlowHandler {
         _categoryListed: undefined,
         _availableCategories: undefined,
       });
+    }
+
+    if (resolved === 'SI_CORRECTO') {
+      return this.handleClarification({ text: undefined }, tempData);
     }
 
     if (!resolved) {

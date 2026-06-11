@@ -74,3 +74,11 @@ export const TEMPLATE_USER_PRO_CANCELO_PEDIDO = 'nora_user_pro_cancelo_pedido';
 
 /** Profesional cancelled with confirmed visit */
 export const TEMPLATE_USER_PRO_CANCELO_VISITA = 'nora_user_pro_cancelo_visita';
+
+// ── Description validation templates (AUT-295) ─────────────────────────
+
+/** Description doesn't match selected service */
+export const TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA = 'nora_user_descripcion_no_relacionada';
+
+/** Confirm if description matches selected service */
+export const TEMPLATE_USER_CONFIRMAR_SERVICIO = 'nora_user_confirmar_servicio';

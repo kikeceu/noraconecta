@@ -34,7 +34,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-225)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -100,8 +100,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
-│   │   │   └── notifications/              # (AUT-195, AUT-199)
-│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281)
+│   │   │   └── notifications/              # (AUT-195, AUT-199, AUT-295)
+│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281). Description mismatch notification: notifyUserDescriptionMismatch + notifyUserConfirmService (AUT-295)
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
@@ -115,16 +115,16 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── constants/
-│   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266)
+│   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266, AUT-295)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows. BotResponse incluye mediaFirst para control de orden de envío (AUT-290)
-│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + ASK_LOCATION simplificado: cualquier texto avanza sin ubicación (AUT-289) + off-topic detection en DESCRIPTION_MISMATCH y WAITING_CONSENT (AUT-294)
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + ASK_LOCATION simplificado: cualquier texto avanza sin ubicación (AUT-289) + off-topic detection en DESCRIPTION_MISMATCH y WAITING_CONSENT (AUT-294) + soporte template para reenvío post-24hs via NotificationService (AUT-295)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation; AUT-294: off-topic detection en 6 steps con resolveOptionWithFallback)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE (AUT-288). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
-│   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE/SI_CORRECTO (AUT-288, AUT-295). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
+│   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution. UserRequestFlow recibe NotificationService (AUT-295)
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
 │   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch, payment link endpoint
@@ -637,6 +637,8 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 | `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible. Se invoca en `processTimeouts` tanto para CREATED→NO_RESPONSE como para ASSIGNED timeout sin reemplazo (AUT-287) |
 | `notifyProfessionalCancelledByUser()` | Notifica al profesional que el usuario canceló; usa `nora_pro_usuario_cancelo_pedido` (sin visita) o `nora_pro_usuario_cancelo_visita` (con visita) según `hasConfirmedVisit` |
 | `notifyUserProfessionalCancelled()` | Notifica al usuario que el profesional canceló el pedido; usa template distinto según si había visita confirmada |
+| `notifyUserDescriptionMismatch()` | Notifica al usuario en step DESCRIPTION_MISMATCH (INVALID) con template `nora_user_descripcion_no_relacionada` y botones cambiar/reformular (AUT-295) |
+| `notifyUserConfirmService()` | Notifica al usuario en step DESCRIPTION_MISMATCH (UNCERTAIN) con template `nora_user_confirmar_servicio` y botones sí/cambiar (AUT-295) |
 
 **Lógica de negocio:**
 - Todos los métodos capturan errores de envío y loguean sin propagar la excepción
@@ -673,6 +675,8 @@ Número profesional: 7665 / Número usuario: 7668
 | 14 | `nora_user_reasignando_por_negociacion` | No pudimos coordinar un horario con {{1}}, tu {{2}}. Estamos buscando otro profesional disponible para tu pedido. | professionalName, categoryName |
 | 15 | `nora_user_pro_cancelo_pedido` | El profesional canceló el pedido. Quedás disponible para buscar uno nuevo. | professionalName, categoryName |
 | 16 | `nora_user_pro_cancelo_visita` | El profesional asignado a tu pedido canceló la visita. Estamos buscando otro disponible. | professionalName, categoryName, fechaHora |
+| 17 | `nora_user_descripcion_no_relacionada` | Lo que describís no parece relacionado con un servicio de {{1}}. ¿Qué querés hacer? | categoryName (AUT-295) |
+| 18 | `nora_user_confirmar_servicio` | Antes de continuar, ¿tu problema está relacionado con un servicio de {{1}}? | categoryName (AUT-295) |
 
 *Nota: Las templates 17 (`nora_pro_cliente_acepto_horario`), 18 (`nora_pro_visita_confirmada_ubicacion`) y 19-20 (templates de profesional para finalización y calificación: `nora_pro_check_finalizacion`, `nora_pro_check_finalizacion_ultimo`, `nora_pro_pedir_calificacion_usuario`) ya tienen punto de consumo en el código (AUT-227). Templates de usuario `nora_user_buscando_profesional`, `nora_user_profesional_cancelado`, `nora_user_profesional_cancelo`, `nora_user_horario_propuesto_pro` y `nora_user_pedir_calificacion` fueron eliminadas en AUT-223. Template 4 (`nora_pro_pedido_cancelado`) eliminada en AUT-225 (huérfana). Templates profesionales agregadas en AUT-225: `nora_pro_usuario_cancelo_pedido`, `nora_pro_usuario_cancelo_visita`, `nora_pro_visita_confirmada` (consumidas en AUT-227). Template agregada en AUT-244: `nora_pro_bienvenida` — mensaje de bienvenida al aprobar un profesional (params: name, trialRequestsLimit).*
 
