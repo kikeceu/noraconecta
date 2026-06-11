@@ -305,12 +305,17 @@ export class CoordinationService {
   ): Promise<void> {
     const hasCoordinates = !!(userLatitude && userLongitude);
 
-    const message =
+    let message =
       `✅ Visita confirmada\n` +
       `*Cliente:* ${userName}\n` +
       `*Día y hora:* ${scheduleText}\n` +
       `*Dirección:* ${address}\n` +
       `*Teléfono:* ${userPhone}`;
+
+    if (hasCoordinates) {
+      const mapsUrl = `https://www.google.com/maps?q=${userLatitude},${userLongitude}`;
+      message += `\n*Ubicación:* ${mapsUrl}`;
+    }
 
     const needsTemplate = await shouldUseTemplate(
       professionalPhone,
