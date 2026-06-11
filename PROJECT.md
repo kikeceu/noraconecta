@@ -111,16 +111,16 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting + pendingNotification dispatch para simulador (AUT-281)
 │   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169), ver_como_funciona handler (AUT-266)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
-│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), sendRequestMedia público para envío de fotos/audio al pedir detalles (AUT-281), notifyProfessionalVisitConfirmed incluye link de Google Maps en texto plano cuando hay coordenadas (AUT-292)
+│   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), notifyProfessionalVisitConfirmed incluye link de Google Maps en texto plano cuando hay coordenadas (AUT-292). sendRequestMedia deprecado: el envío de fotos/audio en "Ver detalles" ahora lo maneja webhooks.routes.ts via mediaFirst (AUT-290)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
 │   │   │   │   ├── constants/
 │   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266)
 │   │   │   │   ├── flows/
-│   │   │   │   │   ├── types.ts          # Type definitions for flows
+│   │   │   │   │   ├── types.ts          # Type definitions for flows. BotResponse incluye mediaFirst para control de orden de envío (AUT-290)
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + ASK_LOCATION simplificado: cualquier texto avanza sin ubicación (AUT-289)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
-│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation)
+│   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE (AUT-288)
@@ -324,7 +324,7 @@ src/
 │       ├── payments.service.ts    # Payment links, webhook processing, trial-exhausted notification
 │       └── payments.repository.ts # Plan queries, waiting request lookup
 ├── routes/                    # Webhook endpoints
-│   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134), photo debounce accumulation (AUT-283)
+│   ├── webhooks.routes.ts      # WhatsApp webhook endpoint (AUT-134), photo debounce accumulation (AUT-283), sendResponse con soporte mediaFirst: fotos/audio antes que texto (AUT-290)
 │   └── simulator.routes.ts     # GET /simulator/messages — disponible solo en modo simulador (AUT-268). isSimulatorMode() alineado con isConfigured() del adapter (sin WHATSAPP_API_TOKEN_PROFESSIONAL, AUT-281)
 ├── services/                  # (placeholder for future shared services)
 └── repositories/              # (placeholder for future shared repositories)

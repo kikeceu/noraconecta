@@ -246,25 +246,50 @@ async function sendResponse(
     responseText += `\n\n${result.options.map((o, i) => `${i + 1}. ${o}`).join('\n')}`;
   }
 
-  await adapter.sendText(phone, responseText, role);
-
-  if (result.mediaUrls?.length) {
-    for (const mediaUrl of result.mediaUrls) {
-      try {
-        await adapter.sendImage(phone, mediaUrl, role);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[webhooks] Failed to send media:', err);
+  if (result.mediaFirst) {
+    // Send media first (photos → audio → text) for "Ver detalles"
+    if (result.mediaUrls?.length) {
+      for (const mediaUrl of result.mediaUrls) {
+        try {
+          await adapter.sendImage(phone, mediaUrl, role);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[webhooks] Failed to send media:', err);
+        }
       }
     }
-  }
 
-  if (result.audioUrl) {
-    try {
-      await adapter.sendAudio(phone, result.audioUrl, role);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[webhooks] Failed to send audio:', err);
+    if (result.audioUrl) {
+      try {
+        await adapter.sendAudio(phone, result.audioUrl, role);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[webhooks] Failed to send audio:', err);
+      }
+    }
+
+    await adapter.sendText(phone, responseText, role);
+  } else {
+    await adapter.sendText(phone, responseText, role);
+
+    if (result.mediaUrls?.length) {
+      for (const mediaUrl of result.mediaUrls) {
+        try {
+          await adapter.sendImage(phone, mediaUrl, role);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('[webhooks] Failed to send media:', err);
+        }
+      }
+    }
+
+    if (result.audioUrl) {
+      try {
+        await adapter.sendAudio(phone, result.audioUrl, role);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[webhooks] Failed to send audio:', err);
+      }
     }
   }
 }

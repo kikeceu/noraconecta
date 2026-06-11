@@ -33,7 +33,7 @@ export class CoordinationFlow implements FlowHandler {
 
     switch (step) {
       case 'AWAITING_ACCEPTANCE':
-        return this.handleAwaitingAcceptance(message, tempData, role, session.phone);
+        return this.handleAwaitingAcceptance(message, tempData, role);
       case 'AWAITING_AVAILABILITY':
         return this.handleAwaitingAvailability(message, tempData, role);
       case 'AWAITING_CONFIRMATION':
@@ -59,7 +59,6 @@ export class CoordinationFlow implements FlowHandler {
     message: { text?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
-    phone: string,
   ): Promise<FlowStepResult> {
     const requestId = tempData.requestId as string;
 
@@ -150,6 +149,9 @@ export class CoordinationFlow implements FlowHandler {
             `Descripción: ${description}`,
             '1. Aceptar\n2. Rechazar',
           ].join('\n\n'),
+          mediaUrls: photoUrls,
+          audioUrl,
+          mediaFirst: true,
         },
         nextStep: 'AWAITING_ACCEPTANCE',
         tempData: {
@@ -162,9 +164,6 @@ export class CoordinationFlow implements FlowHandler {
           audioUrl,
         },
       };
-
-      await this.coordinationService.sendRequestMedia(phone, photoUrls, audioUrl)
-        .catch(err => console.error('[CoordinationFlow] Failed to send request media:', err));
 
       return detailsResponse;
     }
@@ -212,6 +211,9 @@ export class CoordinationFlow implements FlowHandler {
             `Descripción: ${detailDescription}`,
             '1. Aceptar\n2. Rechazar',
           ].join('\n\n'),
+          mediaUrls: detailPhotoUrls,
+          audioUrl: detailAudioUrl,
+          mediaFirst: true,
         },
         nextStep: 'AWAITING_ACCEPTANCE',
         tempData: {
@@ -224,9 +226,6 @@ export class CoordinationFlow implements FlowHandler {
           audioUrl: detailAudioUrl,
         },
       };
-
-      await this.coordinationService.sendRequestMedia(phone, detailPhotoUrls, detailAudioUrl)
-        .catch(err => console.error('[CoordinationFlow] Failed to send request media:', err));
 
       return verDetallesResponse;
     }
