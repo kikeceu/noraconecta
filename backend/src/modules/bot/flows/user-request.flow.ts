@@ -5,7 +5,7 @@ import { PaymentsService } from '../../payments/payments.service';
 import { LocationsRepository } from '../../locations/locations.repository';
 import { ConfigRepository } from '../../config/config.repository';
 import { handleCancelConfirmation } from './cancel-flow.helper';
-import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
+import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
 import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
@@ -700,6 +700,19 @@ export class UserRequestFlow implements FlowHandler {
 
     const categoryName = tempData.categoryName as string;
 
+    const wordCount = description.split(/\s+/).length;
+    if (wordCount <= 8) {
+      const stepContext = `El usuario está describiendo un problema de ${categoryName} que necesita resolver en su hogar. Se le pidió que describa brevemente el problema.`;
+      const offTopic = await generateOffTopicResponse(description, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'ASK_DESCRIPTION',
+          tempData,
+        };
+      }
+    }
+
     tempData.description = description;
 
     const validation = await validateDescription(description, categoryName);
@@ -910,6 +923,18 @@ export class UserRequestFlow implements FlowHandler {
       });
     }
 
+    if (!resolved) {
+      const stepContext = `Se le preguntó al usuario si quiere cambiar el servicio o reformular la descripción, porque lo que describió no parece relacionado con ${categoryName}.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'DESCRIPTION_MISMATCH',
+          tempData,
+        };
+      }
+    }
+
     return {
       response: {
         text: `Contame brevemente el problema relacionado con ${categoryName}.`,
@@ -1069,6 +1094,20 @@ export class UserRequestFlow implements FlowHandler {
         nextStep: null,
         tempData: {},
       };
+    }
+
+    if (!resolved && inputText) {
+      const categoryName = (tempData.categoryName as string) || 'el servicio';
+      const zoneName = (tempData.geoNodeName as string) || 'tu zona';
+      const stepContext = `No hay profesionales disponibles para ${categoryName} en ${zoneName}. Se le preguntó al usuario si quiere que le avisemos cuando aparezca uno.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'WAITING_CONSENT',
+          tempData,
+        };
+      }
     }
 
     return {

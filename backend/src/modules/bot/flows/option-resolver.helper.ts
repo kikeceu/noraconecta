@@ -144,3 +144,35 @@ ${optionsList}
     return null;
   }
 }
+
+export async function generateOffTopicResponse(
+  input: string,
+  stepContext: string,
+): Promise<string | null> {
+  const prompt = `Sos NORA, un asistente de WhatsApp que conecta usuarios con profesionales del hogar en Argentina.
+
+El usuario escribió: "${input}"
+
+Contexto actual: ${stepContext}
+
+Determiná si el mensaje es:
+1. OFF_TOPIC: un saludo, pregunta sobre vos, comentario casual, o algo no relacionado con el pedido
+2. ON_TOPIC: un intento de responder al contexto actual aunque mal escrito
+
+Si es OFF_TOPIC, generá una respuesta corta y cordial en español rioplatense que:
+- Responda brevemente al comentario (ej: si saluda, saludar de vuelta)
+- Recuerde el contexto actual
+- No supere 2 líneas
+
+Si es ON_TOPIC, respondé exactamente: ON_TOPIC
+
+Respondé SOLO con la respuesta cordial o "ON_TOPIC".`;
+
+  try {
+    const response = await callLLM(prompt);
+    const trimmed = response.trim();
+    return trimmed === 'ON_TOPIC' ? null : trimmed;
+  } catch {
+    return null;
+  }
+}

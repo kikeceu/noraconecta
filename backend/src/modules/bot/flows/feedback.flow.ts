@@ -5,7 +5,7 @@ import { BotRepository } from '../bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { RequestsService, Satisfaction } from '../../requests/requests.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
-import { resolveOption, resolveOptionWithFallback } from './option-resolver.helper';
+import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 
 export class FeedbackFlow implements FlowHandler {
   readonly flowName = 'FEEDBACK';
@@ -160,6 +160,16 @@ export class FeedbackFlow implements FlowHandler {
     const resolved = await resolveOptionWithFallback('FEEDBACK_SATISFACTION', inputText);
 
     if (!resolved) {
+      const stepContext = `Se le preguntó al usuario si quedó conforme con el trabajo realizado. Opciones: 1. Conforme, 2. Con observaciones, 3. No conforme.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'FEEDBACK_SATISFACTION',
+          tempData,
+        };
+      }
+
       return {
         response: {
           text: 'Respondé:\n1. Conforme\n2. Con observaciones\n3. No conforme',
@@ -248,6 +258,16 @@ export class FeedbackFlow implements FlowHandler {
     const resolved = await resolveOptionWithFallback('FEEDBACK_RECOMMEND', inputText);
 
     if (!resolved) {
+      const stepContext = `Se le preguntó al usuario si recomendaría al profesional. Opciones: 1. Sí, 2. No.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'FEEDBACK_RECOMMEND',
+          tempData,
+        };
+      }
+
       return {
         response: { text: '1. Sí\n2. No' },
         nextStep: 'FEEDBACK_RECOMMEND',
@@ -428,6 +448,16 @@ export class FeedbackFlow implements FlowHandler {
     const resolved = await resolveOptionWithFallback('FEEDBACK_PRO_RECOMMEND', inputText);
 
     if (!resolved) {
+      const stepContext = `Se le preguntó al profesional si volvería a atender al usuario. Opciones: 1. Sí, 2. No.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'FEEDBACK_PRO_RECOMMEND',
+          tempData,
+        };
+      }
+
       return {
         response: { text: '1. Sí\n2. No' },
         nextStep: 'FEEDBACK_PRO_RECOMMEND',

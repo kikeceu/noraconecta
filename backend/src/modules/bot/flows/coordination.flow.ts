@@ -9,7 +9,7 @@ import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
-import { resolveOptionWithFallback } from './option-resolver.helper';
+import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
@@ -302,6 +302,18 @@ export class CoordinationFlow implements FlowHandler {
       }
     }
 
+    if (!resolved) {
+      const stepContext = `Se le mostró al profesional un pedido y se le pidió que responda con una opción: 1. Ver detalles, 2. Rechazar (o "aceptar" si ya vio los detalles).`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'AWAITING_ACCEPTANCE',
+          tempData,
+        };
+      }
+    }
+
     return {
       response: {
         text: 'Respondé con una opción:\n\n1. Ver detalles\n2. Rechazar',
@@ -507,6 +519,23 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
+    if (resolved === null) {
+      const parsedDateStr = tempData.parsedScheduledAt as string;
+      let formattedDate = 'esa fecha';
+      if (parsedDateStr) {
+        formattedDate = formatDateTimeArgentina(new Date(parsedDateStr));
+      }
+      const stepContext = `Se le preguntó al usuario si confirma el ${formattedDate} para la visita del profesional. Opciones: 1. Sí, 2. No, corregir.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
+          nextStep: 'CONFIRM_AVAILABILITY',
+          tempData,
+        };
+      }
+    }
+
     return {
       response: {
         text: 'Indicá el día y la hora. Por ejemplo: *viernes 13/06 a las 16:00*',
@@ -627,6 +656,24 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
+      if (!resolved) {
+        const userName = (tempData.userName as string) || 'el usuario';
+        const scheduledAtStr = tempData.scheduledAt as string | undefined;
+        let formattedDate = 'ese horario';
+        if (scheduledAtStr) {
+          formattedDate = formatDateTimeArgentina(new Date(scheduledAtStr));
+        }
+        const stepContext = `Se le pidió al profesional que confirme si puede atender a ${userName} el ${formattedDate}. Opciones: 1. Sí (confirmar), 2. Proponer otro horario.`;
+        const offTopic = await generateOffTopicResponse(scheduleText, stepContext);
+        if (offTopic) {
+          return {
+            response: { text: offTopic },
+            nextStep: 'AWAITING_CONFIRMATION',
+            tempData,
+          };
+        }
+      }
+
       const now = new Date();
       const result = await parseDateTimeNatural(scheduleText, now);
 
@@ -693,6 +740,23 @@ export class CoordinationFlow implements FlowHandler {
     const resolved = await resolveOptionWithFallback('CONFIRM_PRO_AVAILABILITY', inputText);
 
     if (resolved !== 'YES') {
+      if (resolved === null) {
+        const parsedDateStr = tempData.parsedAlternativeScheduledAt as string;
+        let formattedDate = 'esa fecha';
+        if (parsedDateStr) {
+          formattedDate = formatDateTimeArgentina(new Date(parsedDateStr));
+        }
+        const stepContext = `Se le preguntó al profesional si confirma proponer el ${formattedDate} como alternativa. Opciones: 1. Sí, 2. No, corregir.`;
+        const offTopic = await generateOffTopicResponse(inputText, stepContext);
+        if (offTopic) {
+          return {
+            response: { text: offTopic },
+            nextStep: 'CONFIRM_PRO_AVAILABILITY',
+            tempData,
+          };
+        }
+      }
+
       return {
         response: {
           text: 'Indicá el día y la hora. Por ejemplo: *viernes 13/06 a las 16:00*',
@@ -962,6 +1026,24 @@ export class CoordinationFlow implements FlowHandler {
           },
         };
       }
+
+      if (!resolved) {
+        const professionalName = (tempData.professionalName as string) || 'el profesional';
+        const alternativeScheduledAt = tempData.alternativeScheduledAt as string;
+        let alternativeText = 'ese horario';
+        if (alternativeScheduledAt) {
+          alternativeText = `el ${formatDateTimeArgentina(new Date(alternativeScheduledAt))}`;
+        }
+        const stepContext = `${professionalName} propone ${alternativeText}. Se le preguntó al usuario si le viene bien. Opciones: 1. Sí, perfecto, 2. No me viene bien.`;
+        const offTopic = await generateOffTopicResponse(response, stepContext);
+        if (offTopic) {
+          return {
+            response: { text: offTopic },
+            nextStep: 'AWAITING_USER_CONFIRMATION',
+            tempData,
+          };
+        }
+      }
     }
 
     const professionalName = (tempData.professionalName as string) || 'el profesional';
@@ -1148,6 +1230,18 @@ export class CoordinationFlow implements FlowHandler {
           response: {
             text: 'No pude cancelar la visita en este momento. Intentá nuevamente en unos minutos.',
           },
+          nextStep: 'AWAITING_VISIT_CONFIRMATION',
+          tempData,
+        };
+      }
+    }
+
+    if (!resolved) {
+      const stepContext = `Se le recordó al profesional que tiene una confirmación pendiente para una visita. Opciones: 1. Confirmo, 2. Cancelar.`;
+      const offTopic = await generateOffTopicResponse(inputText, stepContext);
+      if (offTopic) {
+        return {
+          response: { text: offTopic },
           nextStep: 'AWAITING_VISIT_CONFIRMATION',
           tempData,
         };
