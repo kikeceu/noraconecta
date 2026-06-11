@@ -715,6 +715,24 @@ Alineación de textos, parámetros y casos de uso con los templates rediseñados
 **Cambios en `user-request.flow.ts` y `feedback.flow.ts`:**
 - Todas las opciones presentadas al usuario ahora están numeradas (`1. Conforme\n2. Con observaciones\n3. No conforme`, `1. Sí\n2. No`, etc.)
 
+### AUT-285 — Fix cancelación por profesional: mensaje único al usuario según disponibilidad de reemplazo
+
+Corrige los mensajes al usuario cuando el profesional cancela desde el panel web.
+
+**Problemas detectados:**
+1. El mensaje no incluía el nombre del profesional
+2. Si no había reemplazo disponible, se sobreescribía el mensaje de cancelación con "No encontramos un profesional disponible..."
+3. El controller ya había sido migrado a `notificationService.notifyUserProfessionalCancelled()` (usa `sendWithWindowCheck` internamente)
+
+**Cambios en `requests.service.ts`:**
+- `cancelByProfessional`: reestructura el bloque de construcción de `userMessage`. El mensaje ahora incluye `professionalName` y combina cancelación + estado de búsqueda de reemplazo en un solo mensaje (sin sobreescritura). Cuatro variantes según `hadConfirmedVisit` y `match`:
+  - Con visita + reemplazo: nombre, fecha, "buscando otro profesional para vos, te avisamos cuando confirme"
+  - Con visita + sin reemplazo: nombre, fecha, "intentamos encontrar otro profesional pero no tuvimos éxito"
+  - Sin visita + reemplazo: nombre, "buscando otro profesional para vos, te avisamos cuando confirme"
+  - Sin visita + sin reemplazo: nombre, "intentamos encontrar otro profesional pero no tuvimos éxito"
+
+**Archivos modificados:** `backend/src/modules/requests/requests.service.ts`
+
 ### AUT-227 — Ajustes de lógica de bot para templates de profesionales rediseñados
 
 Alineación de textos, parámetros y casos de uso con los templates de profesionales rediseñados en AUT-225.
@@ -1519,7 +1537,7 @@ ACCEPTED → [auto-complete 24h sin confirmación] → COMPLETED
 - Timeout: ASSIGNED con `assignmentTimeoutAt < now()` → NO_RESPONSE para el profesional actual → reasignar. CREATED con `assignmentTimeoutAt < now()` → reintenta matching → si falla → NO_RESPONSE
 - Cancelación (cancel): solo permitida en CREATED o ASSIGNED
 - Cancelación por usuario (cancelByUser, AUT-169): permitida en CREATED, ASSIGNED, ACCEPTED (cualquier coordinationStatus incluyendo SCHEDULED). Si coordinationStatus = SCHEDULED, valida que falten más de 2 horas para `scheduledAt`. Registra evento CANCELLED con metadata `{ cancelledBy: 'USER', hadConfirmedVisit, hoursBeforeVisit }`. Retorna `CancelByUserResult` con info de notificación al profesional: notifica solo si ya había aceptado o tenía visita confirmada.
-- Cancelación por profesional (cancelByProfessional, AUT-170, AUT-195): permitida solo en ACCEPTED. Valida que el `assignedProfessionalId` coincida con el `professionalId` del caller. Registra evento CANCELLED con metadata `{ cancelledBy: 'PROFESSIONAL', hadConfirmedVisit, scheduledAt }` (no genera NO_RESPONSE — el profesional canceló voluntariamente, no por timeout). Notifica al usuario via WhatsApp inmediato (`whatsappAdapter.sendText()`): si había visita confirmada → "canceló la visita programada para el [DD/MM HH:MM]"; si no → "no puede atenderte en este momento". Luego intenta reasignar excluyendo al profesional que canceló + rejectores anteriores. Si encuentra candidato → ASSIGNED con nuevo timeout. Si no → NO_RESPONSE con mensaje "No encontramos un profesional disponible en este momento. Te avisaremos cuando haya uno."
+- Cancelación por profesional (cancelByProfessional, AUT-170, AUT-195, AUT-285): permitida solo en ACCEPTED. Valida que el `assignedProfessionalId` coincida con el `professionalId` del caller. Registra evento CANCELLED con metadata `{ cancelledBy: 'PROFESSIONAL', hadConfirmedVisit, scheduledAt }` (no genera NO_RESPONSE — el profesional canceló voluntariamente, no por timeout). Construye un mensaje único al usuario que combina cancelación y estado de reemplazo en 4 variantes según `hasConfirmedVisit` y `match`. Notifica al usuario vía `notificationService.notifyUserProfessionalCancelled()` que usa `sendWithWindowCheck` (texto plano dentro de ventana, template fuera). Si encuentra candidato de reemplazo → ASSIGNED con nuevo timeout. Si no → NO_RESPONSE.
 - Finalización (finish): profesional cambia estado ACCEPTED → PENDING_CONFIRMATION + registra `completedAt` + evento PENDING_CONFIRMATION. Envía WhatsApp inmediato al usuario via `CoordinationService.notifyWorkFinished()` con "El profesional {nombre} indicó que finalizó el trabajo. ¿Cómo quedó? (Conforme / Con observaciones / No conforme)" y limpia el flujo de coordinación de la sesión del usuario (AUT-158, AUT-195).
 - Finalización por cron (AUT-216): `CoordinationService.checkWorkCompletion()` busca pedidos `ACCEPTED + SCHEDULED` cuya visita ya venció según `WORK_COMPLETION_CHECK_HOURS` (default 24), consulta al profesional por WhatsApp (`AWAITING_WORK_COMPLETION`) y escala a `Escalation` si no hay confirmación tras 2 intentos.
 - Confirmación (confirm): usuario envía satisfaction (SATISFIED/PARTIAL/UNSATISFIED)
