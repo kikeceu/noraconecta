@@ -255,6 +255,11 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
     [addMessage, stopPolling],
   );
 
+  const addMessageRef = useRef(addMessage);
+  useEffect(() => {
+    addMessageRef.current = addMessage;
+  }, [addMessage]);
+
   const startSimulatorPolling = useCallback(
     (targetPhone: string, targetRole: 'USER' | 'PROFESSIONAL') => {
       if (simulatorPollRef.current !== null) {
@@ -271,7 +276,7 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           const data = (await res.json()) as { messages?: Array<{ content: string }> };
           if (data.messages && data.messages.length > 0) {
             data.messages.forEach((msg) => {
-              addMessage('nora', msg.content);
+              addMessageRef.current('nora', msg.content);
             });
           }
         } catch {
