@@ -970,6 +970,7 @@ Criterios:
   }
 
   async processTimeouts(): Promise<number> {
+    console.log('[Cron] processTimeouts running at', new Date().toISOString());
     const now = new Date();
     let processed = 0;
 
@@ -1004,6 +1005,18 @@ Criterios:
             '[RequestsService] CREATED request moved to NO_RESPONSE (timeout, no candidates):',
             request.id,
           );
+
+          if (this.notificationService) {
+            const userData = await prisma.user.findUnique({
+              where: { id: request.userId },
+              select: { phone: true, name: true },
+            });
+            if (userData?.phone) {
+              this.notificationService.notifyUserNoResponse(userData).catch((err) => {
+                console.error('[RequestsService] Failed to notify user no response:', err);
+              });
+            }
+          }
         } else {
           const responseTimeoutHours = await this.getResponseTimeoutHours();
           const assignmentTimeoutAt = new Date(
