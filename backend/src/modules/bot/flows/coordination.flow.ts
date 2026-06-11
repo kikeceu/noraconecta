@@ -529,6 +529,38 @@ export class CoordinationFlow implements FlowHandler {
 
     if (role === 'PROFESSIONAL' && message.text?.trim()) {
       const scheduleText = message.text.trim();
+
+      if (tempData._proposingAlternative) {
+        const now = new Date();
+        const result = await parseDateTimeNatural(scheduleText, now);
+
+        if (!result.success) {
+          const errorText = result.reason === 'past'
+            ? 'La fecha que indicaste ya pasó. Indicá una fecha futura. Por ejemplo: *viernes 13/06 a las 16:00*'
+            : 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
+
+          return {
+            response: { text: errorText },
+            nextStep: 'AWAITING_CONFIRMATION',
+            tempData,
+          };
+        }
+
+        const newScheduledAt = result.date;
+        const alternativeText = formatDateTimeArgentina(newScheduledAt);
+        return {
+          response: {
+            text: `Entendido, ¿confirmás proponer el *${alternativeText}*?\n1. Sí\n2. No, corregir`,
+          },
+          nextStep: 'CONFIRM_PRO_AVAILABILITY',
+          tempData: {
+            ...tempData,
+            _proposingAlternative: undefined,
+            parsedAlternativeScheduledAt: newScheduledAt.toISOString(),
+          },
+        };
+      }
+
       const resolved = await resolveOptionWithFallback('AWAITING_CONFIRMATION', scheduleText);
 
       if (resolved === 'CONFIRM') {
@@ -580,6 +612,19 @@ export class CoordinationFlow implements FlowHandler {
               },
             },
           } as Record<string, unknown>,
+        };
+      }
+
+      if (resolved === 'PROPOSE_ALTERNATIVE') {
+        return {
+          response: {
+            text: 'Indicá el día y la hora que te viene bien. Por ejemplo: *viernes 13/06 a las 16:00*',
+          },
+          nextStep: 'AWAITING_CONFIRMATION',
+          tempData: {
+            ...tempData,
+            _proposingAlternative: true,
+          },
         };
       }
 
@@ -756,7 +801,7 @@ export class CoordinationFlow implements FlowHandler {
 
     const alternativeText = formatDateTimeArgentina(newScheduledAt);
 
-    const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+    const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien?\n1. Sí, perfecto\n2. No me viene bien`;
 
     return {
       response: {
@@ -932,7 +977,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: `${professionalName} propone ${alternativeText}. ¿Te viene bien?\n1. Sí\n2. No`,
+        text: `${professionalName} propone ${alternativeText}. ¿Te viene bien?\n1. Sí, perfecto\n2. No me viene bien`,
       },
       nextStep: 'AWAITING_USER_CONFIRMATION',
       tempData,

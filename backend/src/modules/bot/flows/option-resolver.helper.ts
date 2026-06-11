@@ -34,6 +34,17 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
         '1',
       ],
     },
+    {
+      value: 'PROPOSE_ALTERNATIVE',
+      aliases: [
+        '2',
+        'proponer',
+        'otro horario',
+        'no puedo',
+        'cambiar horario',
+        'propongo otro',
+      ],
+    },
   ],
   CONFIRM_AVAILABILITY: [
     { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', 'confirmo', '1'] },
