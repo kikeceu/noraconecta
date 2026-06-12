@@ -242,6 +242,8 @@ export class BotService {
                 _previousFlow: session.currentFlow,
                 _previousStep: session.currentStep,
                 requestId: activeRequest.id,
+                categoryName: activeRequest.category?.name || 'el servicio',
+                phone: input.phone,
               };
 
               session = await this.botRepository.upsert(input.phone, {
@@ -250,6 +252,13 @@ export class BotService {
                 currentStep: 'CANCEL_CONFIRMATION',
                 tempData: updatedTempData as Prisma.InputJsonValue,
               });
+
+              await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+              return {
+                text: `¿Confirmás que querés cancelar tu pedido de ${activeRequest.category?.name || 'tu servicio'}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+                flow: session.currentFlow || undefined,
+                step: 'CANCEL_CONFIRMATION',
+              };
             }
           }
         } else if (role === 'PROFESSIONAL') {

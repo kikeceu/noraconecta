@@ -44,7 +44,7 @@ export class RequestsRepository {
     });
   }
 
-  async findActiveByUserId(userId: string): Promise<Request | null> {
+  async findActiveByUserId(userId: string): Promise<(Request & { category: { name: string } }) | null> {
     return prisma.request.findFirst({
       where: {
         userId,
@@ -52,6 +52,7 @@ export class RequestsRepository {
       },
       include: {
         assignedProfessional: { select: { phone: true } },
+        category: { select: { name: true } },
       },
     });
   }

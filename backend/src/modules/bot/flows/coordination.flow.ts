@@ -50,6 +50,8 @@ export class CoordinationFlow implements FlowHandler {
         return this.handleAwaitingVisitConfirmation(message, tempData, role);
       case 'AWAITING_LOCATION':
         return this.handleAwaitingLocation(message, tempData, role);
+      case 'AWAITING_VISIT':
+        return this.handleAwaitingVisit(message, tempData, role);
       case 'CANCEL_CONFIRMATION':
         return handleCancelConfirmation(context, this.requestsService, this.notificationService);
       default:
@@ -68,7 +70,7 @@ export class CoordinationFlow implements FlowHandler {
       return {
         response: { text: 'No encontré un pedido asignado para responder.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -95,7 +97,7 @@ export class CoordinationFlow implements FlowHandler {
               text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
             },
             nextStep: null,
-            tempData: {},
+            tempData: { _clearTempData: true },
           };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'No se pudo aceptar el pedido.';
@@ -103,7 +105,7 @@ export class CoordinationFlow implements FlowHandler {
           return {
             response: { text: errorMessage },
             nextStep: null,
-            tempData: {},
+            tempData: { _clearTempData: true },
           };
         }
       }
@@ -133,7 +135,7 @@ export class CoordinationFlow implements FlowHandler {
           return {
             response: { text: 'No encontré los detalles del pedido asignado.' },
             nextStep: null,
-            tempData: {},
+            tempData: { _clearTempData: true },
           };
         }
 
@@ -195,7 +197,7 @@ export class CoordinationFlow implements FlowHandler {
           return {
             response: { text: 'No encontré los detalles del pedido asignado.' },
             nextStep: null,
-            tempData: {},
+            tempData: { _clearTempData: true },
           };
         }
 
@@ -241,7 +243,7 @@ export class CoordinationFlow implements FlowHandler {
             text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
           },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'No se pudo aceptar el pedido.';
@@ -249,7 +251,7 @@ export class CoordinationFlow implements FlowHandler {
         return {
           response: { text: errorMessage },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       }
     }
@@ -291,7 +293,7 @@ export class CoordinationFlow implements FlowHandler {
             text: responseText,
           },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'No se pudo rechazar el pedido.';
@@ -299,7 +301,7 @@ export class CoordinationFlow implements FlowHandler {
         return {
           response: { text: errorMessage },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       }
     }
@@ -399,7 +401,7 @@ export class CoordinationFlow implements FlowHandler {
       return {
         response: { text: 'Error interno: pedido no encontrado.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -994,7 +996,7 @@ export class CoordinationFlow implements FlowHandler {
               text: message,
             },
             nextStep: null,
-            tempData: {} as Record<string, unknown>,
+            tempData: { _clearTempData: true } as Record<string, unknown>,
           };
         }
 
@@ -1142,10 +1144,23 @@ export class CoordinationFlow implements FlowHandler {
       response: {
         text: `¡Todo listo! ${tempData.professionalName || 'El profesional'} ya tiene tus datos para la visita.`,
       },
-      nextStep: null,
+      nextStep: 'AWAITING_VISIT',
       tempData: {
-        requestId,
-      } as Record<string, unknown>,
+        ...tempData,
+        clientAddress: address,
+      },
+    };
+  }
+
+  private async handleAwaitingVisit(
+    _message: { text?: string },
+    tempData: Record<string, unknown>,
+    _role: 'USER' | 'PROFESSIONAL',
+  ): Promise<FlowStepResult> {
+    return {
+      response: { text: 'Ya tenés la visita coordinada. Te avisaremos cuando haya novedades.' },
+      nextStep: 'AWAITING_VISIT',
+      tempData,
     };
   }
 
@@ -1183,7 +1198,7 @@ export class CoordinationFlow implements FlowHandler {
             text: 'No pude identificar el pedido a cancelar. Escribinos para revisarlo.',
           },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -1216,6 +1231,7 @@ export class CoordinationFlow implements FlowHandler {
           },
           nextStep: null,
           tempData: {
+            _clearTempData: true,
             pendingNotification: {
               targetPhone: result.userPhone,
               targetRole: 'USER',

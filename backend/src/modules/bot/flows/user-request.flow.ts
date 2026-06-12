@@ -201,7 +201,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'Error interno. Intenta de nuevo mas tarde.' },
         nextStep: null,
-        tempData,
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -210,7 +210,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'Error interno. Intenta de nuevo mas tarde.' },
         nextStep: null,
-        tempData,
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -304,7 +304,7 @@ export class UserRequestFlow implements FlowHandler {
         return {
           response: { text: 'No hay categorias disponibles por el momento.' },
           nextStep: null,
-          tempData,
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -438,7 +438,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
         nextStep: null,
-        tempData,
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -448,7 +448,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No hay provincias habilitadas por el momento. Intenta mas tarde.' },
         nextStep: null,
-        tempData,
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -464,7 +464,7 @@ export class UserRequestFlow implements FlowHandler {
         return {
           response: { text: 'No hay zonas habilitadas por el momento. Intenta mas tarde.' },
           nextStep: null,
-          tempData,
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -509,7 +509,7 @@ export class UserRequestFlow implements FlowHandler {
         return {
           response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
           nextStep: null,
-          tempData,
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -519,7 +519,7 @@ export class UserRequestFlow implements FlowHandler {
         return {
           response: { text: 'No hay provincias habilitadas. Intenta mas tarde.' },
           nextStep: null,
-          tempData,
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -560,7 +560,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No hay zonas habilitadas en esa provincia. Intenta mas tarde.' },
         nextStep: null,
-        tempData,
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -604,7 +604,7 @@ export class UserRequestFlow implements FlowHandler {
         return {
           response: { text: 'No hay zonas habilitadas en esa provincia. Intenta mas tarde.' },
           nextStep: null,
-          tempData,
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -1057,7 +1057,7 @@ export class UserRequestFlow implements FlowHandler {
             requestId: request.id,
           },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       } catch (err) {
         console.error('[UserRequestFlow] handleConfirm: create failed', err);
@@ -1076,7 +1076,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'Pedido cancelado. Cuando necesites algo, escribime.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1115,7 +1115,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'Entendido. Podés volver a buscar cuando quieras.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1192,7 +1192,7 @@ export class UserRequestFlow implements FlowHandler {
         requestId,
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1202,7 +1202,7 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Buscando el profesional ideal... te aviso cuando confirme.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1240,7 +1240,7 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Perfecto, te avisamos en cuanto encontremos un profesional disponible para tu pedido.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1272,7 +1272,7 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Entendido, no te molestamos más por este pedido. Si necesitás ayuda en otro momento, escribinos cuando quieras.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1282,7 +1282,7 @@ export class UserRequestFlow implements FlowHandler {
         text: '¡Perfecto! Te esperamos. Cualquier cambio avisanos.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1295,7 +1295,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1311,7 +1311,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No encontré una visita activa para cancelar.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1343,7 +1343,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: errorMessage },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
   }
@@ -1354,7 +1354,7 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Perfecto, seguimos buscando. Te avisamos en cuanto encontremos otro profesional disponible.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -1367,7 +1367,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1383,7 +1383,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: 'No encontré un pedido activo para cancelar.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -1406,7 +1406,7 @@ export class UserRequestFlow implements FlowHandler {
         text: 'Entendido, cancelamos tu pedido. Si necesitás ayuda en otro momento, escribinos cuando quieras.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 }
