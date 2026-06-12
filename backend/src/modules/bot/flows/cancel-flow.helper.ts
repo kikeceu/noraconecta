@@ -1,6 +1,7 @@
 import { FlowStepResult, FlowContext, PendingNotification } from './types';
 import { RequestsService } from '../../requests/requests.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
+import { NotificationService } from '../../notifications/notification.service';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
 
@@ -22,6 +23,7 @@ export function isCancellationIntent(text: string): boolean {
 export async function handleCancelConfirmation(
   context: FlowContext,
   requestsService: RequestsService,
+  notificationService?: NotificationService,
 ): Promise<FlowStepResult> {
   const { session, message } = context;
   const tempData = (session.tempData as Record<string, unknown>) || {};
@@ -111,10 +113,23 @@ export async function handleCancelConfirmation(
     };
   }
 
+  if (notificationService && tempData.phone && tempData.categoryName) {
+    await notificationService.notifyUserCancelConfirmation(
+      tempData.phone as string,
+      tempData.categoryName as string,
+    );
+    return {
+      response: { text: '' },
+      nextStep: 'CANCEL_CONFIRMATION',
+      tempData,
+    };
+  }
+
+  const categoryName = (tempData.categoryName as string) || 'el servicio';
+
   return {
     response: {
-      text: '¿Confirmás que querés cancelar tu pedido? Respondé Sí para confirmar o No para continuar.',
-      options: ['Sí', 'No'],
+      text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
     },
     nextStep: 'CANCEL_CONFIRMATION',
     tempData,

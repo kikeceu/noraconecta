@@ -82,3 +82,6 @@ export const TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA = 'nora_user_descripcion_n
 
 /** Confirm if description matches selected service */
 export const TEMPLATE_USER_CONFIRMAR_SERVICIO = 'nora_user_confirmar_servicio';
+
+/** User cancel confirmation */
+export const TEMPLATE_USER_CANCELAR_PEDIDO = 'nora_user_cancelar_pedido';
