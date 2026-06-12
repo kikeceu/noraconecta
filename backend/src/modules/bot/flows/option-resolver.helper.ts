@@ -69,8 +69,8 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     },
   ],
   CANCEL_CONFIRMATION: [
-    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1'] },
-    { value: 'NO', aliases: ['no', 'nop', '2'] },
+    { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1', 'cancelar_pedido'] },
+    { value: 'NO', aliases: ['no', 'nop', '2', 'no_cancelar'] },
   ],
   CONFIRM: [
     { value: 'YES', aliases: ['si', 'sí', 'dale', 'ok', '1'] },

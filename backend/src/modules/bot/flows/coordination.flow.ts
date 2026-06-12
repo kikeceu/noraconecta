@@ -8,6 +8,7 @@ import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
+import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
@@ -20,6 +21,7 @@ export class CoordinationFlow implements FlowHandler {
   constructor(
     private readonly requestsService: RequestsService,
     private readonly coordinationService: CoordinationService,
+    private readonly notificationService?: NotificationService,
   ) {}
 
   getInitialStep(): string {
@@ -49,7 +51,7 @@ export class CoordinationFlow implements FlowHandler {
       case 'AWAITING_LOCATION':
         return this.handleAwaitingLocation(message, tempData, role);
       case 'CANCEL_CONFIRMATION':
-        return handleCancelConfirmation(context, this.requestsService);
+        return handleCancelConfirmation(context, this.requestsService, this.notificationService);
       default:
         return this.handleAwaitingAvailability(message, tempData, role);
     }

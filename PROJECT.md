@@ -34,7 +34,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -100,8 +100,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
-│   │   │   └── notifications/              # (AUT-195, AUT-199, AUT-295)
-│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281). Description mismatch notification: notifyUserDescriptionMismatch + notifyUserConfirmService (AUT-295)
+│   │   │   └── notifications/              # (AUT-195, AUT-199, AUT-295, AUT-297)
+│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281). Description mismatch notification: notifyUserDescriptionMismatch + notifyUserConfirmService (AUT-295). Cancel confirmation: notifyUserCancelConfirmation (AUT-297)
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
@@ -122,9 +122,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation; AUT-294: off-topic detection en 6 steps con resolveOptionWithFallback)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294)
-│   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic (AUT-296: avoids re-entry loop + friendly error on duplicate cancel)
-│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE/SI_CORRECTO (AUT-288, AUT-295). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
-│   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution. UserRequestFlow recibe NotificationService (AUT-295)
+│   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic (AUT-296: avoids re-entry loop + friendly error on duplicate cancel; AUT-297: numbered options + sendWithWindowCheck via NotificationService for template fallback)
+│   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). CANCEL_CONFIRMATION: 'cancelar_pedido'/'no_cancelar' payloads (AUT-297). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE/SI_CORRECTO (AUT-288, AUT-295). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
+│   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution. UserRequestFlow recibe NotificationService (AUT-295). CoordinationFlow recibe NotificationService (AUT-297)
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
 │   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch, payment link endpoint

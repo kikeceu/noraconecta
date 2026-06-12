@@ -7,6 +7,7 @@ import { BOT_PAYLOADS } from '../bot/constants/bot-payloads';
 import {
   TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA,
   TEMPLATE_USER_CONFIRMAR_SERVICIO,
+  TEMPLATE_USER_CANCELAR_PEDIDO,
 } from '../../utils/whatsapp-templates';
 
 export interface ProfessionalInfo {
@@ -253,6 +254,25 @@ export class NotificationService {
       [
         { payload: BOT_PAYLOADS.SI_CORRECTO, text: 'Sí, es correcto' },
         { payload: BOT_PAYLOADS.CAMBIAR_SERVICIO, text: 'Cambiar el servicio' },
+      ],
+    );
+  }
+
+  async notifyUserCancelConfirmation(
+    phone: string,
+    categoryName: string,
+  ): Promise<void> {
+    const message = `¿Confirmás que querés cancelar tu pedido de ${categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`;
+
+    await this.sendWithWindowCheck(
+      phone,
+      'USER',
+      message,
+      TEMPLATE_USER_CANCELAR_PEDIDO,
+      [categoryName],
+      [
+        { payload: 'cancelar_pedido', text: 'Sí, cancelar' },
+        { payload: 'no_cancelar', text: 'No, seguir' },
       ],
     );
   }

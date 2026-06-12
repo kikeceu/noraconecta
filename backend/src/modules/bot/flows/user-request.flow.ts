@@ -184,7 +184,7 @@ export class UserRequestFlow implements FlowHandler {
       case 'WAITING':
         return this.handleWaiting(tempData);
       case 'CANCEL_CONFIRMATION':
-        return handleCancelConfirmation(context, this.requestsService);
+        return handleCancelConfirmation(context, this.requestsService, this.notificationService);
       default:
         return this.handleInit(tempData);
     }
