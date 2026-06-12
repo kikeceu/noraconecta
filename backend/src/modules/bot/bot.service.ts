@@ -218,14 +218,14 @@ export class BotService {
     }
 
     const userText = input.text?.trim();
-    if (userText && isCancellationIntent(userText) && session.currentFlow) {
+    if (userText && isCancellationIntent(userText) && session.currentFlow && session.currentStep !== 'CANCEL_CONFIRMATION') {
       const freshTempData = (session.tempData as Record<string, unknown>) || {};
       const userId = freshTempData.userId as string | undefined;
 
       if (userId) {
         const activeRequest = await this.requestsRepository.findActiveByUserId(userId);
 
-        if (activeRequest && session.currentStep !== 'CANCEL_CONFIRMATION') {
+        if (activeRequest) {
           const updatedTempData: Record<string, unknown> = {
             ...freshTempData,
             _previousFlow: session.currentFlow,
@@ -328,7 +328,7 @@ export class BotService {
 
     const updatedSession = await this.botRepository.upsert(input.phone, {
       role,
-      currentFlow: result.nextStep ? session.currentFlow : undefined,
+      currentFlow: result.nextStep ? session.currentFlow : null,
       currentStep: result.nextStep || undefined,
       tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
     });

@@ -85,10 +85,8 @@ export async function handleCancelConfirmation(
         tempData: newTempData,
       };
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al cancelar el pedido';
-
       return {
-        response: { text: message },
+        response: { text: 'Tu pedido ya fue cancelado anteriormente. Si necesitás algo más, escribime.' },
         nextStep: null,
         tempData: {},
       };

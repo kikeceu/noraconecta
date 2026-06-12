@@ -109,7 +109,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting + pendingNotification dispatch para simulador (AUT-281)
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169), ver_como_funciona handler (AUT-266)
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection (AUT-169, AUT-296), ver_como_funciona handler (AUT-266)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), notifyProfessionalVisitConfirmed incluye link de Google Maps en texto plano cuando hay coordenadas (AUT-292). sendRequestMedia deprecado: el envío de fotos/audio en "Ver detalles" ahora lo maneja webhooks.routes.ts via mediaFirst (AUT-290)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
@@ -122,7 +122,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation; AUT-294: off-topic detection en 6 steps con resolveOptionWithFallback)
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294)
-│   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic
+│   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic (AUT-296: avoids re-entry loop + friendly error on duplicate cancel)
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver (text/number aliases + LLM fallback, AUT-236, AUT-247: CONFIRM_AVAILABILITY, CONFIRM_PRO_AVAILABILITY; BOT_PAYLOADS aliases — AUT-266). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE/SI_CORRECTO (AUT-288, AUT-295). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
 │   │   │   │   │   └── flow-handler.factory.ts     # Flow handler resolution. UserRequestFlow recibe NotificationService (AUT-295)
 │   │   │   ├── payments/                # (AUT-188)
