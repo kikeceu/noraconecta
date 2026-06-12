@@ -2,11 +2,12 @@ import { randomUUID } from 'crypto';
 import { BotRepository } from './bot.repository';
 import { resolveFlowHandler, getFlowHandlerByName } from './flows/flow-handler.factory';
 import { FlowContext, BotResponse, LocationData, PendingNotification } from './flows/types';
-import { isCancellationIntent } from './flows/cancel-flow.helper';
+import { detectCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
+import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
 import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 
@@ -218,28 +219,155 @@ export class BotService {
     }
 
     const userText = input.text?.trim();
-    if (userText && isCancellationIntent(userText) && session.currentFlow && session.currentStep !== 'CANCEL_CONFIRMATION') {
+    if (
+      userText &&
+      session.currentFlow &&
+      session.currentStep !== 'CANCEL_CONFIRMATION' &&
+      session.currentStep !== 'SELECT_CANCEL_REQUEST'
+    ) {
+      const hasCancelIntent = await detectCancellationIntent(userText);
+
+      if (hasCancelIntent) {
+        const freshTempData = (session.tempData as Record<string, unknown>) || {};
+
+        if (role === 'USER') {
+          const userId = freshTempData.userId as string | undefined;
+
+          if (userId) {
+            const activeRequest = await this.requestsRepository.findActiveByUserId(userId);
+
+            if (activeRequest) {
+              const updatedTempData: Record<string, unknown> = {
+                ...freshTempData,
+                _previousFlow: session.currentFlow,
+                _previousStep: session.currentStep,
+                requestId: activeRequest.id,
+              };
+
+              session = await this.botRepository.upsert(input.phone, {
+                role,
+                currentFlow: session.currentFlow,
+                currentStep: 'CANCEL_CONFIRMATION',
+                tempData: updatedTempData as Prisma.InputJsonValue,
+              });
+            }
+          }
+        } else if (role === 'PROFESSIONAL') {
+          const professional = await this.professionalsRepository.findByPhone(input.phone);
+
+          if (professional) {
+            const activeRequests = await this.requestsRepository.findActivesByProfessionalId(professional.id);
+
+            if (activeRequests.length === 1) {
+              const r = activeRequests[0];
+              const updatedTempData: Record<string, unknown> = {
+                ...freshTempData,
+                _previousFlow: session.currentFlow,
+                _previousStep: session.currentStep,
+                requestId: r.id,
+                professionalId: professional.id,
+                categoryName: r.category?.name || 'el servicio',
+                phone: input.phone,
+              };
+
+              session = await this.botRepository.upsert(input.phone, {
+                role,
+                currentFlow: session.currentFlow,
+                currentStep: 'CANCEL_CONFIRMATION',
+                tempData: updatedTempData as Prisma.InputJsonValue,
+              });
+            } else if (activeRequests.length > 1) {
+              const list = activeRequests
+                .map((r, i) => {
+                  const date = r.scheduledAt
+                    ? ` (visita el ${formatDateTimeArgentina(r.scheduledAt)})`
+                    : ' (pendiente de confirmar)';
+                  return `${i + 1}. ${r.category?.name || 'Servicio'} en ${r.geoNode?.name || 'tu zona'}${date}`;
+                })
+                .join('\n');
+
+              session = await this.botRepository.upsert(input.phone, {
+                role,
+                currentFlow: session.currentFlow,
+                currentStep: 'SELECT_CANCEL_REQUEST',
+                tempData: {
+                  ...freshTempData,
+                  professionalId: professional.id,
+                  phone: input.phone,
+                  _cancelCandidates: activeRequests.map((r) => r.id),
+                  _cancelRequestsData: activeRequests.map((r) => ({
+                    id: r.id,
+                    categoryName: r.category?.name || 'Servicio',
+                    geoNodeName: r.geoNode?.name || 'tu zona',
+                    scheduledAt: r.scheduledAt?.toISOString() || null,
+                  })),
+                } as Prisma.InputJsonValue,
+              });
+
+              await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+              return {
+                text: `¿Cuál pedido querés cancelar?\n${list}`,
+                flow: session.currentFlow || undefined,
+                step: session.currentStep || undefined,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    if (userText && session.currentStep === 'SELECT_CANCEL_REQUEST' && role === 'PROFESSIONAL') {
       const freshTempData = (session.tempData as Record<string, unknown>) || {};
-      const userId = freshTempData.userId as string | undefined;
+      const candidates = freshTempData._cancelCandidates as string[] | undefined;
+      const requestsData = freshTempData._cancelRequestsData as
+        | { id: string; categoryName: string; geoNodeName: string; scheduledAt: string | null }[]
+        | undefined;
 
-      if (userId) {
-        const activeRequest = await this.requestsRepository.findActiveByUserId(userId);
+      if (candidates && requestsData && candidates.length > 0) {
+        const index = parseInt(userText, 10);
 
-        if (activeRequest) {
-          const updatedTempData: Record<string, unknown> = {
-            ...freshTempData,
-            _previousFlow: session.currentFlow,
-            _previousStep: session.currentStep,
-            requestId: activeRequest.id,
-          };
+        if (index >= 1 && index <= candidates.length) {
+          const selectedId = candidates[index - 1];
+          const selectedData = requestsData[index - 1];
 
           session = await this.botRepository.upsert(input.phone, {
             role,
             currentFlow: session.currentFlow,
             currentStep: 'CANCEL_CONFIRMATION',
-            tempData: updatedTempData as Prisma.InputJsonValue,
+            tempData: {
+              ...freshTempData,
+              _previousFlow: session.currentFlow,
+              _previousStep: 'SELECT_CANCEL_REQUEST',
+              requestId: selectedId,
+              professionalId: freshTempData.professionalId,
+              categoryName: selectedData.categoryName,
+              phone: input.phone,
+            } as Prisma.InputJsonValue,
           });
+
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: `¿Confirmás que querés cancelar tu pedido de ${selectedData.categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+            flow: session.currentFlow || undefined,
+            step: 'CANCEL_CONFIRMATION',
+          };
         }
+
+        // Invalid number: re-show the list
+        const list = requestsData
+          .map((r, i) => {
+            const date = r.scheduledAt
+              ? ` (visita el ${formatDateTimeArgentina(new Date(r.scheduledAt))})`
+              : ' (pendiente de confirmar)';
+            return `${i + 1}. ${r.categoryName} en ${r.geoNodeName}${date}`;
+          })
+          .join('\n');
+
+        return {
+          text: `Respondé con un número del 1 al ${candidates.length}.\n${list}`,
+          flow: session.currentFlow || undefined,
+          step: 'SELECT_CANCEL_REQUEST',
+        };
       }
     }
 
