@@ -3,6 +3,7 @@ import { RequestsService } from '../../requests/requests.service';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { NotificationService } from '../../notifications/notification.service';
 import { resolveOption } from './option-resolver.helper';
+import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 
 const CANCEL_KEYWORDS = [
@@ -20,6 +21,21 @@ export function isCancellationIntent(text: string): boolean {
   return CANCEL_KEYWORDS.some((kw) => normalized.includes(kw));
 }
 
+export async function detectCancellationIntent(text: string): Promise<boolean> {
+  if (isCancellationIntent(text)) return true;
+
+  const prompt = `El usuario escribió: "${text}"
+¿Está expresando intención de cancelar un pedido o visita?
+Respondé SOLO: SI o NO`;
+
+  try {
+    const response = await callLLM(prompt);
+    return response.trim().toUpperCase() === 'SI';
+  } catch {
+    return false;
+  }
+}
+
 export async function handleCancelConfirmation(
   context: FlowContext,
   requestsService: RequestsService,
@@ -28,6 +44,7 @@ export async function handleCancelConfirmation(
   const { session, message } = context;
   const tempData = (session.tempData as Record<string, unknown>) || {};
   const inputText = message.text?.trim().toLowerCase();
+  const role = session.role as 'USER' | 'PROFESSIONAL';
 
   const requestId = tempData.requestId as string;
   const userId = tempData.userId as string | undefined;
@@ -44,6 +61,59 @@ export async function handleCancelConfirmation(
 
   if (resolved === 'YES') {
     try {
+      if (role === 'PROFESSIONAL') {
+        const professionalId = tempData.professionalId as string;
+
+        if (!professionalId) {
+          return {
+            response: { text: 'No se pudo identificar tu cuenta profesional.' },
+            nextStep: null,
+            tempData: {},
+          };
+        }
+
+        const result = await requestsService.cancelByProfessional(requestId, professionalId);
+
+        let responseText = result.userMessage;
+
+        const abuseDetection = new AbuseDetectionService();
+        const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);
+
+        if (abuseLevel === 'warn') {
+          await prisma.professional.update({
+            where: { id: professionalId },
+            data: { abuseWarningCount: { increment: 1 } },
+          });
+          responseText += '\n\n⚠️ Notamos varias cancelaciones de tu parte. Esto afecta la experiencia de los usuarios. Si esto continúa, tu cuenta podría ser suspendida.';
+        }
+
+        if (abuseLevel === 'suspend') {
+          await prisma.professional.update({
+            where: { id: professionalId },
+            data: { status: 'SUSPENDED' },
+          });
+        }
+
+        const newTempData: Record<string, unknown> = {};
+
+        if (result.userPhone) {
+          newTempData.pendingNotification = {
+            targetPhone: result.userPhone,
+            targetRole: 'USER',
+            message: result.userMessage,
+            flow: null,
+            step: null,
+            tempData: {},
+          } satisfies PendingNotification;
+        }
+
+        return {
+          response: { text: responseText },
+          nextStep: null,
+          tempData: newTempData,
+        };
+      }
+
       const result = await requestsService.cancelByUser(requestId);
 
       let responseText = 'Tu pedido fue cancelado. Si necesitás algo más, escribime.';

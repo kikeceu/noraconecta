@@ -359,6 +359,22 @@ export class RequestsRepository {
     });
   }
 
+  async findActivesByProfessionalId(
+    professionalId: string,
+  ): Promise<(Request & { category: { name: string }; geoNode: { name: string } })[]> {
+    return prisma.request.findMany({
+      where: {
+        assignedProfessionalId: professionalId,
+        status: { in: ['ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] },
+      },
+      include: {
+        category: { select: { name: true } },
+        geoNode: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findExpiredWaitingActivations(cutoff: Date): Promise<Request[]> {
     return prisma.request.findMany({
       where: {
