@@ -1129,6 +1129,12 @@ POST /bot/message
 - **Manejo en flows**: `UserRequestFlow` y `CoordinationFlow` incluyen case `CANCEL_CONFIRMATION` que delega en `handleCancelConfirmation()` (`cancel-flow.helper.ts`). `RequestsService` se inyecta en ambos flows para ejecutar `cancelByUser()`.
 - **Sin request activo**: Si el usuario escribe "cancelar" pero no tiene pedidos activos, el mensaje no se intercepta y el flow handler lo procesa normalmente.
 
+**Persistencia de tempData con flag `_clearTempData` (AUT-299):**
+- **Problema**: El `tempData` de la sesión se vaciaba cada vez que un flow retornaba `nextStep: null`, incluso cuando el flujo continuaba (ej: usuario manda dirección y espera que el profesional confirme). Esto eliminaba `userId`, `requestId`, `professionalId` del `tempData`, rompiendo lógica posterior como la detección de cancelación con LLM.
+- **Solución**: Se agregó flag explícito `_clearTempData: true` en el `tempData` de los retornos de flow. `BotService.processMessage()` solo vacía `tempData` si `nextStep === null && _clearTempData === true`. Los flujos marcan este flag solo cuando realmente terminan (cancelación confirmada, pedido rechazado, feedback completado, error sin recuperación).
+- **NO llevan `_clearTempData`**: retornos con `pendingNotification` (el flujo continúa en la sesión del otro participante) y retornos donde el flujo del usuario sigue activo (ej: `AWAITING_LOCATION` → espera confirmación del profesional).
+- **Archivos modificados**: `bot.service.ts`, `coordination.flow.ts`, `cancel-flow.helper.ts`, `feedback.flow.ts`, `user-request.flow.ts`.
+
 **Sistema anti-abuso: detección y degradación gradual (AUT-243):**
 
 Detección de patrones de abuso en usuarios y profesionales con degradación gradual en 3 niveles: `clean`, `warn`, `suspend`. Nunca se usa silencio total para proteger la reputación del número ante Meta.

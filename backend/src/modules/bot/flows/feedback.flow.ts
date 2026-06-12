@@ -63,7 +63,7 @@ export class FeedbackFlow implements FlowHandler {
       return {
         response: { text: 'No encontré el pedido para confirmar finalización.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -80,7 +80,7 @@ export class FeedbackFlow implements FlowHandler {
             text: 'Perfecto. Marcamos el trabajo como finalizado y le pedimos feedback al usuario.',
           },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       } catch (error) {
         const errorMessage =
@@ -109,7 +109,7 @@ export class FeedbackFlow implements FlowHandler {
         return {
           response: { text: 'Entendido. Derivamos el caso a nuestro equipo para revisarlo.' },
           nextStep: null,
-          tempData: {},
+          tempData: { _clearTempData: true },
         };
       }
 
@@ -152,7 +152,7 @@ export class FeedbackFlow implements FlowHandler {
       return {
         response: { text: 'No encontré el pedido a calificar.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -330,7 +330,7 @@ export class FeedbackFlow implements FlowHandler {
       return {
         response: { text: errorMessage },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -380,7 +380,7 @@ export class FeedbackFlow implements FlowHandler {
         text: '¡Gracias! Tu calificación fue registrada.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -440,7 +440,7 @@ export class FeedbackFlow implements FlowHandler {
       return {
         response: { text: 'No pude registrar la calificación. Volvé a intentarlo.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -477,7 +477,7 @@ export class FeedbackFlow implements FlowHandler {
       return {
         response: { text: errorMessage },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
 
@@ -486,7 +486,7 @@ export class FeedbackFlow implements FlowHandler {
         text: '¡Gracias! Tu calificación fue registrada.',
       },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 

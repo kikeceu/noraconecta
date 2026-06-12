@@ -53,7 +53,7 @@ export async function handleCancelConfirmation(
     return {
       response: { text: 'No se encontró un pedido activo para cancelar.' },
       nextStep: null,
-      tempData: {},
+      tempData: { _clearTempData: true },
     };
   }
 
@@ -68,7 +68,7 @@ export async function handleCancelConfirmation(
           return {
             response: { text: 'No se pudo identificar tu cuenta profesional.' },
             nextStep: null,
-            tempData: {},
+            tempData: { _clearTempData: true },
           };
         }
 
@@ -94,7 +94,9 @@ export async function handleCancelConfirmation(
           });
         }
 
-        const newTempData: Record<string, unknown> = {};
+        const newTempData: Record<string, unknown> = {
+          _clearTempData: true,
+        };
 
         if (result.userPhone) {
           newTempData.pendingNotification = {
@@ -138,7 +140,9 @@ export async function handleCancelConfirmation(
         }
       }
 
-      const newTempData: Record<string, unknown> = {};
+      const newTempData: Record<string, unknown> = {
+        _clearTempData: true,
+      };
 
       if (result.shouldNotifyProfessional && result.professionalPhone && result.professionalMessage) {
         newTempData.pendingNotification = {
@@ -160,7 +164,7 @@ export async function handleCancelConfirmation(
       return {
         response: { text: 'Tu pedido ya fue cancelado anteriormente. Si necesitás algo más, escribime.' },
         nextStep: null,
-        tempData: {},
+        tempData: { _clearTempData: true },
       };
     }
   }
