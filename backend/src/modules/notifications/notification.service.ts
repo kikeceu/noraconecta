@@ -8,6 +8,7 @@ import {
   TEMPLATE_USER_DESCRIPCION_NO_RELACIONADA,
   TEMPLATE_USER_CONFIRMAR_SERVICIO,
   TEMPLATE_USER_CANCELAR_PEDIDO,
+  TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA,
 } from '../../utils/whatsapp-templates';
 
 export interface ProfessionalInfo {
@@ -108,40 +109,80 @@ export class NotificationService {
     professionalPhone: string,
     request: RequestInfo,
   ): Promise<void> {
+    const hasMedia = request.photoUrls.length > 0 || !!request.audioUrl;
     const needsTemplate = await shouldUseTemplate(
       professionalPhone,
       'PROFESSIONAL',
       this.botRepository,
     );
 
+    const templateName = hasMedia
+      ? 'nora_pro_nuevo_pedido'
+      : TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA;
+
+    const templateParams: string[] = [
+      request.categoryName,
+      request.zoneName,
+      buildBriefParam(request.technicalBrief),
+    ];
+
     if (needsTemplate) {
-      await this.whatsappAdapter.sendTemplateWithQuickReplies(
-        professionalPhone,
-        'nora_pro_nuevo_pedido',
-        [request.categoryName, request.zoneName, buildBriefParam(request.technicalBrief)],
-        [
-          { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver los detalles' },
-          { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
-        ],
-        'PROFESSIONAL',
-      );
+      if (hasMedia) {
+        await this.whatsappAdapter.sendTemplateWithQuickReplies(
+          professionalPhone,
+          templateName,
+          templateParams,
+          [
+            { payload: BOT_PAYLOADS.VER_DETALLES, text: 'Ver los detalles' },
+            { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
+          ],
+          'PROFESSIONAL',
+        );
+      } else {
+        await this.whatsappAdapter.sendTemplateWithQuickReplies(
+          professionalPhone,
+          templateName,
+          templateParams,
+          [
+            { payload: 'aceptar_pedido', text: 'Aceptar' },
+            { payload: BOT_PAYLOADS.NO_PUEDO, text: 'Ahora no puedo' },
+          ],
+          'PROFESSIONAL',
+        );
+      }
       // Photos and audio are sent after the professional asks for details.
       return;
     }
 
-    const briefSection = request.technicalBrief
-      ? `\n\n📋 ${request.technicalBrief.substring(0, MAX_BRIEF_LENGTH)}`
-      : '';
+    if (hasMedia) {
+      const briefSection = request.technicalBrief
+        ? `\n\n📋 ${request.technicalBrief.substring(0, MAX_BRIEF_LENGTH)}`
+        : '';
 
-    const message = `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.${briefSection}\n\n¿Lo tomás?\n1. Ver los detalles\n2. Ahora no puedo`;
+      const message = `Tenés un nuevo pedido de ${request.categoryName} en ${request.zoneName}.${briefSection}\n\n¿Lo tomás?\n1. Ver los detalles\n2. Ahora no puedo`;
 
-    await this.sendWithWindowCheck(
-      professionalPhone,
-      'PROFESSIONAL',
-      message,
-      'nora_pro_nuevo_pedido',
-      [request.categoryName, request.zoneName, buildBriefParam(request.technicalBrief)],
-    );
+      await this.sendWithWindowCheck(
+        professionalPhone,
+        'PROFESSIONAL',
+        message,
+        templateName,
+        templateParams,
+      );
+    } else {
+      const briefSection = request.technicalBrief
+        ? `\n\n📋 ${request.technicalBrief.substring(0, MAX_BRIEF_LENGTH)}`
+        : '';
+
+      const message = `Hay un pedido de ${request.categoryName} en ${request.zoneName} esperándote.${briefSection}\n\n¿Lo tomás?\n1. Aceptar\n2. Ahora no puedo`;
+
+      await this.sendWithWindowCheck(
+        professionalPhone,
+        'PROFESSIONAL',
+        message,
+        templateName,
+        templateParams,
+      );
+    }
     // Photos and audio are sent after the professional asks for details.
   }
 

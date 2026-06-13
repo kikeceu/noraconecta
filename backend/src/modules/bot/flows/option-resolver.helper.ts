@@ -10,7 +10,7 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
   AWAITING_ACCEPTANCE: [
     { value: 'VER_DETALLES', aliases: ['1', 'ver detalles', 'detalle', 'detalles', 'ver pedido', BOT_PAYLOADS.VER_DETALLES] },
     { value: 'REJECT', aliases: ['2', 'rechazar', 'rechazo', 'no', BOT_PAYLOADS.NO_PUEDO] },
-    { value: 'ACCEPT', aliases: ['aceptar', 'acepto', 'si', 'sí', 'dale', 'ok'] },
+    { value: 'ACCEPT', aliases: ['aceptar', 'acepto', 'si', 'sí', 'dale', 'ok', 'aceptar_pedido'] },
   ],
   AWAITING_CONFIRMATION: [
     {

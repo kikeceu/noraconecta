@@ -85,6 +85,14 @@ export class BotService {
 
     let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
 
+    console.log('[processMessage:session]', {
+      phone: input.phone,
+      role,
+      currentFlow: session?.currentFlow,
+      currentStep: session?.currentStep,
+      updatedAt: session?.updatedAt,
+    });
+
     console.log('[processMessage] phone:', input.phone, 'role:', role, 'currentFlow:', session?.currentFlow, 'currentStep:', session?.currentStep);
 
     let observationWarning: string | undefined;
@@ -535,6 +543,11 @@ export class BotService {
     tempData.description = request.description;
     tempData.photoUrls = request.photoUrls;
     tempData.audioUrl = request.audioUrl || undefined;
+
+    const hasMedia = (request.photoUrls && request.photoUrls.length > 0) || !!request.audioUrl;
+    if (!hasMedia) {
+      tempData._detailsShown = true;
+    }
 
     return tempData;
   }

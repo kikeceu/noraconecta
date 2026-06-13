@@ -146,6 +146,24 @@ export class CoordinationFlow implements FlowHandler {
         audioUrl = request.audioUrl || undefined;
       }
 
+      const hasMedia = (photoUrls && photoUrls.length > 0) || !!audioUrl;
+
+      if (!hasMedia) {
+        return {
+          response: {
+            text: `Pedido de ${categoryName} en ${zoneName}.\n\nDescripción: ${description}\n\n1. Aceptar\n2. Ahora no puedo`,
+          },
+          nextStep: 'AWAITING_ACCEPTANCE',
+          tempData: {
+            ...tempData,
+            _detailsShown: true,
+            categoryName,
+            zoneName,
+            description,
+          },
+        };
+      }
+
       const detailsResponse: FlowStepResult = {
         response: {
           text: [
@@ -206,6 +224,24 @@ export class CoordinationFlow implements FlowHandler {
         detailDescription = fetchedRequest.description;
         detailPhotoUrls = fetchedRequest.photoUrls;
         detailAudioUrl = fetchedRequest.audioUrl || undefined;
+      }
+
+      const detailHasMedia = (detailPhotoUrls && detailPhotoUrls.length > 0) || !!detailAudioUrl;
+
+      if (!detailHasMedia) {
+        return {
+          response: {
+            text: `Pedido de ${detailCategoryName} en ${detailZoneName}.\n\nDescripción: ${detailDescription}\n\n1. Aceptar\n2. Ahora no puedo`,
+          },
+          nextStep: 'AWAITING_ACCEPTANCE',
+          tempData: {
+            ...tempData,
+            _detailsShown: true,
+            categoryName: detailCategoryName,
+            zoneName: detailZoneName,
+            description: detailDescription,
+          },
+        };
       }
 
       const verDetallesResponse: FlowStepResult = {
