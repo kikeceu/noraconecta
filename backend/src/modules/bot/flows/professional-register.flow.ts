@@ -100,7 +100,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       tempData._nameAsked = true;
       return {
         response: {
-          text: 'Hola! Para registrarte como profesional necesito algunos datos. Cual es tu nombre completo?',
+          text: '¡Hola! 👋 Bienvenido a NORA. Nos alegra que quieras sumarte a nuestra red de profesionales de confianza.\n\nPara comenzar tu registro, ¿cuál es tu nombre completo?',
         },
         nextStep: 'ASK_NAME',
         tempData,
@@ -111,7 +111,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
     if (!inputName) {
       return {
-        response: { text: 'Cual es tu nombre completo?' },
+        response: { text: '¿Cuál es tu nombre completo?' },
         nextStep: 'ASK_NAME',
         tempData,
       };
@@ -376,8 +376,6 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       .filter((n) => n >= 1 && n <= availableZones.length)
       .map((n) => availableZones[n - 1]);
 
-    const invalid = numbers.filter((n) => n < 1 || n > availableZones.length);
-
     if (selected.length === 0) {
       const list = availableZones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
       return {
@@ -390,11 +388,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     tempData.zones = selected.map((z) => z.name);
     tempData.zoneIds = selected.map((z) => z.id);
 
-    let responseText = `Zonas registradas: ${selected.map((z) => z.name).join(', ')}.`;
-    if (invalid.length > 0) {
-      responseText += ` (Numeros no reconocidos: ${invalid.join(', ')})`;
-    }
-    responseText += ' Para poder asignarte pedidos cercanos, comparti tu ubicacion por WhatsApp.';
+    const responseText = `Zonas registradas:\n${selected.map((z) => `• ${z.name}`).join('\n')}\n\nPara poder asignarte pedidos cercanos, compartí tu ubicación por WhatsApp.`;
 
     return {
       response: { text: responseText },
