@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express';
-import { Prisma } from '@prisma/client';
 import { BotService } from './bot.service';
 import { BotRepository } from './bot.repository';
 import { UsersService } from '../users/users.service';
@@ -46,22 +45,8 @@ export class BotController {
         const { targetPhone, targetRole, message } = result.pendingNotification;
         const r2Client = new R2Client();
         const adapter = new WhatsAppAdapter(r2Client, botRepository);
-
         try {
           await adapter.sendText(targetPhone, message, targetRole);
-
-          const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
-          if (targetSession) {
-            const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
-            const { pendingMessage: _, ...cleanTempData } = targetTempData;
-
-            await botRepository.upsert(targetPhone, {
-              role: targetRole,
-              currentFlow: targetSession.currentFlow,
-              currentStep: targetSession.currentStep,
-              tempData: cleanTempData as Prisma.InputJsonValue,
-            });
-          }
         } catch (err) {
           console.error('[BotController] Failed to send pending notification:', err);
         }

@@ -57,6 +57,17 @@ Responde solo el brief, sin saludos ni explicaciones.`;
   return callLLM(prompt);
 }
 
+async function extractName(input: string): Promise<string> {
+  const prompt = `Extraé solo el nombre propio de esta frase. Si hay nombre y apellido, devolvé ambos. Devolvé SOLO el nombre, sin explicaciones.
+Frase: "${input}"`;
+  try {
+    const response = await callLLM(prompt);
+    return response.trim() || input.trim();
+  } catch {
+    return input.trim();
+  }
+}
+
 type DescriptionValidation = 'VALID' | 'INVALID' | 'UNCERTAIN';
 
 async function validateDescription(description: string, categoryName: string): Promise<DescriptionValidation> {
@@ -267,11 +278,13 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
+    const extractedName = await extractName(inputName);
+
     if (userId) {
-      await prisma.user.update({ where: { id: userId }, data: { name: inputName } });
+      await prisma.user.update({ where: { id: userId }, data: { name: extractedName } });
     }
 
-    tempData.name = inputName;
+    tempData.name = extractedName;
 
     return this.handleAskService({}, tempData);
   }
@@ -752,7 +765,7 @@ export class UserRequestFlow implements FlowHandler {
       tempData.userLongitude = message.location.longitude;
 
       return {
-        response: { text: 'Gracias. Queres enviar fotos? (hasta 3) Escribi "continuar" para seguir sin fotos' },
+        response: { text: 'Gracias. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.' },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -764,7 +777,7 @@ export class UserRequestFlow implements FlowHandler {
       tempData.userLongitude = undefined;
 
       return {
-        response: { text: 'Perfecto. Continuamos sin ubicacion. Queres enviar fotos? (hasta 3) Escribi "continuar" para seguir sin fotos' },
+        response: { text: 'Perfecto. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.' },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -773,7 +786,7 @@ export class UserRequestFlow implements FlowHandler {
     // No text nor location → ask again
     return {
       response: {
-        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp. Si no podes compartirla, escribi "omitir".',
+        text: 'Para encontrarte al profesional más cercano, compartí tu ubicación por WhatsApp. Si no podés, escribí "no".',
       },
       nextStep: 'ASK_LOCATION',
       tempData,
@@ -793,14 +806,14 @@ export class UserRequestFlow implements FlowHandler {
 
       if (mergedPhotos.length >= 3) {
         return {
-          response: { text: 'Recibi 3 fotos. ¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
+          response: { text: 'Recibí 3 fotos. ¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
           nextStep: 'ASK_AUDIO',
           tempData,
         };
       }
 
       return {
-        response: { text: `Recibi ${mergedPhotos.length}/3 foto(s). Podés enviar más o escribí "continuar" para seguir.` },
+        response: { text: `Recibí ${mergedPhotos.length}/3 foto(s). Podés enviar más o escribí "no" para continuar.` },
         nextStep: 'ASK_PHOTOS',
         tempData,
       };
@@ -810,7 +823,7 @@ export class UserRequestFlow implements FlowHandler {
 
     if (inputText === 'continuar' || !!inputText) {
       return {
-        response: { text: '¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
+        response: { text: '¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
         nextStep: 'ASK_AUDIO',
         tempData,
       };
@@ -843,7 +856,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: { text: '¿Querés enviar un audio con más detalle? Escribí "continuar" para seguir sin audio.' },
+      response: { text: '¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
       nextStep: 'ASK_AUDIO',
       tempData,
     };
@@ -898,7 +911,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-        text: 'Para encontrarte al profesional mas cercano, comparti tu ubicacion por WhatsApp (usa el boton de ubicacion). Si no podes compartirla, escribi "omitir".',
+        text: 'Para encontrarte al profesional más cercano, compartí tu ubicación por WhatsApp. Si no podés, escribí "no".',
       },
       nextStep: 'ASK_LOCATION',
       tempData,

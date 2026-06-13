@@ -85,3 +85,6 @@ export const TEMPLATE_USER_CONFIRMAR_SERVICIO = 'nora_user_confirmar_servicio';
 
 /** User cancel confirmation */
 export const TEMPLATE_USER_CANCELAR_PEDIDO = 'nora_user_cancelar_pedido';
+
+/** New request without media — direct accept/reject */
+export const TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA = 'nora_pro_nuevo_pedido_sin_media';
