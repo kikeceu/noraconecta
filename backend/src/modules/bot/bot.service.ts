@@ -438,7 +438,7 @@ export class BotService {
     const step = session.currentStep || flowHandler.getInitialStep();
 
     const imageUrls = step === 'ASK_PHOTOS' ? input.imageUrls : undefined;
-    const audioUrl = step === 'ASK_AUDIO' ? input.audioUrl : undefined;
+    const audioUrl = (step === 'ASK_AUDIO' || step === 'ASK_DESCRIPTION' || step === 'CLARIFICATION') ? input.audioUrl : undefined;
 
     const context: FlowContext = {
       session,

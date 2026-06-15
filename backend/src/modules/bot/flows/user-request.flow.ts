@@ -8,7 +8,7 @@ import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
-import { callLLM } from '../../../lib/llm-client';
+import { callLLM, transcribeAudio } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -415,7 +415,7 @@ export class UserRequestFlow implements FlowHandler {
       const zoneName = tempData.geoNodeName as string;
       return {
         response: {
-          text: `Entendido: ${categoryName} en ${zoneName}. Contame brevemente el problema.`,
+          text: `Entendido: ${categoryName} en ${zoneName}. Describí el problema. Podés escribirlo o mandar un audio.`,
         },
         nextStep: 'ASK_DESCRIPTION',
         tempData,
@@ -653,7 +653,7 @@ export class UserRequestFlow implements FlowHandler {
     tempData.geoNodeName = selected.name;
 
     return {
-      response: { text: `Zona: ${selected.name}. Contame brevemente el problema.` },
+      response: {         text: `Zona: ${selected.name}. Describí el problema. Podés escribirlo o mandar un audio.` },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
     };
@@ -692,7 +692,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Zona: ${nlpResult.match.name}. Contame brevemente el problema.`,
+        text: `Zona: ${nlpResult.match.name}. Describí el problema. Podés escribirlo o mandar un audio.`,
       },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
@@ -700,14 +700,31 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handleAskDescription(
-    message: { text?: string },
+    message: { text?: string; audioUrl?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const description = message.text?.trim();
+    let description = message.text?.trim();
+
+    if (message.audioUrl && !description) {
+      try {
+        const transcription = await transcribeAudio(message.audioUrl);
+        if (transcription) {
+          description = transcription;
+          tempData.descriptionAudioUrl = message.audioUrl;
+        }
+      } catch (err) {
+        console.error('[UserRequestFlow] Audio transcription failed:', err);
+        return {
+          response: { text: 'No pude procesar el audio. ¿Podés escribirme el problema?' },
+          nextStep: 'ASK_DESCRIPTION',
+          tempData,
+        };
+      }
+    }
 
     if (!description) {
       return {
-        response: { text: 'Por favor contame brevemente el problema.' },
+        response: { text: 'Describí el problema. Podés escribirlo o mandar un audio.' },
         nextStep: 'ASK_DESCRIPTION',
         tempData,
       };
@@ -805,6 +822,9 @@ export class UserRequestFlow implements FlowHandler {
       tempData.photoUrls = mergedPhotos;
 
       if (mergedPhotos.length >= 3) {
+        if (tempData.descriptionAudioUrl) {
+          return this.handleAskAudio({}, tempData);
+        }
         return {
           response: { text: 'Recibí 3 fotos. ¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
           nextStep: 'ASK_AUDIO',
@@ -822,6 +842,9 @@ export class UserRequestFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase();
 
     if (inputText === 'continuar' || !!inputText) {
+      if (tempData.descriptionAudioUrl) {
+        return this.handleAskAudio({}, tempData);
+      }
       return {
         response: { text: '¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
         nextStep: 'ASK_AUDIO',
@@ -840,6 +863,16 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string; audioUrl?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    if (tempData.descriptionAudioUrl) {
+      tempData.audioUrl = tempData.descriptionAudioUrl;
+      const confirmText = this.buildConfirmation(tempData);
+      return {
+        response: { text: confirmText },
+        nextStep: 'CONFIRM',
+        tempData,
+      };
+    }
+
     if (message.audioUrl) {
       tempData.audioUrl = message.audioUrl;
     }
@@ -863,7 +896,7 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handleClarification(
-    message: { text?: string },
+    message: { text?: string; audioUrl?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const description = tempData.description as string;
@@ -890,7 +923,14 @@ export class UserRequestFlow implements FlowHandler {
         // LLM error — non-blocking, proceed to technical brief
       }
     } else {
-      const answer = message.text?.trim();
+      let answer = message.text?.trim();
+      if (!answer && message.audioUrl) {
+        try {
+          answer = await transcribeAudio(message.audioUrl);
+        } catch (err) {
+          console.error('[UserRequestFlow] Clarification audio transcription failed:', err);
+        }
+      }
       if (answer) {
         tempData.clarificationAnswer = answer;
       }
@@ -973,7 +1013,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Contame brevemente el problema relacionado con ${categoryName}.`,
+        text: `Describí el problema relacionado con ${categoryName}. Podés escribirlo o mandar un audio.`,
       },
       nextStep: 'ASK_DESCRIPTION',
       tempData: { ...tempData, _uncertainDescription: undefined },
