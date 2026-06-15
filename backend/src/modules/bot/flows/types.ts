@@ -53,3 +53,14 @@ export interface PendingNotification {
   step: string | null;
   tempData: Record<string, unknown>;
 }
+
+export interface SavedLocation {
+  id: string;
+  label?: string;
+  lat?: number;
+  lng?: number;
+  geoNodeId?: string;
+  zoneName?: string;
+  address: string;
+  updatedAt: string;
+}

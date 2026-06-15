@@ -135,6 +135,7 @@ model User {
   status             UserStatus @default(ACTIVE)
   abuseWarningCount  Int        @default(0)
   lastAbuseCheckAt   DateTime?
+  savedLocations     Json?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 

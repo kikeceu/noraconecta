@@ -17,6 +17,7 @@ export type CreateRequestInput = {
   assignedAt?: Date;
   assignmentTimeoutAt?: Date;
   technicalBrief?: string;
+  clientAddress?: string;
 };
 
 export type CreateEventInput = {

@@ -1,5 +1,6 @@
 import prisma from '../../lib/prisma';
-import { User } from '@prisma/client';
+import { Prisma, User } from '@prisma/client';
+import { SavedLocation } from '../../modules/bot/flows/types';
 
 export type CreateUserInput = {
   phone: string;
@@ -36,6 +37,13 @@ export class UsersRepository {
     return prisma.user.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async updateSavedLocations(id: string, savedLocations: SavedLocation[]): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: { savedLocations: savedLocations as unknown as Prisma.InputJsonValue },
     });
   }
 }

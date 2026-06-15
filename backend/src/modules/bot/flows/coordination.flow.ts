@@ -1,4 +1,4 @@
-import { FlowContext, FlowHandler, FlowStepResult } from './types';
+import { FlowContext, FlowHandler, FlowStepResult, SavedLocation } from './types';
 import prisma from '../../../lib/prisma';
 import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
@@ -7,11 +7,13 @@ import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
 import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
+import { ConfigRepository } from '../../config/config.repository';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
+import { upsertSavedLocationByAddress, findLocationsByGeoNode, touchSavedLocation, DEFAULT_MAX_SAVED_LOCATIONS } from './location-saver.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
@@ -21,6 +23,8 @@ export class CoordinationFlow implements FlowHandler {
   constructor(
     private readonly requestsService: RequestsService,
     private readonly coordinationService: CoordinationService,
+    private readonly usersRepository: UsersRepository,
+    private readonly configRepository: ConfigRepository,
     private readonly notificationService?: NotificationService,
   ) {}
 
@@ -650,6 +654,37 @@ export class CoordinationFlow implements FlowHandler {
         const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
         const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
+        const existingRequest = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: { clientAddress: true },
+        });
+
+        if (existingRequest?.clientAddress) {
+          const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
+            ...tempData,
+            professionalName,
+          });
+
+          return {
+            response: {
+              text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+            },
+            nextStep: null,
+            tempData: {
+              requestId,
+              scheduledAt: existingScheduledAt,
+              pendingNotification: {
+                targetPhone: tempData.userPhone,
+                targetRole: 'USER',
+                message: finalizeResult.response.text,
+                flow: 'COORDINATION',
+                step: finalizeResult.nextStep,
+                tempData: finalizeResult.tempData,
+              },
+            } as Record<string, unknown>,
+          };
+        }
+
         const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
         return {
@@ -856,6 +891,37 @@ export class CoordinationFlow implements FlowHandler {
       const dayName = dayNames[getDayArgentina(newScheduledAt)];
       const hours = getHoursArgentina(newScheduledAt).toString().padStart(2, '0');
       const minutes = getMinutesArgentina(newScheduledAt).toString().padStart(2, '0');
+
+      const existingRequest = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { clientAddress: true },
+      });
+
+      if (existingRequest?.clientAddress) {
+        const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
+          ...tempData,
+          professionalName,
+        });
+
+        return {
+          response: {
+            text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+          },
+          nextStep: null,
+          tempData: {
+            requestId,
+            scheduledAt: newScheduledAt.toISOString(),
+            pendingNotification: {
+              targetPhone: tempData.userPhone,
+              targetRole: 'USER',
+              message: finalizeResult.response.text,
+              flow: 'COORDINATION',
+              step: finalizeResult.nextStep,
+              tempData: finalizeResult.tempData,
+            },
+          } as Record<string, unknown>,
+        };
+      }
 
       const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
@@ -1120,9 +1186,50 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
+    // --- Sub-step: usuario está respondiendo a una sugerencia de dirección existente ---
+    if (tempData._locationSuggestions) {
+      return this.handleLocationSuggestionResponse(message, tempData);
+    }
+
     const address = message.text?.trim();
 
+    // --- Caso: ya viene con clientAddress pre-llenado (reutilizó savedLocation) ---
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: { clientAddress: true, geoNodeId: true, userId: true, userLatitude: true, userLongitude: true },
+    });
+
+    if (!address && request?.clientAddress) {
+      return this.finalizeLocation(request.clientAddress, requestId, tempData);
+    }
+
     if (!address) {
+      // --- Caso B: no escribió dirección. Buscar sugerencias por geoNodeId ---
+      const userId = request?.userId;
+      const geoNodeId = request?.geoNodeId;
+
+      if (userId && geoNodeId) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        const savedLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
+        const matches = findLocationsByGeoNode(savedLocations, geoNodeId);
+
+        if (matches.length > 0) {
+          const list = matches.map((loc, i) => `${i + 1}. ${loc.address}`).join('\n');
+          const otherOptionNumber = matches.length + 1;
+
+          return {
+            response: {
+              text: `Para coordinar la visita necesito la dirección exacta. ¿Es alguna de estas?\n\n${list}\n${otherOptionNumber}. Es otra dirección`,
+            },
+            nextStep: 'AWAITING_LOCATION',
+            tempData: {
+              ...tempData,
+              _locationSuggestions: matches.map((m) => ({ id: m.id, address: m.address })),
+            },
+          };
+        }
+      }
+
       return {
         response: {
           text: 'Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).',
@@ -1132,6 +1239,62 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
+    // --- Caso A: escribió una dirección de texto ---
+    return this.finalizeLocation(address, requestId, tempData);
+  }
+
+  private async handleLocationSuggestionResponse(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const requestId = tempData.requestId as string;
+    const suggestions = (tempData._locationSuggestions as { id: string; address: string }[]) || [];
+    const inputText = message.text?.trim() || '';
+    const number = parseInt(inputText, 10);
+    const otherOptionNumber = suggestions.length + 1;
+
+    if (!isNaN(number) && number >= 1 && number <= suggestions.length) {
+      const chosen = suggestions[number - 1];
+
+      const request = await prisma.request.findUnique({ where: { id: requestId }, select: { userId: true } });
+      if (request?.userId) {
+        const user = await prisma.user.findUnique({ where: { id: request.userId } });
+        const savedLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
+        await touchSavedLocation(this.usersRepository, request.userId, savedLocations, chosen.id);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _locationSuggestions, ...cleanTempData } = tempData;
+      return this.finalizeLocation(chosen.address, requestId, cleanTempData);
+    }
+
+    if (number === otherOptionNumber) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { _locationSuggestions, ...cleanTempData } = tempData;
+      return {
+        response: {
+          text: 'Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).',
+        },
+        nextStep: 'AWAITING_LOCATION',
+        tempData: cleanTempData,
+      };
+    }
+
+    const list = suggestions.map((s, i) => `${i + 1}. ${s.address}`).join('\n');
+    return {
+      response: {
+        text: `Elegí una opción:\n\n${list}\n${otherOptionNumber}. Es otra dirección`,
+      },
+      nextStep: 'AWAITING_LOCATION',
+      tempData,
+    };
+  }
+
+  private async finalizeLocation(
+    address: string,
+    requestId: string,
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
     await prisma.request.update({
       where: { id: requestId },
       data: {
@@ -1146,9 +1309,30 @@ export class CoordinationFlow implements FlowHandler {
         scheduledAt: true,
         userLatitude: true,
         userLongitude: true,
+        geoNodeId: true,
+        geoNode: { select: { name: true } },
+        userId: true,
         user: { select: { name: true, phone: true } },
       },
     });
+
+    // --- Persistir en savedLocations (solo si la dirección no vino de una savedLocation ya tocada) ---
+    if (request?.userId && !tempData._locationSuggestions) {
+      const user = await prisma.user.findUnique({ where: { id: request.userId } });
+      const currentLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
+
+      const maxLocationsConfig = await this.configRepository.findByKey('USER_MAX_SAVED_LOCATIONS');
+      const parsedMax = maxLocationsConfig ? parseInt(maxLocationsConfig.value, 10) : DEFAULT_MAX_SAVED_LOCATIONS;
+      const maxLocations = isNaN(parsedMax) ? DEFAULT_MAX_SAVED_LOCATIONS : parsedMax;
+
+      await upsertSavedLocationByAddress(this.usersRepository, request.userId, currentLocations, {
+        geoNodeId: request.geoNodeId ?? undefined,
+        zoneName: request.geoNode?.name,
+        lat: request.userLatitude ?? undefined,
+        lng: request.userLongitude ?? undefined,
+        address,
+      }, maxLocations);
+    }
 
     const scheduledAt = request?.scheduledAt;
 
@@ -1176,13 +1360,16 @@ export class CoordinationFlow implements FlowHandler {
       console.error('[CoordinationFlow] Failed to notify professional visit confirmed:', err);
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _locationSuggestions, ...cleanTempData } = tempData;
+
     return {
       response: {
         text: `¡Todo listo! ${tempData.professionalName || 'El profesional'} ya tiene tus datos para la visita.`,
       },
       nextStep: 'AWAITING_VISIT',
       tempData: {
-        ...tempData,
+        ...cleanTempData,
         clientAddress: address,
       },
     };
