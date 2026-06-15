@@ -24,7 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
@@ -118,7 +118,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   └── bot-payloads.ts   # BOT_PAYLOADS: constantes centralizadas de todos los payloads de botones WhatsApp (AUT-266, AUT-295)
 │   │   │   │   ├── flows/
 │   │   │   │   │   ├── types.ts          # Type definitions for flows. BotResponse incluye mediaFirst para control de orden de envío (AUT-290)
-│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + ASK_LOCATION simplificado: cualquier texto avanza sin ubicación (AUT-289) + off-topic detection en DESCRIPTION_MISMATCH y WAITING_CONSENT (AUT-294) + soporte template para reenvío post-24hs via NotificationService (AUT-295) + extractName con LLM en handleAskName (AUT-301) + mensajes simplificados: "no" reemplaza "continuar"/"omitir" en fotos/audio/ubicación (AUT-301)
+│   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_PROVINCE → ASK_ZONE → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_LOCATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + ASK_LOCATION simplificado: cualquier texto avanza sin ubicación (AUT-289) + off-topic detection en DESCRIPTION_MISMATCH y WAITING_CONSENT (AUT-294) + soporte template para reenvío post-24hs via NotificationService (AUT-295) + extractName con LLM en handleAskName (AUT-301) + mensajes simplificados: "no" reemplaza "continuar"/"omitir" en fotos/audio/ubicación (AUT-301) + transcripción de audio en ASK_DESCRIPTION via transcribeAudio: si usuario manda audio se transcribe como descripción y se saltea ASK_AUDIO (AUT-302)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249; UX improvements: warm greeting, bulleted zones list — AUT-300)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation; AUT-294: off-topic detection en 6 steps con resolveOptionWithFallback; AUT-301: handleAwaitingAcceptance sin media muestra Aceptar/Ahora no puedo directo sin "Ver detalles")
 │   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294)
@@ -134,7 +134,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
@@ -405,6 +405,7 @@ La variable de entorno `BUILD_TARGET` es leída por `vite.config.ts` para:
 | `OPENAI_MODEL` | `gpt-4o-mini` | Modelo de OpenAI (AUT-242) |
 | `ANTHROPIC_API_KEY` | — | API key de Anthropic (AUT-242) |
 | `ANTHROPIC_MODEL` | `claude-haiku-4-5-20251001` | Modelo de Anthropic (AUT-242) |
+| `OPENAI_TRANSCRIPTION_MODEL` | `gpt-4o-mini-transcribe` | Modelo de transcripción de audio: `gpt-4o-mini-transcribe`, `gpt-4o-transcribe`, `whisper-1` (AUT-302) |
 
 ### Archivos de entorno por target (frontend)
 

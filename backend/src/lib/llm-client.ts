@@ -128,3 +128,35 @@ export async function callLLMWithImages(input: LLMImageInput): Promise<string> {
     throw err;
   }
 }
+
+export async function transcribeAudio(audioUrl: string): Promise<string> {
+  const model = process.env.OPENAI_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe';
+
+  const response = await fetch(audioUrl);
+  if (!response.ok) throw new Error(`Failed to fetch audio: ${response.status}`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+
+  const ext = audioUrl.split('.').pop()?.split('?')[0] || 'ogg';
+  const mimeType = ext === 'mp3' ? 'audio/mpeg' : `audio/${ext}`;
+
+  const formData = new FormData();
+  const blob = new Blob([buffer], { type: mimeType });
+  formData.append('file', blob, `audio.${ext}`);
+  formData.append('model', model);
+  formData.append('language', 'es');
+
+  const transcribeRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY || ''}`,
+    },
+    body: formData,
+  });
+
+  if (!transcribeRes.ok) {
+    throw new Error(`OpenAI transcription failed: ${transcribeRes.status}`);
+  }
+
+  const data = (await transcribeRes.json()) as { text: string };
+  return data.text?.trim() || '';
+}
