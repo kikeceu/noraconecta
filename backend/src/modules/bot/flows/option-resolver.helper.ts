@@ -102,6 +102,10 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'REFORMULATE', aliases: ['2', 'reformular', 'reformular descripcion', 'corregir', BOT_PAYLOADS.REFORMULAR_DESCRIPCION] },
     { value: 'SI_CORRECTO', aliases: [BOT_PAYLOADS.SI_CORRECTO, 'si es correcto', 'sí es correcto', 'correcto'] },
   ],
+  ASK_SAVED_LOCATION_SINGLE: [
+    { value: 'YES', aliases: ['1', 'si', 'sí', 'dale', 'ok'] },
+    { value: 'NO', aliases: ['2', 'no', 'nop', 'es otra', 'otra', 'otra ubicacion'] },
+  ],
 };
 
 export function resolveOption(step: string, input: string): string | null {

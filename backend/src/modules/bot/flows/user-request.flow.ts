@@ -1,5 +1,5 @@
 import { NlpService } from '../nlp.service';
-import { FlowContext, FlowHandler, FlowStepResult } from './types';
+import { FlowContext, FlowHandler, FlowStepResult, SavedLocation } from './types';
 import { RequestsService } from '../../requests/requests.service';
 import { PaymentsService } from '../../payments/payments.service';
 import { LocationsRepository } from '../../locations/locations.repository';
@@ -9,6 +9,7 @@ import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
 import { callLLM, transcribeAudio } from '../../../lib/llm-client';
+import { reverseGeocode } from '../../../lib/nominatim-client';
 import prisma from '../../../lib/prisma';
 
 const nlpService = new NlpService();
@@ -170,6 +171,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
         return this.handleAskService(message, tempData);
+      case 'ASK_SAVED_LOCATION':
+        return this.handleAskSavedLocation(message, tempData);
       case 'ASK_PROVINCE':
         return this.handleAskProvince(message, tempData);
       case 'ASK_ZONE':
@@ -241,13 +244,13 @@ export class UserRequestFlow implements FlowHandler {
     });
 
     if (activeRequest) {
-      return {
-        response: {
-          text: 'Ya tenes un pedido en curso. Te avisamos cuando tengamos novedades.',
-        },
-        nextStep: null,
-        tempData,
-      };
+    return {
+      response: {
+        text: 'Listo. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.',
+      },
+      nextStep: 'ASK_PHOTOS',
+      tempData,
+    };
     }
 
     const hasName = currentName && currentName !== phone;
@@ -422,20 +425,122 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
-    const zoneMode = await this.configRepository.findByKey('USER_ZONE_SELECTION_MODE');
-    const useZoneList = !zoneMode || zoneMode.value !== 'FREE_TEXT';
+    const userId = tempData.userId as string;
+    const categoryName = tempData.categoryName as string;
 
-    if (useZoneList) {
-      return this.proceedToProvinceStep(tempData);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const savedLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
+
+    if (savedLocations.length === 0) {
+      return this.startLocationFlow(tempData);
     }
 
-    const categoryName = tempData.categoryName as string;
+    tempData._savedLocations = savedLocations;
+
+    if (savedLocations.length === 1) {
+      const loc = savedLocations[0];
+
+      return {
+        response: {
+          text: `Entendido: ${categoryName}. ¿Es para ${loc.address}?\n1. Sí\n2. No, es otra ubicación`,
+        },
+        nextStep: 'ASK_SAVED_LOCATION',
+        tempData,
+      };
+    }
+
+    const list = savedLocations.map((loc, i) => `${i + 1}. ${loc.address}`).join('\n');
+    const otherOptionNumber = savedLocations.length + 1;
 
     return {
       response: {
-        text: `Entendido: ${categoryName}. ¿En qué zona necesitás el servicio? (Ej: Maipú, Godoy Cruz, Capital)`,
+        text: `Entendido: ${categoryName}. ¿Para qué dirección es el servicio?\n\n${list}\n${otherOptionNumber}. Otra ubicación`,
       },
-      nextStep: 'ASK_ZONE',
+      nextStep: 'ASK_SAVED_LOCATION',
+      tempData,
+    };
+  }
+
+  private async handleAskSavedLocation(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const savedLocations = (tempData._savedLocations as SavedLocation[]) || [];
+    const inputText = message.text?.trim() || '';
+
+    if (savedLocations.length === 1) {
+      const resolved = await resolveOptionWithFallback('ASK_SAVED_LOCATION_SINGLE', inputText.toLowerCase());
+
+      if (resolved === 'YES') {
+        return this.applySavedLocation(tempData, savedLocations[0]);
+      }
+
+      if (resolved === 'NO') {
+        return this.startLocationFlow(tempData);
+      }
+
+      const loc = savedLocations[0];
+      return {
+        response: {
+          text: `¿Es para ${loc.address}?\n1. Sí\n2. No, es otra ubicación`,
+        },
+        nextStep: 'ASK_SAVED_LOCATION',
+        tempData,
+      };
+    }
+
+    const number = parseInt(inputText, 10);
+    const otherOptionNumber = savedLocations.length + 1;
+
+    if (!isNaN(number) && number >= 1 && number <= savedLocations.length) {
+      return this.applySavedLocation(tempData, savedLocations[number - 1]);
+    }
+
+    if (number === otherOptionNumber) {
+      return this.startLocationFlow(tempData);
+    }
+
+    const list = savedLocations.map((loc, i) => `${i + 1}. ${loc.address}`).join('\n');
+
+    return {
+      response: {
+        text: `Elegí una opción:\n\n${list}\n${otherOptionNumber}. Otra ubicación`,
+      },
+      nextStep: 'ASK_SAVED_LOCATION',
+      tempData,
+    };
+  }
+
+  private applySavedLocation(
+    tempData: Record<string, unknown>,
+    loc: SavedLocation,
+  ): FlowStepResult {
+    tempData.geoNodeId = loc.geoNodeId;
+    tempData.geoNodeName = loc.zoneName;
+    tempData.userLatitude = loc.lat;
+    tempData.userLongitude = loc.lng;
+    tempData._reusedSavedAddress = loc.address;
+
+    const categoryName = tempData.categoryName as string;
+    const zoneName = loc.zoneName || 'tu zona';
+
+    return {
+      response: {
+        text: `Entendido: ${categoryName} en ${zoneName}. Describí el problema. Podés escribirlo o mandar un audio.`,
+      },
+      nextStep: 'ASK_DESCRIPTION',
+      tempData,
+    };
+  }
+
+  private startLocationFlow(
+    tempData: Record<string, unknown>,
+  ): FlowStepResult {
+    return {
+      response: {
+        text: 'Para encontrarte al profesional más cercano, compartí tu ubicación por WhatsApp. Si no podés, escribí "no".',
+      },
+      nextStep: 'ASK_LOCATION',
       tempData,
     };
   }
@@ -777,30 +882,48 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string; location?: { latitude: number; longitude: number } },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    const categoryName = tempData.categoryName as string;
+
     if (message.location) {
       tempData.userLatitude = message.location.latitude;
       tempData.userLongitude = message.location.longitude;
 
-      return {
-        response: { text: 'Gracias. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.' },
-        nextStep: 'ASK_PHOTOS',
-        tempData,
-      };
+      const geocodeResult = await reverseGeocode(message.location.latitude, message.location.longitude);
+
+      if (geocodeResult.departmentName) {
+        const provinceId = await this.resolveMendozaProvinceId(tempData.phone as string);
+
+        if (provinceId) {
+          const geoNode = await this.locationsRepository.findChildNodeByName(provinceId, geocodeResult.departmentName);
+
+          if (geoNode) {
+            tempData.geoNodeId = geoNode.id;
+            tempData.geoNodeName = geoNode.name;
+
+            return {
+              response: {
+                text: `Ubicación: ${geoNode.name}. Entendido: ${categoryName} en ${geoNode.name}. Describí el problema. Podés escribirlo o mandar un audio.`,
+              },
+              nextStep: 'ASK_DESCRIPTION',
+              tempData,
+            };
+          }
+        }
+      }
+
+      // Nominatim failed or couldn't resolve GeoNode -> fall back to manual zone flow, keep GPS coords
+      return this.proceedToProvinceStep(tempData);
     }
 
-    // Any text = user doesn't want to share location → advance
+    // Any text = user doesn't want to share GPS -> fall back to manual zone flow
     if (message.text) {
       tempData.userLatitude = undefined;
       tempData.userLongitude = undefined;
 
-      return {
-        response: { text: 'Perfecto. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.' },
-        nextStep: 'ASK_PHOTOS',
-        tempData,
-      };
+      return this.proceedToProvinceStep(tempData);
     }
 
-    // No text nor location → ask again
+    // No text nor location -> ask again
     return {
       response: {
         text: 'Para encontrarte al profesional más cercano, compartí tu ubicación por WhatsApp. Si no podés, escribí "no".',
@@ -808,6 +931,16 @@ export class UserRequestFlow implements FlowHandler {
       nextStep: 'ASK_LOCATION',
       tempData,
     };
+  }
+
+  private async resolveMendozaProvinceId(phone: string): Promise<string | null> {
+    const countryId = await this.resolveCountryId(phone);
+    if (!countryId) return null;
+
+    const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+    if (provinces.length === 1) return provinces[0].id;
+
+    return null;
   }
 
   private async handleAskPhotos(
@@ -950,10 +1083,8 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: {
-        text: 'Para encontrarte al profesional más cercano, compartí tu ubicación por WhatsApp. Si no podés, escribí "no".',
-      },
-      nextStep: 'ASK_LOCATION',
+      response: { text: 'Listo. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.' },
+      nextStep: 'ASK_PHOTOS',
       tempData,
     };
   }
@@ -1032,6 +1163,10 @@ export class UserRequestFlow implements FlowHandler {
     text += `*Nombre:* ${name}\n`;
     text += `*Servicio:* ${category}\n`;
     text += `*Zona:* ${zone}\n`;
+    const reusedAddress = tempData._reusedSavedAddress as string | undefined;
+    if (reusedAddress) {
+      text += `*Dirección:* ${reusedAddress}\n`;
+    }
     text += `*Problema:* ${description}\n`;
 
     if (photos.length > 0) {
@@ -1065,6 +1200,7 @@ export class UserRequestFlow implements FlowHandler {
           userLatitude: tempData.userLatitude as number | undefined,
           userLongitude: tempData.userLongitude as number | undefined,
           technicalBrief: tempData.technicalBrief as string | undefined,
+          clientAddress: tempData._reusedSavedAddress as string | undefined,
         });
 
         tempData.requestId = request.id;

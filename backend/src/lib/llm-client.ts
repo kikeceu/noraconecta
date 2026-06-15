@@ -129,6 +129,24 @@ export async function callLLMWithImages(input: LLMImageInput): Promise<string> {
   }
 }
 
+export async function compareAddresses(addressA: string, addressB: string): Promise<boolean> {
+  const prompt = `Sos un validador de direcciones en Argentina.
+
+Dirección A: "${addressA}"
+Dirección B: "${addressB}"
+
+¿Ambas direcciones corresponden al mismo domicilio (mismo lugar físico), considerando que pueden estar escritas con distinto formato, abreviaciones, mayúsculas, o con/sin referencias adicionales?
+
+Responde SOLO con una palabra: SI o NO`;
+
+  try {
+    const response = await callLLM(prompt);
+    return response.trim().toUpperCase().startsWith('SI');
+  } catch {
+    return false;
+  }
+}
+
 export async function transcribeAudio(audioUrl: string): Promise<string> {
   const model = process.env.OPENAI_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe';
 

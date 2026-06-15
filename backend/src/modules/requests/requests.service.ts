@@ -29,6 +29,7 @@ export interface CreateRequestInput {
   userLatitude?: number;
   userLongitude?: number;
   technicalBrief?: string;
+  clientAddress?: string;
 }
 
 export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
@@ -116,6 +117,7 @@ export class RequestsService {
       userLongitude: input.userLongitude,
       status: 'CREATED',
       technicalBrief: input.technicalBrief,
+      clientAddress: input.clientAddress,
     });
 
     let isUrgent = false;

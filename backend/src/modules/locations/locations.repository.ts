@@ -191,4 +191,25 @@ export class LocationsRepository {
       include: leafNodeInclude,
     });
   }
+
+  async findChildNodeByName(parentId: string, name: string): Promise<GeoNode | null> {
+    const normalized = name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const children = await prisma.geoNode.findMany({
+      where: { parentId, isActive: true },
+    });
+
+    return (
+      children.find((c) => {
+        const childNormalized = c.name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        return childNormalized === normalized || childNormalized.includes(normalized) || normalized.includes(childNormalized);
+      }) ?? null
+    );
+  }
 }
