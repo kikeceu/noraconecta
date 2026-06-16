@@ -186,11 +186,22 @@ export class BotService {
       if (!session) {
         const handler = resolveFlowHandler(role);
 
+        let initialTempData: Record<string, unknown> = { ...userIdentity };
+
+        if (role === 'USER' && input.text?.trim()) {
+          const { extractServiceAndZone } = await import('../../lib/llm-client');
+          const extracted = await extractServiceAndZone(input.text.trim());
+          if (extracted.serviceName || extracted.zoneName) {
+            initialTempData._extractedServiceName = extracted.serviceName;
+            initialTempData._extractedZoneName = extracted.zoneName;
+          }
+        }
+
         session = await this.botRepository.upsert(input.phone, {
           role,
           currentFlow: handler.flowName,
           currentStep: handler.getInitialStep(),
-          tempData: userIdentity as Prisma.InputJsonValue,
+          tempData: initialTempData as Prisma.InputJsonValue,
         });
       }
     } else {
