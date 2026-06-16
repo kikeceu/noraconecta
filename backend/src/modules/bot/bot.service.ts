@@ -186,14 +186,25 @@ export class BotService {
       if (!session) {
         const handler = resolveFlowHandler(role);
 
-        let initialTempData: Record<string, unknown> = { ...userIdentity };
+        const initialTempData: Record<string, unknown> = { ...userIdentity };
 
         if (role === 'USER' && input.text?.trim()) {
-          const { extractServiceAndZone } = await import('../../lib/llm-client');
-          const extracted = await extractServiceAndZone(input.text.trim());
+          const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
+          const [extracted, extractedName] = await Promise.all([
+            extractServiceAndZone(input.text.trim()),
+            extractName(input.text.trim()),
+          ]);
+
           if (extracted.serviceName || extracted.zoneName) {
             initialTempData._extractedServiceName = extracted.serviceName;
             initialTempData._extractedZoneName = extracted.zoneName;
+          }
+
+          const isNameless = !userIdentity.name || userIdentity.name === userIdentity.phone;
+          if (extractedName && isNameless) {
+            initialTempData.name = extractedName;
+            initialTempData._isNewUser = true;
+            await this.usersService.updateName(userIdentity.userId, extractedName);
           }
         }
 

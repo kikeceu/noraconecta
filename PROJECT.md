@@ -24,7 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
@@ -57,8 +57,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── users/
 │   │   │   │   ├── users.routes.ts         # 4 endpoints under /users
 │   │   │   │   ├── users.controller.ts     # Request validation, response formatting
-│   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
-│   │   │   │   └── users.repository.ts     # Prisma queries for User model
+│   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock, updateName
+│   │   │   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   │   │   └── professionals/
 │   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting
@@ -109,7 +109,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting + pendingNotification dispatch para simulador (AUT-281)
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection with LLM fallback for USER and PROFESSIONAL roles (AUT-169, AUT-296, AUT-298), ver_como_funciona handler (AUT-266) + intercepción inteligente de servicio/zona en mensaje inicial (AUT-308)
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection with LLM fallback for USER and PROFESSIONAL roles (AUT-169, AUT-296, AUT-298), ver_como_funciona handler (AUT-266) + intercepción inteligente de servicio/zona en mensaje inicial (AUT-308) + extracción de nombre en paralelo con servicio/zona para usuarios nuevos (AUT-309)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), notifyProfessionalVisitConfirmed incluye link de Google Maps en texto plano cuando hay coordenadas (AUT-292). sendRequestMedia deprecado: el envío de fotos/audio en "Ver detalles" ahora lo maneja webhooks.routes.ts via mediaFirst (AUT-290)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
@@ -135,7 +135,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309)
 │   │   │   ├── nominatim-client.ts     # Nominatim reverse geocoding: resolve GPS coordinates to department name, neighborhood and postal code (AUT-306, AUT-307)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
@@ -306,8 +306,8 @@ src/
 │   ├── users/
 │   │   ├── users.routes.ts         # 4 endpoints under /users
 │   │   ├── users.controller.ts     # Request validation, response formatting
-│   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock
-│   │   └── users.repository.ts     # Prisma queries for User model
+│   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock, updateName
+│   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   ├── professionals/
 │       ├── professionals.routes.ts     # 13 endpoints under /professionals
 │       ├── professionals.controller.ts # Request validation, response formatting
