@@ -1400,11 +1400,16 @@ export class UserRequestFlow implements FlowHandler {
         }
 
         // No match and no trial-exhausted professionals -> close
+        await prisma.request.update({
+  	   where: { id: request.id },
+           data: { status: 'NO_RESPONSE' },
+        });
+
         return {
           response: {
             text: 'En este momento no hay profesionales disponibles en tu zona para este servicio. Podés volver a intentarlo más tarde.',
             requestId: request.id,
-          },
+          },   
           nextStep: null,
           tempData: { _clearTempData: true },
         };

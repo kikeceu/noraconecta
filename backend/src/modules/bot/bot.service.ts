@@ -496,7 +496,7 @@ export class BotService {
     const updatedSession = await this.botRepository.upsert(input.phone, {
       role,
       currentFlow: result.nextStep ? session.currentFlow : null,
-      currentStep: result.nextStep || undefined,
+      currentStep: result.nextStep || null,
       tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
     });
 
