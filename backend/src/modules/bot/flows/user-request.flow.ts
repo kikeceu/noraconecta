@@ -395,7 +395,13 @@ export class UserRequestFlow implements FlowHandler {
       console.log('[AUT-308] resolved:', JSON.stringify(resolved));
 
       const userName = tempData.name as string | undefined;
-      const greeting = userName ? `¡Qué bueno volver a verte, ${userName}! ` : '';
+      const isNewUser = !!tempData._isNewUser;
+      delete tempData._isNewUser;
+      const greeting = userName
+	  ? isNewUser
+	    ? `¡Hola, ${userName}! `
+	    : `¡Qué bueno volver a verte, ${userName}! `
+      : '';
 
       if (resolved.categoryId && resolved.geoNodeId) {
         tempData.categoryId = resolved.categoryId;
