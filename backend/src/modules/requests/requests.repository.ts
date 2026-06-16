@@ -18,6 +18,8 @@ export type CreateRequestInput = {
   assignmentTimeoutAt?: Date;
   technicalBrief?: string;
   clientAddress?: string;
+  clientNeighborhood?: string;
+  clientPostalCode?: string;
 };
 
 export type CreateEventInput = {

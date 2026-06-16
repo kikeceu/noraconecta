@@ -899,6 +899,8 @@ export class UserRequestFlow implements FlowHandler {
           if (geoNode) {
             tempData.geoNodeId = geoNode.id;
             tempData.geoNodeName = geoNode.name;
+            tempData.clientNeighborhood = geocodeResult.neighborhood ?? undefined;
+            tempData.clientPostalCode = geocodeResult.postalCode ?? undefined;
 
             return {
               response: {
@@ -1201,6 +1203,8 @@ export class UserRequestFlow implements FlowHandler {
           userLongitude: tempData.userLongitude as number | undefined,
           technicalBrief: tempData.technicalBrief as string | undefined,
           clientAddress: tempData._reusedSavedAddress as string | undefined,
+          clientNeighborhood: tempData.clientNeighborhood as string | undefined,
+          clientPostalCode: tempData.clientPostalCode as string | undefined,
         });
 
         tempData.requestId = request.id;

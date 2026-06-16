@@ -1,5 +1,7 @@
 export interface ReverseGeocodeResult {
   departmentName: string | null;
+  neighborhood: string | null;
+  postalCode: string | null;
   raw: unknown;
 }
 
@@ -20,7 +22,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ReverseG
     clearTimeout(timeout);
 
     if (!response.ok) {
-      return { departmentName: null, raw: { status: response.status } };
+      return { departmentName: null, neighborhood: null, postalCode: null, raw: { status: response.status } };
     }
 
     const data = (await response.json()) as {
@@ -28,15 +30,20 @@ export async function reverseGeocode(lat: number, lng: number): Promise<ReverseG
         county?: string;
         city?: string;
         town?: string;
+        suburb?: string;
+        neighbourhood?: string;
+        postcode?: string;
       };
     };
 
     const address = data.address || {};
     const departmentName = address.county || address.city || address.town || null;
+    const neighborhood = address.suburb || address.neighbourhood || null;
+    const postalCode = address.postcode || null;
 
-    return { departmentName, raw: data };
+    return { departmentName, neighborhood, postalCode, raw: data };
   } catch (err) {
     clearTimeout(timeout);
-    return { departmentName: null, raw: err };
+    return { departmentName: null, neighborhood: null, postalCode: null, raw: err };
   }
 }
