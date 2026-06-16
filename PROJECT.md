@@ -90,7 +90,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251)
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251) + persistencia de barrio y código postal desde Nominatim (AUT-307)
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback + CreateRequestInput con technicalBrief + findActivesByProfessionalId (AUT-298)
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation
@@ -136,7 +136,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
 │   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306)
-│   │   │   ├── nominatim-client.ts     # Nominatim reverse geocoding: resolve GPS coordinates to department name (AUT-306)
+│   │   │   ├── nominatim-client.ts     # Nominatim reverse geocoding: resolve GPS coordinates to department name, neighborhood and postal code (AUT-306, AUT-307)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
 │   │   ├── schema.prisma
@@ -1927,6 +1927,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | assignmentTimeoutAt   | DateTime? | Timeout de respuesta del profesional         |
 | scheduledAt           | DateTime? | Fecha y hora confirmada de la visita         |
 | clientAddress         | String?   | Dirección exacta ingresada por el usuario    |
+| clientNeighborhood    | String?   | Barrio resuelto vía Nominatim al compartir GPS (AUT-307) |
+| clientPostalCode      | String?   | Código postal resuelto vía Nominatim al compartir GPS (AUT-307) |
 | clientAvailability    | String?   | Disponibilidad horaria en texto libre        |
 | coordinationStatus    | String?   | AWAITING_AVAILABILITY \| AWAITING_CONFIRMATION \| AWAITING_USER_CONFIRMATION \| AWAITING_LOCATION \| SCHEDULED |
 | negotiationRounds     | Int       | Rondas de negociación de horario (default: 0) |

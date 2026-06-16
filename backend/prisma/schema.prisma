@@ -250,6 +250,8 @@ model Request {
   assignmentTimeoutAt    DateTime?
   scheduledAt            DateTime?
   clientAddress          String?
+  clientNeighborhood     String?
+  clientPostalCode       String?
   clientAvailability     String?
   coordinationStatus     String?
   negotiationRounds      Int           @default(0)

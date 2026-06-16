@@ -30,6 +30,8 @@ export interface CreateRequestInput {
   userLongitude?: number;
   technicalBrief?: string;
   clientAddress?: string;
+  clientNeighborhood?: string;
+  clientPostalCode?: string;
 }
 
 export type Satisfaction = 'SATISFIED' | 'PARTIAL' | 'UNSATISFIED';
@@ -118,6 +120,8 @@ export class RequestsService {
       status: 'CREATED',
       technicalBrief: input.technicalBrief,
       clientAddress: input.clientAddress,
+      clientNeighborhood: input.clientNeighborhood,
+      clientPostalCode: input.clientPostalCode,
     });
 
     let isUrgent = false;
