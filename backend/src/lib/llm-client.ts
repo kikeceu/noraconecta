@@ -177,6 +177,23 @@ Respondé SOLO con un JSON válido, sin texto adicional, sin backticks:
   }
 }
 
+export async function extractName(text: string): Promise<string | null> {
+  const prompt = `Del siguiente mensaje, extraé SOLO el nombre propio de una persona si está presente.
+Si no hay ningún nombre propio, respondé exactamente: null
+Si hay un nombre, respondé SOLO el nombre, sin puntos ni explicaciones.
+
+Mensaje: "${text}"`;
+
+  try {
+    const response = await callLLM(prompt);
+    const clean = response.trim();
+    if (clean === 'null' || clean.length > 40 || clean.includes('.')) return null;
+    return clean;
+  } catch {
+    return null;
+  }
+}
+
 export async function transcribeAudio(audioUrl: string): Promise<string> {
   const model = process.env.OPENAI_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe';
 

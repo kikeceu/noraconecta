@@ -46,4 +46,11 @@ export class UsersRepository {
       data: { savedLocations: savedLocations as unknown as Prisma.InputJsonValue },
     });
   }
+
+  async updateName(id: string, name: string): Promise<User> {
+    return prisma.user.update({
+      where: { id },
+      data: { name },
+    });
+  }
 }

@@ -99,4 +99,8 @@ export class UsersService {
 
     return this.usersRepository.updateStatus(id, 'ACTIVE');
   }
+
+  async updateName(id: string, name: string): Promise<User> {
+    return this.usersRepository.updateName(id, name);
+  }
 }
