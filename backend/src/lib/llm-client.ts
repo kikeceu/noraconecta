@@ -147,6 +147,36 @@ Responde SOLO con una palabra: SI o NO`;
   }
 }
 
+export interface ExtractedServiceZone {
+  serviceName: string | null;
+  zoneName: string | null;
+}
+
+export async function extractServiceAndZone(message: string): Promise<ExtractedServiceZone> {
+  const prompt = `Analizá el siguiente mensaje de un usuario que está buscando un servicio del hogar en Mendoza, Argentina.
+
+Mensaje: "${message}"
+
+Extraé:
+1. El tipo de servicio que menciona (plomero, electricista, gasista, pintor, albañil, cerrajero, técnico de aire acondicionado, etc.). Si no menciona ninguno, devolvé null.
+2. El departamento o zona de Mendoza que menciona (Godoy Cruz, Las Heras, Maipú, Guaymallén, Capital, Luján de Cuyo, etc.). Si no menciona ninguno, devolvé null.
+
+Respondé SOLO con un JSON válido, sin texto adicional, sin backticks:
+{"serviceName": "plomero", "zoneName": "Godoy Cruz"}`;
+
+  try {
+    const response = await callLLM(prompt);
+    const clean = response.trim().replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean) as ExtractedServiceZone;
+    return {
+      serviceName: parsed.serviceName || null,
+      zoneName: parsed.zoneName || null,
+    };
+  } catch {
+    return { serviceName: null, zoneName: null };
+  }
+}
+
 export async function transcribeAudio(audioUrl: string): Promise<string> {
   const model = process.env.OPENAI_TRANSCRIPTION_MODEL || 'gpt-4o-mini-transcribe';
 

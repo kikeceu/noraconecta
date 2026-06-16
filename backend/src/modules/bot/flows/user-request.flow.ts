@@ -260,7 +260,7 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     return {
-      response: { text: `Hola, soy ${process.env.APP_NAME ?? 'NORA'}. Cual es tu nombre?` },
+      response: { text: `¡Hola! Soy ${process.env.APP_NAME ?? 'NORA'} 👋 Te conecto con el profesional del hogar que necesitás, cerca tuyo. ¿Cómo te llamás?` },
       nextStep: 'ASK_NAME',
       tempData,
     };
@@ -275,7 +275,7 @@ export class UserRequestFlow implements FlowHandler {
 
     if (!inputName) {
       return {
-        response: { text: `Hola, soy ${process.env.APP_NAME ?? 'NORA'}. Cual es tu nombre?` },
+        response: { text: `¡Hola! Soy ${process.env.APP_NAME ?? 'NORA'} 👋 Te conecto con el profesional del hogar que necesitás, cerca tuyo. ¿Cómo te llamás?` },
         nextStep: 'ASK_NAME',
         tempData,
       };
@@ -283,26 +283,173 @@ export class UserRequestFlow implements FlowHandler {
 
     const extractedName = await extractName(inputName);
 
+    if (!extractedName || extractedName.length > 40 || extractedName.includes('.')) {
+      return {
+        response: { text: '¡Ups! No reconocí tu nombre. ¿Me decís cómo te llamás?' },
+        nextStep: 'ASK_NAME',
+        tempData,
+      };
+    }
+
     if (userId) {
       await prisma.user.update({ where: { id: userId }, data: { name: extractedName } });
     }
 
     tempData.name = extractedName;
+    tempData._isNewUser = true;
 
     return this.handleAskService({}, tempData);
+  }
+
+  private async resolveExtractedServiceZone(extracted: {
+    serviceName: string | null;
+    zoneName: string | null;
+  }): Promise<{
+    categoryId?: string;
+    categoryName?: string;
+    geoNodeId?: string;
+    geoNodeName?: string;
+    serviceNotFound?: boolean;
+    zoneNotFound?: boolean;
+  }> {
+    const result: {
+      categoryId?: string;
+      categoryName?: string;
+      geoNodeId?: string;
+      geoNodeName?: string;
+      serviceNotFound?: boolean;
+      zoneNotFound?: boolean;
+    } = {};
+
+    if (extracted.serviceName) {
+      const categories = await prisma.category.findMany({ where: { isActive: true } });
+      const normalizedInput = extracted.serviceName
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+      const match = categories.find((c) => {
+        const normalizedName = c.name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+        return normalizedName.includes(normalizedInput) || normalizedInput.includes(normalizedName);
+      });
+
+      if (match) {
+        result.categoryId = match.id;
+        result.categoryName = match.name;
+      } else {
+        result.serviceNotFound = true;
+      }
+    }
+
+    if (extracted.zoneName) {
+      const countries = await this.locationsRepository.findAllCountries();
+      const country = countries[0];
+
+      if (country) {
+        const provinces = await this.locationsRepository.findActiveChildNodes(country.id);
+        const province = provinces.length === 1 ? provinces[0] : null;
+
+        if (province) {
+          const geoNode = await this.locationsRepository.findChildNodeByName(
+            province.id,
+            extracted.zoneName,
+          );
+
+          if (geoNode) {
+            result.geoNodeId = geoNode.id;
+            result.geoNodeName = geoNode.name;
+          } else {
+            result.zoneNotFound = true;
+          }
+        } else {
+          result.zoneNotFound = true;
+        }
+      } else {
+        result.zoneNotFound = true;
+      }
+    }
+
+    return result;
   }
 
   private async handleAskService(
     message: { text?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const config = await this.configRepository.findByKey('USER_SERVICE_SELECTION_MODE');
-    const useList = !config || config.value !== 'FREE_TEXT';
+    const extractedServiceName = tempData._extractedServiceName as string | null | undefined;
+    const extractedZoneName = tempData._extractedZoneName as string | null | undefined;
 
-    if (useList) {
-      return this.handleAskServiceList(message, tempData);
+    if (extractedServiceName || extractedZoneName) {
+      delete tempData._extractedServiceName;
+      delete tempData._extractedZoneName;
+
+      const resolved = await this.resolveExtractedServiceZone({
+        serviceName: extractedServiceName || null,
+        zoneName: extractedZoneName || null,
+      });
+
+      console.log('[AUT-308] hints:', extractedServiceName, extractedZoneName);
+      console.log('[AUT-308] resolved:', JSON.stringify(resolved));
+
+      const userName = tempData.name as string | undefined;
+      const greeting = userName ? `¡Qué bueno volver a verte, ${userName}! ` : '';
+
+      if (resolved.categoryId && resolved.geoNodeId) {
+        tempData.categoryId = resolved.categoryId;
+        tempData.categoryName = resolved.categoryName;
+        tempData.geoNodeId = resolved.geoNodeId;
+        tempData.geoNodeName = resolved.geoNodeName;
+        return this.proceedAfterService(tempData);
+      }
+
+      if (resolved.categoryId && resolved.zoneNotFound) {
+        tempData.categoryId = resolved.categoryId;
+        tempData.categoryName = resolved.categoryName;
+        return {
+          response: {
+            text: `${greeting}Por el momento no tenemos cobertura en ${extractedZoneName}. ¿En qué zona necesitás el servicio de ${resolved.categoryName}? Compartí tu ubicación o escribí "no" para elegir manualmente.`,
+          },
+          nextStep: 'ASK_LOCATION',
+          tempData,
+        };
+      }
+
+      if (resolved.categoryId && !extractedZoneName) {
+        tempData.categoryId = resolved.categoryId;
+        tempData.categoryName = resolved.categoryName;
+        return this.proceedAfterService(tempData);
+      }
+
+      const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      });
+      tempData._availableCategories = categories.map((c) => ({ id: c.id, name: c.name }));
+      tempData._categoryListed = true;
+      const list = categories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+
+      let infoText = '';
+      if (resolved.serviceNotFound && resolved.zoneNotFound) {
+        infoText = `Por el momento no contamos con ${extractedServiceName} ni tenemos cobertura en ${extractedZoneName}. Puedo ayudarte con alguno de estos servicios:\n\n`;
+      } else {
+        infoText = `Por el momento no contamos con ${extractedServiceName} en nuestra red. Puedo ayudarte con alguno de estos servicios:\n\n`;
+      }
+
+      return {
+        response: {
+          text: `${greeting}${infoText}${list}\n\nResponde con el numero.`,
+        },
+        nextStep: 'ASK_SERVICE',
+        tempData,
+      };
     }
 
+    const config = await this.configRepository.findByKey('USER_SERVICE_SELECTION_MODE');
+    const useList = !config || config.value !== 'FREE_TEXT';
+    if (useList) return this.handleAskServiceList(message, tempData);
     return this.handleAskServiceFreeText(message, tempData);
   }
 
@@ -330,9 +477,13 @@ export class UserRequestFlow implements FlowHandler {
       const list = categories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
 
       const userName = tempData.name as string | undefined;
+      const isNewUser = !!tempData._isNewUser;
+      delete tempData._isNewUser;
       const greeting = userName
-        ? `¡Qué bueno volver a verte, ${userName}! ¿Qué servicio estás buscando?\n\n`
-        : '¿Que tipo de servicio necesitas?\n\n';
+        ? isNewUser
+          ? `¡Hola, ${userName}! ¿Qué servicio estás buscando?\n\n`
+          : `¡Qué bueno volver a verte, ${userName}! ¿Qué servicio estás buscando?\n\n`
+        : '¿Qué servicio estás buscando?\n\n';
 
       return {
         response: {
