@@ -438,6 +438,11 @@ export class UserRequestFlow implements FlowHandler {
         infoText = `Por el momento no contamos con ${extractedServiceName} en nuestra red. Puedo ayudarte con alguno de estos servicios:\n\n`;
       }
 
+      if (resolved.geoNodeId) {
+	tempData.geoNodeId = resolved.geoNodeId;
+	tempData.geoNodeName = resolved.geoNodeName;
+      }
+
       return {
         response: {
           text: `${greeting}${infoText}${list}\n\nResponde con el numero.`,
