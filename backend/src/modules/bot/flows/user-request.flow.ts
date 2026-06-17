@@ -199,6 +199,8 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleWaiting(tempData);
       case 'CANCEL_CONFIRMATION':
         return handleCancelConfirmation(context, this.requestsService, this.notificationService);
+      case 'POST_CANCEL':
+        return this.handlePostCancel(message, tempData);
       default:
         return this.handleInit(tempData);
     }
@@ -1692,7 +1694,7 @@ export class UserRequestFlow implements FlowHandler {
         nextStep: null,
         tempData: newTempData,
       };
-    } catch (err) {
+        } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'No se pudo cancelar la visita';
       return {
         response: { text: errorMessage },
@@ -1761,6 +1763,39 @@ export class UserRequestFlow implements FlowHandler {
       },
       nextStep: null,
       tempData: { _clearTempData: true },
+    };
+  }
+
+  private async handlePostCancel(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const input = message.text?.trim() || '';
+    const resolved = await resolveOptionWithFallback('POST_CANCEL', input);
+
+    if (resolved === 'NEW_REQUEST') {
+      delete tempData.geoNodeId;
+      delete tempData.geoNodeName;
+      delete tempData.userLatitude;
+      delete tempData.userLongitude;
+      delete tempData._reusedSavedAddress;
+      delete tempData.categoryId;
+      delete tempData.categoryName;
+      return this.handleAskService({}, tempData);
+    }
+
+    if (resolved === 'NO') {
+      return {
+        response: { text: '¡Perfecto! Cuando necesites algo, acá estoy 👋' },
+        nextStep: null,
+        tempData: { _clearTempData: true },
+      };
+    }
+
+    return {
+      response: { text: 'Elegí una opción:\n1. Iniciar un nuevo pedido\n2. Por ahora no, gracias' },
+      nextStep: 'POST_CANCEL',
+      tempData,
     };
   }
 }
