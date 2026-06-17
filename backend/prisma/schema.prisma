@@ -180,6 +180,8 @@ model Professional {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([categoryId, status])
 }
 
 model ProfessionalZone {
@@ -191,6 +193,7 @@ model ProfessionalZone {
   createdAt      DateTime     @default(now())
 
   @@unique([professionalId, geoNodeId])
+  @@index([geoNodeId])
 }
 
 model Plan {
@@ -270,6 +273,11 @@ model Request {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([categoryId, geoNodeId, status])
+  @@index([assignedProfessionalId, status])
+  @@index([assignmentTimeoutAt, status])
 }
 
 model RequestEvent {
@@ -281,6 +289,9 @@ model RequestEvent {
   type           RequestEventType
   metadata       Json?
   createdAt      DateTime         @default(now())
+
+  @@index([requestId])
+  @@index([professionalId])
 }
 
 model Feedback {

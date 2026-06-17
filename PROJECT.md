@@ -1011,9 +1011,8 @@ POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
     → determina rol (input.role || 'USER')      // antes de cargar sesión, por phone_number_id del webhook
-    → role=USER: UsersService.findOrCreateByPhone(phone)
-    → role=PROFESSIONAL: UsersService.findByPhone(phone) sin crear User nuevo (AUT-202)
-    → BotRepository.findByPhoneAndRole(phone, role)  // clave compuesta (phone, role)
+    → role=USER: Promise.all([findOrCreateByPhone, findByPhoneAndRole]) — queries en paralelo (AUT-311)
+    → role=PROFESSIONAL: UsersService.findByPhone(phone) + BotRepository.findByPhoneAndRole(phone, role) secuencial
     → detectar pendingMessage (notificación proactiva de coordinación)
     → despachar al FlowHandler correspondiente
     → FlowHandler ejecuta el paso actual
@@ -1862,6 +1861,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | updatedAt             | DateTime | Autogenerado (on update)                |
 
 - Relaciones: `zones` → ProfessionalZone[], `memberships` → Membership[], `requests` → Request[] (@relation "AssignedProfessional"), `events` → RequestEvent[]
+- Índices (AUT-311): `@@index([categoryId, status])`
 
 ### ProfessionalZone
 | Columna        | Tipo     | Descripción                     |
@@ -1872,6 +1872,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | createdAt     | DateTime | Autogenerado                    |
 
 - Unique constraint: `(professionalId, geoNodeId)`
+- Índices (AUT-311): `@@index([geoNodeId])`
 
 ### Plan
 | Columna           | Tipo     | Descripción                          |
@@ -1944,6 +1945,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
 - Relaciones: `events` → RequestEvent[], `feedback` → Feedback?, `escalation` → Escalation?
+- Índices (AUT-311): `@@index([userId, status])`, `@@index([categoryId, geoNodeId, status])`, `@@index([assignedProfessionalId, status])`, `@@index([assignmentTimeoutAt, status])`
 
 ### RequestEvent
 | Columna        | Tipo     | Descripción                           |
@@ -1954,6 +1956,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | type          | Enum     | ASSIGNED \| ACCEPTED \| REJECTED \| NO_RESPONSE \| COMPLETED \| NOT_FULFILLED \| CANCELLED |
 | metadata      | Json?    | Datos adicionales del evento          |
 | createdAt     | DateTime | Autogenerado                          |
+
+- Índices (AUT-311): `@@index([requestId])`, `@@index([professionalId])`
 
 ### Feedback
 | Columna                 | Tipo      | Descripción                                          |
