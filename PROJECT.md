@@ -109,8 +109,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── bot/
 │   │   │   │   ├── bot.routes.ts         # POST /bot/message, POST /bot/session/reset
 │   │   │   │   ├── bot.controller.ts     # Request validation, response formatting + pendingNotification dispatch para simulador (AUT-281)
-│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection with LLM fallback for USER and PROFESSIONAL roles (AUT-169, AUT-296, AUT-298), ver_como_funciona handler (AUT-266) + intercepción inteligente de servicio/zona en mensaje inicial (AUT-308) + extracción de nombre en paralelo con servicio/zona para usuarios nuevos (AUT-309) + POST_CANCEL flow en cancelación sin Request activo (AUT-310)
+│   │   │   │   ├── bot.service.ts        # Message processing, flow dispatch, session management, pending notifications, cancellation detection with LLM fallback for USER and PROFESSIONAL roles (AUT-169, AUT-296, AUT-298), ver_como_funciona handler (AUT-266) + intercepción inteligente de servicio/zona en mensaje inicial (AUT-308) + extracción de nombre en paralelo con servicio/zona para usuarios nuevos (AUT-309) + POST_CANCEL flow en cancelación sin Request activo (AUT-310) + capa de seguridad (rate limiting + anti prompt injection) como primera línea de processMessage (AUT-312)
 │   │   │   │   ├── bot.repository.ts     # Prisma queries for BotSession model + wasTemplateSentInLast24h/setLastTemplateSentAt (AUT-272)
+│   │   │   │   ├── security.repository.ts # Prisma queries for BotSecurity model: findByPhone, upsertMessageCount, incrementSuspiciousCount, blockUntil, clearBlock (AUT-312)
+│   │   │   │   ├── security.service.ts   # Security layer: rate limiting (10 msg/min in-memory, async DB write) + prompt injection detection (precompiled RegExp patterns, 3 suspicious → 1hr block) + temporary block check (AUT-312)
 │   │   │   │   ├── coordination.service.ts # Visit coordination relay: init after accept, send reminders, work-completion checks, confirmVisit con parseDateTimeNatural (AUT-248), notifyProfessionalVisitConfirmed incluye link de Google Maps en texto plano cuando hay coordenadas (AUT-292). sendRequestMedia deprecado: el envío de fotos/audio en "Ver detalles" ahora lo maneja webhooks.routes.ts via mediaFirst (AUT-290)
 │   │   │   │   ├── nlp.service.ts        # NLP: category/zone resolution with Levenshtein (only used by user-request flow since AUT-234)
 │   │   │   │   ├── abuse-detection.service.ts # Sistema anti-abuso: detección de cancelaciones repetidas y degradación gradual de usuarios/profesionales (AUT-243)
@@ -1010,6 +1012,7 @@ Módulo de conversación del bot de NORA. Agnóstico al canal de transporte (web
 POST /bot/message
   → BotController
   → BotService.processMessage(phone, message)
+    → CAPA DE SEGURIDAD: SecurityService.check(phone, text) — rate limiting + injection detection + block check (AUT-312)
     → determina rol (input.role || 'USER')      // antes de cargar sesión, por phone_number_id del webhook
     → role=USER: Promise.all([findOrCreateByPhone, findByPhoneAndRole]) — queries en paralelo (AUT-311)
     → role=PROFESSIONAL: UsersService.findByPhone(phone) + BotRepository.findByPhoneAndRole(phone, role) secuencial
@@ -1020,6 +1023,20 @@ POST /bot/message
     → actualiza sesión
     → retorna { text, mediaUrls?, options?, flow?, step?, requestId? }
 ```
+
+**Capa de seguridad — SecurityService (AUT-312):**
+- Intercepta **antes** de cualquier otra lógica en `processMessage()`, cubriendo tanto mensajes de WhatsApp real (webhook) como del simulador (`bot.routes.ts`).
+- **Rate limiting**: máximo 10 mensajes por minuto por teléfono, cache en memoria (~0ms). Escritura asíncrona a `BotSecurity` para auditoría (no bloquea la respuesta).
+- **Bloqueo temporal**: si `BotSecurity.blockedUntil > now()`, responde sin procesar. Si el bloqueo expiró, lo limpia asíncronamente.
+- **Detección de prompt injection**: RegExp precompiladas (12 patrones) aplicadas sobre el texto del mensaje. Si detecta injection, responde genéricamente ("No entendí bien lo que necesitás...") sin revelar la detección. 3+ intentos → `blockedUntil` por 1 hora.
+
+| Situación | Respuesta al usuario | DB | LLM |
+|-----------|----------------------|----|-----|
+| Rate limit excedido (>10 msg/min) | "Por favor esperá unos segundos..." | Escritura async | No |
+| Bloqueo temporal activo | "Tu cuenta está temporalmente limitada..." | Solo lectura | No |
+| Injection detectada (1er-2do intento) | "No entendí bien lo que necesitás..." | Escritura async | No |
+| Injection detectada (3er+ intento) | "No entendí bien lo que necesitás..." + bloqueo 1hr | Escritura async | No |
+| Mensaje normal | Flujo normal | Sin cambios | Sin cambios |
 
 **Mensajería proactiva (pending notification):**
 - `BotSession.tempData` puede contener `pendingMessage`: un mensaje que NORA necesita entregar proactivamente

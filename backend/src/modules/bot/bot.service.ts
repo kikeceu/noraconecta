@@ -6,6 +6,7 @@ import { detectCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import { SecurityService } from './security.service';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
@@ -27,11 +28,21 @@ export class BotService {
     private readonly usersService: UsersService,
     private readonly requestsRepository: RequestsRepository,
     private readonly professionalsRepository: ProfessionalsRepository,
+    private readonly securityService: SecurityService,
   ) {}
 
   async processMessage(
     input: ProcessMessageInput,
   ): Promise<BotResponse & { flow?: string; step?: string; pendingNotification?: PendingNotification }> {
+    const securityResult = await this.securityService.check(input.phone, input.text);
+    if (securityResult.blocked) {
+      return {
+        text: securityResult.responseText!,
+        flow: undefined,
+        step: undefined,
+      };
+    }
+
     const role: BotRole = input.role || 'USER';
     let user: User | { id: string; name: string; phone: string };
     let session: Awaited<ReturnType<typeof this.botRepository.findByPhoneAndRole>>;

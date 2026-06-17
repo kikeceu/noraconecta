@@ -352,3 +352,16 @@ model BotSession {
 
   @@unique([phone, role])
 }
+
+model BotSecurity {
+  id              String    @id @default(cuid())
+  phone           String    @unique
+  messageCount    Int       @default(0)
+  windowStart     DateTime  @default(now())
+  suspiciousCount Int       @default(0)
+  blockedUntil    DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@index([phone])
+  @@index([blockedUntil])
+}
