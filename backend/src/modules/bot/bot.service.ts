@@ -10,6 +10,7 @@ import { BOT_PAYLOADS } from './constants/bot-payloads';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
 import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
+import type { User } from '@prisma/client';
 
 export type ProcessMessageInput = {
   phone: string;
@@ -32,10 +33,18 @@ export class BotService {
     input: ProcessMessageInput,
   ): Promise<BotResponse & { flow?: string; step?: string; pendingNotification?: PendingNotification }> {
     const role: BotRole = input.role || 'USER';
-    const user =
-      role === 'USER'
-        ? await this.usersService.findOrCreateByPhone(input.phone)
-        : (await this.usersService.findByPhone(input.phone)) ?? { id: '', name: '', phone: input.phone };
+    let user: User | { id: string; name: string; phone: string };
+    let session: Awaited<ReturnType<typeof this.botRepository.findByPhoneAndRole>>;
+
+    if (role === 'USER') {
+      [user, session] = await Promise.all([
+        this.usersService.findOrCreateByPhone(input.phone),
+        this.botRepository.findByPhoneAndRole(input.phone, role),
+      ]);
+    } else {
+      user = (await this.usersService.findByPhone(input.phone)) ?? { id: '', name: '', phone: input.phone };
+      session = await this.botRepository.findByPhoneAndRole(input.phone, role);
+    }
 
     const userIdentity = {
       userId: user.id,
@@ -82,8 +91,6 @@ export class BotService {
         };
       }
     }
-
-    let session = await this.botRepository.findByPhoneAndRole(input.phone, role);
 
     console.log('[processMessage:session]', {
       phone: input.phone,
