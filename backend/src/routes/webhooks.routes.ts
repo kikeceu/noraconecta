@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole, ParsedIncoming } from '../lib/whatsapp-adapter';
 import { BotService } from '../modules/bot/bot.service';
 import { BotRepository } from '../modules/bot/bot.repository';
+import { SecurityRepository } from '../modules/bot/security.repository';
+import { SecurityService } from '../modules/bot/security.service';
 import { UsersService } from '../modules/users/users.service';
 import { UsersRepository } from '../modules/users/users.repository';
 import { RequestsRepository } from '../modules/requests/requests.repository';
@@ -11,11 +13,13 @@ import { ProfessionalsRepository } from '../modules/professionals/professionals.
 import { R2Client } from '../lib/r2-client';
 
 const botRepository = new BotRepository();
+const securityRepository = new SecurityRepository();
+const securityService = new SecurityService(securityRepository);
 const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const requestsRepository = new RequestsRepository();
 const professionalsRepository = new ProfessionalsRepository();
-const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository);
+const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, securityService);
 
 interface PhotoAccumulator {
   phone: string;
