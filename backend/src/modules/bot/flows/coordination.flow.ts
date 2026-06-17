@@ -52,6 +52,8 @@ export class CoordinationFlow implements FlowHandler {
         return this.handleAwaitingUserConfirmation(message, tempData, role);
       case 'AWAITING_VISIT_CONFIRMATION':
         return this.handleAwaitingVisitConfirmation(message, tempData, role);
+      case 'AWAITING_GPS':
+        return this.handleAwaitingGps(message, tempData, role);
       case 'AWAITING_LOCATION':
         return this.handleAwaitingLocation(message, tempData, role);
       case 'AWAITING_VISIT':
@@ -685,7 +687,19 @@ export class CoordinationFlow implements FlowHandler {
           };
         }
 
-        const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
+        const requestForGps = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: { userLatitude: true, geoNode: { select: { name: true } } },
+        });
+
+        const needsGps = !requestForGps?.userLatitude;
+        const zoneName = requestForGps?.geoNode?.name || 'tu zona';
+
+        const userMessage = needsGps
+          ? `Para que ${professionalName} pueda encontrarte fácilmente en ${zoneName}, compartí tu ubicación por WhatsApp. Si no querés compartirla, escribí "no".`
+          : `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
+
+        const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
         return {
           response: {
@@ -700,7 +714,7 @@ export class CoordinationFlow implements FlowHandler {
               targetRole: 'USER',
               message: userMessage,
               flow: 'COORDINATION',
-              step: 'AWAITING_LOCATION',
+              step: targetStep,
               tempData: {
                 requestId,
                 userId: tempData.userId,
@@ -923,7 +937,19 @@ export class CoordinationFlow implements FlowHandler {
         };
       }
 
-      const userMessage = `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
+      const requestForGps = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { userLatitude: true, geoNode: { select: { name: true } } },
+      });
+
+      const needsGps = !requestForGps?.userLatitude;
+      const zoneName = requestForGps?.geoNode?.name || 'tu zona';
+
+      const userMessage = needsGps
+        ? `Para que ${professionalName} pueda encontrarte fácilmente en ${zoneName}, compartí tu ubicación por WhatsApp. Si no querés compartirla, escribí "no".`
+        : `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
+
+      const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
       return {
         response: {
@@ -938,7 +964,7 @@ export class CoordinationFlow implements FlowHandler {
             targetRole: 'USER',
             message: userMessage,
             flow: 'COORDINATION',
-            step: 'AWAITING_LOCATION',
+            step: targetStep,
             tempData: {
               requestId,
               userId: tempData.userId,
@@ -1167,6 +1193,49 @@ export class CoordinationFlow implements FlowHandler {
         text: `${professionalName} propone ${alternativeText}. ¿Te viene bien?\n1. Sí, perfecto\n2. No me viene bien`,
       },
       nextStep: 'AWAITING_USER_CONFIRMATION',
+      tempData,
+    };
+  }
+
+  private async handleAwaitingGps(
+    message: { text?: string; location?: { latitude: number; longitude: number } },
+    tempData: Record<string, unknown>,
+    role: 'USER' | 'PROFESSIONAL',
+  ): Promise<FlowStepResult> {
+    if (role !== 'USER') {
+      return {
+        response: { text: 'Esperando que el usuario comparta su ubicación.' },
+        nextStep: 'AWAITING_GPS',
+        tempData,
+      };
+    }
+
+    const requestId = tempData.requestId as string;
+
+    if (message.location) {
+      const { latitude, longitude } = message.location;
+
+      await prisma.request.update({
+        where: { id: requestId },
+        data: { userLatitude: latitude, userLongitude: longitude },
+      });
+
+      const { reverseGeocode } = await import('../../../lib/nominatim-client');
+      reverseGeocode(latitude, longitude).then(async (result) => {
+        if (result.neighborhood) {
+          await prisma.request.update({
+            where: { id: requestId },
+            data: { clientNeighborhood: result.neighborhood },
+          });
+        }
+      }).catch(err => console.error('[CoordinationFlow] Nominatim GPS failed:', err));
+    }
+
+    return {
+      response: {
+        text: 'Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).',
+      },
+      nextStep: 'AWAITING_LOCATION',
       tempData,
     };
   }

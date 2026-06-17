@@ -456,10 +456,19 @@ export class CoordinationService {
   async confirmVisit(requestId: string, scheduleText: string): Promise<void> {
     const request = await prisma.request.findUnique({
       where: { id: requestId },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        coordinationStatus: true,
+        clientAvailability: true,
+        userId: true,
+        userLatitude: true,
+        assignedProfessionalId: true,
+        description: true,
         user: { select: { name: true, phone: true } },
         assignedProfessional: { select: { name: true, phone: true } },
         category: { select: { name: true } },
+        geoNode: { select: { name: true } },
       },
     });
 
@@ -628,7 +637,14 @@ export class CoordinationService {
       const hours2 = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
       const minutes2 = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
-      const userMessage = `¡Buenas noticias! ${professionalName}, tu ${categoryName}, confirmó la visita para el ${dayName} a las ${hours2}:${minutes2}. Para que pueda encontrarte, indicanos tu dirección exacta.`;
+      const needsGps = !request.userLatitude;
+      const zoneName = request.geoNode?.name || 'tu zona';
+
+      const userMessage = needsGps
+        ? `Para que ${professionalName} pueda encontrarte fácilmente en ${zoneName}, compartí tu ubicación por WhatsApp. Si no querés compartirla, escribí "no".`
+        : `¡Buenas noticias! ${professionalName}, tu ${categoryName}, confirmó la visita para el ${dayName} a las ${hours2}:${minutes2}. Para que pueda encontrarte, indicanos tu dirección exacta.`;
+
+      const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
       await this.sendWithWindowCheck(
         request.user.phone,
@@ -641,7 +657,7 @@ export class CoordinationService {
       await this.botRepository.upsert(request.user.phone, {
         role: 'USER',
         currentFlow: 'COORDINATION',
-        currentStep: 'AWAITING_LOCATION',
+        currentStep: targetStep,
         tempData: {
           requestId,
           userId: request.userId,
