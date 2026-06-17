@@ -13,6 +13,31 @@ import prisma from '../../lib/prisma';
 import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 import type { User } from '@prisma/client';
 
+const EMPTY_WORDS = new Set([
+  'hola', 'buenas', 'buenos', 'buen', 'dias', 'tardes', 'noches',
+  'dia', 'noche', 'tarde', 'hey', 'hi', 'nora', 'como', 'estas',
+  'esta', 'que', 'tal', 'ahi', 'aca', 'por', 'favor', 'gracias',
+  'ok', 'dale', 'okey', 'bien', 'bueno', 'holis', 'holaa', 'holiii',
+]);
+
+function hasActionableContent(text: string): boolean {
+  const words = text.trim().split(/\s+/);
+  if (words.length < 3) return false;
+
+  const normalized = text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+
+  const meaningfulWords = normalized
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !EMPTY_WORDS.has(w));
+
+  return meaningfulWords.length >= 2;
+}
+
 export type ProcessMessageInput = {
   phone: string;
   text?: string;
@@ -206,7 +231,7 @@ export class BotService {
 
         const initialTempData: Record<string, unknown> = { ...userIdentity };
 
-        if (role === 'USER' && input.text?.trim()) {
+        if (role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
           const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
           const [extracted, extractedName] = await Promise.all([
             extractServiceAndZone(input.text.trim()),
