@@ -233,9 +233,8 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
               return;
             }
 
-            if (newStatus === 'COMPLETED' && data.assignedProfessional?.name) {
+            if (newStatus === 'COMPLETED') {
               stopPolling();
-              startRatingFlow(requestId, data.assignedProfessional.name);
               return;
             }
 
@@ -283,29 +282,6 @@ export function useChat(initialPhone: string, initialRole: 'USER' | 'PROFESSIONA
           // silently fail
         }
       }, 2000);
-    },
-    [addMessage],
-  );
-
-  const startRatingFlow = useCallback(
-    (requestId: string, professionalName: string) => {
-      ratingRef.current = {
-        step: 'ASK_OVERALL',
-        professionalName,
-        requestId,
-        overall: 0,
-        punctuality: 0,
-        quality: 0,
-        communication: 0,
-        priceFairness: 0,
-        wouldRecommend: true,
-        comment: '',
-      };
-
-      addMessage(
-        'nora',
-        `¿Cómo te fue con ${professionalName}? Calificalo del 1 al 5 ⭐\n(1=Muy malo, 5=Excelente)`,
-      );
     },
     [addMessage],
   );
