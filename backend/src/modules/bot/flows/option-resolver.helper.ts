@@ -106,6 +106,10 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'YES', aliases: ['1', 'si', 'sí', 'dale', 'ok'] },
     { value: 'NO', aliases: ['2', 'no', 'nop', 'es otra', 'otra', 'otra ubicacion'] },
   ],
+  POST_CANCEL: [
+    { value: 'NEW_REQUEST', aliases: ['1', 'iniciar', 'nuevo pedido', 'si', 'sí', 'quiero otro'] },
+    { value: 'NO', aliases: ['2', 'no', 'por ahora no', 'gracias', 'no gracias'] },
+  ],
 };
 
 export function resolveOption(step: string, input: string): string | null {
