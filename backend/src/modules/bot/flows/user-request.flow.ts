@@ -1429,10 +1429,10 @@ export class UserRequestFlow implements FlowHandler {
     }
 
     if (resolved === 'NO') {
-      return {
-        response: { text: 'Pedido cancelado. Cuando necesites algo, escribime.' },
-        nextStep: null,
-        tempData: { _clearTempData: true },
+       return {
+        response: { text: 'Entendido, cancelé el pedido.\n1. Iniciar un nuevo pedido\n2. Por ahora no, gracias' },
+        nextStep: 'POST_CANCEL',
+        tempData,
       };
     }
 
