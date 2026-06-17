@@ -34,6 +34,8 @@ export class FeedbackFlow implements FlowHandler {
         return this.handleFeedbackRating(message, tempData, role);
       case 'FEEDBACK_RECOMMEND':
         return this.handleFeedbackRecommend(message, tempData, role);
+      case 'FEEDBACK_AMOUNT':
+        return this.handleFeedbackAmount(message, tempData, role);
       case 'FEEDBACK_COMMENT':
         return this.handleFeedbackComment(message, tempData, role);
       case 'FEEDBACK_PRO_RATING':
@@ -277,13 +279,62 @@ export class FeedbackFlow implements FlowHandler {
 
     return {
       response: {
-        text: '¿Querés dejar algún comentario? Escribilo o respondé "omitir".',
+        text: `${resolved === 'YES' ? 'Gracias por tu recomendación.' : 'Gracias por tu opinión.'}\n\nPara ayudar a otros vecinos a saber qué esperar, ¿cuánto pagaste por este trabajo? Escribí solo el monto (ej: 5000) o "no sé" para saltearlo.`,
       },
-      nextStep: 'FEEDBACK_COMMENT',
+      nextStep: 'FEEDBACK_AMOUNT',
       tempData: {
         ...tempData,
         userWouldRecommend: resolved === 'YES',
       },
+    };
+  }
+
+  private async handleFeedbackAmount(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+    role: 'USER' | 'PROFESSIONAL',
+  ): Promise<FlowStepResult> {
+    if (role !== 'USER') {
+      return {
+        response: { text: 'Estamos esperando la respuesta del usuario.' },
+        nextStep: 'FEEDBACK_AMOUNT',
+        tempData,
+      };
+    }
+
+    const requestId = tempData.requestId as string | undefined;
+    const inputText = message.text?.trim() || '';
+
+    // Clean dots, commas and spaces before parsing
+    const cleanedInput = inputText.replace(/[.$,\s]/g, '');
+    const amount = parseInt(cleanedInput, 10);
+
+    if (requestId && !isNaN(amount) && amount > 0) {
+      try {
+        await prisma.requestPricing.upsert({
+          where: { requestId },
+          create: {
+            requestId,
+            amountPaid: amount,
+            currency: 'ARS',
+            reportedAt: new Date(),
+          },
+          update: {
+            amountPaid: amount,
+            reportedAt: new Date(),
+          },
+        });
+      } catch {
+        // Silently ignore — pricing capture must never block the flow
+      }
+    }
+
+    return {
+      response: {
+        text: '¿Querés dejar algún comentario sobre el trabajo? Escribí lo que quieras o "omitir" para terminar.',
+      },
+      nextStep: 'FEEDBACK_COMMENT',
+      tempData,
     };
   }
 

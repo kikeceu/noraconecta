@@ -123,7 +123,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   │   ├── user-request.flow.ts        # USER_REQUEST flow: INIT → ASK_NAME → ASK_SERVICE → ASK_SAVED_LOCATION → ASK_LOCATION (GPS/Nominatim → department) → ASK_PROVINCE/ASK_ZONE (fallback) → ASK_DESCRIPTION → DESCRIPTION_MISMATCH → CLARIFICATION → ASK_PHOTOS → ASK_AUDIO → CONFIRM → SEARCHING/WAITING → POST_CANCEL (AUT-310). La ubicación se resuelve justo después del servicio. Si el usuario comparte GPS, Nominatim resuelve departamento automáticamente. Si tiene savedLocations, se le ofrece reutilizar una dirección. Si no, cae al flujo de zona manual (AUT-306) + handlers para payloads de botones + generateClarificationQuestions (LLM, AUT-280) + generateTechnicalBrief (LLM, AUT-280) + validateDescription (LLM, 3 niveles: VALID/INVALID/UNCERTAIN, AUT-280, AUT-288) + validateClarificationAnswer (LLM, AUT-280) + handleDescriptionMismatch permite cambiar servicio o reformular (AUT-288) + proceedAfterService saltea zona si ya está definida (AUT-288) + extractName con LLM en handleAskName (AUT-301) + mensajes simplificados: "no" reemplaza "continuar"/"omitir" en fotos/audio/ubicación (AUT-301) + transcripción de audio en ASK_DESCRIPTION via transcribeAudio: si usuario manda audio se transcribe como descripción y se saltea ASK_AUDIO (AUT-302) + resolveExtractedServiceZone y handleAskService con extracción inteligente de servicio/zona del mensaje inicial: saltea pasos ya respondidos, notifica servicio/zona inexistentes (AUT-308)
 │   │   │   │   │   ├── professional-register.flow.ts # PROFESSIONAL_REGISTER flow (numbered category list from DB — AUT-234; structured availability: days + unified hours LLM parsing — AUT-238, AUT-249; UX improvements: warm greeting, bulleted zones list — AUT-300)
 │   │   │   │   │   ├── coordination.flow.ts  # COORDINATION: visit scheduling relay flow (AUT-247: confirmación antes de avanzar, mensajes sin ejemplos; AUT-248: mensajes diferenciados past/ambiguous, clientAvailability con fecha formateada; AUT-290: mediaUrls/audioUrl/mediaFirst en handleAwaitingAcceptance en vez de sendRequestMedia; AUT-291: PROPOSE_ALTERNATIVE en handleAwaitingConfirmation; AUT-294: off-topic detection en 6 steps con resolveOptionWithFallback; AUT-301: handleAwaitingAcceptance sin media muestra Aceptar/Ahora no puedo directo sin "Ver detalles"). AWAITING_GPS: paso previo opcional cuando userLatitude es null, guarda coords y barrio vía Nominatim async, siempre avanza a AWAITING_LOCATION (AUT-315). AWAITING_LOCATION: savedLocations con sugerencias por geoNodeId, comparación LLM de direcciones (compareAddresses), upsert con límite configurable USER_MAX_SAVED_LOCATIONS, pre-llenado de clientAddress desde savedLocation reutilizada (AUT-306)
-│   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294)
+│   │   │   │   │   ├── feedback.flow.ts      # FEEDBACK: work completion + bilateral rating flow + sentiment analysis (AUT-216, AUT-235) + off-topic detection en FEEDBACK_SATISFACTION, FEEDBACK_RECOMMEND, FEEDBACK_PRO_RECOMMEND (AUT-294) + captura de precio pagado via FEEDBACK_AMOUNT step (AUT-316)
 │   │   │   │   │   ├── cancel-flow.helper.ts  # Shared cancellation confirmation logic (AUT-296: avoids re-entry loop + friendly error on duplicate cancel; AUT-297: numbered options + sendWithWindowCheck via NotificationService for template fallback; AUT-298: LLM-based cancellation intent detection + professional role support in handleCancelConfirmation)
 │   │   │   │   │   ├── location-saver.helper.ts # Gestión de savedLocations: upsert con comparación LLM de direcciones (compareAddresses), touch (mover al frente), findLocationsByGeoNode. Límite configurable vía SystemConfig USER_MAX_SAVED_LOCATIONS (default 5) (AUT-306)
 │   │   │   │   │   ├── option-resolver.helper.ts # Shared step option resolver con 3 capas: match exacto contra aliases + comparación normalizada contra label + LLM fallback con prompt mejorado (AUT-313). StepOption con campo label obligatorio. normalizeText helper (NFD sin acentos ni puntuación). AWAITING_ACCEPTANCE: '1' → VER_DETALLES (muestra detalles), ACCEPT solo por texto (AUT-281) + alias 'aceptar_pedido' (AUT-301). AWAITING_CONFIRMATION: '2' → PROPOSE_ALTERNATIVE (AUT-291). CANCEL_CONFIRMATION: 'cancelar_pedido'/'no_cancelar' payloads (AUT-297). DESCRIPTION_MISMATCH: CHANGE_SERVICE/REFORMULATE/SI_CORRECTO (AUT-288, AUT-295). ASK_SAVED_LOCATION_SINGLE: YES/NO (AUT-306). POST_CANCEL: NEW_REQUEST/NO con aliases determinísticos sin LLM (AUT-310). generateOffTopicResponse: detección LLM de mensajes off-topic con respuesta cordial + recordatorio de contexto (AUT-294)
@@ -1961,7 +1961,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | createdAt             | DateTime  | Autogenerado                                 |
 | updatedAt             | DateTime  | Autogenerado (on update)                     |
 
-- Relaciones: `events` → RequestEvent[], `feedback` → Feedback?, `escalation` → Escalation?
+- Relaciones: `events` → RequestEvent[], `feedback` → Feedback?, `escalation` → Escalation?, `pricing` → RequestPricing?
 - Índices (AUT-311): `@@index([userId, status])`, `@@index([categoryId, geoNodeId, status])`, `@@index([assignedProfessionalId, status])`, `@@index([assignmentTimeoutAt, status])`
 
 ### RequestEvent
@@ -2011,6 +2011,25 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | resolvedBy    | String?  | Admin que resolvió                       |
 | createdAt     | DateTime | Autogenerado                             |
 | updatedAt     | DateTime | Autogenerado (on update)                 |
+
+### RequestPricing (AUT-316)
+| Columna    | Tipo                    | Descripción                                       |
+|-----------|------------------------|---------------------------------------------------|
+| id        | CUID                   | PK, autogenerado                                   |
+| requestId | CUID                   | Único, FK a Request                                |
+| amountPaid| Int?                   | Monto pagado en pesos (sin decimales)              |
+| currency  | String                 | Código de moneda (default: "ARS")                  |
+| reportedAt| DateTime?              | Fecha en que el usuario reportó el precio          |
+| embedding | vector(1536)?          | Placeholder para embeddings semánticos (Capa 2) — NULL hasta futura implementación |
+| createdAt | DateTime               | Autogenerado                                       |
+| updatedAt | DateTime               | Autogenerado (on update)                           |
+
+- Unique constraint: `requestId`
+- Índice: `@@index([requestId])`
+- Relaciones: `request` → Request
+- La extensión pgvector debe estar habilitada en la DB (`CREATE EXTENSION IF NOT EXISTS vector`)
+- `embedding` queda en NULL hasta Capa 2 (búsqueda semántica de precios similares)
+- Solo el usuario reporta el precio (no el profesional) — capturado vía `FEEDBACK_AMOUNT` step en `feedback.flow.ts`
 
 ### BotSession
 | Columna       | Tipo      | Descripción                                      |

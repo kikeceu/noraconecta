@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 enum AdminRole {
@@ -270,6 +272,7 @@ model Request {
   events     RequestEvent[]
   feedback   Feedback?
   escalation Escalation?
+  pricing    RequestPricing?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -335,6 +338,20 @@ model Escalation {
   resolvedBy     String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
+}
+
+model RequestPricing {
+  id          String                     @id @default(cuid())
+  requestId   String                     @unique
+  request     Request                    @relation(fields: [requestId], references: [id])
+  amountPaid  Int?
+  currency    String                     @default("ARS")
+  reportedAt  DateTime?
+  embedding   Unsupported("vector(1536)")?
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+
+  @@index([requestId])
 }
 
 model BotSession {
