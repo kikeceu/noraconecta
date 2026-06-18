@@ -418,8 +418,8 @@ export class CoordinationService {
         const address = visit.clientAddress || 'la dirección';
         const userName = visit.user?.name || 'el usuario';
         const professionalMessage =
-          `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n` +
-          '¿Confirmás? Respondé "Confirmo" o "Cancelar" si no podés asistir.';
+         `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n\n` +
+         '1. Confirmo\n2. No puedo ir';
 
         await this.sendWithWindowCheck(
           professionalPhone,
