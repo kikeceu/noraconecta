@@ -1231,6 +1231,15 @@ export class CoordinationFlow implements FlowHandler {
       }).catch(err => console.error('[CoordinationFlow] Nominatim GPS failed:', err));
     }
 
+    const existingRequest = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: { clientAddress: true },
+    });
+
+    if (existingRequest?.clientAddress) {
+      return this.finalizeLocation(existingRequest.clientAddress, requestId, tempData);
+    }
+
     return {
       response: {
         text: 'Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).',

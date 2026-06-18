@@ -50,8 +50,11 @@ export class RequestsRepository {
   async findActiveByUserId(userId: string): Promise<(Request & { category: { name: string } }) | null> {
     return prisma.request.findFirst({
       where: {
-        userId,
-        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] },
+      userId,
+        OR: [
+          { status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] } },
+          { status: 'NO_RESPONSE', waitingUserConsent: true },
+        ],
       },
       include: {
         assignedProfessional: { select: { phone: true } },
