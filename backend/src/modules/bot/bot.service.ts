@@ -496,6 +496,34 @@ export class BotService {
         }
       }
 
+      if (!session.currentFlow && role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
+        const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
+        const [extracted, extractedName] = await Promise.all([
+          extractServiceAndZone(input.text.trim()),
+          extractName(input.text.trim()),
+        ]);
+        const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+        if (extracted.serviceName || extracted.zoneName) {
+          sessionTempData._extractedServiceName = extracted.serviceName;
+          sessionTempData._extractedZoneName = extracted.zoneName;
+        }
+        const isNameless = !userIdentity.name || userIdentity.name === userIdentity.phone;
+        if (extractedName && isNameless) {
+          sessionTempData.name = extractedName;
+          sessionTempData._isNewUser = true;
+          await this.usersService.updateName(userIdentity.userId, extractedName);
+        }
+        if (extracted.serviceName || extracted.zoneName || (extractedName && isNameless)) {
+          const handler = resolveFlowHandler(role);
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: handler.flowName,
+            currentStep: handler.getInitialStep(),
+            tempData: { ...sessionTempData } as Prisma.InputJsonValue,
+          });
+        }
+      }
+
       if (!session.currentFlow) {
         const handler = resolveFlowHandler(role);
         session.currentFlow = handler.flowName;

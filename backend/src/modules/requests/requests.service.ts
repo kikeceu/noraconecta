@@ -444,12 +444,22 @@ Criterios:
     }
 
     const validStatuses = ['CREATED', 'ASSIGNED', 'ACCEPTED'];
+    const isWaitingConsent = request.status === 'NO_RESPONSE' && request.waitingUserConsent;
 
-    if (!validStatuses.includes(request.status)) {
+    if (!validStatuses.includes(request.status) && !isWaitingConsent) {
       throw new AppError(
         `Cannot cancel a request with status ${request.status}. Expected CREATED, ASSIGNED, or ACCEPTED`,
         400,
       );
+    }
+
+   // Cancelación directa para pedidos en NO_RESPONSE esperando consentimiento
+   if (isWaitingConsent) {
+     await prisma.request.update({
+       where: { id: requestId },
+       data: { status: 'CANCELLED', waitingUserConsent: false },
+     });
+     return { cancelled: true, shouldNotifyProfessional: false, professionalMessage: null };
     }
 
     const coordinationStatus = request.coordinationStatus;
