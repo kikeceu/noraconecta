@@ -29,7 +29,7 @@ export interface AdminMetrics {
 export class AdminService {
   constructor(private readonly adminRepository: AdminRepository) {}
 
-  async getMetrics(): Promise<AdminMetrics> {
+  async getMetrics(geoNodeId?: string): Promise<AdminMetrics> {
     const [
       orderCounts,
       recentCounts,
@@ -39,13 +39,13 @@ export class AdminService {
       acceptanceStats,
       ordersLast30Days,
     ] = await Promise.all([
-      this.adminRepository.countOrdersByStatus(),
-      this.adminRepository.countRecentOrders(),
-      this.adminRepository.countProfessionalsByStatus(),
-      this.adminRepository.countEscalationsByStatus(),
-      this.adminRepository.getFeedbackStats(),
-      this.adminRepository.getAcceptanceStats(),
-      this.adminRepository.getOrdersLast30Days(),
+      this.adminRepository.countOrdersByStatus(geoNodeId),
+      this.adminRepository.countRecentOrders(geoNodeId),
+      this.adminRepository.countProfessionalsByStatus(geoNodeId),
+      this.adminRepository.countEscalationsByStatus(geoNodeId),
+      this.adminRepository.getFeedbackStats(geoNodeId),
+      this.adminRepository.getAcceptanceStats(geoNodeId),
+      this.adminRepository.getOrdersLast30Days(geoNodeId),
     ]);
 
     const activeOrders =
@@ -133,5 +133,11 @@ export class AdminService {
         count: p._count,
       })),
     };
+  }
+
+  async getGeoTree(): Promise<{
+    provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
+  }> {
+    return this.adminRepository.getGeoTree();
   }
 }

@@ -20,7 +20,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { getDashboardMetrics } from '../../lib/admin-api';
+import { getDashboardMetrics, getGeoTree } from '../../lib/admin-api';
 import { brand } from '../../lib/brand';
 import type { DashboardMetrics } from '../../types/admin';
 
@@ -68,9 +68,22 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [range, setRange] = useState<7 | 15 | 30>(30);
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [geoTree, setGeoTree] = useState<{
+    provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
+  }>({ provinces: [] });
 
   useEffect(() => {
-    getDashboardMetrics()
+    getGeoTree()
+      .then((res) => setGeoTree(res.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    setError('');
+    getDashboardMetrics(selectedDepartment || undefined)
       .then((res) => {
         setMetrics(res.data);
       })
@@ -78,7 +91,12 @@ export function DashboardPage() {
         setError(err instanceof Error ? err.message : 'Error al cargar métricas');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedDepartment]);
+
+  const handleProvinceChange = (provinceId: string) => {
+    setSelectedProvince(provinceId);
+    setSelectedDepartment('');
+  };
 
   if (loading) {
     return (
@@ -167,6 +185,51 @@ export function DashboardPage() {
         <p className="text-sm text-gray-600 mt-1">
           Panel de métricas operativas de {brand.fullName}
         </p>
+      </div>
+
+      {/* Geographic filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <select
+          value={selectedProvince}
+          onChange={(e) => handleProvinceChange(e.target.value)}
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0B6E4F] focus:border-transparent"
+        >
+          <option value="">Todas las provincias</option>
+          {geoTree.provinces.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+
+        {selectedProvince && (
+          <select
+            value={selectedDepartment}
+            onChange={(e) => setSelectedDepartment(e.target.value)}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0B6E4F] focus:border-transparent"
+          >
+            <option value="">Todos los departamentos</option>
+            {geoTree.provinces
+              .find((p) => p.id === selectedProvince)
+              ?.departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+          </select>
+        )}
+
+        {(selectedProvince || selectedDepartment) && (
+          <button
+            onClick={() => {
+              setSelectedProvince('');
+              setSelectedDepartment('');
+            }}
+            className="text-xs text-[#6B7280] hover:text-[#111827] cursor-pointer"
+          >
+            Limpiar filtro
+          </button>
+        )}
       </div>
 
       {/* Metrics cards */}

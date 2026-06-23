@@ -65,10 +65,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300
 │   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders
 │   │   │   ├── admin/
-│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (dashboard KPIs)
-│   │   │   │   ├── admin.controller.ts # Request handling
-│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities
-│   │   │   │   └── admin.repository.ts # Prisma aggregate queries
+│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close
+│   │   │   │   ├── admin.controller.ts # Request handling + query params
+│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering
+│   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 3 endpoints under /plans
 │   │   │   │   ├── plans.controller.ts # Request validation, response formatting
@@ -196,7 +196,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
 │   │   │   ├── admin/                  # Admin panel pages (NEW)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
-│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) (AUT-209)
+│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination, phone column between zone and status (AUT-205)
 │   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW) (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
@@ -520,10 +520,12 @@ cd landing && npm install && npm run build:css
 ### Admin Dashboard (NEW)
 
 Agrega métricas del panel de administración agregadas desde múltiples entidades.
+Soporta filtro jerárquico por zona geográfica vía `geoNodeId` query param (AUT-332).
 
 | Endpoint                       | Método | Descripción                          | Auth requerida |
 |-------------------------------|--------|--------------------------------------|----------------|
-| `/admin/metrics`               | GET    | Dashboard KPIs (orders, professionals, escalations, feedback) | OPERATOR |
+| `/admin/metrics`               | GET    | Dashboard KPIs (orders, professionals, escalations, feedback). Opcional: `?geoNodeId=<id>` para filtrar por zona | OPERATOR |
+| `/admin/geo-tree`              | GET    | Árbol geográfico jerárquico (Provincia → Departamento) para selector de filtro | OPERATOR |
 | `/admin/requests/auto-close`   | POST   | Trigger manual de auto-cierre de pedidos PENDING_CONFIRMATION > 24h (testing) | SUPERADMIN |
 
 Response shape:
