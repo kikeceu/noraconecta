@@ -1,6 +1,10 @@
 import { MembershipsRepository } from './memberships.repository';
 import { PlansRepository } from '../plans/plans.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { BotRepository } from '../bot/bot.repository';
+import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
+import { shouldUseTemplate } from '../../utils/whatsapp-utils';
+import { MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE } from '../../utils/whatsapp-templates';
 import { AppError } from '../../middleware/error-handler';
 import { Membership } from '@prisma/client';
 
@@ -32,6 +36,8 @@ export class MembershipsService {
     private readonly membershipsRepository: MembershipsRepository,
     private readonly plansRepository: PlansRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly botRepository: BotRepository,
+    private readonly whatsappAdapter: WhatsAppAdapter,
   ) {}
 
   async canReceiveRequests(professionalId: string): Promise<boolean> {
@@ -179,5 +185,77 @@ export class MembershipsService {
       activatedBy: 'mercadopago',
       paymentRef,
     });
+  }
+
+  async sendExpirationReminders(): Promise<void> {
+    try {
+      const daysConfig = await this.configRepository.findByKey('MEMBERSHIP_REMINDER_DAYS_AHEAD');
+      const daysAhead = parseInt(daysConfig?.value ?? '3', 10);
+
+      const expiring = await this.membershipsRepository.findExpiringMemberships(daysAhead);
+
+      if (expiring.length === 0) return;
+
+      for (const membership of expiring) {
+        try {
+          const professionalPhone = membership.professional.phone;
+          const professionalName = membership.professional.name;
+          const endDate = new Date(membership.endDate).toLocaleDateString('es-AR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          });
+
+          const textMessage =
+            `Hola ${professionalName}, tu membresía NORA vence el ${endDate}.\n\n` +
+            `Para renovarla y seguir recibiendo pedidos, transferí el importe a:\n\n` +
+            `nora.conecta.mp\n\n` +
+            `Una vez realizado el pago, envianos el comprobante por WhatsApp y activamos tu cuenta de inmediato.`;
+
+          await this.sendWithWindowCheck(
+            professionalPhone,
+            'PROFESSIONAL',
+            textMessage,
+            MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE,
+            [professionalName, endDate],
+          );
+
+          await this.membershipsRepository.markReminderSent(membership.id);
+
+          console.log(
+            `[memberships] Renewal reminder sent to ${professionalPhone} (membership ${membership.id}, expires ${endDate})`,
+          );
+        } catch (err) {
+          console.error(
+            `[memberships] Failed to send renewal reminder for membership ${membership.id}:`,
+            err,
+          );
+        }
+      }
+
+      await this.membershipsRepository.clearExpiredReminderFlags();
+    } catch (err) {
+      console.error('[memberships] sendExpirationReminders failed:', err);
+    }
+  }
+
+  private async sendWithWindowCheck(
+    phone: string,
+    role: WhatsAppRole,
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    try {
+      const needsTemplate = await shouldUseTemplate(phone, role, this.botRepository);
+
+      if (needsTemplate) {
+        await this.whatsappAdapter.sendTemplate(phone, templateName, templateParams, role);
+      } else {
+        await this.whatsappAdapter.sendText(phone, text, role);
+      }
+    } catch (err) {
+      console.error(`[MembershipsService] Failed to send to ${phone} (${role}):`, err);
+    }
   }
 }

@@ -91,3 +91,8 @@ export const TEMPLATE_USER_CANCELAR_PEDIDO = 'nora_user_cancelar_pedido';
 
 /** New request without media — direct accept/reject */
 export const TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA = 'nora_pro_nuevo_pedido_sin_media';
+
+// ── Membership templates ──────────────────────────────────────────────
+
+/** Membership about to expire */
+export const MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE = 'nora_pro_membresia_por_vencer';
