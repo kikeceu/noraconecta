@@ -556,7 +556,7 @@ Response shape:
 }
 ```
 
-### Categories
+### Categories (ACTUALIZADO AUT-322)
 
 | Endpoint                   | Método | Descripción                          | Rol mínimo |
 |---------------------------|--------|--------------------------------------|-----------|
@@ -566,6 +566,11 @@ Response shape:
 | `/categories`             | POST   | Crear categoría (slug autogenerado)  | SUPERADMIN|
 | `/categories/:id`         | PATCH  | Editar nombre o descripción          | SUPERADMIN|
 | `/categories/:id/toggle`  | PATCH  | Habilitar / deshabilitar categoría   | SUPERADMIN|
+
+**Campos de credencial habilitante (AUT-322):**
+- `requiresLicense Boolean @default(false)` — indica si la categoría requiere una credencial habilitante
+- `licenseLabel String?` — etiqueta de la credencial (ej: "Matrícula habilitante de gasista")
+- Categorías con `requiresLicense = true`: Gasista matriculado, Electricista, Aire acondicionado
 
 ### Locations (ACTUALIZADO AUT-211)
 
@@ -1816,16 +1821,18 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Países son nodos raíz: `parentId = null`, `levelId = null`
 - Relaciones: `professionalZones` → ProfessionalZone[], `requests` → Request[]
 
-### Category
-| Columna    | Tipo     | Descripción                     |
-|-----------|----------|---------------------------------|
-| id        | CUID     | PK, autogenerado                |
-| name      | String   | Único, nombre de la categoría   |
-| slug      | String   | Único, slug para URLs           |
-| description| String? | Descripción opcional            |
-| isActive  | Boolean  | Habilitado (default: true)      |
-| createdAt | DateTime | Autogenerado                    |
-| updatedAt | DateTime | Autogenerado (on update)        |
+### Category (ACTUALIZADO AUT-322)
+| Columna         | Tipo     | Descripción                                            |
+|----------------|----------|--------------------------------------------------------|
+| id             | CUID     | PK, autogenerado                                       |
+| name           | String   | Único, nombre de la categoría                          |
+| slug           | String   | Único, slug para URLs                                  |
+| description    | String?  | Descripción opcional                                   |
+| isActive       | Boolean  | Habilitado (default: true)                             |
+| requiresLicense| Boolean  | Requiere credencial habilitante (default: false) [AUT-322] |
+| licenseLabel   | String?  | Etiqueta de la credencial requerida (ej: "Matrícula habilitante de gasista") [AUT-322] |
+| createdAt      | DateTime | Autogenerado                                           |
+| updatedAt      | DateTime | Autogenerado (on update)                               |
 
 - Relaciones: `professionals` → Professional[], `requests` → Request[]
 
@@ -1844,7 +1851,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 
 - Relaciones: `requests` → Request[], `escalations` → Escalation[]
 
-### Professional
+### Professional (ACTUALIZADO AUT-322)
 | Columna               | Tipo     | Descripción                             |
 |----------------------|----------|-----------------------------------------|
 | id                   | CUID     | PK, autogenerado                        |
@@ -1874,6 +1881,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | problemTypeStats      | Json?    | Mapa tipo → cantidad completados (AUT-241) |
 | abuseWarningCount     | Int      | Contador de advertencias anti-abuso (default: 0) (AUT-241) |
 | lastAbuseCheckAt      | DateTime?| Última verificación anti-abuso (AUT-241) |
+| declaredHasLicense    | Boolean? | null=categoría no requiere / true=declaró que tiene / false=declaró que no tiene [AUT-322] |
+| licenseUrl            | String?  | URL del documento de credencial subido en onboarding web [AUT-322] |
 | createdAt             | DateTime | Autogenerado                            |
 | updatedAt             | DateTime | Autogenerado (on update)                |
 
