@@ -26,6 +26,8 @@ const membershipsService = new MembershipsService(
   membershipsRepository,
   plansRepository,
   configRepository,
+  botRepository,
+  whatsappAdapter,
 );
 
 const paymentsService = new PaymentsService(

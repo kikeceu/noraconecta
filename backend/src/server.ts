@@ -30,6 +30,10 @@ import { UsersRepository } from './modules/users/users.repository';
 import { CoordinationService } from './modules/bot/coordination.service';
 import { BotRepository } from './modules/bot/bot.repository';
 import { NotificationService } from './modules/notifications/notification.service';
+import { MembershipsService } from './modules/memberships/memberships.service';
+import { MembershipsRepository } from './modules/memberships/memberships.repository';
+import { PlansRepository } from './modules/plans/plans.repository';
+import { ConfigRepository } from './modules/config/config.repository';
 import { WhatsAppAdapter } from './lib/whatsapp-adapter';
 import { R2Client } from './lib/r2-client';
 
@@ -146,6 +150,22 @@ cron.schedule('0 * * * *', () => {
 // Cron job: check waiting activations expiry (24h timeout, runs every 30 minutes)
 cron.schedule('*/30 * * * *', () => {
   void requestsService.checkWaitingActivations();
+});
+
+// Cron job: send membership renewal reminders (runs daily at 10:00 AM)
+const plansRepository = new PlansRepository();
+const configRepository = new ConfigRepository();
+const membershipsRepository = new MembershipsRepository();
+const membershipsService = new MembershipsService(
+  membershipsRepository,
+  plansRepository,
+  configRepository,
+  botRepository,
+  whatsappAdapter,
+);
+
+cron.schedule('0 10 * * *', () => {
+  void membershipsService.sendExpirationReminders();
 });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;

@@ -3,14 +3,22 @@ import { MembershipsService } from './memberships.service';
 import { MembershipsRepository } from './memberships.repository';
 import { PlansRepository } from '../plans/plans.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { BotRepository } from '../bot/bot.repository';
+import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { R2Client } from '../../lib/r2-client';
 
 const membershipsRepository = new MembershipsRepository();
 const plansRepository = new PlansRepository();
 const configRepository = new ConfigRepository();
+const botRepository = new BotRepository();
+const r2Client = new R2Client();
+const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
 const membershipsService = new MembershipsService(
   membershipsRepository,
   plansRepository,
   configRepository,
+  botRepository,
+  whatsappAdapter,
 );
 
 const VALID_TYPES = ['MONTHLY', 'ANNUAL'] as const;

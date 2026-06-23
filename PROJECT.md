@@ -34,7 +34,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297, AUT-331). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301). MEMBERSHIP_RENEWED_TEMPLATE: template de renovación de membresía (AUT-331)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297, AUT-331, AUT-330). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301). MEMBERSHIP_RENEWED_TEMPLATE: template de renovación de membresía (AUT-331). MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE: template de membresía por vencer (AUT-330)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -77,8 +77,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── memberships/
 │   │   │   │   ├── memberships.routes.ts     # 2 endpoints under /professionals
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
-│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331)
-│   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models
+│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331). sendExpirationReminders: cron diario de notificación de vencimiento con sendWithWindowCheck (AUT-330)
+│   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models + findExpiringMemberships, markReminderSent, clearExpiredReminderFlags (AUT-330)
 │   │   │   ├── config/
 │   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
 │   │   │   │   ├── config.controller.ts # Request validation, response formatting
@@ -635,6 +635,25 @@ Response shape:
 |------------------------------------------|--------|--------------------------------------|-----------|
 | `/professionals/:id/membership`          | GET    | Estado actual de membresía + trial   | OPERATOR  |
 | `/professionals/:id/membership`          | POST   | Activar membresía manualmente        | SUPERADMIN|
+
+**Servicios internos:**
+
+| Método                          | Descripción                                                     |
+|--------------------------------|-----------------------------------------------------------------|
+| `canReceiveRequests()`         | Determina si el profesional puede recibir pedidos (membresía activa o trial disponible) |
+| `activateMembership()`         | Activa membresía manualmente (admin)                             |
+| `activateFromPayment()`        | Activa membresía vía pago de MercadoPago                        |
+| `getStatus()`                  | Estado completo: membresía + trial                              |
+| `getActiveMembership()`        | Membresía activa actual del profesional                         |
+| `sendExpirationReminders()`    | Cron job diario (10:00 AM): detecta membresías por vencer y envía notificación WhatsApp con `sendWithWindowCheck` (AUT-330) |
+
+**Campo anti-duplicados (AUT-330):**
+- `Membership.renewalReminderSentAt DateTime?`: registra cuándo se envió el reminder de renovación. Evita envíos duplicados en el mismo ciclo (`null` = no enviado, fecha = ya enviado). Se limpia automáticamente cuando la membresía ya expiró (`clearExpiredReminderFlags`).
+
+**Configuración:**
+| Key                               | Default | Descripción                                    |
+|-----------------------------------|---------|------------------------------------------------|
+| `MEMBERSHIP_REMINDER_DAYS_AHEAD`  | `"3"`   | Días de anticipación para enviar el reminder   |
 
 ### Notifications (AUT-195, ACTUALIZADO AUT-213, AUT-287)
 

@@ -217,17 +217,18 @@ model Plan {
 }
 
 model Membership {
-  id             String           @id @default(cuid())
-  professionalId String
-  professional   Professional     @relation(fields: [professionalId], references: [id])
-  planId         String
-  plan           Plan             @relation(fields: [planId], references: [id])
-  type           MembershipType
-  status         MembershipStatus @default(ACTIVE)
-  startDate      DateTime
-  endDate        DateTime
-  paymentRef     String?
-  activatedBy    String?
+  id                    String           @id @default(cuid())
+  professionalId        String
+  professional          Professional     @relation(fields: [professionalId], references: [id])
+  planId                String
+  plan                  Plan             @relation(fields: [planId], references: [id])
+  type                  MembershipType
+  status                MembershipStatus @default(ACTIVE)
+  startDate             DateTime
+  endDate               DateTime
+  paymentRef            String?
+  activatedBy           String?
+  renewalReminderSentAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
