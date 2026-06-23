@@ -237,19 +237,24 @@ async function seedPlans(): Promise<void> {
 
 async function seedCategories(): Promise<void> {
   const categories = [
-    { name: 'Plomero', slug: 'plomero', description: 'Servicios de plomería general' },
-    { name: 'Electricista', slug: 'electricista', description: 'Servicios de electricidad' },
-    { name: 'Gasista matriculado', slug: 'gasista-matriculado', description: 'Servicios de gas certificados' },
-    { name: 'Pintor', slug: 'pintor', description: 'Servicios de pintura' },
-    { name: 'Albañil', slug: 'albanil', description: 'Servicios de albañilería y construcción' },
-    { name: 'Cerrajero', slug: 'cerrajero', description: 'Servicios de cerrajería' },
-    { name: 'Aire acondicionado', slug: 'aire-acondicionado', description: 'Instalación y reparación de aires acondicionados' },
+    { name: 'Plomero', slug: 'plomero', description: 'Servicios de plomería general', requiresLicense: false, licenseLabel: null },
+    { name: 'Electricista', slug: 'electricista', description: 'Servicios de electricidad', requiresLicense: true, licenseLabel: 'Matrícula de electricista' },
+    { name: 'Gasista matriculado', slug: 'gasista-matriculado', description: 'Servicios de gas certificados', requiresLicense: true, licenseLabel: 'Matrícula habilitante de gasista' },
+    { name: 'Pintor', slug: 'pintor', description: 'Servicios de pintura', requiresLicense: false, licenseLabel: null },
+    { name: 'Albañil', slug: 'albanil', description: 'Servicios de albañilería y construcción', requiresLicense: false, licenseLabel: null },
+    { name: 'Cerrajero', slug: 'cerrajero', description: 'Servicios de cerrajería', requiresLicense: false, licenseLabel: null },
+    { name: 'Aire acondicionado', slug: 'aire-acondicionado', description: 'Instalación y reparación de aires acondicionados', requiresLicense: true, licenseLabel: 'Certificado técnico (manejo de gases refrigerantes)' },
   ];
 
   for (const cat of categories) {
     await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: { name: cat.name, description: cat.description },
+      update: {
+        name: cat.name,
+        description: cat.description,
+        requiresLicense: cat.requiresLicense,
+        licenseLabel: cat.licenseLabel,
+      },
       create: cat,
     });
   }

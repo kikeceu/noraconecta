@@ -118,13 +118,15 @@ enum BotRole {
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String   @unique
+  slug             String   @unique
+  description      String?
+  isActive         Boolean  @default(true)
+  requiresLicense  Boolean  @default(false)
+  licenseLabel     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   professionals Professional[]
   requests      Request[]
@@ -174,6 +176,8 @@ model Professional {
   problemTypeStats       Json?
   abuseWarningCount      Int                @default(0)
   lastAbuseCheckAt       DateTime?
+  declaredHasLicense     Boolean?
+  licenseUrl             String?
 
   zones       ProfessionalZone[]
   memberships Membership[]
