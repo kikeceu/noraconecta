@@ -144,6 +144,10 @@ export class MembershipsService {
     });
   }
 
+  async getActiveMembership(professionalId: string): Promise<Membership | null> {
+    return this.membershipsRepository.findActiveByProfessionalId(professionalId);
+  }
+
   async activateFromPayment(
     professionalId: string,
     planId: string,

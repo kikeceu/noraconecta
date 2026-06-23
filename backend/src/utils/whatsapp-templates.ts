@@ -19,6 +19,9 @@ export const TEMPLATE_PRO_MEMBRESIA_ACTIVADA_CON_PEDIDO = 'nora_pro_membresia_ac
 /** Template 6 — Membership activated (no pending request) */
 export const TEMPLATE_PRO_MEMBRESIA_ACTIVADA = 'nora_pro_membresia_activada';
 
+/** Template — Membership renewed (no pending request) */
+export const MEMBERSHIP_RENEWED_TEMPLATE = 'nora_pro_membresia_renovada';
+
 /** Template 7 — Upgrade membership to receive a request */
 export const TEMPLATE_PRO_UPGRADE_MEMBRESIA = 'nora_pro_upgrade_membresia';
 

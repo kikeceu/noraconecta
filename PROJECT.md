@@ -34,7 +34,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297, AUT-331). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301). MEMBERSHIP_RENEWED_TEMPLATE: template de renovación de membresía (AUT-331)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -77,7 +77,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── memberships/
 │   │   │   │   ├── memberships.routes.ts     # 2 endpoints under /professionals
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
-│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus
+│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331)
 │   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models
 │   │   │   ├── config/
 │   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
@@ -131,7 +131,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── payments/                # (AUT-188)
 │   │   │   │   ├── payments.routes.ts     # POST /webhooks/mercadopago (webhook), POST /payments/link
 │   │   │   │   ├── payments.controller.ts # Webhook validation + async dispatch, payment link endpoint
-│   │   │   │   ├── payments.service.ts    # Payment link generation, webhook processing, trial-exhausted notification
+│   │   │   │   ├── payments.service.ts    # Payment link generation, webhook processing (con detección de renovación, AUT-331), trial-exhausted notification
 │   │   │   │   └── payments.repository.ts # Plan queries, trial-exhausted professional lookup, waiting request lookup
 │   │   ├── lib/
 │   │   │   ├── prisma.ts              # Prisma client singleton
