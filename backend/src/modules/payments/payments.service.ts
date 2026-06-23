@@ -9,6 +9,7 @@ import { BotRepository } from '../bot/bot.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { createPaymentLink, fetchPayment } from '../../lib/mercadopago-client';
+import { MEMBERSHIP_RENEWED_TEMPLATE } from '../../utils/whatsapp-templates';
 import { BOT_PAYLOADS } from '../bot/constants/bot-payloads';
 
 const TRIAL_REQUESTS_LIMIT_KEY = 'TRIAL_REQUESTS_LIMIT';
@@ -198,6 +199,10 @@ export class PaymentsService {
         return;
       }
 
+      // Check if professional already had an active membership (renewal detection)
+      const existingMembership = await this.membershipsService.getActiveMembership(professionalId);
+      const isRenewal = existingMembership !== null && existingMembership.endDate > new Date();
+
       // Activate membership from payment
       await this.membershipsService.activateFromPayment(
         professionalId,
@@ -208,6 +213,16 @@ export class PaymentsService {
       console.log(
         `[PaymentsService] Membership activated for professional ${professionalId}`,
       );
+
+      // Get the newly activated membership to read the new endDate
+      const newMembership = await this.membershipsService.getActiveMembership(professionalId);
+      const newEndDate = newMembership
+        ? new Date(newMembership.endDate).toLocaleDateString('es-AR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : null;
 
       // Look for a waiting request matching professional's category and zone
       const matchedRequest =
@@ -267,14 +282,26 @@ export class PaymentsService {
           `[PaymentsService] Request ${matchedRequest.id} reactivated for professional ${professionalId}`,
         );
       } else {
-        await this.sendWithWindowCheck(
-          professional.phone,
-          'PROFESSIONAL',
-          `¡Tu membresía fue activada! Ya podés recibir pedidos.\n\n1. Ver cómo funciona`,
-          'nora_pro_membresia_activada',
-          [],
-          [{ payload: BOT_PAYLOADS.VER_COMO_FUNCIONA, text: 'Ver cómo funciona' }],
-        );
+        if (isRenewal && newEndDate) {
+          // Renewal — specific message with new endDate
+          await this.sendWithWindowCheck(
+            professional.phone,
+            'PROFESSIONAL',
+            `¡Tu membresía NORA fue renovada con éxito! 🎉\n\nSeguís activo hasta el ${newEndDate}.\n\nGracias por confiar en NORA. ¡Seguí recibiendo pedidos!`,
+            MEMBERSHIP_RENEWED_TEMPLATE,
+            [newEndDate],
+          );
+        } else {
+          // New activation — existing flow unchanged
+          await this.sendWithWindowCheck(
+            professional.phone,
+            'PROFESSIONAL',
+            `¡Tu membresía fue activada! Ya podés recibir pedidos.\n\n1. Ver cómo funciona`,
+            'nora_pro_membresia_activada',
+            [],
+            [{ payload: BOT_PAYLOADS.VER_COMO_FUNCIONA, text: 'Ver cómo funciona' }],
+          );
+        }
       }
     } catch (err) {
       console.error(
