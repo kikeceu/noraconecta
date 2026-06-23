@@ -729,6 +729,7 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     limit: number = 20,
     status?: string,
     categoryId?: string,
+    departmentId?: string,
   ): Promise<PaginatedProfessionalsResponse> {
     const validPage = Math.max(1, page);
     const validLimit = Math.min(100, Math.max(1, limit));
@@ -756,6 +757,10 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
 
     if (categoryId) {
       filters.categoryId = categoryId;
+    }
+
+    if (departmentId) {
+      filters.departmentId = departmentId;
     }
 
     const { professionals, total } = await this.professionalsRepository.findAll(

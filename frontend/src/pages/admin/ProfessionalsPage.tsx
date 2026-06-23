@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getProfessionals } from '../../lib/admin-api';
+import { getProfessionals, getDepartments } from '../../lib/admin-api';
 import { resolveHostContext } from '../../lib/host';
 import type { Professional, ProfessionalStatus } from '../../types/admin';
 
@@ -36,6 +36,8 @@ export function ProfessionalsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('');
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
   const fetchData = (page = 1) => {
@@ -44,6 +46,7 @@ export function ProfessionalsPage() {
       page,
       limit: 20,
       status: statusFilter || undefined,
+      departmentId: departmentFilter || undefined,
     })
       .then((res) => {
         setProfessionals(res.data);
@@ -54,9 +57,13 @@ export function ProfessionalsPage() {
   };
 
   useEffect(() => {
+    getDepartments().then((res) => setDepartments(res.data)).catch((err) => { console.error('Failed to load departments', err); });
+  }, []);
+
+  useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+  }, [statusFilter, departmentFilter]);
 
   const filtered = professionals.filter(
     (p) =>
@@ -95,6 +102,18 @@ export function ProfessionalsPage() {
           {STATUS_FILTERS.map((f) => (
             <option key={f.value} value={f.value}>
               {f.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={departmentFilter}
+          onChange={(e) => setDepartmentFilter(e.target.value)}
+          className="h-9 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40"
+        >
+          <option value="">Todos los departamentos</option>
+          {departments.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
             </option>
           ))}
         </select>

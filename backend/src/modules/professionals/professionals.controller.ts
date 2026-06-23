@@ -5,6 +5,7 @@ import { ConfigRepository } from '../config/config.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
+import prisma from '../../lib/prisma';
 
 const professionalsRepository = new ProfessionalsRepository();
 const configRepository = new ConfigRepository();
@@ -103,11 +104,12 @@ export class ProfessionalsController {
 
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { page, limit, status, categoryId } = req.query as {
+      const { page, limit, status, categoryId, departmentId } = req.query as {
         page?: string;
         limit?: string;
         status?: string;
         categoryId?: string;
+        departmentId?: string;
       };
 
       const result = await professionalsService.list(
@@ -115,6 +117,7 @@ export class ProfessionalsController {
         limit ? parseInt(limit, 10) : undefined,
         status,
         categoryId,
+        departmentId,
       );
 
       res.status(200).json(result);
@@ -359,6 +362,26 @@ export class ProfessionalsController {
 
       const data = await professionalsService.getActivityStats(token, validDays);
       res.status(200).json(data);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async listDepartments(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const departments = await prisma.geoNode.findMany({
+        where: {
+          level: { level: 2 },
+          isActive: true,
+        },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+      res.status(200).json({ data: departments });
     } catch (err) {
       next(err);
     }

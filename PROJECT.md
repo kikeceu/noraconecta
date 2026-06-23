@@ -608,7 +608,8 @@ Response shape:
 | `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, incluye nombre/teléfono del usuario y calificación recibida) | Sin auth |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante | Sin auth |
 | `/professionals/session/:token/stats` | GET | Estadísticas de actividad temporal: pedidos por día (7d) + evolución de calificación (8w) | Sin auth |
-| `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId) | OPERATOR  |
+| `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId, departmentId) | OPERATOR  |
+| `/professionals/departments`           | GET    | Lista departamentos activos (GeoNode level 2)   | OPERATOR  |
 | `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
 | `/professionals/:id/approve`           | POST   | Aprobar profesional (UNDER_REVIEW → ACTIVE)     | SUPERADMIN|
 | `/professionals/:id/reject`            | POST   | Rechazar profesional (UNDER_REVIEW → REJECTED)  | SUPERADMIN|
