@@ -455,12 +455,12 @@ Criterios:
 
    // Cancelación directa para pedidos en NO_RESPONSE esperando consentimiento
    if (isWaitingConsent) {
-     await prisma.request.update({
+     const updatedRequest = await prisma.request.update({
        where: { id: requestId },
        data: { status: 'CANCELLED', waitingUserConsent: false },
      });
-     return { cancelled: true, shouldNotifyProfessional: false, professionalMessage: null };
-    }
+     return { request: updatedRequest, shouldNotifyProfessional: false, professionalPhone: null, professionalMessage: null };	  
+   }
 
     const coordinationStatus = request.coordinationStatus;
     const scheduledAt = request.scheduledAt;
