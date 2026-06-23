@@ -43,6 +43,10 @@ router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);
 });
 
+router.get('/departments', requireAuth, (req, res, next) => {
+  void professionalsController.listDepartments(req, res, next);
+});
+
 router.get('/:id', requireAuth, (req, res, next) => {
   void professionalsController.getById(req, res, next);
 });

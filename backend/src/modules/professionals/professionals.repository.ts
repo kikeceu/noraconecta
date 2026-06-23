@@ -39,6 +39,7 @@ export interface UpdateProfessionalInput {
 export interface ProfessionalFilters {
   status?: ProfessionalStatus;
   categoryId?: string;
+  departmentId?: string;
 }
 
 export interface ProfessionalsResult {
@@ -56,7 +57,7 @@ export class ProfessionalsRepository {
   async findById(id: string): Promise<Professional | null> {
     return prisma.professional.findUnique({
       where: { id },
-      include: { zones: { include: { geoNode: true } }, category: true },
+      include: { zones: { include: { geoNode: { include: { parent: true } } } }, category: true },
     });
   }
 
@@ -69,7 +70,7 @@ export class ProfessionalsRepository {
   ): Promise<(Professional & { zones: (ProfessionalZone & { geoNode: { id: string; name: string } })[] }) | null> {
     return prisma.professional.findUnique({
       where: { verificationToken: token },
-      include: { zones: { include: { geoNode: true } } },
+      include: { zones: { include: { geoNode: { include: { parent: true } } } } },
     });
   }
 
@@ -138,6 +139,14 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
       where.categoryId = filters.categoryId;
     }
 
+    if (filters?.departmentId) {
+      where.zones = {
+        some: {
+          geoNodeId: filters.departmentId,
+        },
+      };
+    }
+
     const [professionals, total] = await Promise.all([
       prisma.professional.findMany({
         where,
@@ -146,7 +155,7 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
         orderBy: { createdAt: 'desc' },
         include: {
           category: true,
-          zones: { include: { geoNode: true } },
+          zones: { include: { geoNode: { include: { parent: true } } } },
         },
       }),
       prisma.professional.count({ where }),
@@ -159,7 +168,7 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
     const [professional, membership, requestStats] = await Promise.all([
       prisma.professional.findUnique({
         where: { id: professionalId },
-        include: { zones: { include: { geoNode: true } }, category: true },
+        include: { zones: { include: { geoNode: { include: { parent: true } } } }, category: true },
       }),
       prisma.membership.findFirst({
         where: { professionalId, status: 'ACTIVE' },

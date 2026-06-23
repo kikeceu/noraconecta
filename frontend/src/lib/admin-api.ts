@@ -189,10 +189,15 @@ export function getProfessionals(params?: {
   limit?: number;
   status?: string;
   categoryId?: string;
+  departmentId?: string;
 }): Promise<ListResponse<Professional>> {
   return request<ListResponse<Professional>>(
     `/professionals${buildQuery(params || {})}`,
   );
+}
+
+export function getDepartments(): Promise<{ data: { id: string; name: string }[] }> {
+  return request('/professionals/departments');
 }
 
 export function getProfessional(
