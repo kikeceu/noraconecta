@@ -38,6 +38,10 @@ router.get('/session/:token/stats', (req, res, next) => {
   void professionalsController.getActivityStats(req, res, next);
 });
 
+router.get('/session/:sessionToken/earnings', (req, res, next) => {
+  void professionalsController.getEarnings(req, res, next);
+});
+
 // Auth required — OPERATOR+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);

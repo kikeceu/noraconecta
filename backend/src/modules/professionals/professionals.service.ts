@@ -655,6 +655,19 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     };
   }
 
+  async getEarnings(
+    token: string,
+    days: number,
+  ): Promise<{ totalEarnings: number; days: number }> {
+    const professional = await this.getSessionByToken(token);
+    const validDays = [7, 15, 30].includes(days) ? days : 30;
+    const totalEarnings = await this.professionalsRepository.findEarnings(
+      professional.id,
+      validDays,
+    );
+    return { totalEarnings, days: validDays };
+  }
+
   async getById(id: string): Promise<Professional> {
     const professional = await this.professionalsRepository.findById(id);
 

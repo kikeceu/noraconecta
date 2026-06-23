@@ -326,6 +326,22 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
     return { recentEvents, recentFeedback };
   }
 
+  async findEarnings(professionalId: string, days: number): Promise<number> {
+    const rangeStart = new Date();
+    rangeStart.setDate(rangeStart.getDate() - days);
+
+    const result = await prisma.requestPricing.aggregate({
+      where: {
+        amountPaid: { not: null },
+        reportedAt: { gte: rangeStart },
+        request: { assignedProfessionalId: professionalId },
+      },
+      _sum: { amountPaid: true },
+    });
+
+    return result._sum.amountPaid ?? 0;
+  }
+
   async findZones(professionalId: string): Promise<ProfessionalZone[]> {
     return prisma.professionalZone.findMany({
       where: { professionalId },
