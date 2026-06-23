@@ -76,8 +76,7 @@ export class CoordinationService {
 
     const message =
       `${professionalName}, tu ${categoryName}, indicó que finalizó el trabajo.\n` +
-      `¿Cómo te fue?\n\n` +
-      `1. Conforme\n2. Con observaciones\n3. No conforme`;
+      `¿Del 1 al 5, cómo lo calificás?`;
 
     await this.sendWithWindowCheck(
       userPhone,
@@ -85,11 +84,6 @@ export class CoordinationService {
       message,
       'nora_user_trabajo_finalizado',
       [professionalName, categoryName],
-      [
-        { payload: BOT_PAYLOADS.CONFORME_BTN, text: 'Conforme' },
-        { payload: BOT_PAYLOADS.OBSERVACIONES_BTN, text: 'Con observaciones' },
-        { payload: BOT_PAYLOADS.NO_CONFORME_BTN, text: 'No conforme' },
-      ],
     );
 
     const userSession = await this.botRepository.findByPhoneAndRole(userPhone, 'USER');
@@ -98,7 +92,7 @@ export class CoordinationService {
     await this.botRepository.upsert(userPhone, {
       role: 'USER',
       currentFlow: 'FEEDBACK',
-      currentStep: 'FEEDBACK_SATISFACTION',
+      currentStep: 'FEEDBACK_RATING',
       tempData: {
         ...userTempData,
         requestId,
