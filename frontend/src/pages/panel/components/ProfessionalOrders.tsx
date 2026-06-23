@@ -536,24 +536,22 @@ function RateUserModal({
   }) => void;
   onClose: () => void;
 }) {
-  const [clarity, setClarity] = useState(0);
-  const [availability, setAvailability] = useState(0);
-  const [treatment, setTreatment] = useState(0);
-  const [wouldServeAgain, setWouldServeAgain] = useState(true);
+  const [rating, setRating] = useState(0);
+  const [wouldServeAgain, setWouldServeAgain] = useState<boolean | null>(null);
   const [comment, setComment] = useState('');
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2>(1);
 
   const handleSubmit = () => {
     onRate({
-      requestClarityRating: clarity,
-      userAvailabilityRating: availability,
-      userTreatmentRating: treatment,
-      wouldServeAgain,
+      requestClarityRating: rating,
+      userAvailabilityRating: rating,
+      userTreatmentRating: rating,
+      wouldServeAgain: wouldServeAgain ?? true,
       professionalComment: comment || undefined,
     });
   };
 
-  const allRated = clarity > 0 && availability > 0 && treatment > 0;
+  const allRated = rating > 0 && wouldServeAgain !== null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
@@ -580,82 +578,46 @@ function RateUserModal({
         <div className="p-5 space-y-4">
           {step === 1 && (
             <div>
-              <p
-                className="text-sm text-[#374151] mb-3"
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                ¿El usuario describió bien el problema? (1-5)
+              <p className="text-sm text-[#374151] mb-3" style={{ fontFamily: 'DM Sans' }}>
+                ¿Cómo calificás al usuario del 1 al 5?
               </p>
-              <StarRating value={clarity} onChange={(v) => { setClarity(v); setStep(2); }} />
+              <StarRating value={rating} onChange={(v) => { setRating(v); setStep(2); }} />
             </div>
           )}
 
           {step === 2 && (
-            <div>
-              <p
-                className="text-sm text-[#374151] mb-3"
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                ¿Estaba disponible cuando llegaste? (1-5)
-              </p>
-              <StarRating value={availability} onChange={(v) => { setAvailability(v); setStep(3); }} />
-            </div>
-          )}
-
-          {step === 3 && (
-            <div>
-              <p
-                className="text-sm text-[#374151] mb-3"
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                ¿Fue respetuoso? (1-5)
-              </p>
-              <StarRating value={treatment} onChange={(v) => { setTreatment(v); setStep(4); }} />
-            </div>
-          )}
-
-          {step === 4 && (
-            <div>
-              <p
-                className="text-sm text-[#374151] mb-3"
-                style={{ fontFamily: 'DM Sans' }}
-              >
-                ¿Volverías a atenderlo?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setWouldServeAgain(true); setStep(5); }}
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    wouldServeAgain
-                      ? 'bg-[#0B6E4F] text-white'
-                      : 'border border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]'
-                  }`}
-                  style={{ fontFamily: 'DM Sans' }}
-                >
-                  Sí
-                </button>
-                <button
-                  onClick={() => { setWouldServeAgain(false); setStep(5); }}
-                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    !wouldServeAgain
-                      ? 'bg-red-600 text-white'
-                      : 'border border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]'
-                  }`}
-                  style={{ fontFamily: 'DM Sans' }}
-                >
-                  No
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === 5 && (
             <div className="space-y-4">
               <div>
-                <label
-                  className="text-sm text-[#374151] mb-1.5 block"
-                  style={{ fontFamily: 'DM Sans' }}
-                >
+                <p className="text-sm text-[#374151] mb-3" style={{ fontFamily: 'DM Sans' }}>
+                  ¿Volverías a atenderlo?
+                </p>
+                <div className="flex gap-3 mb-4">
+                  <button
+                    onClick={() => setWouldServeAgain(true)}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      wouldServeAgain === true
+                        ? 'bg-[#0B6E4F] text-white'
+                        : 'border border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]'
+                    }`}
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => setWouldServeAgain(false)}
+                    className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                      wouldServeAgain === false
+                        ? 'bg-red-600 text-white'
+                        : 'border border-[#E5E7EB] text-[#374151] hover:bg-[#F9FAFB]'
+                    }`}
+                    style={{ fontFamily: 'DM Sans' }}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm text-[#374151] mb-1.5 block" style={{ fontFamily: 'DM Sans' }}>
                   Comentario (opcional, máx 300 caracteres)
                 </label>
                 <textarea
@@ -666,17 +628,13 @@ function RateUserModal({
                   className="w-full rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#111827] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#0B6E4F]/40 focus:border-[#0B6E4F] resize-none"
                   style={{ fontFamily: 'DM Sans' }}
                 />
-                <p
-                  className="text-xs text-[#9CA3AF] mt-1 text-right"
-                  style={{ fontFamily: 'DM Sans' }}
-                >
+                <p className="text-xs text-[#9CA3AF] mt-1 text-right" style={{ fontFamily: 'DM Sans' }}>
                   {comment.length}/300
                 </p>
               </div>
-
               <div className="flex gap-3">
                 <button
-                  onClick={() => setStep(4)}
+                  onClick={() => setStep(1)}
                   disabled={isLoading}
                   className="flex-1 px-4 py-2.5 rounded-lg border border-[#E5E7EB] text-sm font-medium text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-50 transition-colors cursor-pointer"
                   style={{ fontFamily: 'DM Sans' }}
