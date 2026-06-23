@@ -28,8 +28,6 @@ export class FeedbackFlow implements FlowHandler {
     switch (step) {
       case 'AWAITING_WORK_COMPLETION':
         return this.handleAwaitingWorkCompletion(message, tempData, role);
-      case 'FEEDBACK_SATISFACTION':
-        return this.handleFeedbackSatisfaction(message, tempData, role);
       case 'FEEDBACK_RATING':
         return this.handleFeedbackRating(message, tempData, role);
       case 'FEEDBACK_RECOMMEND':
@@ -136,77 +134,6 @@ export class FeedbackFlow implements FlowHandler {
     };
   }
 
-  private async handleFeedbackSatisfaction(
-    message: { text?: string },
-    tempData: Record<string, unknown>,
-    role: 'USER' | 'PROFESSIONAL',
-  ): Promise<FlowStepResult> {
-    if (role !== 'USER') {
-      return {
-        response: { text: 'Estamos esperando la respuesta del usuario.' },
-        nextStep: 'FEEDBACK_SATISFACTION',
-        tempData,
-      };
-    }
-
-    const requestId = tempData.requestId as string | undefined;
-    if (!requestId) {
-      return {
-        response: { text: 'No encontré el pedido a calificar.' },
-        nextStep: null,
-        tempData: { _clearTempData: true },
-      };
-    }
-
-    const inputText = message.text?.trim().toLowerCase() || '';
-    const resolved = await resolveOptionWithFallback('FEEDBACK_SATISFACTION', inputText);
-
-    if (!resolved) {
-      const stepContext = `Se le preguntó al usuario si quedó conforme con el trabajo realizado. Opciones: 1. Conforme, 2. Con observaciones, 3. No conforme.`;
-      const offTopic = await generateOffTopicResponse(inputText, stepContext);
-      if (offTopic) {
-        return {
-          response: { text: offTopic },
-          nextStep: 'FEEDBACK_SATISFACTION',
-          tempData,
-        };
-      }
-
-      return {
-        response: {
-          text: 'Respondé:\n1. Conforme\n2. Con observaciones\n3. No conforme',
-        },
-        nextStep: 'FEEDBACK_SATISFACTION',
-        tempData,
-      };
-    }
-
-    if (resolved === 'UNSATISFIED') {
-      await this.tryConfirmSatisfaction(requestId, 'UNSATISFIED');
-      await this.handleUnsatisfiedFeedback(requestId);
-
-      return {
-        response: {
-          text: 'Lamentamos que no hayas quedado conforme. ¿Del 1 al 5, qué puntaje le das al profesional?',
-        },
-        nextStep: 'FEEDBACK_RATING',
-        tempData: { ...tempData, satisfaction: 'UNSATISFIED' },
-      };
-    }
-
-    const satisfaction: Satisfaction = resolved === 'PARTIAL' ? 'PARTIAL' : 'SATISFIED';
-
-    await this.tryConfirmSatisfaction(requestId, satisfaction);
-
-    return {
-      response: {
-        text: 'Gracias. Del 1 al 5, ¿qué puntaje le das al profesional?',
-      },
-      nextStep: 'FEEDBACK_RATING',
-      tempData,
-    };
-  }
-
   private async handleFeedbackRating(
     message: { text?: string },
     tempData: Record<string, unknown>,
@@ -220,6 +147,7 @@ export class FeedbackFlow implements FlowHandler {
       };
     }
 
+    const requestId = tempData.requestId as string | undefined;
     const rating = this.parseRating(message.text);
     if (!rating) {
       return {
@@ -229,6 +157,16 @@ export class FeedbackFlow implements FlowHandler {
         nextStep: 'FEEDBACK_RATING',
         tempData,
       };
+    }
+
+    const satisfaction = this.deriveSatisfaction(rating);
+
+    if (requestId) {
+      await this.tryConfirmSatisfaction(requestId, satisfaction);
+    }
+
+    if (satisfaction === 'UNSATISFIED' && requestId) {
+      await this.handleUnsatisfiedFeedback(requestId);
     }
 
     return {
@@ -549,6 +487,12 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     return parsed;
+  }
+
+  private deriveSatisfaction(rating: number): Satisfaction {
+    if (rating <= 2) return 'UNSATISFIED';
+    if (rating === 3) return 'PARTIAL';
+    return 'SATISFIED';
   }
 
   private async tryConfirmSatisfaction(requestId: string, satisfaction: Satisfaction): Promise<void> {

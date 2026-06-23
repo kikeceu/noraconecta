@@ -89,11 +89,6 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'DONE', label: 'Sí, finalicé', aliases: ['1', 'finalice', 'finalicé', 'termine', 'terminé', 'listo', 'hecho', BOT_PAYLOADS.SI_FINALICE] },
     { value: 'PENDING', label: 'No, todavía no', aliases: ['2', 'pendiente', 'no', 'todavia no', 'todavía no', 'no pude completarlo', BOT_PAYLOADS.NO_PUDE] },
   ],
-  FEEDBACK_SATISFACTION: [
-    { value: 'SATISFIED', label: 'Conforme', aliases: ['conforme', 'todo bien', 'bien', 'ok', '1', BOT_PAYLOADS.CONFORME_BTN] },
-    { value: 'PARTIAL', label: 'Con observaciones', aliases: ['con observaciones', 'observaciones', 'mas o menos', 'más o menos', '2', BOT_PAYLOADS.OBSERVACIONES_BTN] },
-    { value: 'UNSATISFIED', label: 'No conforme', aliases: ['no conforme', 'mal', 'no', 'insatisfecho', '3', BOT_PAYLOADS.NO_CONFORME_BTN] },
-  ],
   FEEDBACK_RECOMMEND: [
     { value: 'YES', label: 'Sí, lo recomendaría', aliases: ['si', 'sí', 'claro', 'por supuesto', '1', 'si_recomiendo'] },
     { value: 'NO', label: 'No lo recomendaría', aliases: ['no', '2', 'no_recomiendo'] },
