@@ -467,10 +467,56 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       }
 
       tempData._selectedDays = selectedDays;
-      tempData._availabilityStep = 'ASK_HOURS';
+
+      if (selectedDays.length === 1) {
+        tempData._availabilityStep = 'ASK_HOURS';
+        return {
+          response: { text: '¿De qué hora a qué hora trabajás? (Ej: de 8 a 18, de 9 a 17:30)' },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      }
+
+      tempData._availabilityStep = 'ASK_SAME_HOURS';
+      const dayNames = selectedDays.map((d) => this.DAY_NAMES[d]).join(', ');
 
       return {
-        response: { text: '¿De qué hora a qué hora trabajás? (Ej: de 8 a 18, de 9 a 17:30, mañana y tarde)' },
+        response: {
+          text: `Días registrados: ${dayNames}.\n\n¿Todos esos días trabajás el mismo horario?\n1. Sí, mismo horario\n2. No, cada día es diferente`,
+        },
+        nextStep: 'ASK_AVAILABILITY',
+        tempData,
+      };
+    }
+
+    // Step 2b — Same hours for all days?
+    if (step === 'ASK_SAME_HOURS') {
+      const resolved = resolveOption('CONFIRM', inputText);
+
+      if (resolved === 'YES' || inputText === '1') {
+        tempData._availabilityStep = 'ASK_HOURS';
+        return {
+          response: { text: '¿De qué hora a qué hora trabajás? (Ej: de 8 a 18, de 9 a 17:30)' },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      }
+
+      if (resolved === 'NO' || inputText === '2') {
+        const selectedDays = tempData._selectedDays as number[];
+        tempData._availabilityStep = 'ASK_HOURS_PER_DAY';
+        tempData._currentDayIndex = 0;
+        tempData._perDaySlots = [];
+        const firstDay = this.DAY_NAMES[selectedDays[0]];
+        return {
+          response: { text: `¿A qué hora trabajás los ${firstDay}? (Ej: de 8 a 14)` },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      }
+
+      return {
+        response: { text: 'Respondé 1 para mismo horario o 2 para horarios diferentes.' },
         nextStep: 'ASK_AVAILABILITY',
         tempData,
       };
@@ -594,61 +640,125 @@ Ejemplos válidos de entrada:
 
         const availabilityText = `${selectedDays.map((d) => this.DAY_NAMES[d]).join(', ')} de ${tempData._fromTime as string} a ${tempData._toTime as string}`;
 
-        tempData.availabilityStructured = { slots };
-        tempData.availability = availabilityText;
+        return this.saveAvailabilityAndAdvance(tempData, slots, availabilityText);
+      }
 
+      return {
+        response: { text: 'Respondé 1 para confirmar o 2 para corregir.' },
+        nextStep: 'ASK_AVAILABILITY',
+        tempData,
+      };
+    }
+
+    // Step 6 — Loop: ask hours per day
+    if (step === 'ASK_HOURS_PER_DAY') {
+      const selectedDays = tempData._selectedDays as number[];
+      const currentIndex = tempData._currentDayIndex as number;
+      const perDaySlots = tempData._perDaySlots as { day: number; from: string; to: string }[];
+
+      const prompt = `Extraé el horario de inicio y fin de trabajo de este texto: "${inputText}"
+Devolvé SOLO un JSON con este formato exacto:
+{"from": "HH:MM", "to": "HH:MM"}
+Si no podés determinarlo con certeza, devolvé: {"error": "ambiguo"}
+Ejemplos válidos de entrada:
+- "de 8 a 14" → {"from": "08:00", "to": "14:00"}
+- "de 9 a 17:30" → {"from": "09:00", "to": "17:30"}
+- "mañana y tarde" → {"error": "ambiguo"}
+- "8 a 6 de la tarde" → {"from": "08:00", "to": "18:00"}`;
+
+      try {
+        const llmResponse = await callLLM(prompt);
+
+        let parsed: { from?: string; to?: string; error?: string };
         try {
-          const phone = tempData.phone as string;
-          const name = tempData.name as string;
-          const categoryId = tempData.categoryId as string;
-          const zoneIds = (tempData.zoneIds as string[]) || [];
-          const latitude = tempData.latitude as number | undefined;
-          const longitude = tempData.longitude as number | undefined;
-
-          console.log('[ProfessionalRegisterFlow] handleAskAvailability: registering professional', { phone, name, categoryId });
-
-          const { professional, verificationUrl } = await this.professionalsService.register(
-            phone,
-            name,
-            categoryId,
-            latitude,
-            longitude,
-          );
-
-          for (const zoneId of zoneIds) {
-            await this.professionalsRepository.addZone(professional.id, zoneId);
-          }
-
-          await this.professionalsRepository.update(professional.id, {
-            availability: availabilityText,
-            availabilityStructured: { slots },
-          });
-
-          console.log('[ProfessionalRegisterFlow] handleAskAvailability: professional created', {
-            professionalId: professional.id,
-            verificationToken: professional.verificationToken,
-          });
-
-          tempData.verificationUrl = verificationUrl;
-
+          parsed = JSON.parse(llmResponse);
+        } catch {
           return {
-            response: {
-              text: `Perfecto! Para completar tu registro necesito verificar tu identidad. Accede a este enlace:\n\n${verificationUrl}`,
-            },
-            nextStep: 'SEND_LINK',
-            tempData,
-          };
-        } catch (err) {
-          console.error('[ProfessionalRegisterFlow] handleAskAvailability: registration failed', err);
-
-          const errorMessage = err instanceof Error ? err.message : 'Error al registrar';
-
-          return {
-            response: { text: `No se pudo completar el registro: ${errorMessage}. Intenta de nuevo mas tarde.` },
-            nextStep: null,
+            response: { text: 'No pude entender el horario. Escribilo así: de 8 a 14' },
+            nextStep: 'ASK_AVAILABILITY',
             tempData,
           };
         }
+
+        if (parsed.error === 'ambiguo' || !parsed.from || !parsed.to) {
+          const dayName = this.DAY_NAMES[selectedDays[currentIndex]];
+          return {
+            response: { text: `No me quedó claro el horario de los ${dayName}. ¿Podés ser más específico? (Ej: de 8 a 14)` },
+            nextStep: 'ASK_AVAILABILITY',
+            tempData,
+          };
+        }
+
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(parsed.from) || !timeRegex.test(parsed.to)) {
+          return {
+            response: { text: 'El horario no tiene el formato correcto. Escribilo así: 08:00 a 18:00' },
+            nextStep: 'ASK_AVAILABILITY',
+            tempData,
+          };
+        }
+
+        perDaySlots.push({ day: selectedDays[currentIndex], from: parsed.from, to: parsed.to });
+        tempData._perDaySlots = perDaySlots;
+
+        const nextIndex = currentIndex + 1;
+
+        if (nextIndex < selectedDays.length) {
+          tempData._currentDayIndex = nextIndex;
+          const nextDayName = this.DAY_NAMES[selectedDays[nextIndex]];
+          return {
+            response: { text: `¿A qué hora trabajás los ${nextDayName}? (Ej: de 8 a 18)` },
+            nextStep: 'ASK_AVAILABILITY',
+            tempData,
+          };
+        }
+
+        const summary = perDaySlots
+          .map((s) => `• ${this.DAY_NAMES[s.day]}: ${s.from} a ${s.to}`)
+          .join('\n');
+
+        tempData._availabilityStep = 'CONFIRM_PER_DAY';
+        return {
+          response: {
+            text: `Tu disponibilidad quedó así:\n\n${summary}\n\n¿Es correcto?\n1. Sí\n2. No, corregir`,
+          },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      } catch {
+        return {
+          response: { text: 'Tuve un problema para interpretar el horario. Por favor escribilo así: de 8 a 14' },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      }
+    }
+
+    // Step 7 — Confirm per-day slots
+    if (step === 'CONFIRM_PER_DAY') {
+      const resolved = resolveOption('CONFIRM', inputText);
+
+      if (resolved === 'NO' || inputText === '2') {
+        const selectedDays = tempData._selectedDays as number[];
+        tempData._availabilityStep = 'ASK_HOURS_PER_DAY';
+        tempData._currentDayIndex = 0;
+        tempData._perDaySlots = [];
+        const firstDayName = this.DAY_NAMES[selectedDays[0]];
+        return {
+          response: { text: `Vamos de nuevo. ¿A qué hora trabajás los ${firstDayName}? (Ej: de 8 a 14)` },
+          nextStep: 'ASK_AVAILABILITY',
+          tempData,
+        };
+      }
+
+      if (resolved === 'YES' || inputText === '1') {
+        const perDaySlots = tempData._perDaySlots as { day: number; from: string; to: string }[];
+
+        const availabilityText = perDaySlots
+          .map((s) => `${this.DAY_NAMES[s.day]}: ${s.from} a ${s.to}`)
+          .join(', ');
+
+        return this.saveAvailabilityAndAdvance(tempData, perDaySlots, availabilityText);
       }
 
       return {
@@ -663,6 +773,68 @@ Ejemplos válidos de entrada:
       nextStep: null,
       tempData,
     };
+  }
+
+  private async saveAvailabilityAndAdvance(
+    tempData: Record<string, unknown>,
+    slots: { day: number; from: string; to: string }[],
+    availabilityText: string,
+  ): Promise<FlowStepResult> {
+    tempData.availabilityStructured = { slots };
+    tempData.availability = availabilityText;
+
+    try {
+      const phone = tempData.phone as string;
+      const name = tempData.name as string;
+      const categoryId = tempData.categoryId as string;
+      const zoneIds = (tempData.zoneIds as string[]) || [];
+      const latitude = tempData.latitude as number | undefined;
+      const longitude = tempData.longitude as number | undefined;
+
+      console.log('[ProfessionalRegisterFlow] saveAvailabilityAndAdvance: registering professional', { phone, name, categoryId });
+
+      const { professional, verificationUrl } = await this.professionalsService.register(
+        phone,
+        name,
+        categoryId,
+        latitude,
+        longitude,
+      );
+
+      for (const zoneId of zoneIds) {
+        await this.professionalsRepository.addZone(professional.id, zoneId);
+      }
+
+      await this.professionalsRepository.update(professional.id, {
+        availability: availabilityText,
+        availabilityStructured: { slots },
+      });
+
+      console.log('[ProfessionalRegisterFlow] saveAvailabilityAndAdvance: professional created', {
+        professionalId: professional.id,
+        verificationToken: professional.verificationToken,
+      });
+
+      tempData.verificationUrl = verificationUrl;
+
+      return {
+        response: {
+          text: `Perfecto! Para completar tu registro necesito verificar tu identidad. Accede a este enlace:\n\n${verificationUrl}`,
+        },
+        nextStep: 'SEND_LINK',
+        tempData,
+      };
+    } catch (err) {
+      console.error('[ProfessionalRegisterFlow] saveAvailabilityAndAdvance: registration failed', err);
+
+      const errorMessage = err instanceof Error ? err.message : 'Error al registrar';
+
+      return {
+        response: { text: `No se pudo completar el registro: ${errorMessage}. Intenta de nuevo mas tarde.` },
+        nextStep: null,
+        tempData,
+      };
+    }
   }
 
   private async handleSendLink(): Promise<FlowStepResult> {
