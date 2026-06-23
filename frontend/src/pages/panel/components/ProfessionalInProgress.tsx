@@ -26,6 +26,7 @@ const COORDINATION_LABEL: Record<string, { label: string; color: string }> = {
   AWAITING_CONFIRMATION: { label: 'Esperando tu confirmación de horario', color: '#2563EB' },
   AWAITING_USER_CONFIRMATION: { label: 'Esperando que el usuario acepte tu propuesta', color: '#2563EB' },
   AWAITING_LOCATION: { label: 'Esperando ubicación del usuario', color: '#2563EB' },
+  AWAITING_GPS: { label: 'Esperando ubicación GPS del usuario', color: '#2563EB' },
   SCHEDULED: { label: 'Visita confirmada', color: '#059669' },
 };
 
