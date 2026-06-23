@@ -71,8 +71,17 @@ export function getMe(): Promise<{ admin: LoginResponse['admin'] }> {
 }
 
 // Dashboard
-export function getDashboardMetrics(): Promise<SingleResponse<DashboardMetrics>> {
-  return request<SingleResponse<DashboardMetrics>>('/admin/metrics');
+export function getDashboardMetrics(geoNodeId?: string): Promise<SingleResponse<DashboardMetrics>> {
+  const query = geoNodeId ? `?geoNodeId=${geoNodeId}` : '';
+  return request<SingleResponse<DashboardMetrics>>(`/admin/metrics${query}`);
+}
+
+export function getGeoTree(): Promise<{
+  data: {
+    provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
+  };
+}> {
+  return request('/admin/geo-tree');
 }
 
 // Categories

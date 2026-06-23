@@ -9,6 +9,10 @@ router.get('/metrics', requireAuth, (req, res, next) => {
   void adminController.getMetrics(req, res, next);
 });
 
+router.get('/geo-tree', requireAuth, (req, res, next) => {
+  void adminController.getGeoTree(req, res, next);
+});
+
 router.post('/requests/auto-close', requireSuperAdmin, (req, res, next) => {
   void adminController.autoCloseRequests(req, res, next);
 });

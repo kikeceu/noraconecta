@@ -22,31 +22,34 @@ interface AcceptanceAggregate {
 }
 
 export class AdminRepository {
-  async countOrdersByStatus(): Promise<CountByStatus[]> {
+  async countOrdersByStatus(geoNodeId?: string): Promise<CountByStatus[]> {
     const result = await prisma.request.groupBy({
       by: ['status'],
       _count: true,
+      where: geoNodeId ? { geoNodeId } : undefined,
     });
 
     return result;
   }
 
-  async countRecentOrders(): Promise<RecentCounts> {
+  async countRecentOrders(geoNodeId?: string): Promise<RecentCounts> {
     const now = new Date();
     const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const baseWhere = geoNodeId ? { geoNodeId } : {};
 
     const [count24h, count7d] = await Promise.all([
-      prisma.request.count({ where: { createdAt: { gte: last24h } } }),
-      prisma.request.count({ where: { createdAt: { gte: last7d } } }),
+      prisma.request.count({ where: { ...baseWhere, createdAt: { gte: last24h } } }),
+      prisma.request.count({ where: { ...baseWhere, createdAt: { gte: last7d } } }),
     ]);
 
     return { last24h: count24h, last7d: count7d };
   }
 
-  async getOrdersLast30Days(): Promise<{ date: string; count: number }[]> {
+  async getOrdersLast30Days(geoNodeId?: string): Promise<{ date: string; count: number }[]> {
     const days: { date: string; count: number }[] = [];
     const now = new Date();
+    const baseWhere = geoNodeId ? { geoNodeId } : {};
 
     for (let i = 29; i >= 0; i--) {
       const from = new Date(now);
@@ -57,7 +60,7 @@ export class AdminRepository {
       to.setHours(23, 59, 59, 999);
 
       const count = await prisma.request.count({
-        where: { createdAt: { gte: from, lte: to } },
+        where: { ...baseWhere, createdAt: { gte: from, lte: to } },
       });
 
       days.push({
@@ -69,43 +72,51 @@ export class AdminRepository {
     return days;
   }
 
-  async countProfessionalsByStatus(): Promise<CountByStatus[]> {
+  async countProfessionalsByStatus(geoNodeId?: string): Promise<CountByStatus[]> {
     const result = await prisma.professional.groupBy({
       by: ['status'],
       _count: true,
+      where: geoNodeId ? { zones: { some: { geoNodeId } } } : undefined,
     });
 
     return result;
   }
 
-  async countEscalationsByStatus(): Promise<CountByStatus[]> {
+  async countEscalationsByStatus(geoNodeId?: string): Promise<CountByStatus[]> {
     const result = await prisma.escalation.groupBy({
       by: ['status'],
       _count: true,
+      where: geoNodeId ? { request: { geoNodeId } } : undefined,
     });
 
     return result;
   }
 
-  async getFeedbackStats(): Promise<FeedbackAggregate> {
+  async getFeedbackStats(geoNodeId?: string): Promise<FeedbackAggregate> {
+    const where = geoNodeId ? { request: { geoNodeId } } : {};
+
     const result = await prisma.feedback.aggregate({
       _count: true,
+      where,
     });
 
     const wouldRecommendTrue = await prisma.feedback.count({
-      where: { wouldRecommend: true },
+      where: { ...where, wouldRecommend: true },
     });
 
     return { _count: result._count, wouldRecommendTrue };
   }
 
-  async getAcceptanceStats(): Promise<AcceptanceAggregate> {
+  async getAcceptanceStats(geoNodeId?: string): Promise<AcceptanceAggregate> {
+    const where: Record<string, unknown> = {
+      status: { in: ['ACCEPTED'] },
+      assignedAt: { not: null },
+      acceptedAt: { not: null },
+    };
+    if (geoNodeId) where.geoNodeId = geoNodeId;
+
     const accepted = await prisma.request.findMany({
-      where: {
-        status: { in: ['ACCEPTED'] },
-        assignedAt: { not: null },
-        acceptedAt: { not: null },
-      },
+      where,
       select: {
         assignedAt: true,
         acceptedAt: true,
@@ -125,6 +136,32 @@ export class AdminRepository {
       _avg: {
         acceptanceTimeMinutes: Math.round(totalMinutes / accepted.length),
       },
+    };
+  }
+
+  async getGeoTree(): Promise<{
+    provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
+  }> {
+    const provinces = await prisma.geoNode.findMany({
+      where: { level: { level: 1 }, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        children: {
+          where: { isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      provinces: provinces.map((p) => ({
+        id: p.id,
+        name: p.name,
+        departments: p.children,
+      })),
     };
   }
 }

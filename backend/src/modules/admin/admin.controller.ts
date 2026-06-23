@@ -18,12 +18,13 @@ const requestsService = new RequestsService(requestsRepository, usersRepository,
 
 export class AdminController {
   async getMetrics(
-    _req: Request,
+    req: Request,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
     try {
-      const metrics = await adminService.getMetrics();
+      const { geoNodeId } = req.query as { geoNodeId?: string };
+      const metrics = await adminService.getMetrics(geoNodeId || undefined);
       res.status(200).json({ data: metrics });
     } catch (err) {
       next(err);
@@ -38,6 +39,19 @@ export class AdminController {
     try {
       const processed = await requestsService.autoClosePendingConfirmations();
       res.status(200).json({ data: { processed } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getGeoTree(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const tree = await adminService.getGeoTree();
+      res.status(200).json({ data: tree });
     } catch (err) {
       next(err);
     }
