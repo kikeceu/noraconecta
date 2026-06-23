@@ -367,6 +367,22 @@ export class ProfessionalsController {
     }
   }
 
+  async getEarnings(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { sessionToken } = req.params as { sessionToken: string };
+      const { days } = req.query as { days?: string };
+      const parsedDays = days ? parseInt(days, 10) : 30;
+      const result = await professionalsService.getEarnings(sessionToken, parsedDays);
+      res.status(200).json({ data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async listDepartments(
     _req: Request,
     res: Response,

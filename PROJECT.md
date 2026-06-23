@@ -60,10 +60,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock, updateName
 │   │   │   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   │   │   └── professionals/
-│   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals
-│   │   │       ├── professionals.controller.ts # Request validation, response formatting
-│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300
-│   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders
+│   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals. GET /session/:sessionToken/earnings — AUT-327
+│   │   │       ├── professionals.controller.ts # Request validation, response formatting. getEarnings: endpoint de ganancias — AUT-327
+│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327
+│   │   │   └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close
 │   │   │   │   ├── admin.controller.ts # Request handling + query params
@@ -609,7 +609,8 @@ Response shape:
 | `/professionals/session/:token/panel`  | GET    | Datos consolidados del panel (perfil + membresía + reputación) | Sin auth |
 | `/professionals/session/:token/orders` | GET    | Historial de pedidos del profesional (paginado, incluye nombre/teléfono del usuario y calificación recibida) | Sin auth |
 | `/professionals/session/:token/pending-requests` | GET | Pedidos ASSIGNED sin responder: rubro, zona, descripción, tiempo restante | Sin auth |
-| `/professionals/session/:token/stats` | GET | Estadísticas de actividad temporal: pedidos por día (7d) + evolución de calificación (8w) | Sin auth |
+| `/professionals/session/:token/stats` | GET | Estadísticas de actividad temporal: pedidos por día (7/30/90d) + evolución de calificación (8w) | Sin auth |
+| `/professionals/session/:sessionToken/earnings` | GET | Ganancias del profesional: suma de `amountPaid` en rango de días (7/15/30) — AUT-327 | Sin auth |
 | `/professionals`                       | GET    | Lista paginada de profesionales (filtros: status, categoryId, departmentId) | OPERATOR  |
 | `/professionals/departments`           | GET    | Lista departamentos activos (GeoNode level 2)   | OPERATOR  |
 | `/professionals/:id`                   | GET    | Detalle de profesional                          | OPERATOR  |
