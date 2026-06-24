@@ -17,4 +17,12 @@ router.post('/requests/auto-close', requireSuperAdmin, (req, res, next) => {
   void adminController.autoCloseRequests(req, res, next);
 });
 
+router.get('/membership-discount', requireSuperAdmin, (req, res, next) => {
+  void adminController.getMembershipDiscount(req, res, next);
+});
+
+router.post('/membership-discount', requireSuperAdmin, (req, res, next) => {
+  void adminController.setMembershipDiscount(req, res, next);
+});
+
 export default router;

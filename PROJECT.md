@@ -65,9 +65,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. updateLicenseStatus: aprobación/rechazo de credencial por admin — AUT-324. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323
 │   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323
 │   │   │   ├── admin/
-│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close
-│   │   │   │   ├── admin.controller.ts # Request handling + query params
-│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering
+│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount — AUT-334
+│   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount — AUT-334
+│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334
 │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 3 endpoints under /plans
@@ -175,7 +175,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls. Polling de mensajes externos del simulador cada 2s vía /simulator/messages (AUT-268)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
-│   │   │   ├── admin-api.ts           # REST client for all admin endpoints (NEW)
+│   │   │   ├── admin-api.ts           # REST client for all admin endpoints. getMembershipDiscountConfig, setMembershipDiscount — AUT-334
 │   │   │   ├── onboarding-api.ts      # API client for professional onboarding. submitVerification incluye licenseUrl — AUT-323
 │   │   │   ├── panel-api.ts           # API client for professional panel (NEW)
 │   │   │   ├── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
@@ -206,7 +206,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
 │   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal con toggle "requiere credencial" y campo licenseLabel — AUT-324
 │   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
-│   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params)
+│   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params). Sección "Promoción de membresía" con timer configurable — AUT-334
 │   │   │   └── onboarding/
 │   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook (incluye step 'license' condicional — AUT-323)
 │   │   │       ├── DESIGN.md           # Design system document (source of truth for visual design)
