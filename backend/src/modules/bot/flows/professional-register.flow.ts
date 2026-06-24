@@ -121,7 +121,9 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       };
     }
 
-    tempData.name = inputName;
+    const { extractName } = await import('../../../lib/llm-client');
+    const extractedName = await extractName(inputName);
+    tempData.name = extractedName || inputName;
 
     return this.handleAskService({}, tempData);
   }

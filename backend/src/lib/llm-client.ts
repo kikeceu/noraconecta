@@ -178,9 +178,17 @@ Respondé SOLO con un JSON válido, sin texto adicional, sin backticks:
 }
 
 export async function extractName(text: string): Promise<string | null> {
-  const prompt = `Del siguiente mensaje, extraé SOLO el nombre propio de una persona si está presente.
-Si no hay ningún nombre propio, respondé exactamente: null
-Si hay un nombre, respondé SOLO el nombre, sin puntos ni explicaciones.
+  const prompt = `Extraé el nombre completo de la persona del siguiente mensaje. Incluí apellido si está presente.
+Si no hay ningún nombre de persona, respondé exactamente: null
+Respondé SOLO el nombre, sin explicaciones ni puntuación.
+
+Ejemplos:
+- "Hola nora, soy Enrique Quipuzcoa" → "Enrique Quipuzcoa"
+- "Me llamo María López Torres" → "María López Torres"
+- "mi nombre es carlos" → "carlos"
+- "Hola nora" → null
+- "Hola soy Juan" → "Juan"
+- "buenos dias" → null
 
 Mensaje: "${text}"`;
 
