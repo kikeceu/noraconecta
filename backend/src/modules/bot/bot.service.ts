@@ -6,6 +6,7 @@ import { detectCancellationIntent } from './flows/cancel-flow.helper';
 import { UsersService } from '../users/users.service';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import { ProfessionalsService } from '../professionals/professionals.service';
 import { SecurityService } from './security.service';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
@@ -38,6 +39,13 @@ function hasActionableContent(text: string): boolean {
   return meaningfulWords.length >= 2;
 }
 
+const PANEL_KEYWORDS = ['panel', 'link', 'url', 'acceso', 'entrar', 'ingresar', 'cuenta', 'login'];
+
+function wantsPanelLink(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PANEL_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
 export type ProcessMessageInput = {
   phone: string;
   text?: string;
@@ -53,6 +61,7 @@ export class BotService {
     private readonly usersService: UsersService,
     private readonly requestsRepository: RequestsRepository,
     private readonly professionalsRepository: ProfessionalsRepository,
+    private readonly professionalsService: ProfessionalsService,
     private readonly securityService: SecurityService,
   ) {}
 
@@ -122,6 +131,28 @@ export class BotService {
             '',
             'Cuanto mejor sea tu respuesta y tus calificaciones, más pedidos vas a recibir. ¡Éxitos!',
           ].join('\n'),
+          flow: undefined,
+          step: undefined,
+        };
+      }
+
+      // Detect panel link intent via keywords
+      if (input.text && wantsPanelLink(input.text.trim())) {
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+
+        if (professional && professional.status === 'ACTIVE') {
+          const { sessionToken: _sessionToken, panelUrl } =
+            await this.professionalsService.generateSessionToken(professional.id);
+
+          return {
+            text: `Hola ${professional.name}! Acá tenés el link para acceder a tu panel:\n\n${panelUrl}\n\nEste link es personal y tiene validez por 30 días.`,
+            flow: undefined,
+            step: undefined,
+          };
+        }
+
+        return {
+          text: 'Tu cuenta no está activa. Para más información, contactá a soporte.',
           flow: undefined,
           step: undefined,
         };

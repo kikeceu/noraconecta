@@ -7,6 +7,8 @@ import { UsersService } from '../users/users.service';
 import { UsersRepository } from '../users/users.repository';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
+import { ProfessionalsService } from '../professionals/professionals.service';
+import { ConfigRepository } from '../config/config.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 
@@ -17,7 +19,11 @@ const usersRepository = new UsersRepository();
 const usersService = new UsersService(usersRepository);
 const requestsRepository = new RequestsRepository();
 const professionalsRepository = new ProfessionalsRepository();
-const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, securityService);
+const configRepository = new ConfigRepository();
+const r2ClientSingleton = new R2Client();
+const whatsappAdapterSingleton = new WhatsAppAdapter(r2ClientSingleton, botRepository);
+const professionalsService = new ProfessionalsService(professionalsRepository, whatsappAdapterSingleton, configRepository, botRepository);
+const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, professionalsService, securityService);
 
 export class BotController {
   async message(req: Request, res: Response, next: NextFunction): Promise<void> {
