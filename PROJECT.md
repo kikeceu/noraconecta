@@ -184,7 +184,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep (incluye 'license'), FileUploadInfo, OnboardingFormData (incluye licenseUrl), TokenValidationResponse (incluye requiresLicense, licenseLabel, declaredHasLicense) — AUT-323
 │   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) (NEW)
-│   │   │   └── panel.ts               # Interfaces for professional panel data (PanelData, PanelOrder, etc.) (NEW)
+│   │   │   └── panel.ts               # Interfaces for professional panel data (PanelData, PanelOrder, etc.) + totalEarnings en ActivityStatsResponse (AUT-328)
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
@@ -239,7 +239,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
 │   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): StatCards (text-4xl JetBrains Mono, min-h-[100px], uppercase tracking-wide labels), coordination status, confirm visit, mark finished, view detail modal, mobile cards, space-y-5, max-w-5xl (AUT-156, AUT-168, AUT-181, AUT-183)
 │   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders, StatCards (text-4xl JetBrains Mono, min-h-[100px], uppercase tracking-wide labels), filters, search, table desktop + mobile cards, RatingDetailModal, rate user (RateUserModal 2 steps: rating general + ¿volvería a atenderlo? + comentario, AUT-320), space-y-5, max-w-5xl (AUT-156, AUT-179, AUT-181, AUT-183, AUT-320)
-│   │   │           ├── ProfessionalMembership.tsx # Membership status: active/trial (h-3 progress bar)/expired, precio (text-4xl), beneficios, trial card min-h-[200px], trial numbers text-2xl JetBrains Mono, trial title text-2xl, max-w-5xl (AUT-181, AUT-183)
+│   │   │           ├── ProfessionalMembership.tsx # Membership status: active/trial (h-3 progress bar)/expired, precio (text-4xl), beneficios, trial card min-h-[200px], trial numbers text-2xl JetBrains Mono, trial title text-2xl, max-w-5xl + widget de ganancias (7/30/90d, text-4xl JetBrains Mono, totalEarnings), botón CTA grande (gradient #0B6E4F→#059669, min-h-56px), botón sticky fixed bottom (z-50, max-w-480px) cuando !hasActiveMembership (AUT-181, AUT-183, AUT-328)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart (160x160, r=68), compliance metrics (text-4xl), MiniAxisCard (text-3xl, p-4), metric cards min-h-[120px], completed/rejected/notFulfilled rows text-2xl, recomendación %, tips, max-w-5xl (AUT-181, AUT-183)
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
