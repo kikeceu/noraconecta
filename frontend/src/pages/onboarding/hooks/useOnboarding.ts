@@ -7,9 +7,14 @@ import {
   TokenValidationResponse,
   ErrorVariant,
 } from '../../../types/onboarding';
-import { validateToken, submitVerification, uploadFile } from '../../../lib/onboarding-api';
+import { validateToken, submitVerification, submitLicenseResubmission, uploadFile } from '../../../lib/onboarding-api';
 
 const STORAGE_KEY_PREFIX = 'nora_onboarding_';
+
+function getModeFromUrl(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  return searchParams.get('mode');
+}
 
 function emptyUploadState(): FileUploadInfo {
   return { state: 'empty' };
@@ -30,6 +35,7 @@ function initialFormData(): OnboardingFormData {
 }
 
 export function useOnboarding(token: string) {
+  const isLicenseMode = useMemo(() => getModeFromUrl() === 'license', []);
   const [step, setStep] = useState<OnboardingStep>('loading');
   const [errorVariant, setErrorVariant] = useState<ErrorVariant>('invalid');
   const [errorMessage, setErrorMessage] = useState('');
@@ -48,6 +54,10 @@ export function useOnboarding(token: string) {
   const tokenRef = useRef(token);
 
   const stepsOrder = useMemo((): OnboardingStep[] => {
+    if (isLicenseMode) {
+      return ['license', 'confirmation'];
+    }
+
     const base: OnboardingStep[] = [
       'welcome',
       'personal-data',
@@ -59,7 +69,7 @@ export function useOnboarding(token: string) {
     }
     base.push('references', 'video', 'zones', 'summary');
     return base;
-  }, [declaredHasLicense]);
+  }, [isLicenseMode, declaredHasLicense]);
 
   const clearStorage = useCallback(() => {
     try {
@@ -117,7 +127,11 @@ export function useOnboarding(token: string) {
       return prev;
     });
 
-    setStep('welcome');
+    if (isLicenseMode) {
+      setStep('license');
+    } else {
+      setStep('welcome');
+    }
       } catch (err) {
         setStep('error');
         const message = (err instanceof Error ? err.message : '').toLowerCase();
@@ -266,7 +280,11 @@ export function useOnboarding(token: string) {
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
-      await submitVerification(token, formData);
+      if (isLicenseMode) {
+        await submitLicenseResubmission(token, formData.licenseUrl);
+      } else {
+        await submitVerification(token, formData);
+      }
       clearStorage();
       setStep('confirmation');
     } catch (err) {
@@ -276,7 +294,7 @@ export function useOnboarding(token: string) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [token, formData, clearStorage]);
+  }, [token, formData, clearStorage, isLicenseMode]);
 
   const handleStart = useCallback(() => {
     goNext();
@@ -295,6 +313,7 @@ export function useOnboarding(token: string) {
     requiresLicense,
     licenseLabel,
     declaredHasLicense,
+    isLicenseMode,
     formData,
     updateFormField,
     dniFront,

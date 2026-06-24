@@ -87,13 +87,14 @@ function OnboardingContent({ token }: { token: string }) {
       case 'license':
         return (
           <>
-            <ProgressBar currentStep={onboarding.step} />
+            {!onboarding.isLicenseMode && <ProgressBar currentStep={onboarding.step} />}
             <LicenseStep
               licenseLabel={onboarding.licenseLabel ?? 'la credencial habilitante'}
               license={onboarding.license}
               onFile={onboarding.handleLicense}
               onBack={onboarding.goBack}
               onNext={onboarding.goNext}
+              isLicenseMode={onboarding.isLicenseMode}
             />
           </>
         );
@@ -158,7 +159,7 @@ function OnboardingContent({ token }: { token: string }) {
       case 'confirmation':
         return (
           <>
-            <ProgressBar currentStep={onboarding.step} />
+            {!onboarding.isLicenseMode && <ProgressBar currentStep={onboarding.step} />}
             <ConfirmationScreen professionalName={onboarding.professionalName} />
           </>
         );

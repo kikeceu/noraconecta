@@ -57,7 +57,9 @@ export class ProfessionalsRepository {
     return prisma.professional.create({ data });
   }
 
-  async findById(id: string): Promise<Professional | null> {
+  async findById(
+    id: string,
+  ): Promise<(Professional & { category: { id: string; name: string; slug: string; requiresLicense: boolean; licenseLabel: string | null; createdAt: Date; updatedAt: Date } | null }) | null> {
     return prisma.professional.findUnique({
       where: { id },
       include: { zones: { include: { geoNode: { include: { parent: true } } } }, category: true },

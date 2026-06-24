@@ -96,3 +96,8 @@ export const TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA = 'nora_pro_nuevo_pedido_sin_me
 
 /** Membership about to expire */
 export const MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE = 'nora_pro_membresia_por_vencer';
+
+// ── License templates ──────────────────────────────────────────────────
+
+/** Professional license was rejected — re-upload CTA */
+export const LICENSE_REJECTED_TEMPLATE = 'nora_pro_credencial_rechazada';

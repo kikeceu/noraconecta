@@ -93,6 +93,21 @@ export class ProfessionalsController {
         return;
       }
 
+      const mode = req.query.mode as string | undefined;
+
+      if (mode === 'license') {
+        const { licenseUrl } = req.body as { licenseUrl: string };
+
+        if (!licenseUrl) {
+          res.status(400).json({ error: 'licenseUrl is required', statusCode: 400 });
+          return;
+        }
+
+        await professionalsService.submitLicenseResubmission(token, licenseUrl);
+        res.status(200).json({ data: { status: 'license_resubmitted' } });
+        return;
+      }
+
       const body = req.body as VerificationStageTwoInput;
 
       const professional = await professionalsService.submitVerification(token, body);

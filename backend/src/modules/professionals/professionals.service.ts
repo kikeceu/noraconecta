@@ -9,8 +9,9 @@ import { ConfigRepository } from '../config/config.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { AppError } from '../../middleware/error-handler';
 import { Professional, ProfessionalStatus, LicenseStatus } from '@prisma/client';
-import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
+import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
+import { LICENSE_REJECTED_TEMPLATE } from '../../utils/whatsapp-templates';
 
 const VERIFICATION_TOKEN_TTL_HOURS = 168; // 7 days
 const SESSION_TOKEN_TTL_DAYS = 30;
@@ -863,6 +864,102 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       throw new AppError('Professional not found', 404);
     }
 
-    return this.professionalsRepository.updateLicenseStatus(id, status);
+    const updated = await this.professionalsRepository.updateLicenseStatus(id, status);
+
+    if (status === 'REJECTED') {
+      try {
+        const licenseLabel = professional.category?.licenseLabel ?? 'credencial habilitante';
+        const verificationToken = await this.generateNewVerificationToken(id);
+        const verificationUrl = `${APP_URL}/verify/${verificationToken}?mode=license`;
+
+        const textMessage =
+          `Hola ${professional.name}, revisamos tu ${licenseLabel} y no pudimos verificarla.\n\n` +
+          `Puede deberse a que la imagen no es legible, el documento está vencido o no corresponde al tipo solicitado.\n\n` +
+          `Para subir una nueva, ingresá acá:\n\n${verificationUrl}`;
+
+        await this.sendWithWindowCheck(
+          professional.phone,
+          'PROFESSIONAL',
+          textMessage,
+          LICENSE_REJECTED_TEMPLATE,
+          [professional.name, licenseLabel, verificationUrl],
+        );
+      } catch (err) {
+        console.error(
+          '[ProfessionalsService] Failed to notify professional about rejected license:',
+          err,
+        );
+      }
+    }
+
+    return updated;
+  }
+
+  private async generateNewVerificationToken(professionalId: string): Promise<string> {
+    const verificationToken = randomUUID();
+    const verificationTokenExp = new Date(
+      Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 60 * 60 * 1000,
+    );
+
+    await this.professionalsRepository.update(professionalId, {
+      verificationToken,
+      verificationTokenExp,
+      verificationTokenUsed: false,
+      licenseStatus: 'PENDING',
+    });
+
+    return verificationToken;
+  }
+
+  private async sendWithWindowCheck(
+    phone: string,
+    role: WhatsAppRole,
+    text: string,
+    templateName: string,
+    templateParams: string[],
+  ): Promise<void> {
+    const needsTemplate = await shouldUseTemplate(phone, role, this.botRepository);
+
+    if (needsTemplate) {
+      await this.whatsappAdapter.sendTemplateWithButton(
+        phone,
+        templateName,
+        templateParams,
+        templateParams[2],
+        role,
+      );
+    } else {
+      await this.whatsappAdapter.sendText(phone, text, role);
+    }
+  }
+
+  async submitLicenseResubmission(
+    token: string,
+    licenseUrl: string,
+  ): Promise<void> {
+    const professional = await this.professionalsRepository.findByVerificationToken(token);
+
+    if (!professional) {
+      throw new AppError('Verification token not found', 404);
+    }
+
+    if (professional.verificationTokenUsed) {
+      throw new AppError('Verification token has already been used', 400);
+    }
+
+    if (new Date() > professional.verificationTokenExp) {
+      throw new AppError('Verification token has expired', 400);
+    }
+
+    await this.professionalsRepository.update(professional.id, {
+      licenseUrl,
+      licenseStatus: 'PENDING',
+      verificationTokenUsed: true,
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[ProfessionalsService] License resubmitted for professional ${professional.id}`,
+    );
   }
 }
