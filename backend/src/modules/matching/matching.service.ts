@@ -156,18 +156,17 @@ export class MatchingService {
       );
 
       if (workRequiresLicense) {
-        const licensed = eligible.filter(
+        filteredByLicense = eligible.filter(
           (p) => p.licenseStatus === 'APPROVED',
         );
 
-        if (licensed.length > 0) {
-          filteredByLicense = licensed;
+        if (filteredByLicense.length > 0) {
           console.log(
-            `[Matching] License filter applied: ${licensed.length}/${eligible.length} candidates have approved license`,
+            `[Matching] License filter applied: ${filteredByLicense.length}/${eligible.length} candidates have approved license`,
           );
         } else {
           console.warn(
-            `[Matching] No licensed professionals available for category "${category.name}", falling back to all candidates`,
+            `[Matching] Work requires license but no approved professionals found for category "${category.name}". No candidates will be assigned.`,
           );
         }
       }
