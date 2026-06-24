@@ -1,4 +1,12 @@
 import { AdminRepository } from './admin.repository';
+import { ConfigRepository } from '../config/config.repository';
+import { AppError } from '../../middleware/error-handler';
+
+export interface MembershipDiscount {
+  active: boolean;
+  discountPct: number;
+  expiresAt: string | null;
+}
 
 export interface AdminMetrics {
   orders: {
@@ -27,7 +35,52 @@ export interface AdminMetrics {
 }
 
 export class AdminService {
-  constructor(private readonly adminRepository: AdminRepository) {}
+  constructor(
+    private readonly adminRepository: AdminRepository,
+    private readonly configRepository: ConfigRepository,
+  ) {}
+
+  async getMembershipDiscount(): Promise<MembershipDiscount> {
+    const [activeConfig, pctConfig, expiresConfig] = await Promise.all([
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_ACTIVE'),
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_PCT'),
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_EXPIRES_AT'),
+    ]);
+
+    const active = activeConfig?.value === 'true';
+    const discountPct = parseInt(pctConfig?.value ?? '0', 10);
+    const expiresAt = expiresConfig?.value ?? null;
+
+    if (active && expiresAt && new Date(expiresAt) < new Date()) {
+      return { active: false, discountPct: 0, expiresAt: null };
+    }
+
+    return { active, discountPct, expiresAt };
+  }
+
+  async setMembershipDiscount(
+    active: boolean,
+    discountPct?: number,
+    durationHours?: number,
+  ): Promise<void> {
+    if (!active) {
+      await this.configRepository.upsert('MEMBERSHIP_DISCOUNT_ACTIVE', 'false');
+      return;
+    }
+
+    if (!discountPct || !durationHours) {
+      throw new AppError('discountPct y durationHours son requeridos para activar el descuento', 400);
+    }
+
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + durationHours);
+
+    await Promise.all([
+      this.configRepository.upsert('MEMBERSHIP_DISCOUNT_ACTIVE', 'true'),
+      this.configRepository.upsert('MEMBERSHIP_DISCOUNT_PCT', String(discountPct)),
+      this.configRepository.upsert('MEMBERSHIP_DISCOUNT_EXPIRES_AT', expiresAt.toISOString()),
+    ]);
+  }
 
   async getMetrics(geoNodeId?: string): Promise<AdminMetrics> {
     const [

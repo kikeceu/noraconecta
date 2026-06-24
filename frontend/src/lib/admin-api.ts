@@ -412,3 +412,21 @@ export function updateConfig(
     body: JSON.stringify({ value }),
   });
 }
+
+// Membership Discount
+export function getMembershipDiscountConfig(): Promise<{
+  data: { active: boolean; discountPct: number; expiresAt: string | null };
+}> {
+  return request('/admin/membership-discount');
+}
+
+export function setMembershipDiscount(params: {
+  active: boolean;
+  discountPct?: number;
+  durationHours?: number;
+}): Promise<{ ok: boolean }> {
+  return request('/admin/membership-discount', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
