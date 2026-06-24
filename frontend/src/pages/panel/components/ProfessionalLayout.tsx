@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Home, User, CreditCard, ClipboardList, Star, Clock, Activity, Menu, X } from 'lucide-react';
 import type { PanelTab, ProfessionalStatus } from '../../../types/panel';
 import { brand } from '../../../lib/brand';
@@ -12,6 +12,12 @@ interface ProfessionalLayoutProps {
   hasActiveMembership?: boolean;
   trialRequestsRemaining?: number;
   professionalId?: string;
+  discount?: {
+    active: boolean;
+    discountPct: number;
+    expiresAt: string | null;
+  } | null;
+  sessionToken?: string;
 }
 
 const tabs: { key: PanelTab; label: string; icon: typeof Home }[] = [
@@ -29,15 +35,17 @@ function DesktopSidebar({
   onTabChange,
   professionalName,
   hasActiveMembership,
-  trialRequestsRemaining,
   professionalId,
+  ctaLine1,
+  ctaLine2,
 }: {
   activeTab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
   professionalName: string;
   hasActiveMembership?: boolean;
-  trialRequestsRemaining?: number;
   professionalId?: string;
+  ctaLine1: string;
+  ctaLine2: string;
 }) {
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-[#D1D5DB]">
@@ -61,19 +69,20 @@ function DesktopSidebar({
           {professionalName}
         </span>
         {!hasActiveMembership && (
-          <p className="text-xs text-[#9CA3AF] mt-1" style={{ fontFamily: 'DM Sans' }}>
-            {trialRequestsRemaining !== undefined && trialRequestsRemaining > 0
-              ? `${trialRequestsRemaining} pedidos gratuitos · `
-              : 'Sin membresía · '}
+          <div className="mt-1">
+            <p className="text-xs font-semibold text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
+              {ctaLine1}
+            </p>
             <a
               href={`${import.meta.env.VITE_APP_URL}/planes?pro=${professionalId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#0B6E4F] font-semibold hover:underline cursor-pointer"
+              className="text-xs font-medium text-[#0B6E4F] hover:underline cursor-pointer"
+              style={{ fontFamily: 'DM Sans' }}
             >
-              Activar →
+              {ctaLine2}
             </a>
-          </p>
+          </div>
         )}
       </div>
 
@@ -153,8 +162,42 @@ export function ProfessionalLayout({
   hasActiveMembership,
   trialRequestsRemaining,
   professionalId,
+  discount,
+  sessionToken: _sessionToken,
 }: ProfessionalLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!discount?.active || !discount.expiresAt) {
+      setTimeLeft('');
+      return;
+    }
+
+    const updateTimer = () => {
+      const diff = new Date(discount.expiresAt!).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [discount]);
+
+  const ctaLine1 = discount?.active && timeLeft
+    ? `⚡ ${discount.discountPct}% OFF — ${timeLeft}`
+    : trialRequestsRemaining !== undefined && trialRequestsRemaining > 0
+      ? `${trialRequestsRemaining} pedidos gratuitos`
+      : 'Sin membresía activa';
+
+  const ctaLine2 = 'Activar membresía';
 
   return (
     <div className="flex min-h-[100dvh] bg-[#F9FAFB]">
@@ -163,8 +206,9 @@ export function ProfessionalLayout({
         onTabChange={onTabChange}
         professionalName={professionalName}
         hasActiveMembership={hasActiveMembership}
-        trialRequestsRemaining={trialRequestsRemaining}
         professionalId={professionalId}
+        ctaLine1={ctaLine1}
+        ctaLine2={ctaLine2}
       />
 
       <div className="flex-1 flex flex-col lg:pl-64">
@@ -175,20 +219,15 @@ export function ProfessionalLayout({
         />
 
         {!hasActiveMembership && (
-          <div className="lg:hidden fixed top-14 inset-x-0 z-20 bg-[#F0FDF4] border-b border-[#A7F3D0] flex items-center justify-center gap-1 py-1.5 px-4">
-            <span className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
-              {trialRequestsRemaining !== undefined && trialRequestsRemaining > 0
-                ? `⚡ ${trialRequestsRemaining} pedidos gratuitos ·`
-                : '⚡ Sin membresía activa ·'}
-            </span>
+          <div className="lg:hidden fixed top-14 inset-x-0 z-20 bg-[#F0FDF4] border-b border-[#A7F3D0] px-4 py-1.5">
             <a
               href={`${import.meta.env.VITE_APP_URL}/planes?pro=${professionalId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs font-semibold text-[#0B6E4F] hover:underline cursor-pointer"
+              className="flex items-center justify-center gap-2 text-xs font-bold text-[#111827] cursor-pointer"
               style={{ fontFamily: 'DM Sans' }}
             >
-              Activar →
+              {ctaLine1} <span className="text-[#0B6E4F] font-medium">· Activar →</span>
             </a>
           </div>
         )}

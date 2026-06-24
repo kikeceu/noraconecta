@@ -8,6 +8,7 @@ interface ProfessionalMembershipProps {
   membership: PanelMembershipData;
   sessionToken: string;
   professionalId: string;
+  discount?: { active: boolean; discountPct: number; expiresAt: string | null } | null;
 }
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
@@ -21,13 +22,14 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ProfessionalMembership({ membership, sessionToken, professionalId }: ProfessionalMembershipProps) {
+export function ProfessionalMembership({ membership, sessionToken, professionalId, discount }: ProfessionalMembershipProps) {
   const hasActiveMembership = membership.activeMembership !== null;
   const trialRemaining = Math.max(0, membership.trialRequestsLimit - membership.trialRequestsUsed);
 
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
   const [totalEarnings, setTotalEarnings] = useState<number | null>(null);
   const [loadingEarnings, setLoadingEarnings] = useState(false);
+  const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
     setLoadingEarnings(true);
@@ -37,6 +39,29 @@ export function ProfessionalMembership({ membership, sessionToken, professionalI
       .catch(() => setTotalEarnings(0))
       .finally(() => setLoadingEarnings(false));
   }, [sessionToken, rangeDays]);
+
+  useEffect(() => {
+    if (!discount?.active || !discount.expiresAt) {
+      setTimeLeft('');
+      return;
+    }
+
+    const updateTimer = () => {
+      const diff = new Date(discount.expiresAt!).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [discount]);
 
   return (
     <>
@@ -95,6 +120,47 @@ export function ProfessionalMembership({ membership, sessionToken, professionalI
           </div>
         )}
       </PanelCard>
+
+      {!hasActiveMembership && discount?.active && timeLeft && (
+        <div
+          className="rounded-2xl p-5 text-center"
+          style={{ background: 'linear-gradient(135deg, #052e1c 0%, #0B6E4F 100%)' }}
+        >
+          <p
+            className="text-xs font-semibold uppercase tracking-widest text-[#A7F3D0] mb-1"
+            style={{ fontFamily: 'DM Sans' }}
+          >
+            ⚡ Oferta por tiempo limitado
+          </p>
+          <p
+            className="text-4xl font-bold text-white mb-1"
+            style={{ fontFamily: 'JetBrains Mono' }}
+          >
+            {discount.discountPct}% OFF
+          </p>
+          <p
+            className="text-xs text-[#A7F3D0] mb-3"
+            style={{ fontFamily: 'DM Sans' }}
+          >
+            en tu primer mes de membresía
+          </p>
+          <p
+            className="text-2xl font-bold text-white mb-4"
+            style={{ fontFamily: 'JetBrains Mono' }}
+          >
+            {timeLeft}
+          </p>
+          <a
+            href={`${import.meta.env.VITE_APP_URL}/planes?pro=${professionalId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full rounded-lg bg-white py-2.5 text-sm font-bold text-[#0B6E4F] hover:opacity-90 transition-opacity cursor-pointer text-center"
+            style={{ fontFamily: 'DM Sans' }}
+          >
+            Aprovechar oferta
+          </a>
+        </div>
+      )}
 
       {hasActiveMembership && membership.activeMembership ? (
         <>
