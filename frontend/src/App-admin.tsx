@@ -13,6 +13,7 @@ import { ZonesPage } from './pages/admin/ZonesPage';
 import { CategoriesPage } from './pages/admin/CategoriesPage';
 import { PlansPage } from './pages/admin/PlansPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { PromotionsPage } from './pages/admin/PromotionsPage';
 
 export function AppAdmin() {
   return (
@@ -40,6 +41,7 @@ export function AppAdmin() {
 
               {/* SUPERADMIN only */}
               <Route element={<ProtectedRoute requiredRole="SUPERADMIN" />}>
+                <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
