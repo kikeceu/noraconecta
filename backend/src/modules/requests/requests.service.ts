@@ -1,6 +1,7 @@
 import { RequestsRepository } from './requests.repository';
 import { MatchingService } from '../matching/matching.service';
 import { MatchingRepository } from '../matching/matching.repository';
+import { CategoriesRepository } from '../categories/categories.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { UsersRepository } from '../users/users.repository';
@@ -54,6 +55,7 @@ export interface PaginatedRequestsResponse {
 }
 
 const configRepository = new ConfigRepository();
+const categoriesRepository = new CategoriesRepository();
 const reputationRepository = new ReputationRepository();
 const escalationsRepository = new EscalationsRepository();
 
@@ -70,7 +72,7 @@ export class RequestsService {
     private readonly notificationService?: NotificationService,
     private readonly coordinationService?: CoordinationService,
   ) {
-    this.matchingService = new MatchingService(this.matchingRepository, configRepository);
+    this.matchingService = new MatchingService(this.matchingRepository, configRepository, categoriesRepository);
   }
 
   async create(input: CreateRequestInput): Promise<Request> {
@@ -185,6 +187,7 @@ Criterios:
       problemType,
       isUrgent,
       mentionedDate,
+      input.technicalBrief ?? null,
     );
 
     void this.requestsRepository.update(request.id, {
@@ -369,6 +372,7 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.technicalBrief ?? null,
     );
 
     if (!match) {
@@ -1004,6 +1008,7 @@ Criterios:
           request.problemType ?? undefined,
           request.isUrgent,
           request.mentionedDate,
+          request.technicalBrief ?? null,
         );
 
         if (!match) {
@@ -1149,6 +1154,7 @@ Criterios:
           request.problemType ?? undefined,
           request.isUrgent,
           request.mentionedDate,
+          request.technicalBrief ?? null,
         );
 
         if (!match) {
@@ -1318,6 +1324,7 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.technicalBrief ?? null,
     );
 
     let userMessage: string;
@@ -1422,6 +1429,7 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.technicalBrief ?? null,
     );
 
     if (!match) {

@@ -225,3 +225,37 @@ export async function transcribeAudio(audioUrl: string): Promise<string> {
   const data = (await transcribeRes.json()) as { text: string };
   return data.text?.trim() || '';
 }
+
+export async function detectsLicenseRequired(
+  categoryName: string,
+  technicalBrief: string,
+): Promise<boolean> {
+  const prompt = `Sos un asistente técnico de NORA, plataforma de servicios del hogar en Argentina.
+
+Categoría del servicio: "${categoryName}"
+Descripción técnica del trabajo: "${technicalBrief}"
+
+¿Este trabajo requiere que el profesional tenga una credencial habilitante o matrícula para realizarlo legalmente?
+
+Ejemplos que SÍ requieren matrícula:
+- Instalación de calefón o termotanque a gas
+- Conexión de garrafa o medidor de gas
+- Instalación de tablero eléctrico o disyuntores
+- Instalación de equipos de aire acondicionado con carga de gas refrigerante
+- Instalación de cañería de gas
+
+Ejemplos que NO requieren matrícula:
+- Reparación de canilla o pérdida de agua
+- Cambio de manguera de gas (flexible)
+- Pintura, albañilería, cerrajería
+- Limpieza de filtros de aire acondicionado
+
+Respondé SOLO con: SI o NO`;
+
+  try {
+    const response = await callLLM(prompt);
+    return response.trim().toUpperCase() === 'SI';
+  } catch {
+    return false;
+  }
+}
