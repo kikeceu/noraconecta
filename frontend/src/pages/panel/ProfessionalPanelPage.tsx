@@ -72,6 +72,9 @@ export function ProfessionalPanelPage() {
       onTabChange={setActiveTab}
       professionalName={data.professional.name}
       professionalStatus={data.professional.status}
+      hasActiveMembership={!!data.membership.activeMembership}
+      trialRequestsRemaining={Math.max(0, data.membership.trialRequestsLimit - data.membership.trialRequestsUsed)}
+      professionalId={data.professional.id}
     >
       {activeTab === 'dashboard' && (
         <ProfessionalDashboard data={data} onTabChange={setActiveTab} sessionToken={sessionToken!} />
@@ -85,7 +88,7 @@ export function ProfessionalPanelPage() {
         />
       )}
       {activeTab === 'membership' && (
-          <ProfessionalMembership membership={data.membership} sessionToken={sessionToken!} />
+          <ProfessionalMembership membership={data.membership} sessionToken={sessionToken!} professionalId={data.professional.id} />
         )}
       {activeTab === 'orders' && <ProfessionalOrders sessionToken={sessionToken!} />}
       {activeTab === 'reputation' && <ProfessionalReputation reputation={data.reputation} />}
