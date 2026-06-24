@@ -187,6 +187,7 @@ Criterios:
       problemType,
       isUrgent,
       mentionedDate,
+      input.description ?? null,
       input.technicalBrief ?? null,
     );
 
@@ -198,7 +199,7 @@ Criterios:
       console.error('[Requests] failed to update request analysis:', err);
     });
 
-    if (match) {
+    if (match && match.professionalId) {
       const responseTimeoutHours = await this.getResponseTimeoutHours();
       const now = new Date();
       const assignmentTimeoutAt = new Date(
@@ -250,6 +251,19 @@ Criterios:
       }
 
       return updated;
+    }
+
+    if (match?.requiresLicensedProfessional) {
+      const userPhone = await this.getUserPhone(request.userId);
+      if (userPhone) {
+        await this.botRepository.upsert(userPhone, {
+          role: 'USER',
+          tempData: {
+            pendingMessage: 'En este momento no encontré un profesional disponible para tu pedido. Te avisaremos cuando tengamos uno. Si querés cancelar, escribí "cancelar".',
+          },
+        });
+      }
+      return request;
     }
 
     const responseTimeoutHours = await this.getResponseTimeoutHours();
@@ -326,8 +340,17 @@ Criterios:
       if (this.notificationService) {
         this.notificationService.notifyUserRequestAccepted(
           fullRequest.user,
-          fullRequest.assignedProfessional,
-          { id: fullRequest.id, categoryName: fullRequest.category?.name || 'el servicio', zoneName: fullRequest.geoNode?.name || 'tu zona' },
+          {
+            name: fullRequest.assignedProfessional.name,
+            phone: fullRequest.assignedProfessional.phone,
+            licenseStatus: fullRequest.assignedProfessional.licenseStatus ?? null,
+          },
+          {
+            id: fullRequest.id,
+            categoryName: fullRequest.category?.name || 'el servicio',
+            zoneName: fullRequest.geoNode?.name || 'tu zona',
+            requiresLicense: fullRequest.category?.requiresLicense ?? false,
+          },
         ).catch((err) => {
           console.error('[RequestsService] Failed to notify user request accepted:', err);
         });
@@ -372,10 +395,11 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.description ?? null,
       request.technicalBrief ?? null,
     );
 
-    if (!match) {
+    if (!match?.professionalId) {
       const updated = await this.requestsRepository.update(requestId, {
         status: 'NO_RESPONSE',
         assignedProfessionalId: null,
@@ -1008,10 +1032,20 @@ Criterios:
           request.problemType ?? undefined,
           request.isUrgent,
           request.mentionedDate,
+          request.description ?? null,
           request.technicalBrief ?? null,
         );
 
-        if (!match) {
+        if (!match || !match.professionalId) {
+          if (match?.requiresLicensedProfessional) {
+            console.log(
+              '[RequestsService] CREATED request kept in CREATED (licensed required, none available):',
+              request.id,
+            );
+            processed++;
+            continue;
+          }
+
           await this.requestsRepository.update(request.id, {
             status: 'NO_RESPONSE',
             assignmentTimeoutAt: null,
@@ -1038,7 +1072,7 @@ Criterios:
               });
             }
           }
-        } else {
+        } else if (match.professionalId) {
           const responseTimeoutHours = await this.getResponseTimeoutHours();
           const assignmentTimeoutAt = new Date(
             now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
@@ -1154,10 +1188,11 @@ Criterios:
           request.problemType ?? undefined,
           request.isUrgent,
           request.mentionedDate,
+          request.description ?? null,
           request.technicalBrief ?? null,
         );
 
-        if (!match) {
+        if (!match || !match.professionalId) {
           await this.requestsRepository.update(request.id, {
             status: 'NO_RESPONSE',
             assignedProfessionalId: null,
@@ -1182,7 +1217,7 @@ Criterios:
               });
             }
           }
-        } else {
+        } else if (match.professionalId) {
           const responseTimeoutHours = await this.getResponseTimeoutHours();
           const assignmentTimeoutAt = new Date(
             now.getTime() + responseTimeoutHours * 60 * 60 * 1000,
@@ -1324,6 +1359,7 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.description ?? null,
       request.technicalBrief ?? null,
     );
 
@@ -1331,20 +1367,20 @@ Criterios:
 
     if (hasConfirmedVisit && scheduledAt) {
       const formattedDate = formatDateTimeArgentina(scheduledAt);
-      if (match) {
+      if (match?.professionalId) {
         userMessage = `Lamentablemente ${professionalName} canceló la visita del ${formattedDate}. Estamos buscando otro profesional para vos, te avisamos cuando confirme.`;
       } else {
         userMessage = `Lamentablemente ${professionalName} canceló la visita del ${formattedDate}. Intentamos encontrar otro profesional pero no tuvimos éxito. Te avisaremos cuando haya uno.`;
       }
     } else {
-      if (match) {
+      if (match?.professionalId) {
         userMessage = `Lamentablemente ${professionalName} no puede atenderte en este momento. Estamos buscando otro profesional para vos, te avisamos cuando confirme.`;
       } else {
         userMessage = `Lamentablemente ${professionalName} no puede atenderte en este momento. Intentamos encontrar otro profesional pero no tuvimos éxito. Te avisaremos cuando haya uno.`;
       }
     }
 
-    if (match) {
+    if (match?.professionalId) {
       const responseTimeoutHours = await this.getResponseTimeoutHours();
       const now = new Date();
       const assignmentTimeoutAt = new Date(
@@ -1429,10 +1465,11 @@ Criterios:
       request.problemType ?? undefined,
       request.isUrgent,
       request.mentionedDate,
+      request.description ?? null,
       request.technicalBrief ?? null,
     );
 
-    if (!match) {
+    if (!match?.professionalId) {
       const updated = await this.requestsRepository.update(requestId, {
         status: 'NO_RESPONSE',
         assignedProfessionalId: null,
@@ -1626,6 +1663,14 @@ Criterios:
       select: { name: true },
     });
     return node?.name || 'tu zona';
+  }
+
+  private async getUserPhone(userId: string): Promise<string | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+    return user?.phone ?? null;
   }
 
   private async getResponseTimeoutHours(): Promise<number> {

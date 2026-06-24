@@ -14,6 +14,7 @@ import {
 export interface ProfessionalInfo {
   phone: string;
   name: string;
+  licenseStatus?: string | null;
 }
 
 export interface UserInfo {
@@ -47,6 +48,7 @@ export interface RequestBasicInfo {
   id: string;
   categoryName: string;
   zoneName: string;
+  requiresLicense?: boolean;
 }
 
 export class NotificationService {
@@ -67,7 +69,12 @@ export class NotificationService {
     professional: ProfessionalInfo,
     request: RequestBasicInfo,
   ): Promise<void> {
-    const message = `¡${professional.name} aceptó tu pedido de ${request.categoryName}! 🎉 ¿Qué día y horario te viene bien para la visita? Si necesitás cancelar, escribí "cancelar".`;
+    const licenseBadge =
+      request.requiresLicense && professional.licenseStatus === 'APPROVED'
+        ? '\n✓ Profesional matriculado'
+        : '';
+
+    const message = `¡${professional.name} aceptó tu pedido de ${request.categoryName}!${licenseBadge} 🎉 ¿Qué día y horario te viene bien para la visita? Si necesitás cancelar, escribí "cancelar".`;
 
     await this.sendWithWindowCheck(
       user.phone,

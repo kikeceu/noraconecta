@@ -24,7 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + detectsLicenseRequired (detección LLM de credencial requerida, AUT-325)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
@@ -85,7 +85,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── config.service.ts    # Key-value config get/update
 │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
 │   │   │   ├── matching/
-│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + filtro de elegibilidad por credencial habilitante (AUT-235, AUT-240, AUT-251, AUT-325)
+│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + sistema híbrido keywords+LLM de detección de matrícula con priorización en score (AUT-235, AUT-240, AUT-251, AUT-343)
 │   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
@@ -100,8 +100,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── escalations.controller.ts # Request validation, response formatting
 │   │   │   │   ├── escalations.service.ts    # Escalation lifecycle, status transitions
 │   │   │   │   └── escalations.repository.ts # Prisma queries for Escalation model
-│   │   │   └── notifications/              # (AUT-195, AUT-199, AUT-295, AUT-297, AUT-301)
-│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281). Description mismatch notification: notifyUserDescriptionMismatch + notifyUserConfirmService (AUT-295). Cancel confirmation: notifyUserCancelConfirmation (AUT-297). notifyProfessionalWithDetails usa TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA con botones Aceptar/Ahora no puedo cuando no hay media (AUT-301)
+│   │   │   └── notifications/              # (AUT-195, AUT-199, AUT-295, AUT-297, AUT-301, AUT-343)
+│   │   │       └── notification.service.ts   # WhatsApp dispatch with smart template/text strategy. Photos/audio deferred: sent only when professional asks for details via CoordinationService.sendRequestMedia (AUT-281). Description mismatch notification: notifyUserDescriptionMismatch + notifyUserConfirmService (AUT-295). Cancel confirmation: notifyUserCancelConfirmation (AUT-297). notifyProfessionalWithDetails usa TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA con botones Aceptar/Ahora no puedo cuando no hay media (AUT-301). notifyUserRequestAccepted incluye badge "✓ Profesional matriculado" cuando aplica (AUT-343)
 │   │   │   └── storage/
 │   │   │       ├── storage.routes.ts     # POST /storage/presign-upload
 │   │   │       ├── storage.controller.ts # Request validation, response formatting
@@ -137,7 +137,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + detectsLicenseRequired (detección LLM de credencial requerida, AUT-325)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343)
 │   │   │   ├── nominatim-client.ts     # Nominatim reverse geocoding: resolve GPS coordinates to department name, neighborhood and postal code (AUT-306, AUT-307)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
@@ -320,7 +320,7 @@ src/
 │       ├── professionals.service.ts    # Register, verify, approve, reject, suspend, session
 │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone
 │   └── matching/
-│       ├── matching.service.ts    # Scoring ponderado + filtros duros (sin endpoints)
+│       ├── matching.service.ts    # Scoring ponderado + filtros duros + detección híbrida de matrícula (AUT-343)
 │       └── matching.repository.ts # Prisma queries para motor de matching + findTrialExhaustedProfessionals (AUT-188)
 │   └── notifications/             # (AUT-195)
 │       └── notification.service.ts # WhatsApp notification dispatch for request lifecycle events
@@ -667,7 +667,7 @@ Servicio de despacho de notificaciones WhatsApp para eventos del ciclo de vida d
 | Método                              | Descripción                                                          |
 |-------------------------------------|----------------------------------------------------------------------|
 | `notifyProfessionalAssigned()`      | Notifica al profesional cuando se le asigna un nuevo pedido. Incluye `technicalBrief` (truncado a 800 chars) como 3er parámetro del template o inline en texto libre (AUT-276) |
-| `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido            |
+| `notifyUserRequestAccepted()`       | Notifica al usuario cuando el profesional acepta su pedido. Incluye badge "✓ Profesional matriculado" cuando `category.requiresLicense === true` y `professional.licenseStatus === 'APPROVED'` (AUT-343) |
 | `notifyProfessionalReminder()`      | Recordatorio al profesional por pedido sin respuesta (Stage 1 timeout); template con `categoryName` y `zoneName` |
 | `notifyProfessionalReassigned()`    | Notifica al nuevo profesional cuando hay reasignación (Stage 2). Incluye `technicalBrief` (truncado a 800 chars) como 3er parámetro del template o inline en texto libre (AUT-276) |
 | `notifyUserNoResponse()`            | Notifica al usuario que no se encontró profesional disponible. Se invoca en `processTimeouts` tanto para CREATED→NO_RESPONSE como para ASSIGNED timeout sin reemplazo (AUT-287) |
@@ -992,6 +992,17 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
   - `weightSpecialization` (0.08): especialización por tipo de problema basada en historial acumulado (AUT-240)
 - **Sentiment analysis (AUT-235)**: `analyzeSentiment()` en `feedback.flow.ts` procesa comentarios de texto libre con LLM (`callLLM`) en background. Extrae 5 dimensiones (puntualidad, precio_justo, calidad_trabajo, limpieza, actitud) + recomendable. Guarda resultado en `Feedback.sentimentAnalysis` (JSON). `getSentimentScores()` en `MatchingRepository` calcula score normalizado 0-100 por profesional agregando todos sus feedbacks con análisis de sentimiento. El score base es 50 (neutro) para profesionales sin análisis.
 - **Problem type specialization (AUT-240, ACTUALIZADO AUT-251)**: el análisis LLM se ejecuta de forma síncrona dentro de `create()` en `requests.service.ts` antes de `findBestCandidate`. Clasifica cada pedido extrayendo `problemType` (snake_case), `isUrgent` y `mentionedDate`. Estos valores se pasan directamente al matching inicial y se persisten en DB via fire-and-forget después del match. Al completar trabajo con satisfacción (`SATISFIED`/`PARTIAL`), `requests.service.ts` acumula el `problemType` en `Professional.problemTypeStats` (JSON, contador por tipo). `getProblemTypeStats()` en `MatchingRepository` carga las estadísticas. `computeSpecialization()` en `MatchingService` las usa como factor de scoring: si no hay `problemType` en el pedido o el profesional no tiene historial → 50 (neutro); si tiene historial → ratio `count/total * 100 * 3` (máx 100). `findBestCandidate()` acepta parámetro opcional `problemType`. Peso configurable via `MATCHING_WEIGHT_SPECIALIZATION` (default 0.08).
+
+- **Detección híbrida de matrícula (AUT-343)**: sistema de dos niveles para detectar si el usuario pide explícitamente un profesional matriculado (solo para categorías con `requiresLicense = true`):
+  1. **Keywords (sin LLM)**: busca en `description` y `technicalBrief` 48 palabras clave (matrícula, habilitado, certificado, credencial, licencia, autorizado, ENARGAS, título, etc.). Si matchea → `requiresLicensedProfessional = true`. Case-insensitive.
+  2. **LLM fallback** (solo si keywords no matchea): `userRequestsLicenseByLLM()` en `llm-client.ts` con prompt simple "¿El usuario está pidiendo explícitamente que el profesional tenga matrícula...? Responde SI o NO". Si el LLM falla → default `false`.
+  - Si `requiresLicensedProfessional = true`: filtra SOLO profesionales con `licenseStatus = 'APPROVED'`. Si ninguno → pedido queda en `CREATED`, usuario recibe mensaje de espera. Si alguno → asignación normal.
+  - Si `requiresLicensedProfessional = false`: todos los elegibles compiten. Profesionales con `licenseStatus = 'APPROVED'` reciben bonus `+0.1` en el score final.
+  - `MatchResult` extendido con `requiresLicensedProfessional?: boolean`. `findBestCandidate()` recibe nuevo parámetro `description?: string | null`.
+  - Badge "✓ Profesional matriculado" en `notifyUserRequestAccepted()` cuando `category.requiresLicense === true` y `professional.licenseStatus === 'APPROVED'`.
+  - `findByIdWithCoordination()` extendido con `licenseStatus` y `requiresLicense`.
+  - `ProfessionalInfo` extendido con `licenseStatus`. `RequestBasicInfo` extendido con `requiresLicense`.
+  - Archivos modificados: `llm-client.ts`, `matching.service.ts`, `requests.service.ts`, `requests.repository.ts`, `notification.service.ts`. No modifica `schema.prisma`.
 
 ### Storage
 
