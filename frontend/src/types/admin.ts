@@ -24,6 +24,8 @@ export type EscalationStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED';
 
 export type MembershipStatusKind = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
 
+export type LicenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export type MembershipType = 'MONTHLY' | 'ANNUAL';
 
 export interface AdminUser {
@@ -50,6 +52,8 @@ export interface Category {
   slug: string;
   description: string | null;
   isActive: boolean;
+  requiresLicense: boolean;
+  licenseLabel: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +110,9 @@ export interface Professional {
   hasBadge: boolean;
   trialRequestsUsed: number;
   lastAssignedAt: string | null;
+  declaredHasLicense: boolean | null;
+  licenseUrl: string | null;
+  licenseStatus: LicenseStatus | null;
   zones?: ProfessionalZone[];
   memberships?: Membership[];
   createdAt: string;

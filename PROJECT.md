@@ -47,7 +47,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── categories/
 │   │   │   │   ├── categories.routes.ts     # 6 endpoints under /categories
 │   │   │   │   ├── categories.controller.ts # Request validation, response formatting
-│   │   │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching
+│   │   │   │   ├── categories.service.ts    # Slug generation, Levenshtein matching, create/update aceptan requiresLicense y licenseLabel — AUT-324
 │   │   │   │   └── categories.repository.ts # Prisma queries for Category model
 │   │   │   ├── locations/
 │   │   │   │   ├── locations.routes.ts     # 7 endpoints under /locations
@@ -60,10 +60,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock, updateName
 │   │   │   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   │   │   └── professionals/
-│   │   │       ├── professionals.routes.ts     # 13 endpoints under /professionals. GET /session/:sessionToken/earnings — AUT-327
-│   │   │       ├── professionals.controller.ts # Request validation, response formatting. getEarnings: endpoint de ganancias — AUT-327
-│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323
-│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323
+│   │   │       ├── professionals.routes.ts     # 14 endpoints under /professionals. PATCH /:id/license-status — AUT-324. GET /session/:sessionToken/earnings — AUT-327
+│   │   │       ├── professionals.controller.ts # Request validation, response formatting. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327
+│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. updateLicenseStatus: aprobación/rechazo de credencial por admin — AUT-324. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323
+│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close
 │   │   │   │   ├── admin.controller.ts # Request handling + query params
@@ -198,13 +198,13 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination, phone column between zone and status (AUT-205)
-│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW) (AUT-205)
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324 (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots
 │   │   │   │   ├── EscalationsPage.tsx          # Table with urgency summary, status change + resolve modal
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
-│   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal
+│   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal con toggle "requiere credencial" y campo licenseLabel — AUT-324
 │   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
 │   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params)
 │   │   │   └── onboarding/
@@ -559,15 +559,15 @@ Response shape:
 }
 ```
 
-### Categories (ACTUALIZADO AUT-322)
+### Categories (ACTUALIZADO AUT-322, AUT-324)
 
 | Endpoint                   | Método | Descripción                          | Rol mínimo |
 |---------------------------|--------|--------------------------------------|-----------|
 | `/categories`             | GET    | Lista todas las categorías           | OPERATOR  |
 | `/categories/active`      | GET    | Solo categorías activas              | OPERATOR  |
 | `/categories/:id`         | GET    | Detalle de categoría                 | OPERATOR  |
-| `/categories`             | POST   | Crear categoría (slug autogenerado)  | SUPERADMIN|
-| `/categories/:id`         | PATCH  | Editar nombre o descripción          | SUPERADMIN|
+| `/categories`             | POST   | Crear categoría (slug autogenerado, campos requiresLicense y licenseLabel aceptados) | SUPERADMIN|
+| `/categories/:id`         | PATCH  | Editar nombre, descripción, requiresLicense o licenseLabel | SUPERADMIN|
 | `/categories/:id/toggle`  | PATCH  | Habilitar / deshabilitar categoría   | SUPERADMIN|
 
 **Campos de credencial habilitante (AUT-322):**
@@ -621,6 +621,7 @@ Response shape:
 | `/professionals/:id/reactivate`        | POST   | Reactivar profesional (SUSPENDED → ACTIVE)      | SUPERADMIN|
 | `/professionals/:id/badge`             | PATCH  | Asignar o remover insignia de reputación        | SUPERADMIN|
 | `/professionals/:id/generate-session`  | POST   | Generar token de sesión + panelUrl para portal profesional | SUPERADMIN|
+| `/professionals/:id/license-status`    | PATCH  | Aprobar o rechazar credencial habilitante (APPROVED/REJECTED) — AUT-324 | SUPERADMIN|
 
 ### Plans
 

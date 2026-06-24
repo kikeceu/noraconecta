@@ -5,11 +5,15 @@ export type CreateCategoryInput = {
   name: string;
   slug: string;
   description?: string;
+  requiresLicense?: boolean;
+  licenseLabel?: string | null;
 };
 
 export type UpdateCategoryInput = {
   name?: string;
   description?: string;
+  requiresLicense?: boolean;
+  licenseLabel?: string | null;
 };
 
 export class CategoriesRepository {

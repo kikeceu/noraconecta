@@ -15,7 +15,12 @@ export function CategoriesPage() {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    requiresLicense: false,
+    licenseLabel: '',
+  });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -33,13 +38,23 @@ export function CategoriesPage() {
 
   const openCreate = () => {
     setEditingCategory(null);
-    setForm({ name: '', description: '' });
+    setForm({
+      name: '',
+      description: '',
+      requiresLicense: false,
+      licenseLabel: '',
+    });
     setShowModal(true);
   };
 
   const openEdit = (cat: Category) => {
     setEditingCategory(cat);
-    setForm({ name: cat.name, description: cat.description || '' });
+    setForm({
+      name: cat.name,
+      description: cat.description || '',
+      requiresLicense: cat.requiresLicense,
+      licenseLabel: cat.licenseLabel || '',
+    });
     setShowModal(true);
   };
 
@@ -47,16 +62,16 @@ export function CategoriesPage() {
     if (!form.name.trim()) return;
     setModalLoading(true);
     try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim() || undefined,
+        requiresLicense: form.requiresLicense,
+        licenseLabel: form.requiresLicense ? form.licenseLabel.trim() || undefined : undefined,
+      };
       if (editingCategory) {
-        await updateCategory(editingCategory.id, {
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-        });
+        await updateCategory(editingCategory.id, payload);
       } else {
-        await createCategory({
-          name: form.name.trim(),
-          description: form.description.trim() || undefined,
-        });
+        await createCategory(payload);
       }
       setShowModal(false);
       fetchData();
@@ -117,6 +132,9 @@ export function CategoriesPage() {
                   Descripción
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+                  Matrícula
+                </th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
                   Estado
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
@@ -128,7 +146,7 @@ export function CategoriesPage() {
               {loading
                 ? [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(4)].map((_, j) => (
+                      {[...Array(5)].map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 rounded w-3/4" />
                         </td>
@@ -142,6 +160,17 @@ export function CategoriesPage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 max-w-[300px] truncate">
                         {cat.description || '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {cat.requiresLicense ? (
+                          <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-[#ECFDF5] text-[#059669]">
+                            Requerida
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-[#F3F4F6] text-[#6B7280]">
+                            No requerida
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {isSuperAdmin() ? (
@@ -187,7 +216,7 @@ export function CategoriesPage() {
               {!loading && categories.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-12 text-center text-sm text-gray-500"
                   >
                     No hay categorías configuradas
@@ -226,6 +255,17 @@ export function CategoriesPage() {
                     <span className="text-gray-500">Slug:</span>{' '}
                     <span className="font-mono">{cat.slug}</span>
                   </p>
+                  <div>
+                    {cat.requiresLicense ? (
+                      <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-[#ECFDF5] text-[#059669]">
+                        Requerida
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-[#F3F4F6] text-[#6B7280]">
+                        No requerida
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between gap-3">
                     {isSuperAdmin() ? (
                       <button
@@ -309,6 +349,41 @@ export function CategoriesPage() {
                   className="w-full h-20 px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700 resize-none"
                 />
               </div>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.requiresLicense}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      requiresLicense: e.target.checked,
+                      licenseLabel: e.target.checked ? form.licenseLabel : '',
+                    })
+                  }
+                  className="w-4 h-4 rounded border-gray-300 text-green-700 focus:ring-green-700/40 cursor-pointer"
+                />
+                <span className="text-sm font-medium text-gray-900">
+                  ¿Requiere credencial habilitante?
+                </span>
+              </label>
+
+              {form.requiresLicense && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Nombre del documento
+                  </label>
+                  <input
+                    type="text"
+                    value={form.licenseLabel}
+                    onChange={(e) =>
+                      setForm({ ...form, licenseLabel: e.target.value })
+                    }
+                    placeholder="Ej: Matrícula habilitante de gasista"
+                    className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">

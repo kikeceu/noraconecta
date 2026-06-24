@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, FileText, CheckCircle, XCircle, Copy, Check, Link2 } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Copy, Check, Link2, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import {
   getProfessional,
   approveProfessional,
@@ -8,11 +8,12 @@ import {
   suspendProfessional,
   reactivateProfessional,
   generateSession,
+  updateLicenseStatus,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { resolveHostContext } from '../../lib/host';
-import type { Professional, ProfessionalDetail, ProfessionalStatus } from '../../types/admin';
+import type { Professional, ProfessionalDetail, ProfessionalStatus, LicenseStatus } from '../../types/admin';
 
 function adminPath(path: string): string {
   const base = resolveHostContext() === 'admin' ? '' : '/admin';
@@ -47,6 +48,7 @@ export function ProfessionalDetailPage() {
   const [sessionUrl, setSessionUrl] = useState<string | null>(null);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [licenseActionLoading, setLicenseActionLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -125,6 +127,21 @@ export function ProfessionalDetailPage() {
         // silently fail
       }
       document.body.removeChild(textarea);
+    }
+  };
+
+  const handleLicenseAction = async (licenseStatus: LicenseStatus) => {
+    if (!id) return;
+    setLicenseActionLoading(true);
+    try {
+      await updateLicenseStatus(id, licenseStatus);
+      const res = await getProfessional(id);
+      setProfessional(res.data.professional);
+      setReputation(res.data.reputation);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar credencial');
+    } finally {
+      setLicenseActionLoading(false);
     }
   };
 
@@ -321,6 +338,69 @@ export function ProfessionalDetailPage() {
               <p className="text-sm text-gray-400">
                 No hay documentos cargados
               </p>
+            </div>
+          )}
+
+          {/* Credencial habilitante */}
+          {p.declaredHasLicense !== null && p.declaredHasLicense !== undefined && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">
+                Credencial habilitante
+              </h2>
+
+              {p.declaredHasLicense === false && (
+                <div className="flex items-center gap-2.5 text-sm text-amber-700">
+                  <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                  <span>El profesional declaró no tener credencial habilitante.</span>
+                </div>
+              )}
+
+              {p.declaredHasLicense === true && !p.licenseUrl && (
+                <div className="flex items-center gap-2.5 text-sm text-amber-700">
+                  <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                  <span>El profesional declaró tener credencial pero aún no la subió.</span>
+                </div>
+              )}
+
+              {p.declaredHasLicense === true && p.licenseUrl && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={p.licenseUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-100 text-sm text-green-700 hover:bg-green-50 hover:border-green-200 transition-colors cursor-pointer"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Ver documento de credencial
+                      <span className="text-xs text-gray-400">↗</span>
+                    </a>
+
+                    <LicenseStatusBadge status={p.licenseStatus ?? 'PENDING'} />
+                  </div>
+
+                  {isSuperAdmin() && (
+                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => handleLicenseAction('APPROVED')}
+                        disabled={licenseActionLoading || p.licenseStatus === 'APPROVED'}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Aprobar credencial
+                      </button>
+                      <button
+                        onClick={() => handleLicenseAction('REJECTED')}
+                        disabled={licenseActionLoading || p.licenseStatus === 'REJECTED'}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Rechazar credencial
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -529,5 +609,34 @@ function EventItem({ date, label }: { date: string; label: string }) {
         </p>
       </div>
     </div>
+  );
+}
+
+function LicenseStatusBadge({ status }: { status: LicenseStatus }) {
+  const config: Record<LicenseStatus, { label: string; className: string; icon: React.ReactNode }> = {
+    PENDING: {
+      label: 'Pendiente de revisión',
+      className: 'bg-amber-50 text-amber-700',
+      icon: <ShieldCheck className="w-3.5 h-3.5" />,
+    },
+    APPROVED: {
+      label: 'Aprobada',
+      className: 'bg-emerald-50 text-emerald-700',
+      icon: <ShieldCheck className="w-3.5 h-3.5" />,
+    },
+    REJECTED: {
+      label: 'Rechazada',
+      className: 'bg-red-50 text-red-700',
+      icon: <ShieldX className="w-3.5 h-3.5" />,
+    },
+  };
+
+  const { label, className, icon } = config[status] || config.PENDING;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>
+      {icon}
+      {label}
+    </span>
   );
 }

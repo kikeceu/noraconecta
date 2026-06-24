@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma';
-import { Professional, ProfessionalStatus, ProfessionalZone, Prisma, Request } from '@prisma/client';
+import { Professional, ProfessionalStatus, ProfessionalZone, LicenseStatus, Prisma, Request } from '@prisma/client';
 
 export interface CreateProfessionalInput {
   phone: string;
@@ -25,6 +25,7 @@ export interface UpdateProfessionalInput {
   presentationVideoUrl?: string;
   licenseUrl?: string;
   declaredHasLicense?: boolean;
+  licenseStatus?: LicenseStatus;
   status?: ProfessionalStatus;
   verificationToken?: string;
   verificationTokenExp?: Date | null;
@@ -98,6 +99,13 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
     return prisma.professional.update({
       where: { id },
       data: { status },
+    });
+  }
+
+  async updateLicenseStatus(id: string, licenseStatus: LicenseStatus): Promise<Professional> {
+    return prisma.professional.update({
+      where: { id },
+      data: { licenseStatus },
     });
   }
 

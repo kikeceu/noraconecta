@@ -402,6 +402,38 @@ export class ProfessionalsController {
       next(err);
     }
   }
+
+  async updateLicenseStatus(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const body = req.body as { status: string };
+
+      if (!id) {
+        res.status(400).json({ error: 'Professional id is required', statusCode: 400 });
+        return;
+      }
+
+      if (!body.status || !['APPROVED', 'REJECTED'].includes(body.status)) {
+        res.status(400).json({
+          error: 'Status is required and must be APPROVED or REJECTED',
+          statusCode: 400,
+        });
+        return;
+      }
+
+      const professional = await professionalsService.updateLicenseStatus(
+        id,
+        body.status as 'APPROVED' | 'REJECTED',
+      );
+      res.status(200).json({ data: professional });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const professionalsController = new ProfessionalsController();

@@ -8,7 +8,7 @@ import { ReputationRepository } from '../reputation/reputation.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { AppError } from '../../middleware/error-handler';
-import { Professional, ProfessionalStatus } from '@prisma/client';
+import { Professional, ProfessionalStatus, LicenseStatus } from '@prisma/client';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 
@@ -818,5 +818,25 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     );
 
     return candidates.filter(canReceiveRequests);
+  }
+
+  async updateLicenseStatus(
+    id: string,
+    status: LicenseStatus,
+  ): Promise<Professional> {
+    if (!['APPROVED', 'REJECTED'].includes(status)) {
+      throw new AppError(
+        'License status must be APPROVED or REJECTED',
+        400,
+      );
+    }
+
+    const professional = await this.professionalsRepository.findById(id);
+
+    if (!professional) {
+      throw new AppError('Professional not found', 404);
+    }
+
+    return this.professionalsRepository.updateLicenseStatus(id, status);
   }
 }
