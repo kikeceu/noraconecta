@@ -112,6 +112,12 @@ enum EscalationStatus {
   RESOLVED
 }
 
+enum LicenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum BotRole {
   USER
   PROFESSIONAL
@@ -178,6 +184,7 @@ model Professional {
   lastAbuseCheckAt       DateTime?
   declaredHasLicense     Boolean?
   licenseUrl             String?
+  licenseStatus          LicenseStatus?     @default(PENDING)
 
   zones       ProfessionalZone[]
   memberships Membership[]

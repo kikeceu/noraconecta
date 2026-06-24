@@ -67,7 +67,12 @@ export class CategoriesService {
     return category;
   }
 
-  async create(name: string, description?: string): Promise<Category> {
+  async create(
+    name: string,
+    description?: string,
+    requiresLicense?: boolean,
+    licenseLabel?: string,
+  ): Promise<Category> {
     const trimmedName = name.trim();
 
     if (!trimmedName) {
@@ -96,6 +101,8 @@ export class CategoriesService {
       name: trimmedName,
       slug,
       description: description?.trim() || undefined,
+      requiresLicense: requiresLicense ?? undefined,
+      licenseLabel: licenseLabel?.trim() || undefined,
     });
   }
 
@@ -103,6 +110,8 @@ export class CategoriesService {
     id: string,
     name?: string,
     description?: string,
+    requiresLicense?: boolean,
+    licenseLabel?: string,
   ): Promise<Category> {
     const category = await this.categoriesRepository.findById(id);
 
@@ -110,7 +119,12 @@ export class CategoriesService {
       throw new AppError('Category not found', 404);
     }
 
-    const data: { name?: string; description?: string } = {};
+    const data: {
+      name?: string;
+      description?: string;
+      requiresLicense?: boolean;
+      licenseLabel?: string | null;
+    } = {};
 
     if (name !== undefined) {
       const trimmedName = name.trim();
@@ -132,6 +146,14 @@ export class CategoriesService {
 
     if (description !== undefined) {
       data.description = description.trim() || '';
+    }
+
+    if (requiresLicense !== undefined) {
+      data.requiresLicense = requiresLicense;
+    }
+
+    if (licenseLabel !== undefined) {
+      data.licenseLabel = licenseLabel.trim() || null;
     }
 
     return this.categoriesRepository.update(id, data);

@@ -80,4 +80,8 @@ router.post('/:id/generate-session', requireSuperAdmin, (req, res, next) => {
   void professionalsController.generateSession(req, res, next);
 });
 
+router.patch('/:id/license-status', requireSuperAdmin, (req, res, next) => {
+  void professionalsController.updateLicenseStatus(req, res, next);
+});
+
 export default router;

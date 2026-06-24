@@ -58,14 +58,24 @@ export class CategoriesController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const body = req.body as { name: string; description?: string };
+      const body = req.body as {
+        name: string;
+        description?: string;
+        requiresLicense?: boolean;
+        licenseLabel?: string;
+      };
 
       if (!body.name) {
         res.status(400).json({ error: 'Category name is required', statusCode: 400 });
         return;
       }
 
-      const category = await categoriesService.create(body.name, body.description);
+      const category = await categoriesService.create(
+        body.name,
+        body.description,
+        body.requiresLicense,
+        body.licenseLabel,
+      );
       res.status(201).json({ data: category });
     } catch (err) {
       next(err);
@@ -79,22 +89,38 @@ export class CategoriesController {
   ): Promise<void> {
     try {
       const { id } = req.params as { id: string };
-      const body = req.body as { name?: string; description?: string };
+      const body = req.body as {
+        name?: string;
+        description?: string;
+        requiresLicense?: boolean;
+        licenseLabel?: string;
+      };
 
       if (!id) {
         res.status(400).json({ error: 'Category id is required', statusCode: 400 });
         return;
       }
 
-      if (body.name === undefined && body.description === undefined) {
+      if (
+        body.name === undefined &&
+        body.description === undefined &&
+        body.requiresLicense === undefined &&
+        body.licenseLabel === undefined
+      ) {
         res.status(400).json({
-          error: 'At least one field (name or description) is required',
+          error: 'At least one field (name, description, requiresLicense or licenseLabel) is required',
           statusCode: 400,
         });
         return;
       }
 
-      const category = await categoriesService.update(id, body.name, body.description);
+      const category = await categoriesService.update(
+        id,
+        body.name,
+        body.description,
+        body.requiresLicense,
+        body.licenseLabel,
+      );
       res.status(200).json({ data: category });
     } catch (err) {
       next(err);

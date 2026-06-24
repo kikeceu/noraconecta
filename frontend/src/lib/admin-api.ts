@@ -15,6 +15,7 @@ import type {
   ListResponse,
   SingleResponse,
   EscalationStatus,
+  LicenseStatus,
 } from '../types/admin';
 
 const BASE = import.meta.env.VITE_API_URL || '/api';
@@ -92,6 +93,8 @@ export function getCategories(): Promise<ListResponse<Category>> {
 export function createCategory(data: {
   name: string;
   description?: string;
+  requiresLicense?: boolean;
+  licenseLabel?: string;
 }): Promise<SingleResponse<Category>> {
   return request<SingleResponse<Category>>('/categories', {
     method: 'POST',
@@ -101,7 +104,12 @@ export function createCategory(data: {
 
 export function updateCategory(
   id: string,
-  data: { name?: string; description?: string },
+  data: {
+    name?: string;
+    description?: string;
+    requiresLicense?: boolean;
+    licenseLabel?: string;
+  },
 ): Promise<SingleResponse<Category>> {
   return request<SingleResponse<Category>>(`/categories/${id}`, {
     method: 'PATCH',
@@ -267,6 +275,19 @@ export function generateSession(
   return request<SingleResponse<{ professional: Professional; sessionToken: string; panelUrl: string }>>(
     `/professionals/${id}/generate-session`,
     { method: 'POST' },
+  );
+}
+
+export function updateLicenseStatus(
+  id: string,
+  licenseStatus: LicenseStatus,
+): Promise<SingleResponse<Professional>> {
+  return request<SingleResponse<Professional>>(
+    `/professionals/${id}/license-status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status: licenseStatus }),
+    },
   );
 }
 
