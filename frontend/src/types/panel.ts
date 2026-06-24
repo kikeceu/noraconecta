@@ -158,5 +158,6 @@ export interface ActivityStatsResponse {
     weeklyActivity: WeeklyActivityItem[];
     ratingEvolution: RatingEvolutionItem[];
     weekCount: number;
+    totalEarnings: number;
   };
 }

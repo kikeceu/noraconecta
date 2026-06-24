@@ -84,7 +84,9 @@ export function ProfessionalPanelPage() {
           professionalId={data.professional.id}
         />
       )}
-      {activeTab === 'membership' && <ProfessionalMembership membership={data.membership} />}
+      {activeTab === 'membership' && (
+          <ProfessionalMembership membership={data.membership} sessionToken={sessionToken!} />
+        )}
       {activeTab === 'orders' && <ProfessionalOrders sessionToken={sessionToken!} />}
       {activeTab === 'reputation' && <ProfessionalReputation reputation={data.reputation} />}
     </ProfessionalLayout>
