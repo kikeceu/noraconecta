@@ -9,6 +9,7 @@ import {
   MapPin,
   Tag,
   CreditCard,
+  Percent,
   Settings,
   LogOut,
   Menu,
@@ -39,6 +40,7 @@ export function AdminLayout() {
   ];
 
   const superAdminItems = [
+    { to: `${basePath}/promotions`, label: 'Promociones', icon: Percent },
     { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
   ];
 

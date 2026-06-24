@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import { getConfig, updateConfig, getMembershipDiscountConfig, setMembershipDiscount } from '../../lib/admin-api';
+import { getConfig, updateConfig } from '../../lib/admin-api';
 import { brand } from '../../lib/brand';
 import type { SystemConfig } from '../../types/admin';
 
@@ -70,16 +70,6 @@ export function SettingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [editedValues, setEditedValues] = useState<Map<string, string>>(new Map());
 
-  const [discount, setDiscount] = useState<{
-    active: boolean;
-    discountPct: number;
-    expiresAt: string | null;
-  } | null>(null);
-  const [discountPct, setDiscountPct] = useState('');
-  const [durationHours, setDurationHours] = useState('');
-  const [savingDiscount, setSavingDiscount] = useState(false);
-  const [discountError, setDiscountError] = useState('');
-
   useEffect(() => {
     getConfig()
       .then((res) => {
@@ -92,15 +82,6 @@ export function SettingsPage() {
         setError(err instanceof Error ? err.message : 'Error al cargar configuración'),
       )
       .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    getMembershipDiscountConfig()
-      .then((res) => {
-        setDiscount(res.data);
-        setDiscountPct(String(res.data.discountPct || ''));
-      })
-      .catch(() => {});
   }, []);
 
   const getValue = (key: string): string => {
@@ -121,44 +102,6 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Error al guardar');
     } finally {
       setSaving(null);
-    }
-  };
-
-  const handleActivateDiscount = async () => {
-    const pct = parseInt(discountPct, 10);
-    const hours = parseInt(durationHours, 10);
-    if (!pct || pct < 1 || pct > 100) {
-      setDiscountError('El porcentaje debe ser entre 1 y 100');
-      return;
-    }
-    if (!hours || hours < 1) {
-      setDiscountError('La duración debe ser al menos 1 hora');
-      return;
-    }
-    setSavingDiscount(true);
-    setDiscountError('');
-    try {
-      await setMembershipDiscount({ active: true, discountPct: pct, durationHours: hours });
-      const res = await getMembershipDiscountConfig();
-      setDiscount(res.data);
-    } catch (err) {
-      setDiscountError(err instanceof Error ? err.message : 'Error al activar');
-    } finally {
-      setSavingDiscount(false);
-    }
-  };
-
-  const handleDeactivateDiscount = async () => {
-    setSavingDiscount(true);
-    setDiscountError('');
-    try {
-      await setMembershipDiscount({ active: false });
-      const res = await getMembershipDiscountConfig();
-      setDiscount(res.data);
-    } catch (err) {
-      setDiscountError(err instanceof Error ? err.message : 'Error al desactivar');
-    } finally {
-      setSavingDiscount(false);
     }
   };
 
@@ -230,79 +173,6 @@ export function SettingsPage() {
         </div>
       ))}
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-sm font-semibold text-gray-900">Promoción de membresía</h2>
-        <p className="text-xs text-gray-500 mt-0.5 mb-5">
-          Activá un descuento por tiempo limitado para incentivar la contratación de membresías.
-        </p>
-
-        {discount && (
-          <div className={`mb-4 px-3 py-2 rounded-lg text-xs font-medium ${
-            discount.active
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-gray-50 text-gray-500 border border-gray-200'
-          }`}>
-            {discount.active && discount.expiresAt
-              ? `Descuento activo — ${discount.discountPct}% OFF — vence el ${new Date(discount.expiresAt).toLocaleString('es-AR')}`
-              : 'Sin promoción activa'}
-          </div>
-        )}
-
-        {discountError && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-xs">
-            {discountError}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-1.5">
-              Porcentaje de descuento (%)
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={discountPct}
-              onChange={(e) => setDiscountPct(e.target.value)}
-              placeholder="Ej: 20"
-              className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-1.5">
-              Duración (horas)
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={durationHours}
-              onChange={(e) => setDurationHours(e.target.value)}
-              placeholder="Ej: 48"
-              className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button
-            onClick={handleActivateDiscount}
-            disabled={savingDiscount}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            {savingDiscount ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Activar promo'}
-          </button>
-          {discount?.active && (
-            <button
-              onClick={handleDeactivateDiscount}
-              disabled={savingDiscount}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors cursor-pointer"
-            >
-              Desactivar
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

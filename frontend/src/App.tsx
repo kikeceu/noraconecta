@@ -18,6 +18,7 @@ import { ZonesPage } from './pages/admin/ZonesPage';
 import { CategoriesPage } from './pages/admin/CategoriesPage';
 import { PlansPage } from './pages/admin/PlansPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { PromotionsPage } from './pages/admin/PromotionsPage';
 import { resolveHostContext, type HostContext } from './lib/host';
 import type { ReactNode } from 'react';
 
@@ -58,6 +59,7 @@ function renderAdminRoutes(context: HostContext): ReactNode {
               />
             }
           >
+            <Route path="promotions" element={<PromotionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>
