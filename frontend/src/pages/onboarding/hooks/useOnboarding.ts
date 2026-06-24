@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   OnboardingStep,
   OnboardingFormData,
@@ -25,19 +25,9 @@ function initialFormData(): OnboardingFormData {
     references: '',
     presentationVideoUrl: '',
     zoneIds: [],
+    licenseUrl: '',
   };
 }
-
-const STEPS_ORDER: OnboardingStep[] = [
-  'welcome',
-  'personal-data',
-  'dni-photo',
-  'criminal-record',
-  'references',
-  'video',
-  'zones',
-  'summary',
-];
 
 export function useOnboarding(token: string) {
   const [step, setStep] = useState<OnboardingStep>('loading');
@@ -45,13 +35,31 @@ export function useOnboarding(token: string) {
   const [errorMessage, setErrorMessage] = useState('');
   const [professionalName, setProfessionalName] = useState('');
   const [zones, setZones] = useState<ZoneOption[]>([]);
+  const [requiresLicense, setRequiresLicense] = useState(false);
+  const [licenseLabel, setLicenseLabel] = useState<string | null>(null);
+  const [declaredHasLicense, setDeclaredHasLicense] = useState<boolean | null>(null);
   const [formData, setFormData] = useState<OnboardingFormData>(initialFormData);
   const [dniFront, setDniFront] = useState<FileUploadInfo>(emptyUploadState);
   const [dniBack, setDniBack] = useState<FileUploadInfo>(emptyUploadState);
   const [criminalRecord, setCriminalRecord] = useState<FileUploadInfo>(emptyUploadState);
+  const [license, setLicense] = useState<FileUploadInfo>(emptyUploadState);
   const [video, setVideo] = useState<FileUploadInfo>(emptyUploadState);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const tokenRef = useRef(token);
+
+  const stepsOrder = useMemo((): OnboardingStep[] => {
+    const base: OnboardingStep[] = [
+      'welcome',
+      'personal-data',
+      'dni-photo',
+      'criminal-record',
+    ];
+    if (declaredHasLicense === true) {
+      base.push('license');
+    }
+    base.push('references', 'video', 'zones', 'summary');
+    return base;
+  }, [declaredHasLicense]);
 
   const clearStorage = useCallback(() => {
     try {
@@ -92,6 +100,9 @@ export function useOnboarding(token: string) {
 
     setProfessionalName(data.professionalName || '');
     setZones(data.zones || []);
+    setRequiresLicense(data.requiresLicense ?? false);
+    setLicenseLabel(data.licenseLabel ?? null);
+    setDeclaredHasLicense(data.declaredHasLicense ?? null);
 
     const restored = restoreFormData();
     if (restored) {
@@ -210,6 +221,15 @@ export function useOnboarding(token: string) {
     [handleFileUpload, updateFormField],
   );
 
+  const handleLicense = useCallback(
+    (file: File) => {
+      handleFileUpload(setLicense, 'verification', file).then((url) => {
+        if (url) updateFormField('licenseUrl', url);
+      });
+    },
+    [handleFileUpload, updateFormField],
+  );
+
   const handleToggleZone = useCallback(
     (zoneId: string) => {
       setFormData((prev) => {
@@ -230,18 +250,18 @@ export function useOnboarding(token: string) {
   }, []);
 
   const goNext = useCallback(() => {
-    const currentIdx = STEPS_ORDER.indexOf(step);
-    if (currentIdx >= 0 && currentIdx < STEPS_ORDER.length - 1) {
-      goToStep(STEPS_ORDER[currentIdx + 1]);
+    const currentIdx = stepsOrder.indexOf(step);
+    if (currentIdx >= 0 && currentIdx < stepsOrder.length - 1) {
+      goToStep(stepsOrder[currentIdx + 1]);
     }
-  }, [step, goToStep]);
+  }, [step, goToStep, stepsOrder]);
 
   const goBack = useCallback(() => {
-    const currentIdx = STEPS_ORDER.indexOf(step);
+    const currentIdx = stepsOrder.indexOf(step);
     if (currentIdx > 0) {
-      goToStep(STEPS_ORDER[currentIdx - 1]);
+      goToStep(stepsOrder[currentIdx - 1]);
     }
-  }, [step, goToStep]);
+  }, [step, goToStep, stepsOrder]);
 
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
@@ -272,15 +292,20 @@ export function useOnboarding(token: string) {
     errorMessage,
     professionalName,
     zones,
+    requiresLicense,
+    licenseLabel,
+    declaredHasLicense,
     formData,
     updateFormField,
     dniFront,
     dniBack,
     criminalRecord,
+    license,
     video,
     handleDniFront,
     handleDniBack,
     handleCriminalRecord,
+    handleLicense,
     handleVideo,
     handleToggleZone,
     goNext,

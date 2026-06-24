@@ -6,6 +6,7 @@ import { ErrorScreen } from './components/ErrorScreen';
 import { PersonalDataStep } from './components/PersonalDataStep';
 import { DniPhotoStep } from './components/DniPhotoStep';
 import { CriminalRecordStep } from './components/CriminalRecordStep';
+import { LicenseStep } from './components/LicenseStep';
 import { ReferencesStep } from './components/ReferencesStep';
 import { VideoStep } from './components/VideoStep';
 import { ZonesStep } from './components/ZonesStep';
@@ -83,6 +84,19 @@ function OnboardingContent({ token }: { token: string }) {
             />
           </>
         );
+      case 'license':
+        return (
+          <>
+            <ProgressBar currentStep={onboarding.step} />
+            <LicenseStep
+              licenseLabel={onboarding.licenseLabel ?? 'la credencial habilitante'}
+              license={onboarding.license}
+              onFile={onboarding.handleLicense}
+              onBack={onboarding.goBack}
+              onNext={onboarding.goNext}
+            />
+          </>
+        );
       case 'references':
         return (
           <>
@@ -132,6 +146,7 @@ function OnboardingContent({ token }: { token: string }) {
                 dniBack: onboarding.dniBack,
                 criminalRecord: onboarding.criminalRecord,
                 video: onboarding.video,
+                license: onboarding.license,
               }}
               zones={onboarding.selectedZoneNames}
               onBack={onboarding.goBack}

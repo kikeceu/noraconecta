@@ -2,6 +2,7 @@ import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { ProfessionalsService } from '../../professionals/professionals.service';
 import { ProfessionalsRepository } from '../../professionals/professionals.repository';
 import { LocationsRepository } from '../../locations/locations.repository';
+import { CategoriesRepository } from '../../categories/categories.repository';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
 import { callLLM } from '../../../lib/llm-client';
@@ -13,6 +14,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     private readonly professionalsService: ProfessionalsService,
     private readonly professionalsRepository: ProfessionalsRepository,
     private readonly locationsRepository: LocationsRepository,
+    private readonly categoriesRepository: CategoriesRepository,
   ) {}
 
   private readonly DAY_MAP: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 0 };
@@ -71,6 +73,8 @@ export class ProfessionalRegisterFlow implements FlowHandler {
         return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
         return this.handleAskService(message, tempData);
+      case 'ASK_LICENSE_EARLY':
+        return this.handleAskLicenseEarly(message, tempData);
       case 'ASK_PROVINCE':
         return this.handleAskProvince(message, tempData);
       case 'ASK_ZONES':
@@ -80,7 +84,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
       case 'ASK_AVAILABILITY':
         return this.handleAskAvailability(message, tempData);
       case 'SEND_LINK':
-        return this.handleSendLink();
+        return this.handleSendLink(tempData);
       default:
         return this.handleAskName(message, tempData);
     }
@@ -172,6 +176,18 @@ export class ProfessionalRegisterFlow implements FlowHandler {
     const selected = availableCategories[number - 1];
     tempData.categoryId = selected.id;
     tempData.categoryName = selected.name;
+
+    const categoryForLicense = await this.categoriesRepository.findById(selected.id);
+    if (categoryForLicense?.requiresLicense && categoryForLicense.licenseLabel) {
+      tempData._licenseLabel = categoryForLicense.licenseLabel;
+      return {
+        response: {
+          text: `Entendido, sos ${selected.name}. ¿Tenés ${categoryForLicense.licenseLabel}?\n1. Sí, la tengo\n2. No tengo`,
+        },
+        nextStep: 'ASK_LICENSE_EARLY',
+        tempData,
+      };
+    }
 
     const phone = tempData.phone as string;
     const countryId = await this.resolveCountryId(phone);
@@ -808,6 +824,9 @@ Ejemplos válidos de entrada:
       await this.professionalsRepository.update(professional.id, {
         availability: availabilityText,
         availabilityStructured: { slots },
+        ...(tempData._declaredHasLicense !== undefined && {
+          declaredHasLicense: tempData._declaredHasLicense as boolean,
+        }),
       });
 
       console.log('[ProfessionalRegisterFlow] saveAvailabilityAndAdvance: professional created', {
@@ -816,6 +835,7 @@ Ejemplos válidos de entrada:
       });
 
       tempData.verificationUrl = verificationUrl;
+      tempData._professionalId = professional.id;
 
       return {
         response: {
@@ -837,10 +857,102 @@ Ejemplos válidos de entrada:
     }
   }
 
-  private async handleSendLink(): Promise<FlowStepResult> {
+  private async handleAskLicenseEarly(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = message.text?.trim() || '';
+    const licenseLabel = (tempData._licenseLabel as string) || 'la credencial habilitante';
+    const resolved = resolveOption('CONFIRM', inputText);
+
+    if (resolved === 'YES' || inputText === '1') {
+      tempData._declaredHasLicense = true;
+    } else if (resolved === 'NO' || inputText === '2') {
+      tempData._declaredHasLicense = false;
+    } else {
+      return {
+        response: {
+          text: `Respondé 1 si tenés ${licenseLabel} o 2 si no tenés.`,
+        },
+        nextStep: 'ASK_LICENSE_EARLY',
+        tempData,
+      };
+    }
+
+    const phone = tempData.phone as string;
+    const countryId = await this.resolveCountryId(phone);
+
+    if (!countryId) {
+      return {
+        response: { text: 'No pude detectar tu pais. Contacta a soporte.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    const provinces = await this.locationsRepository.findActiveChildNodes(countryId);
+
+    if (provinces.length === 0) {
+      return {
+        response: { text: 'No hay provincias habilitadas por el momento. Intenta mas tarde.' },
+        nextStep: null,
+        tempData,
+      };
+    }
+
+    if (provinces.length === 1) {
+      const province = provinces[0];
+      tempData._provinceId = province.id;
+      tempData._provinceName = province.name;
+      tempData._countryId = countryId;
+
+      const zones = await this.locationsRepository.findActiveChildNodes(province.id);
+
+      if (zones.length === 0) {
+        return {
+          response: { text: 'No hay zonas habilitadas por el momento. Intenta mas tarde.' },
+          nextStep: null,
+          tempData,
+        };
+      }
+
+      tempData._availableZones = zones.map((z) => ({ id: z.id, name: z.name }));
+      tempData._zonesListed = true;
+
+      const list = zones.map((z, i) => `${i + 1}. ${z.name}`).join('\n');
+
+      return {
+        response: {
+          text: `¿En qué departamento de ${province.name} trabajás?\n\n${list}\n\nResponde con los numeros separados por coma. Podes elegir mas de una. (Ej: 1, 3)`,
+        },
+        nextStep: 'ASK_ZONES',
+        tempData,
+      };
+    }
+
+    tempData._countryId = countryId;
+    tempData._availableProvinces = provinces.map((p) => ({ id: p.id, name: p.name }));
+    tempData._provinceListed = true;
+
+    const list = provinces.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+
     return {
       response: {
-        text: 'Una vez que completes el registro, te confirmaremos por este medio. Gracias!',
+        text: `¿En que provincia trabajas?\n\n${list}\n\nResponde con el numero.`,
+      },
+      nextStep: 'ASK_PROVINCE',
+      tempData,
+    };
+  }
+
+  private async handleSendLink(tempData: Record<string, unknown> = {}): Promise<FlowStepResult> {
+    const verificationUrl = tempData.verificationUrl as string | undefined;
+
+    return {
+      response: {
+        text: verificationUrl
+          ? `Perfecto! Para completar tu registro necesito verificar tu identidad. Accede a este enlace:\n\n${verificationUrl}`
+          : 'Una vez que completes el registro, te confirmaremos por este medio. Gracias!',
       },
       nextStep: null,
       tempData: {},

@@ -8,6 +8,7 @@ interface SummaryStepProps {
     dniBack: FileUploadInfo;
     criminalRecord: FileUploadInfo;
     video: FileUploadInfo;
+    license?: FileUploadInfo;
   };
   zones: string[];
   onBack: () => void;
@@ -106,6 +107,9 @@ export function SummaryStep({
             <FileStatusRow label="DNI Frente" file={files.dniFront} />
             <FileStatusRow label="DNI Dorso" file={files.dniBack} />
             <FileStatusRow label="Antecedentes penales" file={files.criminalRecord} />
+            {files.license && files.license.state === 'loaded' && (
+              <FileStatusRow label="Credencial habilitante" file={files.license} />
+            )}
           </SectionBlock>
 
           <Divider />

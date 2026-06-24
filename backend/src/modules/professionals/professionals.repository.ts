@@ -23,6 +23,8 @@ export interface UpdateProfessionalInput {
   criminalRecordUrl?: string;
   references?: string;
   presentationVideoUrl?: string;
+  licenseUrl?: string;
+  declaredHasLicense?: boolean;
   status?: ProfessionalStatus;
   verificationToken?: string;
   verificationTokenExp?: Date | null;
@@ -67,10 +69,10 @@ export class ProfessionalsRepository {
 
   async findByVerificationToken(
     token: string,
-  ): Promise<(Professional & { zones: (ProfessionalZone & { geoNode: { id: string; name: string } })[] }) | null> {
+  ): Promise<(Professional & { zones: (ProfessionalZone & { geoNode: { id: string; name: string } })[]; category: { id: string; name: string; requiresLicense: boolean; licenseLabel: string | null } | null }) | null> {
     return prisma.professional.findUnique({
       where: { verificationToken: token },
-      include: { zones: { include: { geoNode: { include: { parent: true } } } } },
+      include: { zones: { include: { geoNode: { include: { parent: true } } } }, category: { select: { id: true, name: true, requiresLicense: true, licenseLabel: true } } },
     });
   }
 
