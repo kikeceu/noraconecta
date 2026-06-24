@@ -1,12 +1,13 @@
 import { MatchingRepository } from './matching.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { CategoriesRepository } from '../categories/categories.repository';
-import { detectsLicenseRequired } from '../../lib/llm-client';
+import { userRequestsLicenseByLLM } from '../../lib/llm-client';
 import { Membership } from '@prisma/client';
 
 export interface MatchResult {
   professionalId: string;
   score: number;
+  requiresLicensedProfessional?: boolean;
 }
 
 interface ScoringConfig {
@@ -121,6 +122,7 @@ export class MatchingService {
     problemType?: string,
     isUrgent?: boolean,
     mentionedDate?: string | null,
+    description?: string | null,
     technicalBrief?: string | null,
   ): Promise<MatchResult | null> {
     const config = await this.loadScoringConfig();
@@ -145,32 +147,60 @@ export class MatchingService {
     }
 
     // --- License eligibility filter ---
-    let filteredByLicense = eligible;
-
     const category = await this.categoriesRepository.findById(categoryId);
 
-    if (category?.requiresLicense && technicalBrief) {
-      const workRequiresLicense = await detectsLicenseRequired(
-        category.name,
-        technicalBrief,
-      );
+    const LICENSE_KEYWORDS = [
+      'matrícula', 'matricula', 'matriculado', 'matriculada', 'matriculados', 'matriculadas',
+      'habilitado', 'habilitada', 'habilitados', 'habilitadas', 'habilitación', 'habilitacion',
+      'certificado', 'certificada', 'certificados', 'certificadas', 'certificación', 'certificacion',
+      'credencial', 'credenciales', 'registrado', 'registrada', 'registro',
+      'licencia', 'licenciado', 'licenciada',
+      'autorizado', 'autorizada', 'autorización', 'autorizacion',
+      'conformidad', 'oblea', 'constancia', 'papeles',
+      'garantía', 'garantia', 'aseguradora',
+      'enargas',
+      'firmar', 'firma', 'trámite', 'tramite',
+      'legal', 'legalizado', 'legalizada', 'normativa', 'reglamento',
+      'en regla', 'al día', 'al dia', 'vigente', 'oficial',
+      'título', 'titulo', 'titulado', 'titulada',
+    ];
 
-      if (workRequiresLicense) {
+    function userRequestsLicenseByKeyword(text: string): boolean {
+      const lower = text.toLowerCase();
+      return LICENSE_KEYWORDS.some((kw) => lower.includes(kw));
+    }
+
+    let filteredByLicense = eligible;
+    let requiresLicensedProfessional = false;
+
+    if (category?.requiresLicense) {
+      const textToAnalyze = `${description ?? ''} ${technicalBrief ?? ''}`.trim();
+      const keywordMatch = userRequestsLicenseByKeyword(textToAnalyze);
+
+      if (keywordMatch) {
+        requiresLicensedProfessional = true;
+        console.log('[Matching] License required detected by keyword');
+      } else {
+        requiresLicensedProfessional = await userRequestsLicenseByLLM(description ?? '');
+        console.log(`[Matching] License required detected by LLM: ${requiresLicensedProfessional}`);
+      }
+
+      if (requiresLicensedProfessional) {
         filteredByLicense = eligible.filter(
           (p) => p.licenseStatus === 'APPROVED',
         );
-
-        if (filteredByLicense.length > 0) {
-          console.log(
-            `[Matching] License filter applied: ${filteredByLicense.length}/${eligible.length} candidates have approved license`,
-          );
-        } else {
-          console.warn(
-            `[Matching] Work requires license but no approved professionals found for category "${category.name}". No candidates will be assigned.`,
-          );
-        }
+        console.log(`[Matching] Filtering to licensed only: ${filteredByLicense.length}/${eligible.length}`);
+      } else {
+        filteredByLicense = eligible;
+        console.log(`[Matching] No license required. All ${eligible.length} candidates eligible, licensed pros get score bonus.`);
       }
     }
+
+    const licenseApprovedIds = new Set(
+      eligible
+        .filter((p) => p.licenseStatus === 'APPROVED')
+        .map((p) => p.id),
+    );
 
     const candidateIds = filteredByLicense.map((p) => p.id);
 
@@ -186,6 +216,9 @@ export class MatchingService {
     });
 
     if (filtered.length === 0) {
+      if (requiresLicensedProfessional) {
+        return { professionalId: '', score: 0, requiresLicensedProfessional: true };
+      }
       return null;
     }
 
@@ -197,6 +230,8 @@ export class MatchingService {
       problemType,
       isUrgent,
       mentionedDate,
+      licenseApprovedIds,
+      category?.requiresLicense ?? false,
     );
 
     if (scored.length === 0) {
@@ -205,7 +240,11 @@ export class MatchingService {
 
     scored.sort((a, b) => b.score - a.score);
 
-    return scored[0];
+    return {
+      professionalId: scored[0].professionalId,
+      score: scored[0].score,
+      requiresLicensedProfessional,
+    };
   }
 
   async calculateScore(professionalId: string): Promise<number> {
@@ -272,6 +311,8 @@ export class MatchingService {
     problemType?: string,
     isUrgent?: boolean,
     mentionedDate?: string | null,
+    licenseApprovedIds?: Set<string>,
+    categoryRequiresLicense?: boolean,
   ): Promise<MatchResult[]> {
     const [
       notFulfilled,
@@ -340,9 +381,12 @@ export class MatchingService {
         mentionedDate,
       );
 
+      const licenseBonus =
+        categoryRequiresLicense && licenseApprovedIds?.has(id) ? 0.1 : 0;
+
       return {
         professionalId: id,
-        score: Math.min(100, baseScore + availabilityBonus),
+        score: Math.min(100, baseScore + availabilityBonus + licenseBonus),
       };
     });
   }

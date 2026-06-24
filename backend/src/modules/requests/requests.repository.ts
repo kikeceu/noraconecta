@@ -290,9 +290,9 @@ export class RequestsRepository {
       include: {
         events: true,
         feedback: true,
-        assignedProfessional: { select: { name: true, phone: true } },
+        assignedProfessional: { select: { name: true, phone: true, licenseStatus: true } },
         user: { select: { name: true, phone: true } },
-        category: { select: { name: true } },
+        category: { select: { name: true, requiresLicense: true } },
         geoNode: { select: { name: true } },
       },
     });
