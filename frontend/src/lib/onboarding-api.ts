@@ -42,6 +42,22 @@ export async function submitVerification(
   return handleResponse<{ status: string }>(res);
 }
 
+export async function submitLicenseResubmission(
+  token: string,
+  licenseUrl: string,
+): Promise<{ status: string }> {
+  const res = await fetch(
+    `${API_BASE}/professionals/verify/${encodeURIComponent(token)}?mode=license`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseUrl }),
+    },
+  );
+
+  return handleResponse<{ status: string }>(res);
+}
+
 export async function uploadFile(
   folder: string,
   file: File,

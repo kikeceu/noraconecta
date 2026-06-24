@@ -7,6 +7,7 @@ interface LicenseStepProps {
   onFile: (file: File) => void;
   onBack: () => void;
   onNext: () => void;
+  isLicenseMode?: boolean;
 }
 
 export function LicenseStep({
@@ -15,8 +16,15 @@ export function LicenseStep({
   onFile,
   onBack,
   onNext,
+  isLicenseMode,
 }: LicenseStepProps) {
   const canContinue = license.state === 'loaded';
+
+  const title = isLicenseMode
+    ? 'Subir nueva credencial'
+    : `Adjuntá tu ${licenseLabel}`;
+
+  const buttonLabel = isLicenseMode ? 'Enviar' : 'Continuar';
 
   return (
     <div className="flex min-h-full flex-col">
@@ -26,7 +34,7 @@ export function LicenseStep({
             className="mb-2 text-[18px] font-medium text-[#111827]"
             style={{ fontFamily: 'DM Sans' }}
           >
-            Adjuntá tu {licenseLabel}
+            {title}
           </h2>
           <p
             className="mb-5 text-[14px] leading-relaxed text-[#6B7280]"
@@ -45,14 +53,16 @@ export function LicenseStep({
 
       <div className="sticky bottom-0 border-t border-[#E5E7EB] bg-white px-4 pb-[env(safe-area-inset-bottom,16px)] pt-4">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onBack}
-            className="rounded-xl px-4 py-3 text-[14px] font-medium text-[#6B7280] transition-colors hover:text-[#111827]"
-            style={{ fontFamily: 'DM Sans' }}
-          >
-            Volver
-          </button>
+          {!isLicenseMode && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-xl px-4 py-3 text-[14px] font-medium text-[#6B7280] transition-colors hover:text-[#111827]"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Volver
+            </button>
+          )}
           <button
             type="button"
             onClick={onNext}
@@ -64,7 +74,7 @@ export function LicenseStep({
               minHeight: '48px',
             }}
           >
-            Continuar
+            {buttonLabel}
           </button>
         </div>
       </div>

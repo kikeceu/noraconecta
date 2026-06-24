@@ -34,7 +34,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── utils/
 │   │   │   ├── jwt.ts                 # signToken / verifyToken
 │   │   │   ├── date-utils.ts          # ParseDateTimeResult type + parseExactDate (DD/MM HH) + parseDateTimeNatural (lenguaje natural con LLM, discriminated union con reason 'past'|'ambiguous', AUT-237, AUT-248) + getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina (formato completo: "miércoles 10 de junio a las 10:00", AUT-166, AUT-167, AUT-247)
-│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297, AUT-331, AUT-330). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301). MEMBERSHIP_RENEWED_TEMPLATE: template de renovación de membresía (AUT-331). MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE: template de membresía por vencer (AUT-330)
+│   │   │   ├── whatsapp-templates.ts  # Constantes de template names para WhatsApp (actualizado AUT-295, AUT-297, AUT-331, AUT-330). TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA: template sin media con botones Aceptar/Ahora no puedo (AUT-301). MEMBERSHIP_RENEWED_TEMPLATE: template de renovación de membresía (AUT-331). MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE: template de membresía por vencer (AUT-330). LICENSE_REJECTED_TEMPLATE: template de credencial rechazada con CTA de re-subida (AUT-335)
 │   │   │   └── whatsapp-utils.ts      # shouldUseTemplate(): helper de ventana de 24hs WhatsApp. canSendTemplate(): valida que no se haya enviado template en las últimas 24hs (AUT-171, AUT-272)
 │   │   ├── types/
 │   │   │   └── express.d.ts           # Express Request augmentation (req.admin)
@@ -61,9 +61,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   │   │   └── professionals/
 │   │   │       ├── professionals.routes.ts     # 15 endpoints under /professionals. PATCH /:id/license-status — AUT-324. GET /session/:sessionToken/earnings — AUT-327. GET /session/:sessionToken/membership-discount — AUT-329
-│   │   │       ├── professionals.controller.ts # Request validation, response formatting. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327. getMembershipDiscount — AUT-329
-│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getMembershipDiscount: consulta de descuento de membresía desde SystemConfig con validación de expiración — AUT-329. updateLicenseStatus: aprobación/rechazo de credencial por admin — AUT-324. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323
-│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323
+│   │   │       ├── professionals.controller.ts # Request validation, response formatting. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327. getMembershipDiscount — AUT-329. verify soporta ?mode=license para re-subida de credencial — AUT-335
+│   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getMembershipDiscount: consulta de descuento de membresía desde SystemConfig con validación de expiración — AUT-329. updateLicenseStatus: aprobación/rechazo de credencial por admin; notifica al profesional vía WhatsApp cuando se rechaza con nuevo token y CTA de re-subida — AUT-324, AUT-335. submitLicenseResubmission: re-subida de credencial vía token con ?mode=license — AUT-335. sendWithWindowCheck: helper de envío con template/text según ventana 24hs — AUT-335. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323
+│   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323. findById ahora incluye category en el tipo de retorno — AUT-335
 │   │   │   ├── admin/
 │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount — AUT-334
 │   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount — AUT-334
@@ -176,7 +176,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
 │   │   │   ├── admin-api.ts           # REST client for all admin endpoints. getMembershipDiscountConfig, setMembershipDiscount — AUT-334
-│   │   │   ├── onboarding-api.ts      # API client for professional onboarding. submitVerification incluye licenseUrl — AUT-323
+│   │   │   ├── onboarding-api.ts      # API client for professional onboarding. submitVerification incluye licenseUrl — AUT-323. submitLicenseResubmission: re-subida de credencial vía ?mode=license — AUT-335
 │   │   │   ├── panel-api.ts           # API client for professional panel (NEW)
 │   │   │   ├── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
 │   │   │   └── brand.ts               # Brand config: name, fullName, tagline, url from env (AUT-187)
@@ -208,10 +208,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
 │   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params). Sección "Promoción de membresía" con timer configurable — AUT-334
 │   │   │   └── onboarding/
-│   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook (incluye step 'license' condicional — AUT-323)
+│   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook (incluye step 'license' condicional — AUT-323). Oculta ProgressBar en modo re-subida (?mode=license) — AUT-335
 │   │   │       ├── DESIGN.md           # Design system document (source of truth for visual design)
 │   │   │       ├── hooks/
-│   │   │       │   └── useOnboarding.ts    # State machine: multi-step form, file uploads, token validation. STEPS_ORDER dinámico: inserta 'license' entre criminal-record y references si declaredHasLicense=true — AUT-323
+│   │   │       │   └── useOnboarding.ts    # State machine: multi-step form, file uploads, token validation. STEPS_ORDER dinámico: inserta 'license' entre criminal-record y references si declaredHasLicense=true — AUT-323. Detecta ?mode=license para flujo reducido (solo license + confirmation), saltea bienvenida, usa submitLicenseResubmission — AUT-335
 │   │   │       └── components/
 │   │   │           ├── ProgressBar.tsx      # Fixed top progress bar (4px, NORA Green fill)
 │   │   │           ├── BottomBar.tsx        # Fixed bottom CTA bar (Volver + Continuar/Enviar)
@@ -221,7 +221,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── PersonalDataStep.tsx # DNI (7-8 digits) + CUIL (XX-XXXXXXXX-X) with inline validation
 │   │   │           ├── DniPhotoStep.tsx     # Front + back DNI photo uploads
 │   │   │           ├── CriminalRecordStep.tsx # Criminal record certificate upload (PDF allowed)
-│   │   │           ├── LicenseStep.tsx      # Credencial habilitante upload con label dinámico — AUT-323
+│   │   │           ├── LicenseStep.tsx      # Credencial habilitante upload con label dinámico — AUT-323. Soporta prop isLicenseMode: título "Subir nueva credencial", botón "Enviar", sin botón Volver — AUT-335
 │   │   │           ├── ReferencesStep.tsx   # Optional textarea with "Opcional" badge
 │   │   │           ├── VideoStep.tsx        # Optional video upload (MP4/MOV)
 │   │   │           ├── ZonesStep.tsx        # Checkbox list of coverage zones, pre-selected from bot registration
