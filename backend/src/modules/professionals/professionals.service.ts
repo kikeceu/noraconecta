@@ -675,6 +675,32 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     return { totalEarnings, days: validDays };
   }
 
+  async getMembershipDiscount(
+    sessionToken: string,
+  ): Promise<{
+    active: boolean;
+    discountPct: number;
+    expiresAt: string | null;
+  }> {
+    await this.getSessionByToken(sessionToken);
+
+    const [activeConfig, pctConfig, expiresConfig] = await Promise.all([
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_ACTIVE'),
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_PCT'),
+      this.configRepository.findByKey('MEMBERSHIP_DISCOUNT_EXPIRES_AT'),
+    ]);
+
+    const active = activeConfig?.value === 'true';
+    const discountPct = parseInt(pctConfig?.value ?? '0', 10);
+    const expiresAt = expiresConfig?.value ?? null;
+
+    if (active && expiresAt && new Date(expiresAt) < new Date()) {
+      return { active: false, discountPct: 0, expiresAt: null };
+    }
+
+    return { active, discountPct, expiresAt };
+  }
+
   async getById(id: string): Promise<Professional> {
     const professional = await this.professionalsRepository.findById(id);
 

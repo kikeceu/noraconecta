@@ -383,6 +383,21 @@ export class ProfessionalsController {
     }
   }
 
+  async getMembershipDiscount(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { sessionToken } = req.params as { sessionToken: string };
+      const result =
+        await professionalsService.getMembershipDiscount(sessionToken);
+      res.status(200).json({ data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async listDepartments(
     _req: Request,
     res: Response,

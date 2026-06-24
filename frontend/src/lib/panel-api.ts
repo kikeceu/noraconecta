@@ -62,6 +62,16 @@ export async function getPanelStats(
   return res;
 }
 
+export async function getMembershipDiscount(
+  sessionToken: string,
+): Promise<{
+  data: { active: boolean; discountPct: number; expiresAt: string | null };
+}> {
+  return request(
+    `/professionals/session/${encodeURIComponent(sessionToken)}/membership-discount`,
+  );
+}
+
 export async function acceptRequest(requestId: string): Promise<{ id: string; status: string }> {
   const res = await postRequest<{ data: { id: string; status: string } }>(
     `/requests/${encodeURIComponent(requestId)}/accept`,

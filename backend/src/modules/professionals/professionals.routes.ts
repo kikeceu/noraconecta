@@ -42,6 +42,13 @@ router.get('/session/:sessionToken/earnings', (req, res, next) => {
   void professionalsController.getEarnings(req, res, next);
 });
 
+router.get(
+  '/session/:sessionToken/membership-discount',
+  (req, res, next) => {
+    void professionalsController.getMembershipDiscount(req, res, next);
+  },
+);
+
 // Auth required — OPERATOR+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);

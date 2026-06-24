@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPanelData } from '../../lib/panel-api';
+import { getPanelData, getMembershipDiscount } from '../../lib/panel-api';
 import type { PanelData, PanelTab } from '../../types/panel';
 import { SessionErrorScreen } from './components/SessionErrorScreen';
 import { ProfessionalLayout } from './components/ProfessionalLayout';
@@ -21,6 +21,11 @@ export function ProfessionalPanelPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const [state, setState] = useState<PageState>({ status: 'loading' });
   const [activeTab, setActiveTab] = useState<PanelTab>('dashboard');
+  const [discount, setDiscount] = useState<{
+    active: boolean;
+    discountPct: number;
+    expiresAt: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -52,6 +57,13 @@ export function ProfessionalPanelPage() {
     };
   }, [sessionToken]);
 
+  useEffect(() => {
+    if (!sessionToken) return;
+    getMembershipDiscount(sessionToken)
+      .then((res) => setDiscount(res.data))
+      .catch(() => setDiscount(null));
+  }, [sessionToken]);
+
   if (state.status === 'loading') {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-[#F9FAFB]">
@@ -75,6 +87,8 @@ export function ProfessionalPanelPage() {
       hasActiveMembership={!!data.membership.activeMembership}
       trialRequestsRemaining={Math.max(0, data.membership.trialRequestsLimit - data.membership.trialRequestsUsed)}
       professionalId={data.professional.id}
+      discount={discount}
+      sessionToken={sessionToken!}
     >
       {activeTab === 'dashboard' && (
         <ProfessionalDashboard data={data} onTabChange={setActiveTab} sessionToken={sessionToken!} />
@@ -88,7 +102,7 @@ export function ProfessionalPanelPage() {
         />
       )}
       {activeTab === 'membership' && (
-          <ProfessionalMembership membership={data.membership} sessionToken={sessionToken!} professionalId={data.professional.id} />
+          <ProfessionalMembership membership={data.membership} sessionToken={sessionToken!} professionalId={data.professional.id} discount={discount} />
         )}
       {activeTab === 'orders' && <ProfessionalOrders sessionToken={sessionToken!} />}
       {activeTab === 'reputation' && <ProfessionalReputation reputation={data.reputation} />}
