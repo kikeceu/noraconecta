@@ -1,5 +1,7 @@
 import { MatchingRepository } from './matching.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { CategoriesRepository } from '../categories/categories.repository';
+import { detectsLicenseRequired } from '../../lib/llm-client';
 import { Membership } from '@prisma/client';
 
 export interface MatchResult {
@@ -107,6 +109,7 @@ export class MatchingService {
   constructor(
     private readonly matchingRepository: MatchingRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly categoriesRepository: CategoriesRepository,
   ) {}
 
   async findBestCandidate(
@@ -118,6 +121,7 @@ export class MatchingService {
     problemType?: string,
     isUrgent?: boolean,
     mentionedDate?: string | null,
+    technicalBrief?: string | null,
   ): Promise<MatchResult | null> {
     const config = await this.loadScoringConfig();
 
@@ -140,10 +144,39 @@ export class MatchingService {
       return null;
     }
 
-    const candidateIds = eligible.map((p) => p.id);
+    // --- License eligibility filter ---
+    let filteredByLicense = eligible;
+
+    const category = await this.categoriesRepository.findById(categoryId);
+
+    if (category?.requiresLicense && technicalBrief) {
+      const workRequiresLicense = await detectsLicenseRequired(
+        category.name,
+        technicalBrief,
+      );
+
+      if (workRequiresLicense) {
+        const licensed = eligible.filter(
+          (p) => p.licenseStatus === 'APPROVED',
+        );
+
+        if (licensed.length > 0) {
+          filteredByLicense = licensed;
+          console.log(
+            `[Matching] License filter applied: ${licensed.length}/${eligible.length} candidates have approved license`,
+          );
+        } else {
+          console.warn(
+            `[Matching] No licensed professionals available for category "${category.name}", falling back to all candidates`,
+          );
+        }
+      }
+    }
+
+    const candidateIds = filteredByLicense.map((p) => p.id);
 
     const filtered = await this.applyHardFilters(
-      eligible,
+      filteredByLicense,
       candidateIds,
       config,
     );
