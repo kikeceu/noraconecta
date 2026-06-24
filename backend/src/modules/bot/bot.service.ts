@@ -159,8 +159,9 @@ export class BotService {
         }
 
         const shouldKeepRegisterSession =
-          existingProfessional.status === ProfessionalStatus.PENDING ||
-          existingProfessional.status === ProfessionalStatus.UNDER_REVIEW;
+          (existingProfessional.status === ProfessionalStatus.PENDING ||
+            existingProfessional.status === ProfessionalStatus.UNDER_REVIEW) &&
+          session?.currentStep !== 'ASK_LICENSE_EARLY';
 
         if (shouldKeepRegisterSession) {
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
@@ -171,25 +172,29 @@ export class BotService {
           };
         }
 
-        const tempData = await this.buildProfessionalTempData(
-          userIdentity,
-          state.requestId,
-        );
+        if (session?.currentStep === 'ASK_LICENSE_EARLY') {
+          // Let the flow handle the message — don't overwrite session
+        } else {
+          const tempData = await this.buildProfessionalTempData(
+            userIdentity,
+            state.requestId,
+          );
 
-        session = await this.botRepository.upsert(input.phone, {
-          role,
-          currentFlow: state.flowName,
-          currentStep: state.stepName,
-          tempData: tempData as Prisma.InputJsonValue,
-        });
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: state.flowName,
+            currentStep: state.stepName,
+            tempData: tempData as Prisma.InputJsonValue,
+          });
 
-        if (!state.flowName) {
-          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-          return {
-            text: state.responseText,
-            flow: undefined,
-            step: undefined,
-          };
+          if (!state.flowName) {
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: state.responseText,
+              flow: undefined,
+              step: undefined,
+            };
+          }
         }
 
         observationWarning = state.observationWarning;

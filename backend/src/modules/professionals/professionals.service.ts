@@ -36,6 +36,7 @@ export type VerificationStageTwoInput = {
   references?: string;
   presentationVideoUrl?: string;
   zoneIds?: string[];
+  licenseUrl?: string;
 };
 
 function canReceiveRequests(professional: Professional): boolean {
@@ -116,6 +117,9 @@ export class ProfessionalsService {
     valid: boolean;
     professionalName?: string;
     zones?: { id: string; name: string }[];
+    requiresLicense?: boolean;
+    licenseLabel?: string | null;
+    declaredHasLicense?: boolean | null;
   }> {
     if (!token) {
       throw new AppError('Verification token is required', 400);
@@ -142,6 +146,9 @@ export class ProfessionalsService {
         id: z.geoNode.id,
         name: z.geoNode.name,
       })),
+      requiresLicense: professional.category?.requiresLicense ?? false,
+      licenseLabel: professional.category?.licenseLabel ?? null,
+      declaredHasLicense: professional.declaredHasLicense ?? null,
     };
   }
 

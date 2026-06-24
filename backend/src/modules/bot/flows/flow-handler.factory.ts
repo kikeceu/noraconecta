@@ -18,6 +18,7 @@ import { PlansRepository } from '../../plans/plans.repository';
 import { MembershipsService } from '../../memberships/memberships.service';
 import { MembershipsRepository } from '../../memberships/memberships.repository';
 import { ConfigRepository } from '../../config/config.repository';
+import { CategoriesRepository } from '../../categories/categories.repository';
 import { NotificationService } from '../../notifications/notification.service';
 import { WhatsAppAdapter } from '../../../lib/whatsapp-adapter';
 import { R2Client } from '../../../lib/r2-client';
@@ -74,7 +75,8 @@ const paymentsService = new PaymentsService(
 );
 
 const userRequestFlow = new UserRequestFlow(requestsService, paymentsService, locationsRepository, configRepository, notificationService);
-const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository);
+const categoriesRepository = new CategoriesRepository();
+const professionalRegisterFlow = new ProfessionalRegisterFlow(professionalsService, professionalsRepository, locationsRepository, categoriesRepository);
 const coordinationFlow = new CoordinationFlow(requestsService, coordinationService, usersRepository, configRepository, notificationService);
 const feedbackFlow = new FeedbackFlow(requestsService, botRepository, coordinationService);
 

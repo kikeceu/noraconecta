@@ -34,6 +34,7 @@ export async function submitVerification(
       criminalRecordUrl: data.criminalRecordUrl || undefined,
       references: data.references || undefined,
       presentationVideoUrl: data.presentationVideoUrl || undefined,
+      licenseUrl: data.licenseUrl || undefined,
       zoneIds: data.zoneIds,
     }),
   });

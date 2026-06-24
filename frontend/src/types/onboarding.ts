@@ -2,6 +2,9 @@ export interface TokenValidationResponse {
   valid: boolean;
   professionalName?: string;
   zones?: ZoneOption[];
+  requiresLicense?: boolean;
+  licenseLabel?: string | null;
+  declaredHasLicense?: boolean | null;
 }
 
 export interface ZoneOption {
@@ -29,6 +32,7 @@ export interface OnboardingFormData {
   references: string;
   presentationVideoUrl: string;
   zoneIds: string[];
+  licenseUrl: string;
 }
 
 export type OnboardingStep =
@@ -38,6 +42,7 @@ export type OnboardingStep =
   | 'personal-data'
   | 'dni-photo'
   | 'criminal-record'
+  | 'license'
   | 'references'
   | 'video'
   | 'zones'
