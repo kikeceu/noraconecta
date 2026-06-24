@@ -29,6 +29,12 @@ const CONFIG_GROUPS: ConfigGroup[] = [
       { key: 'MATCHING_WEIGHT_RECOMMENDATION', label: 'Peso: Recomendación', type: 'number', value: '' },
       { key: 'MATCHING_WEIGHT_DISTRIBUTION', label: 'Peso: Distribución equitativa', type: 'number', value: '' },
       { key: 'MATCHING_WEIGHT_PLAN', label: 'Peso: Plan del profesional', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_PROXIMITY', label: 'Peso: Proximidad geográfica', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_ACCEPTANCE', label: 'Peso: Tasa de aceptación', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_COMPLETION', label: 'Peso: Tasa de finalización', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_RESPONSE_TIME', label: 'Peso: Velocidad de respuesta', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_SENTIMENT', label: 'Peso: Sentimiento de comentarios', type: 'number', value: '' },
+      { key: 'MATCHING_WEIGHT_SPECIALIZATION', label: 'Peso: Especialización en el problema', type: 'number', value: '' },
     ],
   },
   {

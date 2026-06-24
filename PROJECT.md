@@ -206,7 +206,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
 │   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal con toggle "requiere credencial" y campo licenseLabel — AUT-324
 │   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
-│   │   │   │   └── SettingsPage.tsx             # Config form (matching weights, penalties, limits, system params) — AUT-334
+│   │   │   │   └── SettingsPage.tsx             # Config form (12 matching weights, penalties, limits, system params) — AUT-334, AUT-337
 │   │   │   │   └── PromotionsPage.tsx            # Membership discount management: activate/deactivate promo with percentage and duration, shows active/inactive state — AUT-336
 │   │   │   └── onboarding/
 │   │   │       ├── OnboardingPage.tsx  # Main page: token validation, step routing via useOnboarding hook (incluye step 'license' condicional — AUT-323). Oculta ProgressBar en modo re-subida (?mode=license) — AUT-335
