@@ -9,6 +9,9 @@ interface ProfessionalLayoutProps {
   professionalName: string;
   professionalStatus: ProfessionalStatus;
   children: ReactNode;
+  hasActiveMembership?: boolean;
+  trialRequestsRemaining?: number;
+  professionalId?: string;
 }
 
 const tabs: { key: PanelTab; label: string; icon: typeof Home }[] = [
@@ -25,10 +28,16 @@ function DesktopSidebar({
   activeTab,
   onTabChange,
   professionalName,
+  hasActiveMembership,
+  trialRequestsRemaining,
+  professionalId,
 }: {
   activeTab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
   professionalName: string;
+  hasActiveMembership?: boolean;
+  trialRequestsRemaining?: number;
+  professionalId?: string;
 }) {
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-white border-r border-[#D1D5DB]">
@@ -51,6 +60,21 @@ function DesktopSidebar({
         >
           {professionalName}
         </span>
+        {!hasActiveMembership && (
+          <p className="text-xs text-[#9CA3AF] mt-1" style={{ fontFamily: 'DM Sans' }}>
+            {trialRequestsRemaining !== undefined && trialRequestsRemaining > 0
+              ? `${trialRequestsRemaining} pedidos gratuitos · `
+              : 'Sin membresía · '}
+            <a
+              href={`${import.meta.env.VITE_APP_URL}/planes?pro=${professionalId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0B6E4F] font-semibold hover:underline cursor-pointer"
+            >
+              Activar →
+            </a>
+          </p>
+        )}
       </div>
 
       <nav className="flex-1 py-3 px-2 space-y-0.5">
@@ -126,6 +150,9 @@ export function ProfessionalLayout({
   onTabChange,
   professionalName,
   children,
+  hasActiveMembership,
+  trialRequestsRemaining,
+  professionalId,
 }: ProfessionalLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -135,6 +162,9 @@ export function ProfessionalLayout({
         activeTab={activeTab}
         onTabChange={onTabChange}
         professionalName={professionalName}
+        hasActiveMembership={hasActiveMembership}
+        trialRequestsRemaining={trialRequestsRemaining}
+        professionalId={professionalId}
       />
 
       <div className="flex-1 flex flex-col lg:pl-64">
@@ -144,7 +174,28 @@ export function ProfessionalLayout({
           onMenuClick={() => setDrawerOpen(true)}
         />
 
-        <main className="flex-1 px-4 pt-20 pb-8 md:px-8 lg:pt-6 lg:pb-8">
+        {!hasActiveMembership && (
+          <div className="lg:hidden fixed top-14 inset-x-0 z-20 bg-[#F0FDF4] border-b border-[#A7F3D0] flex items-center justify-center gap-1 py-1.5 px-4">
+            <span className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+              {trialRequestsRemaining !== undefined && trialRequestsRemaining > 0
+                ? `⚡ ${trialRequestsRemaining} pedidos gratuitos ·`
+                : '⚡ Sin membresía activa ·'}
+            </span>
+            <a
+              href={`${import.meta.env.VITE_APP_URL}/planes?pro=${professionalId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-semibold text-[#0B6E4F] hover:underline cursor-pointer"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              Activar →
+            </a>
+          </div>
+        )}
+
+        <main className={`flex-1 px-4 pb-8 md:px-8 lg:pt-6 lg:pb-8 ${
+          !hasActiveMembership ? 'pt-24' : 'pt-20'
+        }`}>
           {children}
         </main>
       </div>

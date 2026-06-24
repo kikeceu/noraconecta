@@ -233,13 +233,13 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
 │   │   │           ├── PanelCard.tsx               # Shared card component: rounded-2xl shadow-sm p-6 (AUT-181)
-│   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active, bg-[#F0FDF4] active) + header mobile con hamburguesa + drawer lateral (w-72, 7 tabs, overlay bg-black/40) (AUT-181, AUT-183, AUT-184)
+│   │   │           ├── ProfessionalLayout.tsx     # w-64 sidebar (desktop, 7 tabs, py-3.5 items, border-l-4 active, bg-[#F0FDF4] active) + header mobile con hamburguesa + drawer lateral (w-72, 7 tabs, overlay bg-black/40) + CTA persistente de membresía en sidebar (badge verde con pedidos gratuitos restantes) y banner mobile (fixed top-14, bg-[#F0FDF4]) cuando !hasActiveMembership (AUT-181, AUT-183, AUT-184, AUT-333)
 │   │   │           ├── ProfessionalDashboard.tsx  # Dashboard: saludo, badge membresía, métricas (text-4xl JetBrains Mono, w-12 icon), gráficos de actividad (BarChart 7d + LineChart 8w con Recharts, skeleton loading), desglose ratings (ProgressBar unificada #0B6E4F), accesos rápidos, max-w-5xl (AUT-178, AUT-181, AUT-182, AUT-183)
 │   │   │           ├── ProfessionalProfile.tsx    # Status badge (px-4 py-1.5 text-sm), excellence badge (text-sm), availability, personal data (py-4 rows, text-base font-semibold values), docs (read-only), max-w-5xl (AUT-181, AUT-183)
 │   │   │           ├── ProfessionalPendingRequests.tsx # Pending requests: countdown, accept/reject, modal, empty state
 │   │   │           ├── ProfessionalInProgress.tsx      # In-progress orders (ACCEPTED + PENDING_CONFIRMATION): StatCards (text-4xl JetBrains Mono, min-h-[100px], uppercase tracking-wide labels), coordination status, confirm visit, mark finished, view detail modal, mobile cards, space-y-5, max-w-5xl (AUT-156, AUT-168, AUT-181, AUT-183)
 │   │   │           ├── ProfessionalOrders.tsx     # History: terminal orders, StatCards (text-4xl JetBrains Mono, min-h-[100px], uppercase tracking-wide labels), filters, search, table desktop + mobile cards, RatingDetailModal, rate user (RateUserModal 2 steps: rating general + ¿volvería a atenderlo? + comentario, AUT-320), space-y-5, max-w-5xl (AUT-156, AUT-179, AUT-181, AUT-183, AUT-320)
-│   │   │           ├── ProfessionalMembership.tsx # Membership status: active/trial (h-3 progress bar)/expired, precio (text-4xl), beneficios, trial card min-h-[200px], trial numbers text-2xl JetBrains Mono, trial title text-2xl, max-w-5xl + widget de ganancias (7/30/90d, text-4xl JetBrains Mono, totalEarnings), botón CTA grande (gradient #0B6E4F→#059669, min-h-56px), botón sticky fixed bottom (z-50, max-w-480px) cuando !hasActiveMembership (AUT-181, AUT-183, AUT-328)
+│   │   │           ├── ProfessionalMembership.tsx # Membership status: active/trial (h-3 progress bar)/expired, precio (text-4xl), beneficios, trial card min-h-[200px], trial numbers text-2xl JetBrains Mono, trial title text-2xl, max-w-5xl + widget de ganancias (7/30/90d, text-4xl JetBrains Mono, totalEarnings), botón CTA grande (gradient #0B6E4F→#059669, min-h-56px) (AUT-181, AUT-183, AUT-328)
 │   │   │           └── ProfessionalReputation.tsx # Donut chart (160x160, r=68), compliance metrics (text-4xl), MiniAxisCard (text-3xl, p-4), metric cards min-h-[120px], completed/rejected/notFulfilled rows text-2xl, recomendación %, tips, max-w-5xl (AUT-181, AUT-183)
 │   ├── index.html                      # Vite entry HTML (dev mode)
 │   ├── index-landing.html               # Vite entry HTML (landing build)
@@ -2183,6 +2183,14 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Activación manual: MONTHLY → `endDate = startDate + 30 días`; ANNUAL → `endDate = startDate + 365 días`
   - Expiración lazy: si al consultar estado se detecta `endDate <= now()` → se marca la membresía como EXPIRED
   - La lógica de activación no conoce el origen del pago (preparada para integración con MercadoPago)
+- Panel profesional — CTA persistente de conversión (AUT-333):
+  - Cuando `!hasActiveMembership`, aparece un CTA persistente y no invasivo en todas las secciones del panel
+  - Desktop: badge verde (`bg-[#F0FDF4]`, `border-[#A7F3D0]`) debajo del nombre en el sidebar con el conteo de pedidos gratuitos restantes y "Activar →"
+  - Mobile: banner fijo (`fixed top-14`, `lg:hidden`) debajo del header con el emoji ⚡, texto contextual y "Activar →"
+  - Padding del `<main>` se ajusta condicionalmente: `pt-28` con banner, `pt-20` sin banner
+  - Al hacer click en el CTA → navega a tab `membership`
+  - Cuando `hasActiveMembership = true` → ningún CTA extra aparece
+  - El botón sticky previo en `ProfessionalMembership.tsx` fue eliminado (redundante en su propia sección)
 - Configuración del sistema:
   - `TRIAL_REQUESTS_LIMIT` define el máximo de pedidos de prueba por profesional (default: 3)
   - `PROFESSIONAL_RESPONSE_TIMEOUT_HOURS` define el timeout de respuesta del profesional asignado (default: 2)
