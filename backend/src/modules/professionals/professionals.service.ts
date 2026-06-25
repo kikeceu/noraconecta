@@ -394,9 +394,10 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     const decidedTotal = completed + notFulfilled;
     const complianceScore = decidedTotal > 0 ? Math.round((completed / decidedTotal) * 100) : 0;
 
-    const reputationBreakdown = await this.reputationService.getReputationBreakdown(
-      professional.id,
-    );
+    const [reputationBreakdown, userComments] = await Promise.all([
+      this.reputationService.getReputationBreakdown(professional.id),
+      this.reputationService.getUserComments(professional.id),
+    ]);
 
     return {
       professional: {
@@ -436,6 +437,7 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
         averageCommunication: reputationBreakdown.averageCommunication,
         averagePriceFairness: reputationBreakdown.averagePriceFairness,
         totalRated: reputationBreakdown.totalRated,
+        userComments,
       },
     };
   }

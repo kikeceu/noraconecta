@@ -67,6 +67,10 @@ export class ReputationService {
     }
   }
 
+  async getUserComments(professionalId: string): Promise<{ rating: number; comment: string }[]> {
+    return this.reputationRepository.findUserComments(professionalId);
+  }
+
   async getReputationBreakdown(professionalId: string): Promise<{
     averageRating: number;
     averagePunctuality: number;

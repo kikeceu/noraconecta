@@ -15,6 +15,7 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
     wouldRecommendPct,
     averageRating,
     totalRated,
+    userComments,
   } = reputation;
 
   const circumference = 2 * Math.PI * 68;
@@ -183,6 +184,35 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
           </p>
         </PanelCard>
       </div>
+
+      {userComments.length > 0 && (
+        <>
+          <h2 className="text-lg font-semibold text-[#111827] mt-2" style={{ fontFamily: 'DM Sans' }}>
+            Lo que dicen tus clientes
+          </h2>
+          <div className="space-y-3">
+            {userComments.map((c, i) => (
+              <PanelCard key={i}>
+                <div className="flex items-start gap-3">
+                  <div className="flex gap-0.5 shrink-0 mt-0.5">
+                    {Array.from({ length: 5 }, (_, j) => (
+                      <svg key={j} width="14" height="14" viewBox="0 0 24 24"
+                        fill={j < c.rating ? '#F59E0B' : '#E5E7EB'}
+                        stroke={j < c.rating ? '#F59E0B' : '#E5E7EB'}
+                        strokeWidth="1">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ))}
+                  </div>
+                  <p className="text-sm text-[#374151] italic" style={{ fontFamily: 'DM Sans' }}>
+                    &ldquo;{c.comment}&rdquo;
+                  </p>
+                </div>
+              </PanelCard>
+            ))}
+          </div>
+        </>
+      )}
 
       <PanelCard className="!border-[#A7F3D0] !bg-[#F0FDF4]">
         <div className="flex items-start gap-3">

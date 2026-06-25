@@ -57,6 +57,7 @@ export interface PanelReputation {
   averageCommunication: number;
   averagePriceFairness: number;
   totalRated: number;
+  userComments: { rating: number; comment: string }[];
 }
 
 export interface PanelData {
