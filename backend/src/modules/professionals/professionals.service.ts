@@ -396,6 +396,13 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     const decidedTotal = completed + notFulfilled;
     const complianceScore = decidedTotal > 0 ? Math.round((completed / decidedTotal) * 100) : 0;
 
+    const trialRequestsLimitConfig = await this.configRepository.findByKey(
+      'TRIAL_REQUESTS_LIMIT',
+    );
+    const trialRequestsLimit = trialRequestsLimitConfig?.value
+      ? parseInt(trialRequestsLimitConfig.value, 10) || 5
+      : 5;
+
     const [reputationBreakdown, userComments] = await Promise.all([
       this.reputationService.getReputationBreakdown(professional.id),
       this.reputationService.getUserComments(professional.id),
@@ -424,7 +431,7 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       membership: {
         activeMembership: panelData.membership,
         trialRequestsUsed: panelData.professional!.trialRequestsUsed,
-        trialRequestsLimit: 5,
+        trialRequestsLimit,
       },
       reputation: {
         complianceScore,
