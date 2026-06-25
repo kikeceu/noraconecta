@@ -10,7 +10,7 @@ type PlanWithLink = {
   annualDiscountPct: number;
   features: string[];
   priority: number;
-  paymentUrl: string;
+  paymentUrl: string | null;
 };
 
 export function PlanesPage() {
@@ -38,6 +38,18 @@ export function PlanesPage() {
 
         const plansWithLinks = await Promise.all(
           activePlans.map(async (plan) => {
+            if (plan.monthlyPrice === 0) {
+              return {
+                id: plan.id,
+                name: plan.name,
+                monthlyPrice: plan.monthlyPrice,
+                annualDiscountPct: plan.annualDiscountPct,
+                features: Array.isArray(plan.features) ? plan.features : [],
+                priority: (plan as { priority?: number }).priority ?? 1,
+                paymentUrl: null,
+              };
+            }
+
             const linkResponse = await getPaymentLink(professionalId, plan.id);
 
             return {
@@ -132,8 +144,14 @@ export function PlanesPage() {
                 </div>
 
                 <p className="mt-4 text-4xl font-bold tracking-tight text-zinc-900">
-                  ${plan.monthlyPrice.toLocaleString('es-AR')}
-                  <span className="ml-1 text-base font-medium text-zinc-500">/mes</span>
+                  {plan.monthlyPrice === 0 ? (
+                    'Gratis'
+                  ) : (
+                    <>
+                      ${plan.monthlyPrice.toLocaleString('es-AR')}
+                      <span className="ml-1 text-base font-medium text-zinc-500">/mes</span>
+                    </>
+                  )}
                 </p>
 
                 {plan.features.length > 0 && (
@@ -149,13 +167,19 @@ export function PlanesPage() {
                   </ul>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => window.open(plan.paymentUrl, '_blank', 'noopener,noreferrer')}
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
-                >
-                  Contratar {'->'}
-                </button>
+                {plan.paymentUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => window.open(plan.paymentUrl!, '_blank', 'noopener,noreferrer')}
+                    className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700"
+                  >
+                    Contratar {'->'}
+                  </button>
+                ) : (
+                  <div className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
+                    Plan de prueba
+                  </div>
+                )}
               </article>
             ))}
           </div>
