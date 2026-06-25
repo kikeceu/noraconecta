@@ -8,6 +8,9 @@ import { UsersRepository } from '../users/users.repository';
 import { RequestsRepository } from '../requests/requests.repository';
 import { ProfessionalsRepository } from '../professionals/professionals.repository';
 import { ProfessionalsService } from '../professionals/professionals.service';
+import { MembershipsService } from '../memberships/memberships.service';
+import { MembershipsRepository } from '../memberships/memberships.repository';
+import { PlansRepository } from '../plans/plans.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
@@ -22,7 +25,16 @@ const professionalsRepository = new ProfessionalsRepository();
 const configRepository = new ConfigRepository();
 const r2ClientSingleton = new R2Client();
 const whatsappAdapterSingleton = new WhatsAppAdapter(r2ClientSingleton, botRepository);
-const professionalsService = new ProfessionalsService(professionalsRepository, whatsappAdapterSingleton, configRepository, botRepository);
+const membershipsRepository = new MembershipsRepository();
+const plansRepository = new PlansRepository();
+const membershipsService = new MembershipsService(
+  membershipsRepository,
+  plansRepository,
+  configRepository,
+  botRepository,
+  whatsappAdapterSingleton,
+);
+const professionalsService = new ProfessionalsService(professionalsRepository, whatsappAdapterSingleton, configRepository, botRepository, membershipsService);
 const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, professionalsService, securityService);
 
 export class BotController {

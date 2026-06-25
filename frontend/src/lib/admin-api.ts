@@ -291,6 +291,12 @@ export function updateLicenseStatus(
   );
 }
 
+export function getCurrentPlan(
+  professionalId: string,
+): Promise<{ data: { planId: string; planName: string } | null }> {
+  return request(`/professionals/${encodeURIComponent(professionalId)}/current-plan`);
+}
+
 // Memberships
 export function getMembership(
   professionalId: string,

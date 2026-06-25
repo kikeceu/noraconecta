@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getPaymentLink, getPlans } from '../../lib/admin-api';
+import { getCurrentPlan, getPaymentLink, getPlans } from '../../lib/admin-api';
 import { brand } from '../../lib/brand';
 
 type PlanWithLink = {
@@ -18,6 +18,7 @@ export function PlanesPage() {
   const [plans, setPlans] = useState<PlanWithLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
 
   const professionalId = useMemo(() => searchParams.get('pro')?.trim() ?? '', [searchParams]);
 
@@ -33,7 +34,11 @@ export function PlanesPage() {
         setLoading(true);
         setError(null);
 
-        const response = await getPlans();
+        const [response, currentPlanResponse] = await Promise.all([
+          getPlans(),
+          getCurrentPlan(professionalId),
+        ]);
+        setCurrentPlanId(currentPlanResponse.data?.planId ?? null);
         const activePlans = response.data.filter((plan) => plan.isActive);
 
         const plansWithLinks = await Promise.all(
@@ -132,15 +137,32 @@ export function PlanesPage() {
             {plans.map((plan) => (
               <article
                 key={plan.id}
-                className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col"
+                className={`rounded-2xl border bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col ${
+                  plan.id === currentPlanId
+                    ? 'border-emerald-400 ring-2 ring-emerald-400'
+                    : currentPlanId === null && plan.monthlyPrice === 0
+                    ? 'border-zinc-300 ring-2 ring-zinc-300'
+                    : 'border-emerald-100'
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="text-lg font-semibold text-zinc-900">{plan.name}</h2>
-                  {plan.annualDiscountPct > 0 && (
-                    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                      {plan.annualDiscountPct}% OFF anual
-                    </span>
-                  )}
+                  <div className="flex gap-2">
+                    {(plan.id === currentPlanId || (currentPlanId === null && plan.monthlyPrice === 0)) && (
+                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        plan.id === currentPlanId
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-zinc-100 text-zinc-600'
+                      }`}>
+                        Tu plan actual
+                      </span>
+                    )}
+                    {plan.annualDiscountPct > 0 && (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                        {plan.annualDiscountPct}% OFF anual
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <p className="mt-4 text-4xl font-bold tracking-tight text-zinc-900">
@@ -167,7 +189,7 @@ export function PlanesPage() {
                   </ul>
                 )}
 
-                {plan.paymentUrl ? (
+                {plan.paymentUrl && plan.id !== currentPlanId ? (
                   <button
                     type="button"
                     onClick={() => window.open(plan.paymentUrl!, '_blank', 'noopener,noreferrer')}
@@ -175,6 +197,10 @@ export function PlanesPage() {
                   >
                     Contratar {'->'}
                   </button>
+                ) : plan.id === currentPlanId ? (
+                  <div className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
+                    Plan activo
+                  </div>
                 ) : (
                   <div className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
                     Plan de prueba

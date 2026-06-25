@@ -45,16 +45,9 @@ const requestsService = new RequestsService(
 const professionalsRepository = new ProfessionalsRepository();
 const locationsRepository = new LocationsRepository();
 const configRepository = new ConfigRepository();
-const professionalsService = new ProfessionalsService(
-  professionalsRepository,
-  whatsappAdapter,
-  configRepository,
-  botRepository,
-);
 
-const paymentsRepository = new PaymentsRepository();
-const plansRepository = new PlansRepository();
 const membershipsRepository = new MembershipsRepository();
+const plansRepository = new PlansRepository();
 
 const membershipsService = new MembershipsService(
   membershipsRepository,
@@ -63,6 +56,16 @@ const membershipsService = new MembershipsService(
   botRepository,
   whatsappAdapter,
 );
+
+const professionalsService = new ProfessionalsService(
+  professionalsRepository,
+  whatsappAdapter,
+  configRepository,
+  botRepository,
+  membershipsService,
+);
+
+const paymentsRepository = new PaymentsRepository();
 
 const paymentsService = new PaymentsService(
   paymentsRepository,
