@@ -197,7 +197,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── admin/                  # Admin panel pages (NEW)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
-│   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, badges, pagination, phone column between zone and status (AUT-205)
+│   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, hierarchical geo filter (Provincia → Departamento), badges, pagination, phone column between zone and status (AUT-205, AUT-341)
 │   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324 (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getProfessionals, getDepartments } from '../../lib/admin-api';
+import { getProfessionals, getGeoTree } from '../../lib/admin-api';
 import { resolveHostContext } from '../../lib/host';
 import type { Professional, ProfessionalStatus } from '../../types/admin';
 
@@ -36,8 +36,11 @@ export function ProfessionalsPage() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [provinceFilter, setProvinceFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [geoTree, setGeoTree] = useState<{
+    provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
+  }>({ provinces: [] });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
 
   const fetchData = (page = 1) => {
@@ -57,13 +60,24 @@ export function ProfessionalsPage() {
   };
 
   useEffect(() => {
-    getDepartments().then((res) => setDepartments(res.data)).catch((err) => { console.error('Failed to load departments', err); });
+    getGeoTree()
+      .then((res) => setGeoTree(res.data))
+      .catch((err) => { console.error('Failed to load geo tree', err); });
   }, []);
+
+  const availableDepartments = provinceFilter
+    ? (geoTree.provinces.find((p) => p.id === provinceFilter)?.departments ?? [])
+    : geoTree.provinces.flatMap((p) => p.departments);
+
+  const handleProvinceChange = (provinceId: string) => {
+    setProvinceFilter(provinceId);
+    setDepartmentFilter('');
+  };
 
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, departmentFilter]);
+  }, [statusFilter, departmentFilter, provinceFilter]);
 
   const filtered = professionals.filter(
     (p) =>
@@ -106,12 +120,25 @@ export function ProfessionalsPage() {
           ))}
         </select>
         <select
+          value={provinceFilter}
+          onChange={(e) => handleProvinceChange(e.target.value)}
+          className="h-9 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40"
+        >
+          <option value="">Todas las provincias</option>
+          {geoTree.provinces.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+
+        <select
           value={departmentFilter}
           onChange={(e) => setDepartmentFilter(e.target.value)}
           className="h-9 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40"
         >
           <option value="">Todos los departamentos</option>
-          {departments.map((d) => (
+          {availableDepartments.map((d) => (
             <option key={d.id} value={d.id}>
               {d.name}
             </option>
