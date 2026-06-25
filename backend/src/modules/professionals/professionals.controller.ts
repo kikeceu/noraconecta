@@ -3,6 +3,9 @@ import { ProfessionalsService, VerificationStageTwoInput } from './professionals
 import { ProfessionalsRepository } from './professionals.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { BotRepository } from '../bot/bot.repository';
+import { MembershipsService } from '../memberships/memberships.service';
+import { MembershipsRepository } from '../memberships/memberships.repository';
+import { PlansRepository } from '../plans/plans.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 import prisma from '../../lib/prisma';
@@ -10,13 +13,23 @@ import prisma from '../../lib/prisma';
 const professionalsRepository = new ProfessionalsRepository();
 const configRepository = new ConfigRepository();
 const botRepository = new BotRepository();
+const membershipsRepository = new MembershipsRepository();
+const plansRepository = new PlansRepository();
 const r2Client = new R2Client();
 const whatsappAdapter = new WhatsAppAdapter(r2Client, botRepository);
+const membershipsService = new MembershipsService(
+  membershipsRepository,
+  plansRepository,
+  configRepository,
+  botRepository,
+  whatsappAdapter,
+);
 const professionalsService = new ProfessionalsService(
   professionalsRepository,
   whatsappAdapter,
   configRepository,
   botRepository,
+  membershipsService,
 );
 
 export class ProfessionalsController {
@@ -460,6 +473,16 @@ export class ProfessionalsController {
         body.status as 'APPROVED' | 'REJECTED',
       );
       res.status(200).json({ data: professional });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getCurrentPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const membership = await professionalsService.getCurrentPlan(id);
+      res.status(200).json({ data: membership });
     } catch (err) {
       next(err);
     }

@@ -12,6 +12,7 @@ import { Professional, ProfessionalStatus, LicenseStatus } from '@prisma/client'
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { LICENSE_REJECTED_TEMPLATE } from '../../utils/whatsapp-templates';
+import { MembershipsService } from '../memberships/memberships.service';
 
 const VERIFICATION_TOKEN_TTL_HOURS = 168; // 7 days
 const SESSION_TOKEN_TTL_DAYS = 30;
@@ -62,6 +63,7 @@ export class ProfessionalsService {
     private readonly whatsappAdapter: WhatsAppAdapter,
     private readonly configRepository: ConfigRepository,
     private readonly botRepository: BotRepository,
+    private readonly membershipsService: MembershipsService,
   ) {
     this.reputationService = new ReputationService(reputationRepository);
   }
@@ -963,5 +965,17 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     console.log(
       `[ProfessionalsService] License resubmitted for professional ${professional.id}`,
     );
+  }
+
+  async getCurrentPlan(professionalId: string): Promise<{ planId: string; planName: string } | null> {
+    const membership = await this.membershipsService.getActiveMembership(professionalId) as {
+      planId: string;
+      plan: { name: string };
+    } | null;
+    if (!membership || !membership.plan) return null;
+    return {
+      planId: membership.planId,
+      planName: membership.plan.name,
+    };
   }
 }

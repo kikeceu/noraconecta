@@ -11,6 +11,9 @@ import { UsersRepository } from '../modules/users/users.repository';
 import { RequestsRepository } from '../modules/requests/requests.repository';
 import { ProfessionalsRepository } from '../modules/professionals/professionals.repository';
 import { ProfessionalsService } from '../modules/professionals/professionals.service';
+import { MembershipsService } from '../modules/memberships/memberships.service';
+import { MembershipsRepository } from '../modules/memberships/memberships.repository';
+import { PlansRepository } from '../modules/plans/plans.repository';
 import { ConfigRepository } from '../modules/config/config.repository';
 import { R2Client } from '../lib/r2-client';
 
@@ -26,7 +29,16 @@ const configRepository = new ConfigRepository();
 function getProfessionalsService(): ProfessionalsService {
   const r2 = new R2Client();
   const adapter = new WhatsAppAdapter(r2, botRepository);
-  return new ProfessionalsService(professionalsRepository, adapter, configRepository, botRepository);
+  const membershipsRepository = new MembershipsRepository();
+  const plansRepository = new PlansRepository();
+  const membershipsService = new MembershipsService(
+    membershipsRepository,
+    plansRepository,
+    configRepository,
+    botRepository,
+    adapter,
+  );
+  return new ProfessionalsService(professionalsRepository, adapter, configRepository, botRepository, membershipsService);
 }
 
 const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, getProfessionalsService(), securityService);
