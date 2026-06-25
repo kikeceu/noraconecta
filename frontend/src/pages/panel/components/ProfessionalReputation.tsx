@@ -14,10 +14,6 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
     totalRequests,
     wouldRecommendPct,
     averageRating,
-    averagePunctuality,
-    averageQuality,
-    averageCommunication,
-    averagePriceFairness,
     totalRated,
   } = reputation;
 
@@ -188,21 +184,6 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
         </PanelCard>
       </div>
 
-      <h2
-        className="text-lg font-semibold text-[#111827] mt-2"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        Desglose por eje
-      </h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <MiniAxisCard label="Puntualidad" value={averagePunctuality} hasData={totalRated > 0} />
-        <MiniAxisCard label="Calidad" value={averageQuality} hasData={totalRated > 0} />
-        <MiniAxisCard label="Comunicación" value={averageCommunication} hasData={totalRated > 0} />
-        <MiniAxisCard label="Precio justo" value={averagePriceFairness} hasData={totalRated > 0} />
-        <MiniAxisCard label="General" value={averageRating} hasData={totalRated > 0} />
-      </div>
-
       <PanelCard className="!border-[#A7F3D0] !bg-[#F0FDF4]">
         <div className="flex items-start gap-3">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0B6E4F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
@@ -247,38 +228,3 @@ export function ProfessionalReputation({ reputation }: ProfessionalReputationPro
   );
 }
 
-function MiniAxisCard({ label, value, hasData }: { label: string; value: number; hasData: boolean }) {
-  const stars = hasData ? Math.round(value) : 0;
-
-  return (
-    <div className="rounded-2xl bg-white border border-[#E5E7EB] shadow-sm p-4 text-center">
-      <p
-        className="text-3xl font-bold text-[#111827]"
-        style={{ fontFamily: 'JetBrains Mono' }}
-      >
-        {hasData ? value : '—'}
-      </p>
-      <div className="flex justify-center gap-0.5 mt-1">
-        {Array.from({ length: 5 }, (_, i) => (
-          <svg
-            key={i}
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill={i < stars ? '#F59E0B' : '#E5E7EB'}
-            stroke={i < stars ? '#F59E0B' : '#E5E7EB'}
-            strokeWidth="1"
-          >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        ))}
-      </div>
-      <p
-        className="text-xs text-[#6B7280] mt-1"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        {label}
-      </p>
-    </div>
-  );
-}

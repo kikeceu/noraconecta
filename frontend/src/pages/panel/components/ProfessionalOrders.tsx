@@ -701,11 +701,7 @@ function RatingDetailModal({
             </h3>
             {userDetail ? (
               <div className="space-y-3">
-                <RatingRow label="Puntualidad" value={userDetail.punctualityRating} />
-                <RatingRow label="Calidad" value={userDetail.qualityRating} />
-                <RatingRow label="Comunicación" value={userDetail.communicationRating} />
-                <RatingRow label="Precio justo" value={userDetail.priceFairnessRating} />
-                <div className="flex items-center justify-between pt-2 border-t border-[#F3F4F6]">
+                <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
                     Promedio general
                   </span>
@@ -743,9 +739,6 @@ function RatingDetailModal({
             </h3>
             {professionalDetail ? (
               <div className="space-y-3">
-                <RatingRow label="Claridad" value={professionalDetail.requestClarityRating} />
-                <RatingRow label="Disponibilidad" value={professionalDetail.userAvailabilityRating} />
-                <RatingRow label="Trato" value={professionalDetail.userTreatmentRating} />
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
                     ¿Volverías a atenderlo?
@@ -789,22 +782,6 @@ function RatingDetailModal({
   );
 }
 
-function RatingRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-[#374151]" style={{ fontFamily: 'DM Sans' }}>
-        {label}
-      </span>
-      <div className="inline-flex items-center gap-1.5">
-        <StarRatingReadOnly value={value} />
-        <span className="text-xs font-medium text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
-          {value}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
     <div className="flex justify-center gap-2">
@@ -834,26 +811,3 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
   );
 }
 
-function StarRatingReadOnly({ value }: { value: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {Array.from({ length: 5 }, (_, i) => {
-        const star = i + 1;
-        const filled = star <= value;
-        return (
-          <svg
-            key={star}
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill={filled ? '#F59E0B' : '#E5E7EB'}
-            stroke={filled ? '#F59E0B' : '#E5E7EB'}
-            strokeWidth="1"
-          >
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-          </svg>
-        );
-      })}
-    </div>
-  );
-}
