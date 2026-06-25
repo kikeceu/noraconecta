@@ -75,7 +75,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── plans.service.ts    # Plan CRUD, price validation, features array, name uniqueness check on update, deactivate — AUT-340
 │   │   │   │   └── plans.repository.ts # Prisma queries for Plan model. CreatePlanInput/UpdatePlanInput extendidos con features, método deactivate — AUT-340
 │   │   │   ├── memberships/
-│   │   │   │   ├── memberships.routes.ts     # 2 endpoints under /professionals
+│   │   │   │   ├── memberships.routes.ts     # GET /professionals/:id/membership (requireAuth), POST /professionals/:id/membership (requireSuperAdmin) — AUT-350
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
 │   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331). sendExpirationReminders: cron diario de notificación de vencimiento con sendWithWindowCheck (AUT-330)
 │   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models + findExpiringMemberships, markReminderSent, clearExpiredReminderFlags (AUT-330)
@@ -198,7 +198,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, hierarchical geo filter (Provincia → Departamento), badges, pagination, phone column between zone and status (AUT-205, AUT-341)
-│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324 (AUT-205)
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324, sección Membresía con consulta de estado y modal de asignación manual de membresía (SUPERADMIN only) — AUT-350 (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots

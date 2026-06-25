@@ -9,11 +9,14 @@ import {
   reactivateProfessional,
   generateSession,
   updateLicenseStatus,
+  getMembership,
+  activateMembership,
+  getPlans,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
 import { resolveHostContext } from '../../lib/host';
-import type { Professional, ProfessionalDetail, ProfessionalStatus, LicenseStatus } from '../../types/admin';
+import type { Professional, ProfessionalDetail, ProfessionalStatus, LicenseStatus, Membership, Plan } from '../../types/admin';
 
 function adminPath(path: string): string {
   const base = resolveHostContext() === 'admin' ? '' : '/admin';
@@ -49,18 +52,33 @@ export function ProfessionalDetailPage() {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [licenseActionLoading, setLicenseActionLoading] = useState(false);
+  const [membership, setMembership] = useState<Membership | null>(null);
+  const [membershipLoading, setMembershipLoading] = useState(true);
+  const [showMembershipModal, setShowMembershipModal] = useState(false);
+  const [membershipPlans, setMembershipPlans] = useState<Plan[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [selectedType, setSelectedType] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
+  const [assigningMembership, setAssigningMembership] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    getProfessional(id)
-      .then((res) => {
-        setProfessional(res.data.professional);
-        setReputation(res.data.reputation);
+    setMembershipLoading(true);
+    Promise.all([
+      getProfessional(id),
+      getMembership(id),
+    ])
+      .then(([profRes, memRes]) => {
+        setProfessional(profRes.data.professional);
+        setReputation(profRes.data.reputation);
+        setMembership(memRes.data.activeMembership);
       })
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Error al cargar'),
       )
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setMembershipLoading(false);
+      });
   }, [id]);
 
   const executeAction = async (action: string) => {
@@ -84,6 +102,8 @@ export function ProfessionalDetailPage() {
       const res = await getProfessional(id);
       setProfessional(res.data.professional);
       setReputation(res.data.reputation);
+      const memRes = await getMembership(id);
+      setMembership(memRes.data.activeMembership);
     } catch (err) {
       setError(err instanceof Error ? err.message : `Error al ${action}`);
     } finally {
@@ -127,6 +147,21 @@ export function ProfessionalDetailPage() {
         // silently fail
       }
       document.body.removeChild(textarea);
+    }
+  };
+
+  const handleAssignMembership = async () => {
+    if (!id || !selectedPlanId) return;
+    setAssigningMembership(true);
+    try {
+      await activateMembership(id, selectedPlanId, selectedType);
+      const res = await getMembership(id);
+      setMembership(res.data.activeMembership);
+      setShowMembershipModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al asignar membresía');
+    } finally {
+      setAssigningMembership(false);
     }
   };
 
@@ -459,6 +494,53 @@ export function ProfessionalDetailPage() {
             </div>
           )}
 
+          {/* Membership */}
+          {isSuperAdmin() && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">Membresía</h2>
+
+              {membershipLoading ? (
+                <div className="space-y-2 animate-pulse">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                  <div className="h-4 w-1/2 bg-gray-200 rounded" />
+                  <div className="h-4 w-2/3 bg-gray-200 rounded" />
+                </div>
+              ) : membership && membership.status === 'ACTIVE' ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Plan activo</span>
+                    <span className="text-sm font-medium text-emerald-700">{membership.plan?.name ?? '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Tipo</span>
+                    <span className="text-sm font-mono text-gray-900">{membership.type}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Vence</span>
+                    <span className="text-sm font-mono text-gray-900">
+                      {new Date(membership.endDate).toLocaleDateString('es-AR')}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 mb-3">Sin membresía activa</p>
+              )}
+
+              <button
+                onClick={async () => {
+                  const res = await getPlans();
+                  setMembershipPlans(res.data.filter(p => p.isActive && p.monthlyPrice > 0));
+                  setSelectedPlanId('');
+                  setSelectedType('MONTHLY');
+                  setShowMembershipModal(true);
+                }}
+                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors w-full justify-center cursor-pointer"
+              >
+                Asignar membresía
+              </button>
+            </div>
+          )}
+
           {/* Event history */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">
@@ -558,6 +640,59 @@ export function ProfessionalDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Assign membership modal */}
+      {showMembershipModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <h3 className="text-base font-semibold text-gray-900">Asignar membresía</h3>
+
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Plan</label>
+              <select
+                value={selectedPlanId}
+                onChange={e => setSelectedPlanId(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-green-600"
+              >
+                <option value="">Seleccionar plan</option>
+                {membershipPlans.map(plan => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.name} — ${plan.monthlyPrice.toLocaleString('es-AR')}/mes
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Tipo</label>
+              <select
+                value={selectedType}
+                onChange={e => setSelectedType(e.target.value as 'MONTHLY' | 'ANNUAL')}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 outline-none focus:border-green-600"
+              >
+                <option value="MONTHLY">Mensual</option>
+                <option value="ANNUAL">Anual</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowMembershipModal(false)}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAssignMembership}
+                disabled={!selectedPlanId || assigningMembership}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
+              >
+                {assigningMembership ? 'Asignando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm dialog */}
       <ConfirmDialog
