@@ -7,6 +7,9 @@ type PlanWithLink = {
   id: string;
   name: string;
   monthlyPrice: number;
+  annualDiscountPct: number;
+  features: string[];
+  priority: number;
   paymentUrl: string;
 };
 
@@ -41,12 +44,16 @@ export function PlanesPage() {
               id: plan.id,
               name: plan.name,
               monthlyPrice: plan.monthlyPrice,
+              annualDiscountPct: plan.annualDiscountPct,
+              features: Array.isArray(plan.features) ? plan.features : [],
+              priority: (plan as { priority?: number }).priority ?? 1,
               paymentUrl: linkResponse.data.url,
             };
           }),
         );
 
-        setPlans(plansWithLinks);
+        const sorted = plansWithLinks.sort((a, b) => a.priority - b.priority);
+        setPlans(sorted);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'No pudimos cargar los planes.';
         setError(message);
@@ -90,7 +97,12 @@ export function PlanesPage() {
                 className="animate-pulse rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm"
               >
                 <div className="h-5 w-28 rounded bg-emerald-100" />
-                <div className="mt-6 h-9 w-36 rounded bg-emerald-100" />
+                <div className="mt-4 h-9 w-36 rounded bg-emerald-100" />
+                <div className="mt-4 space-y-2">
+                  <div className="h-4 w-full rounded bg-emerald-50" />
+                  <div className="h-4 w-4/5 rounded bg-emerald-50" />
+                  <div className="h-4 w-3/5 rounded bg-emerald-50" />
+                </div>
                 <div className="mt-8 h-10 w-full rounded-xl bg-emerald-100" />
               </div>
             ))}
@@ -108,13 +120,35 @@ export function PlanesPage() {
             {plans.map((plan) => (
               <article
                 key={plan.id}
-                className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md flex flex-col"
               >
-                <h2 className="text-lg font-semibold text-zinc-900">{plan.name}</h2>
-                <p className="mt-6 text-4xl font-bold tracking-tight text-zinc-900">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold text-zinc-900">{plan.name}</h2>
+                  {plan.annualDiscountPct > 0 && (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                      {plan.annualDiscountPct}% OFF anual
+                    </span>
+                  )}
+                </div>
+
+                <p className="mt-4 text-4xl font-bold tracking-tight text-zinc-900">
                   ${plan.monthlyPrice.toLocaleString('es-AR')}
                   <span className="ml-1 text-base font-medium text-zinc-500">/mes</span>
                 </p>
+
+                {plan.features.length > 0 && (
+                  <ul className="mt-4 space-y-2 flex-1">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 <button
                   type="button"
                   onClick={() => window.open(plan.paymentUrl, '_blank', 'noopener,noreferrer')}

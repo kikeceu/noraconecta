@@ -229,7 +229,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │           ├── SummaryStep.tsx      # Summary with dividers and file previews. Muestra credencial habilitante si licenseUrl existe — AUT-323
 │   │   │           └── ConfirmationScreen.tsx # Success checkmark + "¡Listo, {name}!" message
 │   │   │   └── app/
-│   │   │       └── PlanesPage.tsx           # Public plans page (/planes?pro=) with MercadoPago links (AUT-214)
+│   │   │       └── PlanesPage.tsx           # Public plans page (/planes?pro=) with MercadoPago links, sorted by priority, showing features list with checkmark, annual discount badge "X% OFF anual", and skeleton loading (AUT-214, AUT-346)
 │   │   │   └── panel/                        # Professional self-service panel (NEW)
 │   │   │       ├── ProfessionalPanelPage.tsx  # Main page: session token validation, tab routing (7 tabs, default: dashboard)
 │   │   │       └── components/
