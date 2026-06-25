@@ -70,10 +70,10 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334
 │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
 │   │   │   ├── plans/
-│   │   │   │   ├── plans.routes.ts     # 3 endpoints under /plans
-│   │   │   │   ├── plans.controller.ts # Request validation, response formatting
-│   │   │   │   ├── plans.service.ts    # Plan CRUD, price validation
-│   │   │   │   └── plans.repository.ts # Prisma queries for Plan model
+│   │   │   │   ├── plans.routes.ts     # 4 endpoints under /plans (GET, POST, PATCH, DELETE)
+│   │   │   │   ├── plans.controller.ts # Request validation, response formatting. create/update aceptan features, deactivate endpoint — AUT-340
+│   │   │   │   ├── plans.service.ts    # Plan CRUD, price validation, features array, name uniqueness check on update, deactivate — AUT-340
+│   │   │   │   └── plans.repository.ts # Prisma queries for Plan model. CreatePlanInput/UpdatePlanInput extendidos con features, método deactivate — AUT-340
 │   │   │   ├── memberships/
 │   │   │   │   ├── memberships.routes.ts     # 2 endpoints under /professionals
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
@@ -205,7 +205,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── EscalationsPage.tsx          # Table with urgency summary, status change + resolve modal
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
 │   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal con toggle "requiere credencial" y campo licenseLabel — AUT-324
-│   │   │   │   ├── PlansPage.tsx                # Plan cards with price editing modal
+│   │   │   │   ├── PlansPage.tsx                # Plan cards con modal crear/editar (nombre, precio, descuento, features, toggle activo), botón desactivar con confirmación, lista de beneficios en cards — AUT-340
 │   │   │   │   └── SettingsPage.tsx             # Config form (12 matching weights, penalties, limits, system params) — AUT-334, AUT-337
 │   │   │   │   └── PromotionsPage.tsx            # Membership discount management: activate/deactivate promo with percentage and duration, shows active/inactive state — AUT-336
 │   │   │   └── onboarding/
@@ -624,13 +624,23 @@ Response shape:
 | `/professionals/:id/generate-session`  | POST   | Generar token de sesión + panelUrl para portal profesional | SUPERADMIN|
 | `/professionals/:id/license-status`    | PATCH  | Aprobar o rechazar credencial habilitante (APPROVED/REJECTED) — AUT-324 | SUPERADMIN|
 
-### Plans
+### Plans (ACTUALIZADO AUT-340)
 
 | Endpoint         | Método | Descripción                      | Rol mínimo |
 |-----------------|--------|----------------------------------|-----------|
 | `/plans`        | GET    | Lista todos los planes (pública, usada por `/planes?pro=`) | Sin auth  |
-| `/plans`        | POST   | Crear plan (nombre + precio)     | SUPERADMIN|
-| `/plans/:id`    | PATCH  | Editar precio o % descuento anual| SUPERADMIN|
+| `/plans`        | POST   | Crear plan (nombre, precio, descuento anual, lista de features/beneficios) | SUPERADMIN|
+| `/plans/:id`    | PATCH  | Editar nombre, precio, descuento anual, estado activo/inactivo, features | SUPERADMIN|
+| `/plans/:id`    | DELETE | Desactivar plan (`isActive: false`), no lo elimina físicamente | SUPERADMIN|
+
+**Campos del modelo Plan (ACTUALIZADO AUT-340):**
+- `features Json?` — array de strings con beneficios del plan (ej: `["Hasta 10 pedidos/mes", "Soporte prioritario"]`)
+- `name` en update valida que no exista otro plan con el mismo nombre
+
+**Métodos del repositorio:**
+- `create(data: CreatePlanInput)` — `CreatePlanInput` extendido con `features?: string[]`
+- `update(id, data: UpdatePlanInput)` — `UpdatePlanInput` extendido con `name?`, `isActive?`, `features?`
+- `deactivate(id)` — nuevo método, pone `isActive: false`
 
 ### Memberships
 
@@ -1937,7 +1947,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 - Unique constraint: `(professionalId, geoNodeId)`
 - Índices (AUT-311): `@@index([geoNodeId])`
 
-### Plan
+### Plan (ACTUALIZADO AUT-340)
 | Columna           | Tipo     | Descripción                          |
 |------------------|----------|--------------------------------------|
 | id               | CUID     | PK, autogenerado                     |
@@ -1946,6 +1956,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | annualDiscountPct| Float    | % descuento plan anual               |
 | priority         | Int      | Prioridad del plan (1=Básico, 2=Profesional, 3=Premium, default: 1) |
 | isActive         | Boolean  | Plan activo (default: true)          |
+| features         | Json?    | Array de strings con beneficios del plan (AUT-340) |
 | createdAt        | DateTime | Autogenerado                         |
 | updatedAt        | DateTime | Autogenerado (on update)             |
 
@@ -2185,11 +2196,14 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Token de sesión: UUID v4, expira en 30 días, solo generable para profesionales ACTIVE
   - `getActiveCandidates(categoryId, geoNodeId)`: retorna profesionales ACTIVE con zona y rubro coincidentes, con trialRequestsUsed < 5 y `canReceiveRequests() = true`
   - En MVP: un solo rubro por profesional
-- Planes:
+- Planes (ACTUALIZADO AUT-340):
   - Tres planes: Básico ($9.000/mes, prioridad 1), Profesional ($20.000/mes, prioridad 2), Premium ($40.000/mes, prioridad 3)
   - `monthlyPrice` debe ser un número no negativo
   - `annualDiscountPct` debe estar entre 0 y 100
   - No se permite crear planes con nombre duplicado → 409
+  - `features` (Json?): array opcional de strings con beneficios. Los planes pueden crearse, editarse y desactivarse desde el admin — AUT-340
+  - Al editar `name`, se valida unicidad contra otros planes
+  - Desactivar un plan lo marca como `isActive: false`; no se elimina físicamente ni afecta membresías existentes
 - Membresías:
   - `canReceiveRequests(professionalId)`: retorna `true` si hay membresía ACTIVE con `endDate > now()`, o si `trialRequestsUsed < TRIAL_REQUESTS_LIMIT`; en cualquier otro caso retorna `false`
   - Activación manual: MONTHLY → `endDate = startDate + 30 días`; ANNUAL → `endDate = startDate + 365 días`
@@ -2344,7 +2358,7 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | `/admin/escalations` | Escaladas | OPERATOR | Summary críticas + tabla desktop; cards mobile (<lg) con acciones por estado (revisar/resolver) y paginación (AUT-207) |
 | `/admin/zones` | Zonas | OPERATOR | Árbol con acordeón, toggles, agregar/editar nodos |
 | `/admin/categories` | Categorías | OPERATOR | Tabla desktop + cards mobile (<lg) con nombre, slug, badge activa/inactiva y toggle inline; modal crear/editar (AUT-207) |
-| `/admin/plans` | Planes | OPERATOR | Cards de planes + edición de precio |
+| `/admin/plans` | Planes | OPERATOR | Cards con precio, descuento, beneficios y badges activo/inactivo. SUPERADMIN: modal crear/editar (nombre, precio, descuento, features, toggle activo) + botón desactivar con confirmación — AUT-340 |
 | `/admin/settings` | Configuración | SUPERADMIN | Parámetros matching, límites, integraciones, toggles |
 
 **Consistencia tipográfica (AUT-207):** todos los H1 del panel admin (excepto Login) usan `text-4xl font-black text-gray-900 tracking-tighter`.
