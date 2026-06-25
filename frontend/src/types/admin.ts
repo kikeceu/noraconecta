@@ -152,6 +152,7 @@ export interface Plan {
   monthlyPrice: number;
   annualDiscountPct: number;
   isActive: boolean;
+  features: string[];
   createdAt: string;
   updatedAt: string;
 }

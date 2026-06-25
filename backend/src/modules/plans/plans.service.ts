@@ -23,6 +23,7 @@ export class PlansService {
     name: string,
     monthlyPrice: number,
     annualDiscountPct?: number,
+    features?: string[],
   ): Promise<Plan> {
     const trimmedName = name.trim();
 
@@ -54,12 +55,19 @@ export class PlansService {
       name: trimmedName,
       monthlyPrice,
       annualDiscountPct,
+      features,
     });
   }
 
   async update(
     id: string,
-    data: { monthlyPrice?: number; annualDiscountPct?: number },
+    data: {
+      name?: string;
+      monthlyPrice?: number;
+      annualDiscountPct?: number;
+      isActive?: boolean;
+      features?: string[];
+    },
   ): Promise<Plan> {
     const plan = await this.plansRepository.findById(id);
 
@@ -67,7 +75,27 @@ export class PlansService {
       throw new AppError('Plan not found', 404);
     }
 
-    const updates: { monthlyPrice?: number; annualDiscountPct?: number } = {};
+    const updates: {
+      name?: string;
+      monthlyPrice?: number;
+      annualDiscountPct?: number;
+      isActive?: boolean;
+      features?: string[];
+    } = {};
+
+    if (data.name !== undefined) {
+      const trimmedName = data.name.trim();
+      if (!trimmedName) {
+        throw new AppError('Plan name cannot be empty', 400);
+      }
+      if (trimmedName !== plan.name) {
+        const existing = await this.plansRepository.findByName(trimmedName);
+        if (existing) {
+          throw new AppError('A plan with this name already exists', 409);
+        }
+      }
+      updates.name = trimmedName;
+    }
 
     if (data.monthlyPrice !== undefined) {
       if (data.monthlyPrice < 0) {
@@ -86,6 +114,24 @@ export class PlansService {
       updates.annualDiscountPct = data.annualDiscountPct;
     }
 
+    if (data.isActive !== undefined) {
+      updates.isActive = data.isActive;
+    }
+
+    if (data.features !== undefined) {
+      updates.features = data.features;
+    }
+
     return this.plansRepository.update(id, updates);
+  }
+
+  async deactivate(id: string): Promise<Plan> {
+    const plan = await this.plansRepository.findById(id);
+
+    if (!plan) {
+      throw new AppError('Plan not found', 404);
+    }
+
+    return this.plansRepository.deactivate(id);
   }
 }

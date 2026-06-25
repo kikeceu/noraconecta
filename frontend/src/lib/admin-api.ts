@@ -324,14 +324,38 @@ export function getPlans(): Promise<ListResponse<Plan>> {
   return request<ListResponse<Plan>>('/plans');
 }
 
+export function createPlan(data: {
+  name: string;
+  monthlyPrice: number;
+  annualDiscountPct?: number;
+  features?: string[];
+}): Promise<SingleResponse<Plan>> {
+  return request<SingleResponse<Plan>>('/plans', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 export function updatePlan(
   id: string,
-  data: { monthlyPrice?: number; annualDiscountPct?: number },
+  data: {
+    name?: string;
+    monthlyPrice?: number;
+    annualDiscountPct?: number;
+    isActive?: boolean;
+    features?: string[];
+  },
 ): Promise<SingleResponse<Plan>> {
   return request<SingleResponse<Plan>>(`/plans/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
+}
+
+export function deactivatePlan(
+  id: string,
+): Promise<SingleResponse<Plan>> {
+  return request<SingleResponse<Plan>>(`/plans/${id}`, { method: 'DELETE' });
 }
 
 export function getPaymentLink(

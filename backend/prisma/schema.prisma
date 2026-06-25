@@ -216,6 +216,7 @@ model Plan {
   annualDiscountPct Float
   priority          Int     @default(1)
   isActive          Boolean @default(true)
+  features          Json?
 
   memberships Membership[]
 

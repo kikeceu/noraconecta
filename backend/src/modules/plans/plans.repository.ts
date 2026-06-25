@@ -5,11 +5,15 @@ export type CreatePlanInput = {
   name: string;
   monthlyPrice: number;
   annualDiscountPct?: number;
+  features?: string[];
 };
 
 export type UpdatePlanInput = {
+  name?: string;
   monthlyPrice?: number;
   annualDiscountPct?: number;
+  isActive?: boolean;
+  features?: string[];
 };
 
 export class PlansRepository {
@@ -31,11 +35,16 @@ export class PlansRepository {
         name: data.name,
         monthlyPrice: data.monthlyPrice,
         annualDiscountPct: data.annualDiscountPct ?? 0,
+        features: data.features ?? [],
       },
     });
   }
 
   async update(id: string, data: UpdatePlanInput): Promise<Plan> {
     return prisma.plan.update({ where: { id }, data });
+  }
+
+  async deactivate(id: string): Promise<Plan> {
+    return prisma.plan.update({ where: { id }, data: { isActive: false } });
   }
 }

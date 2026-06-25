@@ -16,4 +16,8 @@ router.patch('/:id', requireSuperAdmin, (req, res, next) => {
   void plansController.update(req, res, next);
 });
 
+router.delete('/:id', requireSuperAdmin, (req, res, next) => {
+  void plansController.deactivate(req, res, next);
+});
+
 export default router;

@@ -29,6 +29,7 @@ export class PlansController {
         name: string;
         monthlyPrice: number;
         annualDiscountPct?: number;
+        features?: string[];
       };
 
       if (!body.name) {
@@ -49,6 +50,7 @@ export class PlansController {
         body.name,
         body.monthlyPrice,
         body.annualDiscountPct,
+        body.features,
       );
 
       res.status(201).json({ data: plan });
@@ -65,8 +67,11 @@ export class PlansController {
     try {
       const { id } = req.params as { id: string };
       const body = req.body as {
+        name?: string;
         monthlyPrice?: number;
         annualDiscountPct?: number;
+        isActive?: boolean;
+        features?: string[];
       };
 
       if (!id) {
@@ -77,22 +82,41 @@ export class PlansController {
       }
 
       if (
+        body.name === undefined &&
         body.monthlyPrice === undefined &&
-        body.annualDiscountPct === undefined
+        body.annualDiscountPct === undefined &&
+        body.isActive === undefined &&
+        body.features === undefined
       ) {
         res.status(400).json({
-          error:
-            'At least one field (monthlyPrice or annualDiscountPct) is required',
+          error: 'At least one field is required',
           statusCode: 400,
         });
         return;
       }
 
       const plan = await plansService.update(id, {
+        name: body.name,
         monthlyPrice: body.monthlyPrice,
         annualDiscountPct: body.annualDiscountPct,
+        isActive: body.isActive,
+        features: body.features,
       });
 
+      res.status(200).json({ data: plan });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async deactivate(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const plan = await plansService.deactivate(id);
       res.status(200).json({ data: plan });
     } catch (err) {
       next(err);
