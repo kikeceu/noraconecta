@@ -300,15 +300,14 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                         <td className="px-4 py-4 text-right">
                           {order.professionalEventType === 'COMPLETED' ? (
                             order.userRatingAvg !== null && order.userRatingAvg !== undefined ? (
-                              <button
-                                onClick={() => setRatingDetailOrder(order)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm cursor-pointer bg-[#ECFDF5] hover:bg-[#D1FAE5] transition-colors"
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-[#ECFDF5]"
                               >
                                 <span className="text-[#F59E0B]">⭐</span>
                                 <span className="font-medium text-[#0B6E4F]" style={{ fontFamily: 'JetBrains Mono' }}>
                                   {order.userRatingAvg}
                                 </span>
-                              </button>
+                              </span>
                             ) : (
                               <span className="text-xs text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
                                 Sin calificación
@@ -382,15 +381,14 @@ export function ProfessionalOrders({ sessionToken }: ProfessionalOrdersProps) {
                     <div>
                       {order.professionalEventType === 'COMPLETED' ? (
                         order.userRatingAvg !== null && order.userRatingAvg !== undefined ? (
-                          <button
-                            onClick={() => setRatingDetailOrder(order)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm cursor-pointer bg-[#ECFDF5] hover:bg-[#D1FAE5] transition-colors"
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-sm bg-[#ECFDF5]"
                           >
                             <span className="text-[#F59E0B]">⭐</span>
                             <span className="font-medium text-[#0B6E4F]" style={{ fontFamily: 'JetBrains Mono' }}>
                               {order.userRatingAvg}
                             </span>
-                          </button>
+                          </span>
                         ) : (
                           <span className="text-xs text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
                             Sin calificación
@@ -667,7 +665,6 @@ function RatingDetailModal({
   onClose: () => void;
   onRateUser: () => void;
 }) {
-  const userDetail = order.userRatingDetail;
   const professionalDetail = order.professionalRatingDetail;
 
   return (
@@ -692,45 +689,8 @@ function RatingDetailModal({
         </div>
 
         <div className="p-5 space-y-6">
-          <div>
-            <h3
-              className="text-sm font-semibold text-[#111827] mb-3"
-              style={{ fontFamily: 'DM Sans' }}
-            >
-              Lo que el usuario opinó de vos
-            </h3>
-            {userDetail ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[#111827]" style={{ fontFamily: 'DM Sans' }}>
-                    Promedio general
-                  </span>
-                  <div className="inline-flex items-center gap-1">
-                    <span className="text-[#F59E0B]">⭐</span>
-                    <span className="text-sm font-bold text-[#111827]" style={{ fontFamily: 'JetBrains Mono' }}>
-                      {order.userRatingAvg}
-                    </span>
-                  </div>
-                </div>
-                {userDetail.userComment && (
-                  <div className="pt-2 border-t border-[#F3F4F6]">
-                    <p className="text-xs text-[#6B7280] mb-1" style={{ fontFamily: 'DM Sans' }}>
-                      Comentario
-                    </p>
-                    <p className="text-sm text-[#374151] italic" style={{ fontFamily: 'DM Sans' }}>
-                      &ldquo;{userDetail.userComment}&rdquo;
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-[#9CA3AF]" style={{ fontFamily: 'DM Sans' }}>
-                El usuario aún no te calificó.
-              </p>
-            )}
-          </div>
 
-          <div className="pt-4 border-t border-[#E5E7EB]">
+          <div className="border-t border-[#E5E7EB]">
             <h3
               className="text-sm font-semibold text-[#111827] mb-3"
               style={{ fontFamily: 'DM Sans' }}

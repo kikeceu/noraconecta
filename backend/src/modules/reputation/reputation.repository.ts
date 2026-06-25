@@ -60,6 +60,25 @@ export class ReputationRepository {
     });
   }
 
+  async findUserComments(professionalId: string): Promise<{ rating: number; comment: string }[]> {
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        request: { assignedProfessionalId: professionalId },
+        ratedByUserAt: { not: null },
+        userComment: { not: null },
+      },
+      select: {
+        rating: true,
+        userComment: true,
+      },
+      orderBy: { ratedByUserAt: 'desc' },
+    });
+
+    return feedbacks
+      .filter((f): f is { rating: number; userComment: string } => f.userComment !== null && f.rating !== null)
+      .map((f) => ({ rating: f.rating, comment: f.userComment }));
+  }
+
   async findFeedbackBreakdown(professionalId: string): Promise<{
     averageRating: number;
     averagePunctuality: number;
