@@ -518,6 +518,20 @@ export class ProfessionalsController {
     }
   }
 
+  async cancelMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      if (!id) {
+        res.status(400).json({ error: 'Professional id is required', statusCode: 400 });
+        return;
+      }
+      await membershipsService.cancelMembership(id);
+      res.status(200).json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getCurrentPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };

@@ -60,8 +60,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── users.service.ts        # findOrCreateByPhone, isBlocked, block/unblock, updateName
 │   │   │   │   └── users.repository.ts     # Prisma queries for User model + updateName
 │   │   │   └── professionals/
-│   │   │       ├── professionals.routes.ts     # 15 endpoints under /professionals. POST /admin-create — AUT-351. PATCH /:id/license-status — AUT-324. GET /session/:sessionToken/earnings — AUT-327. GET /session/:sessionToken/membership-discount — AUT-329. GET /:id/current-plan — AUT-348
-│   │   │       ├── professionals.controller.ts # Request validation, response formatting. adminCreate — AUT-351. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327. getMembershipDiscount — AUT-329. verify soporta ?mode=license para re-subida de credencial — AUT-335. getCurrentPlan: endpoint público de plan activo — AUT-348
+│   │   │       ├── professionals.routes.ts     # 15 endpoints under /professionals. POST /admin-create — AUT-351. PATCH /:id/license-status — AUT-324. GET /session/:sessionToken/earnings — AUT-327. GET /session/:sessionToken/membership-discount — AUT-329. GET /:id/current-plan — AUT-348. DELETE /:id/membership — AUT-353
+│   │   │       ├── professionals.controller.ts # Request validation, response formatting. adminCreate — AUT-351. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327. getMembershipDiscount — AUT-329. verify soporta ?mode=license para re-subida de credencial — AUT-335. getCurrentPlan: endpoint público de plan activo — AUT-348. cancelMembership: cancelación de membresía activa — AUT-353
 │   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. adminCreate: alta directa de profesional en ACTIVE con zonas — AUT-351. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getMembershipDiscount: consulta de descuento de membresía desde SystemConfig con validación de expiración — AUT-329. updateLicenseStatus: aprobación/rechazo de credencial por admin; notifica al profesional vía WhatsApp cuando se rechaza con nuevo token y CTA de re-subida — AUT-324, AUT-335. submitLicenseResubmission: re-subida de credencial vía token con ?mode=license — AUT-335. sendWithWindowCheck: helper de envío con template/text según ventana 24hs — AUT-335. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323. getPanelData incluye userComments anónimos en reputación — AUT-345, trialRequestsLimit leído desde SystemConfig en vez de hardcodeado — AUT-349. getCurrentPlan: devuelve el plan activo del profesional vía MembershipsService — AUT-348
 │   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323. findById ahora incluye category en el tipo de retorno — AUT-335
 │   │   │   ├── admin/
@@ -77,8 +77,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── memberships/
 │   │   │   │   ├── memberships.routes.ts     # GET /professionals/:id/membership (requireAuth), POST /professionals/:id/membership (requireSuperAdmin) — AUT-350
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
-│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331). sendExpirationReminders: cron diario de notificación de vencimiento con sendWithWindowCheck (AUT-330)
-│   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models + findExpiringMemberships, markReminderSent, clearExpiredReminderFlags (AUT-330)
+│   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331). cancelMembership — AUT-353. sendExpirationReminders: cron diario de notificación de vencimiento con sendWithWindowCheck (AUT-330)
+│   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models + findExpiringMemberships, markReminderSent, clearExpiredReminderFlags (AUT-330). updateStatus extendido con CANCELED — AUT-353
 │   │   │   ├── config/
 │   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
 │   │   │   │   ├── config.controller.ts # Request validation, response formatting
@@ -175,7 +175,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls. Polling de mensajes externos del simulador cada 2s vía /simulator/messages (AUT-268)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
-│   │   │   ├── admin-api.ts           # REST client for all admin endpoints. adminCreateProfessional: alta directa de profesional — AUT-351. getMembershipDiscountConfig, setMembershipDiscount — AUT-334. getCurrentPlan: consulta de plan activo — AUT-348
+│   │   │   ├── admin-api.ts           # REST client for all admin endpoints. adminCreateProfessional: alta directa de profesional — AUT-351. getMembershipDiscountConfig, setMembershipDiscount — AUT-334. getCurrentPlan: consulta de plan activo — AUT-348. cancelMembership: cancelación de membresía — AUT-353
 │   │   │   ├── onboarding-api.ts      # API client for professional onboarding. submitVerification incluye licenseUrl — AUT-323. submitLicenseResubmission: re-subida de credencial vía ?mode=license — AUT-335
 │   │   │   ├── panel-api.ts           # API client for professional panel (NEW)
 │   │   │   ├── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
@@ -183,7 +183,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep (incluye 'license'), FileUploadInfo, OnboardingFormData (incluye licenseUrl), TokenValidationResponse (incluye requiresLicense, licenseLabel, declaredHasLicense) — AUT-323
-│   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) (NEW)
+│   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) + MembershipStatusKind extendido con CANCELED — AUT-353 (NEW)
 │   │   │   └── panel.ts               # Interfaces for professional panel data (PanelData, PanelOrder, etc.) + totalEarnings en ActivityStatsResponse (AUT-328) + userComments en PanelReputation (AUT-345)
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
@@ -198,7 +198,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
 │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, hierarchical geo filter (Provincia → Departamento), badges, pagination, phone column between zone and status, botón "Nuevo profesional" con modal de alta directa (SUPERADMIN only) — AUT-351 (AUT-205, AUT-341)
-│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324, sección Membresía con consulta de estado y modal de asignación manual de membresía (SUPERADMIN only) — AUT-350 (AUT-205)
+│   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324, sección Membresía con consulta de estado, botón contextual (Asignar/Cambiar plan/Renovar) y cancelación (SUPERADMIN only) — AUT-350, AUT-353 (AUT-205)
 │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── UsersPage.tsx                # Table with phone, status, block/unblock actions
 │   │   │   │   ├── OrdersPage.tsx               # Table with status badges + compact timeline dots

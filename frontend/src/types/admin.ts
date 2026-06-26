@@ -22,7 +22,7 @@ export type RequestStatus =
 
 export type EscalationStatus = 'OPEN' | 'IN_REVIEW' | 'RESOLVED';
 
-export type MembershipStatusKind = 'ACTIVE' | 'INACTIVE' | 'EXPIRED';
+export type MembershipStatusKind = 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | 'CANCELED';
 
 export type LicenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 

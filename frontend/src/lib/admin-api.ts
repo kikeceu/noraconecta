@@ -310,6 +310,12 @@ export function adminCreateProfessional(data: {
 }
 
 // Memberships
+export function cancelMembership(professionalId: string): Promise<{ data: { ok: boolean } }> {
+  return request(`/professionals/${professionalId}/membership`, {
+    method: 'DELETE',
+  });
+}
+
 export function getMembership(
   professionalId: string,
 ): Promise<SingleResponse<{ canReceiveRequests: boolean; activeMembership: Membership | null; trialRequestsUsed: number; trialRequestsLimit: number }>> {

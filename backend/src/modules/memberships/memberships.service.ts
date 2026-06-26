@@ -150,6 +150,12 @@ export class MembershipsService {
     });
   }
 
+  async cancelMembership(professionalId: string): Promise<void> {
+    const active = await this.membershipsRepository.findActiveByProfessionalId(professionalId);
+    if (!active) throw new AppError('No active membership found', 404);
+    await this.membershipsRepository.updateStatus(active.id, 'CANCELED');
+  }
+
   async getActiveMembership(professionalId: string): Promise<Membership | null> {
     return this.membershipsRepository.findActiveByProfessionalId(professionalId);
   }
