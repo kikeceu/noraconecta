@@ -640,11 +640,13 @@ Sistema de auditoría de cambios sensibles del profesional con cola de revisión
 |-----------------|----------|------------------------------------------------|
 | `id`            | String   | PK (cuid)                                      |
 | `professionalId`| String   | FK → Professional                              |
-| `changedFields` | Json     | Array de campos sensibles modificados          |
-| `status`        | String   | `PENDING` (default) o `REVIEWED`               |
-| `createdAt`     | DateTime | Fecha de creación                              |
-| `reviewedAt`    | DateTime?| Fecha de revisión                              |
-| `reviewedBy`    | String?  | Admin que revisó                               |
+| `changedFields`  | Json     | Array de campos sensibles modificados          |
+| `previousValues` | Json?    | Valores anteriores por campo (AUT-358)         |
+| `newValues`      | Json?    | Valores nuevos por campo (AUT-358)             |
+| `status`         | String   | `PENDING` (default) o `REVIEWED`               |
+| `createdAt`      | DateTime | Fecha de creación                              |
+| `reviewedAt`     | DateTime?| Fecha de revisión                              |
+| `reviewedBy`     | String?  | Admin que revisó                               |
 
 **Campos sensibles detectados:** `name`, `dniNumber`, `cuil`, `dniFrontUrl`, `dniBackUrl`, `criminalRecordUrl`, `licenseUrl`.
 
