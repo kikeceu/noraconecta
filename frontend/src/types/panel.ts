@@ -42,6 +42,7 @@ export interface PanelMembershipData {
       name: string;
       monthlyPrice: number;
       annualDiscountPct: number;
+      features?: string[];
     };
   } | null;
   trialRequestsUsed: number;

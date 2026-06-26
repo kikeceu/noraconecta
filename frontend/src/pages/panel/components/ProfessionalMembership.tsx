@@ -271,7 +271,10 @@ export function ProfessionalMembership({ membership, sessionToken, professionalI
           <PanelCard>
             <SectionHeader>Tus Beneficios</SectionHeader>
             <div className="divide-y divide-[#F3F4F6]">
-              {BENEFITS.map((benefit) => (
+              {(membership.activeMembership?.plan?.features?.length
+                ? membership.activeMembership.plan.features as string[]
+                : BENEFITS
+              ).map((benefit) => (
                 <div key={benefit} className="flex items-center gap-3 py-2.5">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                     <circle cx="12" cy="12" r="10" />
@@ -460,10 +463,10 @@ export function ProfessionalMembership({ membership, sessionToken, professionalI
 
 const BENEFITS = [
   'Pedidos ilimitados',
-  'Perfil destacado en búsquedas',
-  'Soporte prioritario por WhatsApp',
-  'Estadísticas de rendimiento',
-  `Badge de confianza ${brand.name}`,
+  'Panel de gestión de pedidos',
+  'Historial, reputación y perfil verificado',
+  'Estadísticas de ganancias',
+  'Prioridad frente a profesionales sin membresía',
 ];
 
 function formatDate(dateStr: string): string {
