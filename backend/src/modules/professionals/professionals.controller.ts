@@ -478,6 +478,46 @@ export class ProfessionalsController {
     }
   }
 
+  async adminCreate(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const body = req.body as {
+        phone: string;
+        name: string;
+        categoryId: string;
+        zoneIds: string[];
+      };
+
+      if (!body.phone) {
+        res.status(400).json({ error: 'Phone is required', statusCode: 400 });
+        return;
+      }
+
+      if (!body.name) {
+        res.status(400).json({ error: 'Name is required', statusCode: 400 });
+        return;
+      }
+
+      if (!body.categoryId) {
+        res.status(400).json({ error: 'Category is required', statusCode: 400 });
+        return;
+      }
+
+      if (!body.zoneIds?.length) {
+        res.status(400).json({ error: 'At least one zone is required', statusCode: 400 });
+        return;
+      }
+
+      const professional = await professionalsService.adminCreate(body);
+      res.status(201).json({ data: professional });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getCurrentPlan(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };

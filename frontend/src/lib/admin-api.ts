@@ -297,6 +297,18 @@ export function getCurrentPlan(
   return request(`/professionals/${encodeURIComponent(professionalId)}/current-plan`);
 }
 
+export function adminCreateProfessional(data: {
+  phone: string;
+  name: string;
+  categoryId: string;
+  zoneIds: string[];
+}): Promise<SingleResponse<Professional>> {
+  return request<SingleResponse<Professional>>('/professionals/admin-create', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
 // Memberships
 export function getMembership(
   professionalId: string,

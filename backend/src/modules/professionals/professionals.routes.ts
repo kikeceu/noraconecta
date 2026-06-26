@@ -50,6 +50,10 @@ router.get(
 );
 
 // Auth required — OPERATOR+
+router.post('/admin-create', requireSuperAdmin, (req, res, next) => {
+  void professionalsController.adminCreate(req, res, next);
+});
+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);
 });
