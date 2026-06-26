@@ -6,10 +6,14 @@ export interface PanelProfessional {
   category: { id: string; name: string } | null;
   zones: { id: string; name: string }[];
   availability: string | null;
+  availabilityStructured: { slots: { day: number; from: string; to: string }[] } | null;
   hasBadge: boolean;
+  dniNumber: string | null;
   dniFrontUrl: string | null;
   dniBackUrl: string | null;
   criminalRecordUrl: string | null;
+  licenseUrl: string | null;
+  declaredHasLicense: boolean | null;
   cuil: string | null;
   references: string | null;
   presentationVideoUrl: string | null;

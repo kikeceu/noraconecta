@@ -427,6 +427,10 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
         cuil: panelData.professional!.cuil,
         references: panelData.professional!.references,
         presentationVideoUrl: panelData.professional!.presentationVideoUrl,
+        dniNumber: panelData.professional!.dniNumber,
+        licenseUrl: panelData.professional!.licenseUrl,
+        declaredHasLicense: panelData.professional!.declaredHasLicense,
+        availabilityStructured: panelData.professional!.availabilityStructured,
       },
       membership: {
         activeMembership: panelData.membership,

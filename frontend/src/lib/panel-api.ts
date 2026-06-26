@@ -1,4 +1,5 @@
 import type { PanelData, PanelOrdersResponse, PendingRequestsResponse, ActivityStatsResponse } from '../types/panel';
+import { presignUpload, uploadToR2 } from './api';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -166,6 +167,52 @@ export async function confirmVisitRequest(
     const err = await res.json().catch(() => ({ error: 'Failed to confirm visit' }));
     throw new Error(err.error || 'Failed to confirm visit');
   }
+}
+
+export async function updateProfile(
+  sessionToken: string,
+  data: {
+    name?: string;
+    zoneIds?: string[];
+    availability?: string;
+    availabilityStructured?: unknown;
+    dniNumber?: string;
+    cuil?: string;
+    dniFrontUrl?: string;
+    dniBackUrl?: string;
+    criminalRecordUrl?: string;
+    licenseUrl?: string;
+    declaredHasLicense?: boolean;
+    references?: string;
+    presentationVideoUrl?: string;
+  },
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/professionals/session/${encodeURIComponent(sessionToken)}/profile`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Failed to update profile');
+  }
+}
+
+export async function uploadProfileFile(file: File): Promise<string> {
+  const { uploadUrl, publicUrl } = await presignUpload('verification', file.name, file.type);
+  await uploadToR2(uploadUrl, file, file.type);
+  return publicUrl;
+}
+
+export async function getDepartments(
+  sessionToken: string,
+): Promise<{ data: { id: string; name: string }[] }> {
+  return request(
+    `/professionals/session/${encodeURIComponent(sessionToken)}/departments`,
+  );
 }
 
 export async function confirmScheduleRequest(

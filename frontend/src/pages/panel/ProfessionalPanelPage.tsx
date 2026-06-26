@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPanelData, getMembershipDiscount } from '../../lib/panel-api';
 import type { PanelData, PanelTab } from '../../types/panel';
@@ -6,6 +6,7 @@ import { SessionErrorScreen } from './components/SessionErrorScreen';
 import { ProfessionalLayout } from './components/ProfessionalLayout';
 import { ProfessionalDashboard } from './components/ProfessionalDashboard';
 import { ProfessionalProfile } from './components/ProfessionalProfile';
+import { ProfessionalProfileEdit } from './components/ProfessionalProfileEdit';
 import { ProfessionalMembership } from './components/ProfessionalMembership';
 import { ProfessionalOrders } from './components/ProfessionalOrders';
 import { ProfessionalReputation } from './components/ProfessionalReputation';
@@ -21,11 +22,23 @@ export function ProfessionalPanelPage() {
   const { sessionToken } = useParams<{ sessionToken: string }>();
   const [state, setState] = useState<PageState>({ status: 'loading' });
   const [activeTab, setActiveTab] = useState<PanelTab>('dashboard');
+  const [editingProfile, setEditingProfile] = useState(false);
   const [discount, setDiscount] = useState<{
     active: boolean;
     discountPct: number;
     expiresAt: string | null;
   } | null>(null);
+
+  const reloadData = useCallback(() => {
+    if (!sessionToken) return;
+    getPanelData(sessionToken)
+      .then((data) => setState({ status: 'ready', data }))
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : '';
+        const variant = message.toLowerCase().includes('expired') ? 'expired' : 'invalid';
+        setState({ status: 'error', variant });
+      });
+  }, [sessionToken]);
 
   useEffect(() => {
     if (!sessionToken) {
@@ -93,7 +106,22 @@ export function ProfessionalPanelPage() {
       {activeTab === 'dashboard' && (
         <ProfessionalDashboard data={data} onTabChange={setActiveTab} sessionToken={sessionToken!} />
       )}
-      {activeTab === 'profile' && <ProfessionalProfile professional={data.professional} />}
+      {activeTab === 'profile' && (
+        editingProfile
+          ? <ProfessionalProfileEdit
+              professional={data.professional}
+              sessionToken={sessionToken!}
+              onSave={() => {
+                setEditingProfile(false);
+                reloadData();
+              }}
+              onCancel={() => setEditingProfile(false)}
+            />
+          : <ProfessionalProfile
+              professional={data.professional}
+              onEdit={() => setEditingProfile(true)}
+            />
+      )}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}
       {activeTab === 'in-progress' && (
         <ProfessionalInProgress
