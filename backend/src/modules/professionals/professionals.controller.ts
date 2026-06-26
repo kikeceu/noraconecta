@@ -557,6 +557,77 @@ export class ProfessionalsController {
     }
   }
 
+  async getSessionDepartments(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+
+      const professional = await professionalsService.getSessionByToken(token);
+      if (!professional) {
+        res.status(401).json({ error: 'Invalid session token', statusCode: 401 });
+        return;
+      }
+
+      const departments = await prisma.geoNode.findMany({
+        where: {
+          level: { level: 2 },
+          isActive: true,
+        },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+      res.status(200).json({ data: departments });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+      const body = req.body as {
+        name?: string;
+        zoneIds?: string[];
+        availability?: string;
+        availabilityStructured?: unknown;
+        dniNumber?: string;
+        cuil?: string;
+        dniFrontUrl?: string;
+        dniBackUrl?: string;
+        criminalRecordUrl?: string;
+        licenseUrl?: string;
+        declaredHasLicense?: boolean;
+        references?: string;
+        presentationVideoUrl?: string;
+      };
+
+      const professional = await professionalsService.getSessionByToken(token);
+      if (!professional) {
+        res.status(401).json({ error: 'Invalid session token', statusCode: 401 });
+        return;
+      }
+
+      const { zoneIds, availabilityStructured, ...rest } = body;
+
+      const updated = await professionalsService.adminUpdate(professional.id, {
+        ...rest,
+        zoneIds,
+        availabilityStructured,
+      });
+
+      res.status(200).json({ data: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async cancelMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };

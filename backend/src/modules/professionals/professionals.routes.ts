@@ -18,6 +18,14 @@ router.post('/verify/:token', (req, res, next) => {
   void professionalsController.verify(req, res, next);
 });
 
+router.patch('/session/:token/profile', (req, res, next) => {
+  void professionalsController.updateProfile(req, res, next);
+});
+
+router.get('/session/:token/departments', (req, res, next) => {
+  void professionalsController.getSessionDepartments(req, res, next);
+});
+
 router.get('/session/:token', (req, res, next) => {
   void professionalsController.getSessionByToken(req, res, next);
 });

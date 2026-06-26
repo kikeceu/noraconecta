@@ -4,6 +4,7 @@ import { brand } from '../../../lib/brand';
 
 interface ProfessionalProfileProps {
   professional: PanelProfessional;
+  onEdit: () => void;
 }
 
 const STATUS_CONFIG: Record<ProfessionalStatus, { label: string; bg: string; text: string }> = {
@@ -33,17 +34,26 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ProfessionalProfile({ professional }: ProfessionalProfileProps) {
+export function ProfessionalProfile({ professional, onEdit }: ProfessionalProfileProps) {
   const status = STATUS_CONFIG[professional.status] || STATUS_CONFIG.PENDING;
 
   return (
     <div className="max-w-5xl space-y-8">
-      <h1
-        className="text-3xl font-bold text-[#111827]"
-        style={{ fontFamily: 'DM Sans' }}
-      >
-        Mi Perfil
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1
+          className="text-3xl font-bold text-[#111827]"
+          style={{ fontFamily: 'DM Sans' }}
+        >
+          Mi Perfil
+        </h1>
+        <button
+          onClick={onEdit}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-[#0B6E4F] text-white hover:bg-[#095c41] transition-colors cursor-pointer"
+          style={{ fontFamily: 'DM Sans' }}
+        >
+          Editar perfil
+        </button>
+      </div>
 
       <PanelCard>
         <SectionHeader>Estado del Profesional</SectionHeader>
