@@ -974,6 +974,46 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     );
   }
 
+  async adminCreate(data: {
+    phone: string;
+    name: string;
+    categoryId: string;
+    zoneIds: string[];
+  }): Promise<Professional> {
+    const trimmedPhone = data.phone.trim();
+    const trimmedName = data.name.trim();
+
+    if (!trimmedPhone) throw new AppError('Phone is required', 400);
+    if (!trimmedName) throw new AppError('Name is required', 400);
+    if (!data.categoryId) throw new AppError('Category is required', 400);
+    if (!data.zoneIds?.length) throw new AppError('At least one zone is required', 400);
+
+    const existing = await this.professionalsRepository.findByPhone(trimmedPhone);
+    if (existing) throw new AppError('A professional with this phone already exists', 409);
+
+    const verificationToken = randomUUID();
+    const verificationTokenExp = new Date(
+      Date.now() + VERIFICATION_TOKEN_TTL_HOURS * 60 * 60 * 1000,
+    );
+
+    const professional = await this.professionalsRepository.create({
+      phone: trimmedPhone,
+      name: trimmedName,
+      categoryId: data.categoryId,
+      verificationToken,
+      verificationTokenExp,
+    });
+
+    await this.professionalsRepository.updateStatus(professional.id, 'ACTIVE');
+
+    for (const zoneId of data.zoneIds) {
+      await this.professionalsRepository.addZone(professional.id, zoneId);
+    }
+
+    const updated = await this.professionalsRepository.findById(professional.id);
+    return updated!;
+  }
+
   async getCurrentPlan(professionalId: string): Promise<{ planId: string; planName: string } | null> {
     const membership = await this.membershipsService.getActiveMembership(professionalId) as {
       planId: string;

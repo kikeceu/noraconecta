@@ -1,9 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getProfessionals, getGeoTree } from '../../lib/admin-api';
+import { Search, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import {
+  getProfessionals,
+  getGeoTree,
+  adminCreateProfessional,
+  getCategories,
+  getDepartments,
+} from '../../lib/admin-api';
+import { useAuth } from '../../context/AuthContext';
 import { resolveHostContext } from '../../lib/host';
-import type { Professional, ProfessionalStatus } from '../../types/admin';
+import type { Professional, ProfessionalStatus, Category } from '../../types/admin';
 
 const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: string }> = {
   PENDING: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700' },
@@ -31,6 +38,7 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
 ];
 
 export function ProfessionalsPage() {
+  const { isSuperAdmin } = useAuth();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,6 +50,17 @@ export function ProfessionalsPage() {
     provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
   }>({ provinces: [] });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    phone: '',
+    name: '',
+    categoryId: '',
+    zoneIds: [] as string[],
+  });
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
 
   const fetchData = (page = 1) => {
     setLoading(true);
@@ -74,6 +93,46 @@ export function ProfessionalsPage() {
     setDepartmentFilter('');
   };
 
+  const openCreateModal = useCallback(() => {
+    setCreateForm({ phone: '', name: '', categoryId: '', zoneIds: [] });
+    setCreateError('');
+    setShowCreateModal(true);
+    Promise.all([
+      getCategories(),
+      getDepartments(),
+    ])
+      .then(([catRes, depRes]) => {
+        setCategories(catRes.data.filter((c) => c.isActive));
+        setDepartments(depRes.data);
+      })
+      .catch((err) => {
+        console.error('Failed to load form data', err);
+      });
+  }, []);
+
+  const toggleZone = (zoneId: string) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      zoneIds: prev.zoneIds.includes(zoneId)
+        ? prev.zoneIds.filter((id) => id !== zoneId)
+        : [...prev.zoneIds, zoneId],
+    }));
+  };
+
+  const handleAdminCreate = async () => {
+    setCreateLoading(true);
+    setCreateError('');
+    try {
+      await adminCreateProfessional(createForm);
+      setShowCreateModal(false);
+      fetchData();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Error al crear profesional');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,11 +148,21 @@ export function ProfessionalsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Profesionales</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Gestión de profesionales registrados en la plataforma
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tighter">Profesionales</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Gestión de profesionales registrados en la plataforma
+          </p>
+        </div>
+        {isSuperAdmin() && (
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 cursor-pointer shrink-0"
+          >
+            Nuevo profesional
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -327,6 +396,130 @@ export function ProfessionalsPage() {
           </div>
         )}
       </div>
+
+      {/* Create professional modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-gray-900/40"
+            onClick={() => setShowCreateModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-6 mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Nuevo profesional</h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 rounded-md text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Nombre completo
+                </label>
+                <input
+                  type="text"
+                  value={createForm.name}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, name: e.target.value })
+                  }
+                  placeholder="Nombre del profesional"
+                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Teléfono
+                </label>
+                <input
+                  type="text"
+                  value={createForm.phone}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, phone: e.target.value })
+                  }
+                  placeholder="5492612345678"
+                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Categoría
+                </label>
+                <select
+                  value={createForm.categoryId}
+                  onChange={(e) =>
+                    setCreateForm({ ...createForm, categoryId: e.target.value })
+                  }
+                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                  Zonas
+                </label>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                  {departments.length === 0 && (
+                    <p className="text-sm text-gray-400 p-2">Cargando zonas...</p>
+                  )}
+                  {departments.map((d) => (
+                    <label
+                      key={d.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={createForm.zoneIds.includes(d.id)}
+                        onChange={() => toggleZone(d.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-green-700 focus:ring-green-700/40 cursor-pointer"
+                      />
+                      <span className="text-sm text-gray-700">{d.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {createError && (
+              <p className="mt-3 text-sm text-red-600">{createError}</p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAdminCreate}
+                disabled={
+                  !createForm.name.trim() ||
+                  !createForm.phone.trim() ||
+                  !createForm.categoryId ||
+                  createForm.zoneIds.length === 0 ||
+                  createLoading
+                }
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
+              >
+                {createLoading ? 'Creando...' : 'Crear profesional'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
