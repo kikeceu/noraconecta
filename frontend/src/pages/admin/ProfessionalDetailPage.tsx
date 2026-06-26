@@ -11,6 +11,7 @@ import {
   updateLicenseStatus,
   getMembership,
   activateMembership,
+  cancelMembership,
   getPlans,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
@@ -59,6 +60,7 @@ export function ProfessionalDetailPage() {
   const [selectedPlanId, setSelectedPlanId] = useState('');
   const [selectedType, setSelectedType] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [assigningMembership, setAssigningMembership] = useState(false);
+  const [cancelingMembership, setCancelingMembership] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -162,6 +164,21 @@ export function ProfessionalDetailPage() {
       setError(err instanceof Error ? err.message : 'Error al asignar membresía');
     } finally {
       setAssigningMembership(false);
+    }
+  };
+
+  const handleCancelMembership = async () => {
+    if (!id) return;
+    setCancelingMembership(true);
+    try {
+      await cancelMembership(id);
+      const res = await getMembership(id);
+      setMembership(res.data.activeMembership);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cancelar membresía');
+    } finally {
+      setCancelingMembership(false);
+      setConfirmAction(null);
     }
   };
 
@@ -505,7 +522,7 @@ export function ProfessionalDetailPage() {
                   <div className="h-4 w-1/2 bg-gray-200 rounded" />
                   <div className="h-4 w-2/3 bg-gray-200 rounded" />
                 </div>
-              ) : membership && membership.status === 'ACTIVE' ? (
+              ) : membership && membership.status === 'ACTIVE' && new Date(membership.endDate) > new Date() ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Plan activo</span>
@@ -522,6 +539,19 @@ export function ProfessionalDetailPage() {
                     </span>
                   </div>
                 </div>
+              ) : membership && (membership.status === 'EXPIRED' || membership.status === 'CANCELED' || new Date(membership.endDate) <= new Date()) ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Estado</span>
+                    <span className="text-sm font-medium text-amber-700">
+                      {membership.status === 'CANCELED' ? 'Cancelada' : 'Vencida'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Plan</span>
+                    <span className="text-sm font-medium text-gray-700">{membership.plan?.name ?? '—'}</span>
+                  </div>
+                </div>
               ) : (
                 <p className="text-sm text-gray-400 mb-3">Sin membresía activa</p>
               )}
@@ -536,8 +566,22 @@ export function ProfessionalDetailPage() {
                 }}
                 className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors w-full justify-center cursor-pointer"
               >
-                Asignar membresía
+                {!membership
+                  ? 'Asignar membresía'
+                  : membership.status === 'ACTIVE' && new Date(membership.endDate) > new Date()
+                    ? 'Cambiar plan'
+                    : 'Renovar membresía'}
               </button>
+
+              {membership && membership.status === 'ACTIVE' && new Date(membership.endDate) > new Date() && (
+                <button
+                  onClick={() => setConfirmAction({ action: 'cancelMembership', label: 'cancelar la membresía de este profesional' })}
+                  disabled={cancelingMembership}
+                  className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors w-full justify-center cursor-pointer"
+                >
+                  Cancelar membresía
+                </button>
+              )}
             </div>
           )}
 
@@ -704,7 +748,9 @@ export function ProfessionalDetailPage() {
               ? 'Rechazar profesional'
               : confirmAction?.action === 'suspend'
                 ? 'Suspender profesional'
-                : 'Reactivar profesional'
+                : confirmAction?.action === 'cancelMembership'
+                  ? 'Cancelar membresía'
+                  : 'Reactivar profesional'
         }
         description={
           confirmAction
@@ -718,15 +764,17 @@ export function ProfessionalDetailPage() {
               ? 'Rechazar'
               : confirmAction?.action === 'suspend'
                 ? 'Suspender'
-                : 'Reactivar'
+                : confirmAction?.action === 'cancelMembership'
+                  ? 'Cancelar membresía'
+                  : 'Reactivar'
         }
         variant={
           confirmAction?.action === 'approve' || confirmAction?.action === 'reactivate'
             ? 'success'
             : 'danger'
         }
-        loading={!!actionLoading}
-        onConfirm={() => confirmAction && executeAction(confirmAction.action)}
+        loading={!!actionLoading || cancelingMembership}
+        onConfirm={() => confirmAction && (confirmAction.action === 'cancelMembership' ? handleCancelMembership() : executeAction(confirmAction.action))}
         onCancel={() => setConfirmAction(null)}
       />
     </div>

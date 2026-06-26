@@ -64,7 +64,7 @@ export class MembershipsRepository {
 
   async updateStatus(
     id: string,
-    status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED',
+    status: 'ACTIVE' | 'INACTIVE' | 'EXPIRED' | 'CANCELED',
   ): Promise<Membership> {
     return prisma.membership.update({
       where: { id },
