@@ -302,6 +302,8 @@ export function adminCreateProfessional(data: {
   name: string;
   categoryId: string;
   zoneIds: string[];
+  availability?: string;
+  availabilityStructured?: { slots: { day: number; from: string; to: string }[] };
 }): Promise<SingleResponse<Professional>> {
   return request<SingleResponse<Professional>>('/professionals/admin-create', {
     method: 'POST',

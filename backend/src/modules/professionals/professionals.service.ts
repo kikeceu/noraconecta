@@ -8,7 +8,7 @@ import { ReputationRepository } from '../reputation/reputation.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { AppError } from '../../middleware/error-handler';
-import { Professional, ProfessionalStatus, LicenseStatus } from '@prisma/client';
+import { Professional, ProfessionalStatus, LicenseStatus, Prisma } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { LICENSE_REJECTED_TEMPLATE } from '../../utils/whatsapp-templates';
@@ -979,6 +979,8 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     name: string;
     categoryId: string;
     zoneIds: string[];
+    availability?: string;
+    availabilityStructured?: { slots: { day: number; from: string; to: string }[] };
   }): Promise<Professional> {
     const trimmedPhone = data.phone.trim();
     const trimmedName = data.name.trim();
@@ -1004,7 +1006,13 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       verificationTokenExp,
     });
 
-    await this.professionalsRepository.updateStatus(professional.id, 'ACTIVE');
+    await this.professionalsRepository.update(professional.id, {
+      status: 'ACTIVE',
+      ...(data.availability && { availability: data.availability }),
+      ...(data.availabilityStructured && {
+        availabilityStructured: data.availabilityStructured as Prisma.InputJsonValue,
+      }),
+    });
 
     for (const zoneId of data.zoneIds) {
       await this.professionalsRepository.addZone(professional.id, zoneId);
