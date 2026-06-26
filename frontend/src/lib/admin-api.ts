@@ -1,3 +1,7 @@
+import {
+  presignUpload,
+  uploadToR2,
+} from './api';
 import type {
   LoginResponse,
   DashboardMetrics,
@@ -295,6 +299,38 @@ export function getCurrentPlan(
   professionalId: string,
 ): Promise<{ data: { planId: string; planName: string } | null }> {
   return request(`/professionals/${encodeURIComponent(professionalId)}/current-plan`);
+}
+
+export function updateProfessional(
+  id: string,
+  data: {
+    name?: string;
+    categoryId?: string;
+    zoneIds?: string[];
+    availability?: string;
+    availabilityStructured?: unknown;
+    dniNumber?: string;
+    cuil?: string;
+    dniFrontUrl?: string;
+    dniBackUrl?: string;
+    criminalRecordUrl?: string;
+    licenseUrl?: string;
+    licenseStatus?: string;
+    declaredHasLicense?: boolean;
+    references?: string;
+    presentationVideoUrl?: string;
+  }
+): Promise<SingleResponse<Professional>> {
+  return request<SingleResponse<Professional>>(`/professionals/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function uploadProfessionalFile(file: File): Promise<string> {
+  const { uploadUrl, publicUrl } = await presignUpload('verification', file.name, file.type);
+  await uploadToR2(uploadUrl, file, file.type);
+  return publicUrl;
 }
 
 export function adminCreateProfessional(data: {

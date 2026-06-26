@@ -70,6 +70,10 @@ router.get('/:id/current-plan', (req, res, next) => {
   void professionalsController.getCurrentPlan(req, res, next);
 });
 
+router.patch('/:id', requireSuperAdmin, (req, res, next) => {
+  void professionalsController.adminUpdate(req, res, next);
+});
+
 router.get('/:id', requireAuth, (req, res, next) => {
   void professionalsController.getById(req, res, next);
 });

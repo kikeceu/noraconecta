@@ -9,6 +9,7 @@ import { PlansRepository } from '../plans/plans.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 import prisma from '../../lib/prisma';
+import { LicenseStatus } from '@prisma/client';
 
 const professionalsRepository = new ProfessionalsRepository();
 const configRepository = new ConfigRepository();
@@ -515,6 +516,42 @@ export class ProfessionalsController {
 
       const professional = await professionalsService.adminCreate(body);
       res.status(201).json({ data: professional });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async adminUpdate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+      const body = req.body as {
+        name?: string;
+        categoryId?: string;
+        zoneIds?: string[];
+        availability?: string;
+        availabilityStructured?: unknown;
+        dniNumber?: string;
+        cuil?: string;
+        dniFrontUrl?: string;
+        dniBackUrl?: string;
+        criminalRecordUrl?: string;
+        licenseUrl?: string;
+        licenseStatus?: string;
+        declaredHasLicense?: boolean;
+        references?: string;
+        presentationVideoUrl?: string;
+      };
+
+      if (!id) {
+        res.status(400).json({ error: 'Professional id is required', statusCode: 400 });
+        return;
+      }
+
+      const professional = await professionalsService.adminUpdate(id, {
+        ...body,
+        licenseStatus: body.licenseStatus as LicenseStatus | undefined,
+      });
+      res.status(200).json({ data: professional });
     } catch (err) {
       next(err);
     }

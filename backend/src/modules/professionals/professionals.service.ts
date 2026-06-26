@@ -1022,6 +1022,44 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     return updated!;
   }
 
+  async adminUpdate(id: string, data: {
+    name?: string;
+    categoryId?: string;
+    zoneIds?: string[];
+    availability?: string;
+    availabilityStructured?: unknown;
+    dniNumber?: string;
+    cuil?: string;
+    dniFrontUrl?: string;
+    dniBackUrl?: string;
+    criminalRecordUrl?: string;
+    licenseUrl?: string;
+    licenseStatus?: LicenseStatus;
+    declaredHasLicense?: boolean;
+    references?: string;
+    presentationVideoUrl?: string;
+  }): Promise<Professional> {
+    const { zoneIds, availabilityStructured, ...rest } = data;
+
+    await this.professionalsRepository.update(id, {
+      ...rest,
+      ...(availabilityStructured !== undefined && {
+        availabilityStructured: availabilityStructured as Prisma.InputJsonValue,
+      }),
+    });
+
+    if (zoneIds !== undefined) {
+      await this.professionalsRepository.deleteAllZones(id);
+      for (const zoneId of zoneIds) {
+        await this.professionalsRepository.addZone(id, zoneId);
+      }
+    }
+
+    const updated = await this.professionalsRepository.findById(id);
+    if (!updated) throw new AppError('Professional not found', 404);
+    return updated;
+  }
+
   async getCurrentPlan(professionalId: string): Promise<{ planId: string; planName: string } | null> {
     const membership = await this.membershipsService.getActiveMembership(professionalId) as {
       planId: string;

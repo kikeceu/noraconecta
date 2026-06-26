@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, FileText, CheckCircle, XCircle, Copy, Check, Link2, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import {
   getProfessional,
@@ -42,6 +42,7 @@ const SESSION_ELIGIBLE_STATUSES: ReadonlySet<ProfessionalStatus> = new Set([
 
 export function ProfessionalDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { isSuperAdmin } = useAuth();
   const [professional, setProfessional] = useState<Professional | null>(null);
   const [reputation, setReputation] = useState<ProfessionalDetail['reputation'] | null>(null);
@@ -250,6 +251,14 @@ export function ProfessionalDetailPage() {
           >
             {badge.label}
           </span>
+          {isSuperAdmin() && (
+            <button
+              onClick={() => navigate(adminPath(`/professionals/${id}/edit`))}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 transition-colors cursor-pointer"
+            >
+              Editar
+            </button>
+          )}
         </div>
       </div>
 

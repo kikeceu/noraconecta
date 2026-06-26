@@ -6,6 +6,7 @@ import { LoginPage } from './pages/admin/LoginPage';
 import { DashboardPage } from './pages/admin/DashboardPage';
 import { ProfessionalsPage } from './pages/admin/ProfessionalsPage';
 import { ProfessionalDetailPage } from './pages/admin/ProfessionalDetailPage';
+import { ProfessionalEditPage } from './pages/admin/ProfessionalEditPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { OrdersPage } from './pages/admin/OrdersPage';
 import { EscalationsPage } from './pages/admin/EscalationsPage';
@@ -41,6 +42,7 @@ export function AppAdmin() {
 
               {/* SUPERADMIN only */}
               <Route element={<ProtectedRoute requiredRole="SUPERADMIN" />}>
+                <Route path="/professionals/:id/edit" element={<ProfessionalEditPage />} />
                 <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
