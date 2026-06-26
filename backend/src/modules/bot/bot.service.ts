@@ -178,7 +178,7 @@ export class BotService {
       const existingProfessional = await this.professionalsRepository.findByPhone(input.phone);
 
       if (existingProfessional) {
-        const state = await this.resolveProfessionalState(input.phone);
+        const state = await this.resolveProfessionalState(input.phone, input.text);
 
         if (!state) {
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
@@ -211,6 +211,10 @@ export class BotService {
             state.requestId,
           );
 
+          if (state.lastStatusMessageSentAt) {
+            tempData.lastStatusMessageSentAt = state.lastStatusMessageSentAt;
+          }
+
           session = await this.botRepository.upsert(input.phone, {
             role,
             currentFlow: state.flowName,
@@ -234,7 +238,7 @@ export class BotService {
 
     if (!session) {
       if (role === 'PROFESSIONAL') {
-        const state = await this.resolveProfessionalState(input.phone);
+        const state = await this.resolveProfessionalState(input.phone, input.text);
 
         if (state) {
           observationWarning = state.observationWarning;
@@ -243,6 +247,10 @@ export class BotService {
             userIdentity,
             state.requestId,
           );
+
+          if (state.lastStatusMessageSentAt) {
+            tempData.lastStatusMessageSentAt = state.lastStatusMessageSentAt;
+          }
 
           session = await this.botRepository.upsert(input.phone, {
             role,
@@ -504,7 +512,7 @@ export class BotService {
 
     if (!session.currentFlow) {
       if (role === 'PROFESSIONAL') {
-        const state = await this.resolveProfessionalState(input.phone);
+        const state = await this.resolveProfessionalState(input.phone, input.text);
 
         if (state) {
           observationWarning = observationWarning || state.observationWarning;
@@ -513,6 +521,10 @@ export class BotService {
             userIdentity,
             state.requestId,
           );
+
+          if (state.lastStatusMessageSentAt) {
+            tempData.lastStatusMessageSentAt = state.lastStatusMessageSentAt;
+          }
 
           session = await this.botRepository.upsert(input.phone, {
             role,
@@ -694,12 +706,16 @@ export class BotService {
     return tempData;
   }
 
-  private async resolveProfessionalState(phone: string): Promise<{
+  private async resolveProfessionalState(
+    phone: string,
+    inputText?: string,
+  ): Promise<{
     flowName: string | null;
     stepName: string | null;
     responseText: string;
     observationWarning?: string;
     requestId?: string;
+    lastStatusMessageSentAt?: string;
   } | null> {
     const existing = await this.professionalsRepository.findByPhone(phone);
     if (!existing) return null;
@@ -709,6 +725,15 @@ export class BotService {
     let stepName: string | null = null;
     let observationWarning: string | undefined;
     let requestId: string | undefined;
+    let lastStatusMessageSentAt: string | undefined;
+
+    const session = await this.botRepository.findByPhoneAndRole(phone, 'PROFESSIONAL');
+    const tempData = (session?.tempData as Record<string, unknown>) || {};
+    const existingLastSentAt = tempData.lastStatusMessageSentAt as string | undefined;
+
+    const alreadySentToday = existingLastSentAt
+      ? new Date(existingLastSentAt).toDateString() === new Date().toDateString()
+      : false;
 
     switch (existing.status) {
       case ProfessionalStatus.PENDING: {
@@ -739,14 +764,14 @@ export class BotService {
         const verificationUrl = `${APP_URL}/verify/${verificationToken}`;
 
         if (isTokenExpired) {
-          responseText = `¡Hola ${existing.name}! Tu enlace anterior venció. Te generamos uno nuevo para que puedas completar tu verificación: ${verificationUrl}`;
+          responseText = `¡Hola ${existing.name}! Todavía tenés pendiente subir tu documentación. El enlace anterior venció, pero acá te mandamos uno nuevo: ${verificationUrl}`;
         } else {
-          responseText = `¡Hola ${existing.name}! Todavía tenés el registro pendiente. Para activar tu cuenta en NORA completá la verificación desde este enlace: ${verificationUrl}`;
+          responseText = `¡Hola ${existing.name}! Todavía tenés pendiente subir tu documentación para verificar tu identidad. Podés hacerlo acá: ${verificationUrl}`;
         }
         break;
       }
       case ProfessionalStatus.UNDER_REVIEW:
-        responseText = 'Tu perfil está siendo revisado por nuestro equipo. Te notificaremos cuando esté listo.';
+        responseText = `¡Hola ${existing.name}! Ya tenemos tu documentación y la estamos revisando. En cuanto esté todo listo te avisamos por acá.`;
         break;
       case ProfessionalStatus.ACTIVE: {
         const activeRequest = await prisma.request.findFirst({
@@ -766,8 +791,30 @@ export class BotService {
             ? 'AWAITING_ACCEPTANCE'
             : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
+        } else if (alreadySentToday) {
+          const { callLLM } = await import('../../lib/llm-client');
+
+          const llmPrompt = `Sos NORA, una asistente virtual de NORA Conecta, una plataforma que conecta usuarios con profesionales de servicios del hogar en Argentina (plomeros, electricistas, gasistas, etc.).
+
+Estás hablando con ${existing.name}, un profesional registrado en la plataforma. Su cuenta está activa y puede recibir pedidos.
+
+El profesional te escribió: "${inputText || ''}"
+
+Respondé de forma breve, natural y en español rioplatense (usá "vos", "te", etc.). Solo respondé preguntas relacionadas con NORA Conecta, el panel del profesional, los pedidos, o cómo funciona la plataforma. Si la pregunta no tiene nada que ver con NORA, respondé amablemente que solo podés ayudar con temas relacionados a la plataforma.
+
+No uses saludos largos. Máximo 2-3 oraciones. No inventes funcionalidades que no existen.
+
+Contexto de NORA para responder preguntas:
+- Los pedidos llegan automáticamente por WhatsApp cuando un usuario necesita el servicio del profesional
+- El profesional puede ver y gestionar sus pedidos desde su panel web
+- La calificación del profesional determina cuántos pedidos recibe
+- Para acceder al panel, el profesional puede escribir "panel" o "link"`;
+
+          responseText = await callLLM(llmPrompt);
+          lastStatusMessageSentAt = existingLastSentAt;
         } else {
-          responseText = `Hola ${existing.name}! Tu cuenta está activa. Te notificaremos cuando tengas un nuevo pedido asignado.`;
+          responseText = `¡Hola ${existing.name}! ¿En qué te puedo ayudar?`;
+          lastStatusMessageSentAt = new Date().toISOString();
         }
         break;
       }
@@ -791,23 +838,53 @@ export class BotService {
             ? 'AWAITING_ACCEPTANCE'
             : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
+        } else if (alreadySentToday) {
+          const { callLLM } = await import('../../lib/llm-client');
+
+          const llmPrompt = `Sos NORA, una asistente virtual de NORA Conecta, una plataforma que conecta usuarios con profesionales de servicios del hogar en Argentina (plomeros, electricistas, gasistas, etc.).
+
+Estás hablando con ${existing.name}, un profesional registrado en la plataforma. Su cuenta está activa y puede recibir pedidos.
+
+El profesional te escribió: "${inputText || ''}"
+
+Respondé de forma breve, natural y en español rioplatense (usá "vos", "te", etc.). Solo respondé preguntas relacionadas con NORA Conecta, el panel del profesional, los pedidos, o cómo funciona la plataforma. Si la pregunta no tiene nada que ver con NORA, respondé amablemente que solo podés ayudar con temas relacionados a la plataforma.
+
+No uses saludos largos. Máximo 2-3 oraciones. No inventes funcionalidades que no existen.
+
+Contexto de NORA para responder preguntas:
+- Los pedidos llegan automáticamente por WhatsApp cuando un usuario necesita el servicio del profesional
+- El profesional puede ver y gestionar sus pedidos desde su panel web
+- La calificación del profesional determina cuántos pedidos recibe
+- Para acceder al panel, el profesional puede escribir "panel" o "link"`;
+
+          responseText = await callLLM(llmPrompt);
+          lastStatusMessageSentAt = existingLastSentAt;
+          observationWarning = undefined;
         } else {
-          responseText = 'Tu cuenta está en observación. Seguís operando normalmente. Te notificaremos cuando tengas un nuevo pedido asignado.';
+          responseText = `¡Hola ${existing.name}! ¿En qué te puedo ayudar?`;
+          lastStatusMessageSentAt = new Date().toISOString();
           observationWarning = undefined;
         }
         break;
       }
       case ProfessionalStatus.PAUSED:
-        responseText = 'Tu cuenta está pausada. Para reactivarla, ingresá a tu panel.';
+        responseText = `¡Hola ${existing.name}! Tu cuenta está pausada. Cuando quieras volver a recibir pedidos, escribinos a contacto@noraconecta.com`;
         break;
       case ProfessionalStatus.SUSPENDED:
-        responseText = 'Tu cuenta está suspendida. Para más información, contactá a soporte.';
+        responseText = `Hola ${existing.name}. Tu cuenta está suspendida en este momento. Si creés que es un error o querés saber más, escribinos a contacto@noraconecta.com`;
         break;
       case ProfessionalStatus.REJECTED:
-        responseText = 'Tu solicitud fue rechazada. Para más información, contactá a soporte.';
+        responseText = `Hola ${existing.name}. Lamentablemente tu solicitud no fue aprobada. Si tenés dudas o querés saber el motivo, escribinos a contacto@noraconecta.com`;
         break;
     }
 
-    return { flowName, stepName, responseText, observationWarning, requestId };
+    return {
+      flowName,
+      stepName,
+      responseText,
+      observationWarning,
+      requestId,
+      lastStatusMessageSentAt,
+    };
   }
 }
