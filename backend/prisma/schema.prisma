@@ -204,6 +204,8 @@ model ProfessionalDataChangeRequest {
   professionalId String
   professional   Professional @relation(fields: [professionalId], references: [id])
   changedFields  Json
+  previousValues Json?
+  newValues      Json?
   status         String   @default("PENDING")
   createdAt      DateTime @default(now())
   reviewedAt     DateTime?
