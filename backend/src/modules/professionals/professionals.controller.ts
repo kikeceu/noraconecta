@@ -489,6 +489,8 @@ export class ProfessionalsController {
         name: string;
         categoryId: string;
         zoneIds: string[];
+        availability?: string;
+        availabilityStructured?: { slots: { day: number; from: string; to: string }[] };
       };
 
       if (!body.phone) {

@@ -37,6 +37,16 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'REJECTED', label: 'Rechazado' },
 ];
 
+const DAY_NAMES: Record<number, string> = {
+  0: 'Domingo',
+  1: 'Lunes',
+  2: 'Martes',
+  3: 'Miércoles',
+  4: 'Jueves',
+  5: 'Viernes',
+  6: 'Sábado',
+};
+
 export function ProfessionalsPage() {
   const { isSuperAdmin } = useAuth();
   const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -50,13 +60,17 @@ export function ProfessionalsPage() {
     provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
   }>({ provinces: [] });
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [createStep, setCreateStep] = useState<1 | 2>(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     phone: '',
     name: '',
     categoryId: '',
     zoneIds: [] as string[],
+    selectedDays: [] as number[],
+    timeSlots: {} as Record<number, { from: string; to: string }>,
   });
+  const [sameSchedule, setSameSchedule] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -94,7 +108,9 @@ export function ProfessionalsPage() {
   };
 
   const openCreateModal = useCallback(() => {
-    setCreateForm({ phone: '', name: '', categoryId: '', zoneIds: [] });
+    setCreateStep(1);
+    setCreateForm({ phone: '', name: '', categoryId: '', zoneIds: [], selectedDays: [], timeSlots: {} });
+    setSameSchedule(false);
     setCreateError('');
     setShowCreateModal(true);
     Promise.all([
@@ -123,7 +139,28 @@ export function ProfessionalsPage() {
     setCreateLoading(true);
     setCreateError('');
     try {
-      await adminCreateProfessional(createForm);
+      const slots = createForm.selectedDays
+        .filter((day) => createForm.timeSlots[day]?.from && createForm.timeSlots[day]?.to)
+        .map((day) => ({
+          day,
+          from: createForm.timeSlots[day].from,
+          to: createForm.timeSlots[day].to,
+        }));
+
+      const availability = slots.length
+        ? slots.map((s) => `${DAY_NAMES[s.day]}: ${s.from} a ${s.to}`).join(', ')
+        : undefined;
+
+      const availabilityStructured = slots.length ? { slots } : undefined;
+
+      await adminCreateProfessional({
+        phone: createForm.phone,
+        name: createForm.name,
+        categoryId: createForm.categoryId,
+        zoneIds: createForm.zoneIds,
+        ...(availability && { availability }),
+        ...(availabilityStructured && { availabilityStructured }),
+      });
       setShowCreateModal(false);
       fetchData();
     } catch (err) {
@@ -402,120 +439,290 @@ export function ProfessionalsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="fixed inset-0 bg-gray-900/40"
-            onClick={() => setShowCreateModal(false)}
+            onClick={() => {
+              setShowCreateModal(false);
+              setCreateStep(1);
+            }}
           />
           <div className="relative bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-md p-6 mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Nuevo profesional</h3>
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateStep(1);
+                }}
                 className="p-1 rounded-md text-gray-400 hover:text-gray-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Nombre completo
-                </label>
-                <input
-                  type="text"
-                  value={createForm.name}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, name: e.target.value })
-                  }
-                  placeholder="Nombre del profesional"
-                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-                />
-              </div>
+            {/* Step indicator */}
+            <div className="flex gap-2 mt-4">
+              <div
+                className={`flex-1 h-1 rounded-full ${
+                  createStep === 1 ? 'bg-green-700' : createStep === 2 ? 'bg-green-300' : 'bg-gray-200'
+                }`}
+              />
+              <div
+                className={`flex-1 h-1 rounded-full ${
+                  createStep === 2 ? 'bg-green-700' : 'bg-gray-200'
+                }`}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {createStep === 1 ? 'Paso 1: Datos básicos' : 'Paso 2: Disponibilidad'}
+            </p>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  value={createForm.phone}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, phone: e.target.value })
-                  }
-                  placeholder="5492612345678"
-                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-                />
-              </div>
+            {createStep === 1 && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Nombre completo
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.name}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, name: e.target.value })
+                    }
+                    placeholder="Nombre del profesional"
+                    className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Categoría
-                </label>
-                <select
-                  value={createForm.categoryId}
-                  onChange={(e) =>
-                    setCreateForm({ ...createForm, categoryId: e.target.value })
-                  }
-                  className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-                >
-                  <option value="">Seleccionar categoría</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Teléfono
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.phone}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, phone: e.target.value })
+                    }
+                    placeholder="5492612345678"
+                    className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  Zonas
-                </label>
-                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
-                  {departments.length === 0 && (
-                    <p className="text-sm text-gray-400 p-2">Cargando zonas...</p>
-                  )}
-                  {departments.map((d) => (
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Categoría
+                  </label>
+                  <select
+                    value={createForm.categoryId}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, categoryId: e.target.value })
+                    }
+                    className="w-full h-10 px-3 text-sm rounded-lg border border-gray-200 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                  >
+                    <option value="">Seleccionar categoría</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-1.5">
+                    Zonas
+                  </label>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1">
+                    {departments.length === 0 && (
+                      <p className="text-sm text-gray-400 p-2">Cargando zonas...</p>
+                    )}
+                    {departments.map((d) => (
+                      <label
+                        key={d.id}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={createForm.zoneIds.includes(d.id)}
+                          onChange={() => toggleZone(d.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-green-700 focus:ring-green-700/40 cursor-pointer"
+                        />
+                        <span className="text-sm text-gray-700">{d.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {createStep === 2 && (
+              <div className="mt-4 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Seleccioná los días y horarios de trabajo del profesional (opcional).
+                </p>
+
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5, 6, 0].map((day) => (
                     <label
-                      key={d.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50 cursor-pointer"
+                      key={day}
+                      className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer"
                     >
                       <input
                         type="checkbox"
-                        checked={createForm.zoneIds.includes(d.id)}
-                        onChange={() => toggleZone(d.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-green-700 focus:ring-green-700/40 cursor-pointer"
+                        checked={createForm.selectedDays.includes(day)}
+                        onChange={() => {
+                          const days = createForm.selectedDays.includes(day)
+                            ? createForm.selectedDays.filter((d) => d !== day)
+                            : [...createForm.selectedDays, day];
+                          setCreateForm({ ...createForm, selectedDays: days });
+                        }}
+                        className="rounded border-gray-300 text-green-700 cursor-pointer"
                       />
-                      <span className="text-sm text-gray-700">{d.name}</span>
+                      {DAY_NAMES[day]}
                     </label>
                   ))}
                 </div>
+
+                {createForm.selectedDays.length > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={sameSchedule}
+                      onChange={() => setSameSchedule(!sameSchedule)}
+                      className="rounded border-gray-300 text-green-700 cursor-pointer"
+                    />
+                    Mismo horario para todos los días
+                  </label>
+                )}
+
+                {!sameSchedule &&
+                  createForm.selectedDays
+                    .sort((a, b) => (a === 0 ? 1 : b === 0 ? -1 : a - b))
+                    .map((day) => (
+                      <div key={day} className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600 w-24">{DAY_NAMES[day]}</span>
+                        <input
+                          type="time"
+                          value={createForm.timeSlots[day]?.from || ''}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              timeSlots: {
+                                ...createForm.timeSlots,
+                                [day]: { ...createForm.timeSlots[day], from: e.target.value },
+                              },
+                            })
+                          }
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                        />
+                        <span className="text-sm text-gray-400">a</span>
+                        <input
+                          type="time"
+                          value={createForm.timeSlots[day]?.to || ''}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              timeSlots: {
+                                ...createForm.timeSlots,
+                                [day]: { ...createForm.timeSlots[day], to: e.target.value },
+                              },
+                            })
+                          }
+                          className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                        />
+                      </div>
+                    ))}
+
+                {sameSchedule && createForm.selectedDays.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-600 w-24">Horario</span>
+                    <input
+                      type="time"
+                      value={
+                        createForm.timeSlots[createForm.selectedDays[0]]?.from || ''
+                      }
+                      onChange={(e) => {
+                        const newTimeSlots = { ...createForm.timeSlots };
+                        for (const day of createForm.selectedDays) {
+                          newTimeSlots[day] = {
+                            ...newTimeSlots[day],
+                            from: e.target.value,
+                          };
+                        }
+                        setCreateForm({ ...createForm, timeSlots: newTimeSlots });
+                      }}
+                      className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                    />
+                    <span className="text-sm text-gray-400">a</span>
+                    <input
+                      type="time"
+                      value={
+                        createForm.timeSlots[createForm.selectedDays[0]]?.to || ''
+                      }
+                      onChange={(e) => {
+                        const newTimeSlots = { ...createForm.timeSlots };
+                        for (const day of createForm.selectedDays) {
+                          newTimeSlots[day] = {
+                            ...newTimeSlots[day],
+                            to: e.target.value,
+                          };
+                        }
+                        setCreateForm({ ...createForm, timeSlots: newTimeSlots });
+                      }}
+                      className="border border-gray-200 rounded-lg px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             {createError && (
               <p className="mt-3 text-sm text-red-600">{createError}</p>
             )}
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAdminCreate}
-                disabled={
-                  !createForm.name.trim() ||
-                  !createForm.phone.trim() ||
-                  !createForm.categoryId ||
-                  createForm.zoneIds.length === 0 ||
-                  createLoading
-                }
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
-              >
-                {createLoading ? 'Creando...' : 'Crear profesional'}
-              </button>
+              {createStep === 1 && (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setCreateStep(1);
+                    }}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => setCreateStep(2)}
+                    disabled={
+                      !createForm.name.trim() ||
+                      !createForm.phone.trim() ||
+                      !createForm.categoryId ||
+                      createForm.zoneIds.length === 0
+                    }
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
+                  >
+                    Siguiente →
+                  </button>
+                </>
+              )}
+
+              {createStep === 2 && (
+                <>
+                  <button
+                    onClick={() => setCreateStep(1)}
+                    className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 cursor-pointer"
+                  >
+                    ← Volver
+                  </button>
+                  <button
+                    onClick={handleAdminCreate}
+                    disabled={createLoading}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
+                  >
+                    {createLoading ? 'Creando...' : 'Crear profesional'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
