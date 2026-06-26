@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,16 +17,30 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { resolveHostContext } from '../../lib/host';
+import { countPendingDataChanges } from '../../lib/admin-api';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { admin, logout, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const [pendingDataChangesCount, setPendingDataChangesCount] = useState(0);
 
   const adminContext = resolveHostContext() === 'admin';
   const basePath = adminContext ? '' : '/admin';
   const homePath = basePath || '/';
   const loginPath = `${basePath}/login`;
+
+  useEffect(() => {
+    const fetchCount = () => {
+      countPendingDataChanges()
+        .then((res) => setPendingDataChangesCount(res.data.count))
+        .catch(() => {});
+    };
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { to: homePath, label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -93,6 +107,11 @@ export function AdminLayout() {
           >
             <item.icon className="w-5 h-5" />
             {item.label}
+            {item.label === 'Profesionales' && pendingDataChangesCount > 0 && (
+              <span className="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 text-xs font-bold text-white bg-red-500 rounded-full">
+                {pendingDataChangesCount}
+              </span>
+            )}
           </NavLink>
         ))}
 

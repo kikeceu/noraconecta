@@ -1042,8 +1042,9 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     declaredHasLicense?: boolean;
     references?: string;
     presentationVideoUrl?: string;
+    triggeredByProfessional?: boolean;
   }): Promise<Professional> {
-    const { zoneIds, availabilityStructured, ...rest } = data;
+    const { zoneIds, availabilityStructured, triggeredByProfessional, ...rest } = data;
 
     await this.professionalsRepository.update(id, {
       ...rest,
@@ -1056,6 +1057,17 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       await this.professionalsRepository.deleteAllZones(id);
       for (const zoneId of zoneIds) {
         await this.professionalsRepository.addZone(id, zoneId);
+      }
+    }
+
+    const SENSITIVE_FIELDS = ['name', 'dniNumber', 'cuil', 'dniFrontUrl', 'dniBackUrl', 'criminalRecordUrl', 'licenseUrl'];
+
+    if (triggeredByProfessional) {
+      const changedSensitiveFields = SENSITIVE_FIELDS.filter(
+        (field) => data[field as keyof typeof data] !== undefined,
+      );
+      if (changedSensitiveFields.length > 0) {
+        await this.professionalsRepository.createDataChangeRequest(id, changedSensitiveFields);
       }
     }
 

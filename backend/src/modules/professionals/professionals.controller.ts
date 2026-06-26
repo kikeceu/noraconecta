@@ -620,6 +620,7 @@ export class ProfessionalsController {
         ...rest,
         zoneIds,
         availabilityStructured,
+        triggeredByProfessional: true,
       });
 
       res.status(200).json({ data: updated });
@@ -647,6 +648,52 @@ export class ProfessionalsController {
       const { id } = req.params as { id: string };
       const membership = await professionalsService.getCurrentPlan(id);
       res.status(200).json({ data: membership });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getPendingDataChanges(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const requests = await professionalsRepository.findPendingDataChangeRequests();
+      res.status(200).json({ data: requests });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async countPendingDataChanges(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const count = await professionalsRepository.countPendingDataChangeRequests();
+      res.status(200).json({ data: { count } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async markDataChangeReviewed(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { requestId } = req.params as { requestId: string };
+
+      if (!requestId) {
+        res.status(400).json({ error: 'Request id is required', statusCode: 400 });
+        return;
+      }
+
+      await professionalsRepository.markDataChangeRequestReviewed(requestId, 'admin');
+      res.status(200).json({ data: { ok: true } });
     } catch (err) {
       next(err);
     }
