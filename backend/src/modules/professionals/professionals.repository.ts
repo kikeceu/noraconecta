@@ -378,4 +378,50 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
       where: { professionalId },
     });
   }
+
+  async createDataChangeRequest(
+    professionalId: string,
+    changedFields: string[],
+  ): Promise<void> {
+    await prisma.professionalDataChangeRequest.create({
+      data: { professionalId, changedFields },
+    });
+  }
+
+  async findPendingDataChangeRequests(): Promise<
+    {
+      id: string;
+      professionalId: string;
+      professional: { name: string; phone: string };
+      changedFields: string[];
+      createdAt: Date;
+    }[]
+  > {
+    const requests = await prisma.professionalDataChangeRequest.findMany({
+      where: { status: 'PENDING' },
+      include: { professional: { select: { name: true, phone: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return requests.map((r) => ({
+      id: r.id,
+      professionalId: r.professionalId,
+      professional: r.professional,
+      changedFields: r.changedFields as string[],
+      createdAt: r.createdAt,
+    }));
+  }
+
+  async countPendingDataChangeRequests(): Promise<number> {
+    return prisma.professionalDataChangeRequest.count({ where: { status: 'PENDING' } });
+  }
+
+  async markDataChangeRequestReviewed(
+    id: string,
+    reviewedBy: string,
+  ): Promise<void> {
+    await prisma.professionalDataChangeRequest.update({
+      where: { id },
+      data: { status: 'REVIEWED', reviewedAt: new Date(), reviewedBy },
+    });
+  }
 }

@@ -13,6 +13,8 @@ import {
   activateMembership,
   cancelMembership,
   getPlans,
+  getPendingDataChanges,
+  markDataChangeReviewed,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog';
@@ -23,6 +25,16 @@ function adminPath(path: string): string {
   const base = resolveHostContext() === 'admin' ? '' : '/admin';
   return `${base}${path}`;
 }
+
+const FIELD_LABELS: Record<string, string> = {
+  name: 'Nombre completo',
+  dniNumber: 'Número de DNI',
+  cuil: 'CUIL',
+  dniFrontUrl: 'DNI frente',
+  dniBackUrl: 'DNI dorso',
+  criminalRecordUrl: 'Antecedentes penales',
+  licenseUrl: 'Credencial habilitante',
+};
 
 const STATUS_BADGE: Record<ProfessionalStatus, { label: string; className: string }> = {
   PENDING: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700' },
@@ -62,6 +74,8 @@ export function ProfessionalDetailPage() {
   const [selectedType, setSelectedType] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [assigningMembership, setAssigningMembership] = useState(false);
   const [cancelingMembership, setCancelingMembership] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<{ id: string; professionalId: string; changedFields: string[]; createdAt: string }[]>([]);
+  const [markingReviewedId, setMarkingReviewedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -82,6 +96,16 @@ export function ProfessionalDetailPage() {
         setLoading(false);
         setMembershipLoading(false);
       });
+
+    if (isSuperAdmin()) {
+      getPendingDataChanges()
+        .then((res) => {
+          setPendingChanges(
+            res.data.filter((c) => c.professionalId === id),
+          );
+        })
+        .catch(() => {});
+    }
   }, [id]);
 
   const executeAction = async (action: string) => {
@@ -180,6 +204,18 @@ export function ProfessionalDetailPage() {
     } finally {
       setCancelingMembership(false);
       setConfirmAction(null);
+    }
+  };
+
+  const handleMarkReviewed = async (requestId: string) => {
+    setMarkingReviewedId(requestId);
+    try {
+      await markDataChangeReviewed(requestId);
+      setPendingChanges((prev) => prev.filter((c) => c.id !== requestId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al marcar como revisado');
+    } finally {
+      setMarkingReviewedId(null);
     }
   };
 
@@ -591,6 +627,44 @@ export function ProfessionalDetailPage() {
                   Cancelar membresía
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Pending data changes */}
+          {isSuperAdmin() && pendingChanges.length > 0 && (
+            <div className="bg-white rounded-xl border border-amber-200 p-5">
+              <h2 className="text-sm font-semibold text-gray-900 mb-4">
+                Cambios pendientes de revisión
+              </h2>
+              <div className="space-y-3">
+                {pendingChanges.map((change) => (
+                  <div
+                    key={change.id}
+                    className="p-3 rounded-lg border border-amber-100 bg-amber-50 space-y-2"
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {change.changedFields.map((field) => (
+                        <span
+                          key={field}
+                          className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
+                        >
+                          {FIELD_LABELS[field] || field}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      {new Date(change.createdAt).toLocaleString('es-AR')}
+                    </p>
+                    <button
+                      onClick={() => handleMarkReviewed(change.id)}
+                      disabled={markingReviewedId === change.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 transition-colors cursor-pointer"
+                    >
+                      {markingReviewedId === change.id ? 'Guardando...' : 'Marcar como revisado'}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

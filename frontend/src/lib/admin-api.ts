@@ -516,3 +516,24 @@ export function setMembershipDiscount(params: {
     body: JSON.stringify(params),
   });
 }
+
+// Data change requests
+export function getPendingDataChanges(): Promise<{
+  data: {
+    id: string;
+    professionalId: string;
+    professional: { name: string; phone: string };
+    changedFields: string[];
+    createdAt: string;
+  }[];
+}> {
+  return request('/professionals/data-changes/pending');
+}
+
+export function countPendingDataChanges(): Promise<{ data: { count: number } }> {
+  return request('/professionals/data-changes/count');
+}
+
+export function markDataChangeReviewed(requestId: string): Promise<{ data: { ok: boolean } }> {
+  return request(`/professionals/data-changes/${requestId}/reviewed`, { method: 'PATCH' });
+}

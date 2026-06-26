@@ -62,6 +62,18 @@ router.post('/admin-create', requireSuperAdmin, (req, res, next) => {
   void professionalsController.adminCreate(req, res, next);
 });
 
+router.get('/data-changes/pending', requireAuth, (req, res, next) => {
+  void professionalsController.getPendingDataChanges(req, res, next);
+});
+
+router.get('/data-changes/count', requireAuth, (req, res, next) => {
+  void professionalsController.countPendingDataChanges(req, res, next);
+});
+
+router.patch('/data-changes/:requestId/reviewed', requireSuperAdmin, (req, res, next) => {
+  void professionalsController.markDataChangeReviewed(req, res, next);
+});
+
 router.get('/', requireAuth, (req, res, next) => {
   void professionalsController.list(req, res, next);
 });

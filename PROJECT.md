@@ -626,6 +626,47 @@ Response shape:
 | `/professionals/:id/generate-session`  | POST   | Generar token de sesión + panelUrl para portal profesional | SUPERADMIN|
 | `/professionals/:id/license-status`    | PATCH  | Aprobar o rechazar credencial habilitante (APPROVED/REJECTED) — AUT-324 | SUPERADMIN|
 | `/professionals/:id`                   | PATCH  | Editar profesional (nombre, categoría, zonas, disponibilidad, identidad, perfil, archivos) — AUT-355 | SUPERADMIN|
+| `/professionals/data-changes/pending`  | GET    | Lista solicitudes de cambio de datos sensibles pendientes de revisión — AUT-357 | OPERATOR  |
+| `/professionals/data-changes/count`    | GET    | Cantidad de solicitudes pendientes de revisión (badge sidebar) — AUT-357 | OPERATOR  |
+| `/professionals/data-changes/:requestId/reviewed` | PATCH | Marcar solicitud como revisada — AUT-357 | SUPERADMIN|
+
+### Data Change Audit Trail (AUT-357)
+
+Sistema de auditoría de cambios sensibles del profesional con cola de revisión en panel admin.
+
+**Modelo: `ProfessionalDataChangeRequest`**
+
+| Campo            | Tipo     | Descripción                                    |
+|-----------------|----------|------------------------------------------------|
+| `id`            | String   | PK (cuid)                                      |
+| `professionalId`| String   | FK → Professional                              |
+| `changedFields` | Json     | Array de campos sensibles modificados          |
+| `status`        | String   | `PENDING` (default) o `REVIEWED`               |
+| `createdAt`     | DateTime | Fecha de creación                              |
+| `reviewedAt`    | DateTime?| Fecha de revisión                              |
+| `reviewedBy`    | String?  | Admin que revisó                               |
+
+**Campos sensibles detectados:** `name`, `dniNumber`, `cuil`, `dniFrontUrl`, `dniBackUrl`, `criminalRecordUrl`, `licenseUrl`.
+
+**Lógica de negocio:**
+- Cuando el profesional edita desde su panel (`updateProfile`), se pasa `triggeredByProfessional: true`. Al final de `adminUpdate`, si alguno de los campos sensibles fue modificado, se crea un registro `PENDING` en `ProfessionalDataChangeRequest`.
+- El admin que modifica desde `ProfessionalDetailPage` o `ProfessionalEditPage` NO dispara el flujo (`triggeredByProfessional` es `false` por defecto).
+- El profesional sigue `ACTIVE` y recibiendo pedidos — no se toca su status.
+- El sidebar del admin muestra badge rojo con contador de pendientes (polling cada 60s).
+- El detalle del profesional muestra sección "Cambios pendientes de revisión" con campos en español y botón para marcar como revisado.
+- El Tab "Identidad" del panel del profesional muestra banner de aviso: "Los cambios en esta sección serán revisados por el equipo de NORA."
+
+**Archivos modificados:**
+- `backend/prisma/schema.prisma` — modelo `ProfessionalDataChangeRequest` + relación en `Professional`
+- `backend/prisma/migrations/20260626180000_add_professional_data_change_requests/migration.sql`
+- `backend/src/modules/professionals/professionals.repository.ts` — `createDataChangeRequest`, `findPendingDataChangeRequests`, `countPendingDataChangeRequests`, `markDataChangeRequestReviewed`
+- `backend/src/modules/professionals/professionals.service.ts` — `adminUpdate` con detección de campos sensibles y flag `triggeredByProfessional`
+- `backend/src/modules/professionals/professionals.controller.ts` — `getPendingDataChanges`, `countPendingDataChanges`, `markDataChangeReviewed`; `updateProfile` pasa `triggeredByProfessional: true`
+- `backend/src/modules/professionals/professionals.routes.ts` — 3 nuevas rutas bajo `/professionals/data-changes/*`
+- `frontend/src/lib/admin-api.ts` — `getPendingDataChanges`, `countPendingDataChanges`, `markDataChangeReviewed`
+- `frontend/src/components/admin/AdminLayout.tsx` — badge con contador + polling 60s
+- `frontend/src/pages/admin/ProfessionalDetailPage.tsx` — sección de cambios pendientes
+- `frontend/src/pages/panel/components/ProfessionalProfileEdit.tsx` — banner en Tab Identidad
 
 ### Plans (ACTUALIZADO AUT-340)
 

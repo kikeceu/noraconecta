@@ -439,6 +439,9 @@ export function ProfessionalProfileEdit({
       {/* Tab: Identidad */}
       {activeTab === 'identidad' && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800" style={{ fontFamily: 'DM Sans' }}>
+            ⚠️ Los cambios en esta sección serán revisados por el equipo de NORA.
+          </div>
           <div>
             <label className="text-xs text-gray-500 mb-1 block" style={{ fontFamily: 'DM Sans' }}>
               DNI número

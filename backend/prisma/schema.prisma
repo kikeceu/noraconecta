@@ -190,12 +190,27 @@ model Professional {
   zones       ProfessionalZone[]
   memberships Membership[]
   requests    Request[]          @relation("AssignedProfessional")
-  events      RequestEvent[]
+  events           RequestEvent[]
+  dataChangeRequests ProfessionalDataChangeRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([categoryId, status])
+}
+
+model ProfessionalDataChangeRequest {
+  id             String   @id @default(cuid())
+  professionalId String
+  professional   Professional @relation(fields: [professionalId], references: [id])
+  changedFields  Json
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?
+
+  @@index([professionalId])
+  @@index([status])
 }
 
 model ProfessionalZone {
