@@ -698,6 +698,19 @@ export class ProfessionalsController {
       next(err);
     }
   }
+
+  async getProfessionalsWithPendingChanges(
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const ids = await professionalsRepository.getProfessionalsWithPendingChanges();
+      res.status(200).json({ data: ids });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const professionalsController = new ProfessionalsController();

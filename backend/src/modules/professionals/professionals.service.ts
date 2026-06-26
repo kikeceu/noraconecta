@@ -1046,6 +1046,12 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
   }): Promise<Professional> {
     const { zoneIds, availabilityStructured, triggeredByProfessional, ...rest } = data;
 
+    const SENSITIVE_FIELDS = ['name', 'dniNumber', 'cuil', 'dniFrontUrl', 'dniBackUrl', 'criminalRecordUrl', 'licenseUrl'];
+
+    const currentProfessional = triggeredByProfessional
+      ? await this.professionalsRepository.findById(id)
+      : null;
+
     await this.professionalsRepository.update(id, {
       ...rest,
       ...(availabilityStructured !== undefined && {
@@ -1060,14 +1066,29 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       }
     }
 
-    const SENSITIVE_FIELDS = ['name', 'dniNumber', 'cuil', 'dniFrontUrl', 'dniBackUrl', 'criminalRecordUrl', 'licenseUrl'];
+    if (triggeredByProfessional && currentProfessional) {
+      const changedSensitiveFields: string[] = [];
+      const previousValues: Record<string, unknown> = {};
+      const newValues: Record<string, unknown> = {};
 
-    if (triggeredByProfessional) {
-      const changedSensitiveFields = SENSITIVE_FIELDS.filter(
-        (field) => data[field as keyof typeof data] !== undefined,
-      );
+      for (const field of SENSITIVE_FIELDS) {
+        const newValue = data[field as keyof typeof data];
+        if (newValue === undefined) continue;
+        const currentValue = currentProfessional[field as keyof typeof currentProfessional];
+        if (newValue !== currentValue) {
+          changedSensitiveFields.push(field);
+          previousValues[field] = currentValue ?? null;
+          newValues[field] = newValue;
+        }
+      }
+
       if (changedSensitiveFields.length > 0) {
-        await this.professionalsRepository.createDataChangeRequest(id, changedSensitiveFields);
+        await this.professionalsRepository.createDataChangeRequest(
+          id,
+          changedSensitiveFields,
+          previousValues,
+          newValues,
+        );
       }
     }
 

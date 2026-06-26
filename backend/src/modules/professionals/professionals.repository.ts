@@ -382,9 +382,16 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
   async createDataChangeRequest(
     professionalId: string,
     changedFields: string[],
+    previousValues: Record<string, unknown>,
+    newValues: Record<string, unknown>,
   ): Promise<void> {
     await prisma.professionalDataChangeRequest.create({
-      data: { professionalId, changedFields },
+      data: {
+        professionalId,
+        changedFields,
+        previousValues: previousValues as unknown as Prisma.InputJsonValue,
+        newValues: newValues as unknown as Prisma.InputJsonValue,
+      },
     });
   }
 
@@ -394,6 +401,8 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
       professionalId: string;
       professional: { name: string; phone: string };
       changedFields: string[];
+      previousValues: Record<string, unknown> | null;
+      newValues: Record<string, unknown> | null;
       createdAt: Date;
     }[]
   > {
@@ -407,8 +416,19 @@ async update(id: string, data: UpdateProfessionalInput): Promise<Professional> {
       professionalId: r.professionalId,
       professional: r.professional,
       changedFields: r.changedFields as string[],
+      previousValues: (r.previousValues as Record<string, unknown> | null) ?? null,
+      newValues: (r.newValues as Record<string, unknown> | null) ?? null,
       createdAt: r.createdAt,
     }));
+  }
+
+  async getProfessionalsWithPendingChanges(): Promise<string[]> {
+    const requests = await prisma.professionalDataChangeRequest.findMany({
+      where: { status: 'PENDING' },
+      select: { professionalId: true },
+      distinct: ['professionalId'],
+    });
+    return requests.map((r) => r.professionalId);
   }
 
   async countPendingDataChangeRequests(): Promise<number> {

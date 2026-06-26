@@ -524,6 +524,8 @@ export function getPendingDataChanges(): Promise<{
     professionalId: string;
     professional: { name: string; phone: string };
     changedFields: string[];
+    previousValues: Record<string, string | null> | null;
+    newValues: Record<string, string | null> | null;
     createdAt: string;
   }[];
 }> {
@@ -536,4 +538,8 @@ export function countPendingDataChanges(): Promise<{ data: { count: number } }> 
 
 export function markDataChangeReviewed(requestId: string): Promise<{ data: { ok: boolean } }> {
   return request(`/professionals/data-changes/${requestId}/reviewed`, { method: 'PATCH' });
+}
+
+export function getProfessionalsWithPendingChanges(): Promise<{ data: string[] }> {
+  return request('/professionals/data-changes/professionals');
 }
