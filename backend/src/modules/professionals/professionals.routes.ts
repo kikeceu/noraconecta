@@ -70,6 +70,10 @@ router.get('/data-changes/count', requireAuth, (req, res, next) => {
   void professionalsController.countPendingDataChanges(req, res, next);
 });
 
+router.get('/data-changes/professionals', requireAuth, (req, res, next) => {
+  void professionalsController.getProfessionalsWithPendingChanges(req, res, next);
+});
+
 router.patch('/data-changes/:requestId/reviewed', requireSuperAdmin, (req, res, next) => {
   void professionalsController.markDataChangeReviewed(req, res, next);
 });

@@ -74,7 +74,7 @@ export function ProfessionalDetailPage() {
   const [selectedType, setSelectedType] = useState<'MONTHLY' | 'ANNUAL'>('MONTHLY');
   const [assigningMembership, setAssigningMembership] = useState(false);
   const [cancelingMembership, setCancelingMembership] = useState(false);
-  const [pendingChanges, setPendingChanges] = useState<{ id: string; professionalId: string; changedFields: string[]; createdAt: string }[]>([]);
+  const [pendingChanges, setPendingChanges] = useState<{ id: string; professionalId: string; changedFields: string[]; previousValues: Record<string, string | null> | null; newValues: Record<string, string | null> | null; createdAt: string }[]>([]);
   const [markingReviewedId, setMarkingReviewedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -642,15 +642,39 @@ export function ProfessionalDetailPage() {
                     key={change.id}
                     className="p-3 rounded-lg border border-amber-100 bg-amber-50 space-y-2"
                   >
-                    <div className="flex flex-wrap gap-1">
-                      {change.changedFields.map((field) => (
-                        <span
-                          key={field}
-                          className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800"
-                        >
-                          {FIELD_LABELS[field] || field}
-                        </span>
-                      ))}
+                    <div className="space-y-2">
+                      {change.changedFields.map((field) => {
+                        const prev = change.previousValues?.[field];
+                        const next = change.newValues?.[field];
+                        const isUrl = field.endsWith('Url');
+
+                        return (
+                          <div key={field} className="py-2 border-b border-amber-200/50 last:border-0">
+                            <p className="text-xs font-medium text-gray-500 mb-1">{FIELD_LABELS[field] || field}</p>
+                            <div className="flex items-start gap-3 text-sm">
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs text-gray-400 block">Anterior</span>
+                                {isUrl && prev ? (
+                                  <a href={prev} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">Ver archivo</a>
+                                ) : (
+                                  <span className="text-gray-700 break-all">{prev || '—'}</span>
+                                )}
+                              </div>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" className="mt-4 shrink-0">
+                                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                              </svg>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs text-gray-400 block">Nuevo</span>
+                                {isUrl && next ? (
+                                  <a href={next} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline text-xs break-all">Ver archivo</a>
+                                ) : (
+                                  <span className="text-gray-900 font-medium break-all">{next || '—'}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                     <p className="text-xs text-gray-400">
                       {new Date(change.createdAt).toLocaleString('es-AR')}

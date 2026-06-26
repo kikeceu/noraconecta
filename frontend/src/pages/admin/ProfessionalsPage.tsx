@@ -7,6 +7,7 @@ import {
   adminCreateProfessional,
   getCategories,
   getDepartments,
+  getProfessionalsWithPendingChanges,
 } from '../../lib/admin-api';
 import { useAuth } from '../../context/AuthContext';
 import { resolveHostContext } from '../../lib/host';
@@ -35,6 +36,7 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'OBSERVATION', label: 'Observación' },
   { value: 'SUSPENDED', label: 'Suspendido' },
   { value: 'REJECTED', label: 'Rechazado' },
+  { value: 'HAS_PENDING_CHANGES', label: 'Con cambios pendientes' },
 ];
 
 const DAY_NAMES: Record<number, string> = {
@@ -56,6 +58,7 @@ export function ProfessionalsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [provinceFilter, setProvinceFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [pendingChangesIds, setPendingChangesIds] = useState<string[]>([]);
   const [geoTree, setGeoTree] = useState<{
     provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
   }>({ provinces: [] });
@@ -81,7 +84,7 @@ export function ProfessionalsPage() {
     getProfessionals({
       page,
       limit: 20,
-      status: statusFilter || undefined,
+      status: statusFilter === 'HAS_PENDING_CHANGES' ? undefined : (statusFilter || undefined),
       departmentId: departmentFilter || undefined,
     })
       .then((res) => {
@@ -96,6 +99,9 @@ export function ProfessionalsPage() {
     getGeoTree()
       .then((res) => setGeoTree(res.data))
       .catch((err) => { console.error('Failed to load geo tree', err); });
+    getProfessionalsWithPendingChanges()
+      .then((res) => setPendingChangesIds(res.data))
+      .catch(() => {});
   }, []);
 
   const availableDepartments = provinceFilter
@@ -176,11 +182,17 @@ export function ProfessionalsPage() {
   }, [statusFilter, departmentFilter, provinceFilter]);
 
   const filtered = professionals.filter(
-    (p) =>
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p) => {
+      if (statusFilter === 'HAS_PENDING_CHANGES') {
+        if (!pendingChangesIds.includes(p.id)) return false;
+      }
+      if (!search) return true;
+      return (
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
         p.phone?.toLowerCase().includes(search.toLowerCase()) ||
-      p.dniNumber?.includes(search),
+        p.dniNumber?.includes(search)
+      );
+    },
   );
 
   return (
@@ -299,6 +311,15 @@ export function ProfessionalsPage() {
                     >
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">
                         {p.name}
+                        {pendingChangesIds.includes(p.id) && (
+                          <span title="Tiene cambios sensibles pendientes de revisión" className="ml-2 inline-flex items-center">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                              <line x1="12" y1="9" x2="12" y2="13"/>
+                              <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm font-mono text-gray-600">
                         {p.dniNumber || '—'}
@@ -364,7 +385,18 @@ export function ProfessionalsPage() {
             : filtered.map((p) => (
                 <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-semibold text-gray-900">{p.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-gray-900">{p.name}</p>
+                      {pendingChangesIds.includes(p.id) && (
+                        <span title="Tiene cambios sensibles pendientes de revisión" className="inline-flex items-center">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                          </svg>
+                        </span>
+                      )}
+                    </div>
                     <span
                       className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                         STATUS_BADGE[p.status]?.className || 'bg-gray-50 text-gray-700'
