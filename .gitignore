@@ -5,3 +5,6 @@ dist/
 coverage/
 .cache/
 *.tsbuildinfo
+mcp/.env
+mcp/dist/
+mcp/node_modules/

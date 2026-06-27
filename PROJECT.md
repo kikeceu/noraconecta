@@ -268,6 +268,23 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   ├── robots.txt                      # SEO
 │   ├── sitemap.xml                     # SEO
 │   └── DESIGN.md                       # Sistema de diseño
+├── mcp/                                 # MCP Admin Server (AUT-362)
+│   ├── src/
+│   │   ├── index.ts                    # Entry point: McpServer bootstrap with StdioServerTransport
+│   │   ├── auth.ts                     # JWT login + automatic renewal (24h token)
+│   │   ├── nora-client.ts              # HTTP wrapper over api.noraconecta.com (GET/POST/PATCH/DELETE)
+│   │   └── tools/
+│   │       ├── professionals.ts        # Professional management tools (12 tools)
+│   │       ├── requests.ts             # Request listing tools
+│   │       ├── metrics.ts              # Dashboard metrics + config + membership discount
+│   │       ├── locations.ts            # Geo hierarchy management
+│   │       ├── categories.ts           # Category CRUD + toggle
+│   │       ├── plans.ts                # Plan CRUD + deactivate
+│   │       ├── users.ts                # User listing + block/unblock
+│   │       └── escalations.ts          # Escalation listing + status transitions + resolve
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .env.example
 ├── scripts/
 │   └── inject-brand.sh                # Inyección de variables de marca en landing (AUT-187)
 ├── .env                                # Variables de entorno raíz (marca) (AUT-187)
@@ -2196,6 +2213,14 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | `WHATSAPP_WEBHOOK_SECRET`| No | Secret para validación HMAC-SHA256 del webhook de Kapso (`x-webhook-signature`) |
 | `WHATSAPP_API_VERSION`| No (v19.0) | Versión de la API de Meta |
 
+### MCP Environment Variables
+
+| Variable            | Requerida | Default | Descripción                              |
+|--------------------|-----------|---------|------------------------------------------|
+| `NORA_API_URL`     | No        | `https://api.noraconecta.com` | URL base de la API de NORA |
+| `NORA_ADMIN_EMAIL` | Sí        | —       | Email del admin para autenticación MCP   |
+| `NORA_ADMIN_PASSWORD` | Sí     | —       | Password del admin para autenticación MCP |
+
 ## Business Rules
 
 - Passwords se hashean con bcrypt (10 rounds de salt)
@@ -2451,6 +2476,71 @@ Cuando un usuario envía múltiples fotos en el paso `ASK_PHOTOS`, Meta las entr
 - El comportamiento en el simulador no se ve afectado (el debounce solo aplica cuando `isConfigured()` es true)
 
 **No modifica** `bot.service.ts`, `user-request.flow.ts` ni ningún otro archivo.
+
+### MCP Admin Server (AUT-362)
+
+Servidor MCP (Model Context Protocol) para gestionar NORA Conecta desde Claude u OpenCode sin acceder al admin web.
+
+**Arquitectura:**
+
+```
+mcp/
+  src/
+    index.ts        ← McpServer bootstrap, registra 8 tool modules
+    auth.ts         ← Login con email/password, extrae JWT de cookie Set-Cookie, renovación automática 30min antes de vencer
+    nora-client.ts  ← Wrapper HTTP con autenticación Bearer (noraGet, noraPost, noraPatch, noraDelete)
+    tools/
+      professionals.ts  ← 12 tools: list, get, approve, reject, suspend, reactivate, assign/cancel membership, badge, license status, data changes, panel session
+      requests.ts       ← 2 tools: list, get
+      metrics.ts        ← 5 tools: get_metrics, get_config, update_config, get_membership_discount, set_membership_discount
+      locations.ts      ← 5 tools: list_countries, get_location_tree, create_geo_node, update_geo_node, toggle_geo_node
+      categories.ts     ← 4 tools: list, create, update, toggle
+      plans.ts          ← 4 tools: list, create, update, deactivate
+      users.ts          ← 4 tools: list, get, block, unblock
+      escalations.ts    ← 4 tools: list, get, change_status, resolve
+```
+
+**Autenticación:**
+- Login contra `POST /auth/login` con email/password
+- El endpoint devuelve JWT vía cookie httpOnly `Set-Cookie: admin_token=<jwt>`
+- El MCP extrae el JWT del header `Set-Cookie` y lo usa en `Authorization: Bearer <jwt>`
+- El JWT dura 24h — se renueva automáticamente 30 minutos antes de vencer
+
+**Tools disponibles (40 tools):**
+
+| Módulo         | Tools                         |
+|---------------|-------------------------------|
+| Professionals | list, get, approve, reject, suspend, reactivate, assign_membership, cancel_membership, set_badge, update_license_status, get_pending_data_changes, mark_data_change_reviewed, generate_panel_session |
+| Requests      | list, get                     |
+| Metrics       | get_metrics, get_config, update_config, get_membership_discount, set_membership_discount |
+| Locations     | list_countries, get_location_tree, create_geo_node, update_geo_node, toggle_geo_node |
+| Categories    | list, create, update, toggle  |
+| Plans         | list, create, update, deactivate |
+| Users         | list, get, block, unblock     |
+| Escalations   | list, get, change_status, resolve |
+
+**Variables de entorno MCP:**
+
+| Variable            | Default                        | Descripción                          |
+|--------------------|--------------------------------|--------------------------------------|
+| `NORA_API_URL`     | `https://api.noraconecta.com`  | URL base de la API de NORA           |
+| `NORA_ADMIN_EMAIL` | `admin@noraconecta.com`        | Email del admin para autenticación   |
+| `NORA_ADMIN_PASSWORD` | —                           | Password del admin                   |
+
+**Setup:**
+```bash
+cd mcp
+cp .env.example .env
+npm install
+npm run build  # tsc → dist/
+node dist/index.js  # arranca en stdio
+```
+
+**Constraints:**
+- No modifica backend ni frontend
+- El MCP vive exclusivamente en `mcp/` en la raíz del monorepo
+- Usa ESM (`"type": "module"`)
+- El JWT dura 24h — renovar automáticamente 30 minutos antes de vencer
 
 ## Scripts
 
