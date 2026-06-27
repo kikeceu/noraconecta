@@ -236,6 +236,51 @@ export class BotService {
       }
     }
 
+    if (
+      role === 'USER' &&
+      input.text?.trim() &&
+      !hasActionableContent(input.text.trim()) &&
+      !session?.currentFlow
+    ) {
+      const existingTempData = (session?.tempData as Record<string, unknown>) || {};
+      const lastUserGreetingAt = existingTempData.lastUserGreetingAt as string | undefined;
+      const alreadyGreetedToday = lastUserGreetingAt
+        ? new Date(lastUserGreetingAt).toDateString() === new Date().toDateString()
+        : false;
+
+      const userName =
+        userIdentity.name && userIdentity.name !== userIdentity.phone
+          ? userIdentity.name
+          : null;
+
+      let greetingText: string;
+      if (alreadyGreetedToday) {
+        greetingText =
+          '¡Acá estoy! Escribime qué servicio necesitás y en qué zona.';
+      } else {
+        greetingText = userName
+          ? `¡Hola ${userName}! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.`
+          : '¡Hola! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.';
+
+        await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: session?.currentFlow ?? null,
+          currentStep: session?.currentStep ?? null,
+          tempData: {
+            ...existingTempData,
+            lastUserGreetingAt: new Date().toISOString(),
+          } as Prisma.InputJsonValue,
+        });
+      }
+
+      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+      return {
+        text: greetingText,
+        flow: undefined,
+        step: undefined,
+      };
+    }
+
     if (!session) {
       if (role === 'PROFESSIONAL') {
         const state = await this.resolveProfessionalState(input.phone, input.text);
@@ -270,8 +315,7 @@ export class BotService {
         }
       }
 
-      if (!session) {
-        const handler = resolveFlowHandler(role);
+      const handler = resolveFlowHandler(role);
 
         const initialTempData: Record<string, unknown> = { ...userIdentity };
 
@@ -301,7 +345,6 @@ export class BotService {
           currentStep: handler.getInitialStep(),
           tempData: initialTempData as Prisma.InputJsonValue,
         });
-      }
     } else {
       const sessionTempData = (session.tempData as Record<string, unknown>) || {};
 
@@ -314,7 +357,7 @@ export class BotService {
           role,
           currentFlow: session.currentFlow,
           currentStep: session.currentStep,
-          tempData: sessionTempData as Prisma.InputJsonValue,
+          tempData: { ...(session.tempData as Record<string, unknown>), ...sessionTempData } as Prisma.InputJsonValue,
         });
       }
     }
@@ -544,7 +587,15 @@ export class BotService {
         }
       }
 
-      if (!session.currentFlow && role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
+      if (!session.currentFlow && role === 'USER' && input.text?.trim()) {
+        if (!hasActionableContent(input.text.trim())) {
+          return {
+            text: '¡Hola! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.',
+            flow: undefined,
+            step: undefined,
+          };
+        }
+
         const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
         const [extracted, extractedName] = await Promise.all([
           extractServiceAndZone(input.text.trim()),
