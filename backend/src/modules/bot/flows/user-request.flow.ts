@@ -246,13 +246,30 @@ export class UserRequestFlow implements FlowHandler {
     });
 
     if (activeRequest) {
-    return {
-      response: {
-        text: 'Listo. ¿Querés enviar fotos del problema? Hasta 3. Escribí "no" para continuar.',
-      },
-      nextStep: 'ASK_PHOTOS',
-      tempData,
-    };
+      let statusText: string;
+
+      switch (activeRequest.status) {
+        case 'CREATED':
+          statusText =
+            'Estamos buscando un profesional para tu pedido. Te avisamos en cuanto confirmemos uno.';
+          break;
+        case 'ASSIGNED':
+          statusText =
+            'Ya asignamos un profesional para tu pedido, está por confirmar. Te avisamos en breve.';
+          break;
+        case 'ACCEPTED':
+          statusText =
+            'Tu profesional ya aceptó el pedido y está coordinando la visita con vos.';
+          break;
+        default:
+          statusText = 'Tenés un pedido en curso. Te avisamos cuando haya novedades.';
+      }
+
+      return {
+        response: { text: statusText },
+        nextStep: null,
+        tempData,
+      };
     }
 
     const hasName = currentName && currentName !== phone;
@@ -397,7 +414,16 @@ export class UserRequestFlow implements FlowHandler {
       console.log('[AUT-308] resolved:', JSON.stringify(resolved));
 
       const userName = tempData.name as string | undefined;
-      const greeting = userName ? `¡Qué bueno volver a verte, ${userName}! ` : '';
+      const lastGreetingAt = tempData.lastGreetingAt as string | undefined;
+      const alreadyGreetedToday = lastGreetingAt
+        ? new Date(lastGreetingAt).toDateString() === new Date().toDateString()
+        : false;
+
+      let greeting = '';
+      if (userName && !alreadyGreetedToday) {
+        greeting = `¡Qué bueno volver a verte, ${userName}! `;
+        tempData.lastGreetingAt = new Date().toISOString();
+      }
 
       if (resolved.categoryId && resolved.geoNodeId) {
         tempData.categoryId = resolved.categoryId;
@@ -486,11 +512,22 @@ export class UserRequestFlow implements FlowHandler {
       const userName = tempData.name as string | undefined;
       const isNewUser = !!tempData._isNewUser;
       delete tempData._isNewUser;
-      const greeting = userName
-        ? isNewUser
-          ? `¡Hola, ${userName}! ¿Qué servicio estás buscando?\n\n`
-          : `¡Qué bueno volver a verte, ${userName}! ¿Qué servicio estás buscando?\n\n`
-        : '¿Qué servicio estás buscando?\n\n';
+
+      let greeting = '';
+      if (userName) {
+        if (isNewUser) {
+          greeting = `¡Hola, ${userName}! ¿Qué servicio estás buscando?\n\n`;
+        } else {
+          const lastGreetingAt = tempData.lastGreetingAt as string | undefined;
+          const alreadyGreetedToday = lastGreetingAt
+            ? new Date(lastGreetingAt).toDateString() === new Date().toDateString()
+            : false;
+          if (!alreadyGreetedToday) {
+            greeting = `¡Qué bueno volver a verte, ${userName}! ¿Qué servicio estás buscando?\n\n`;
+            tempData.lastGreetingAt = new Date().toISOString();
+          }
+        }
+      }
 
       return {
         response: {

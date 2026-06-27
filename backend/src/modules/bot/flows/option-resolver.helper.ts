@@ -177,10 +177,29 @@ ${optionsList}
   }
 }
 
+const SIMPLE_GREETINGS = new Set([
+  'hola', 'holi', 'holaa', 'holiii', 'holis', 'buenas', 'buen dia', 'buen día',
+  'buenos dias', 'buenos días', 'buenas tardes', 'buenas noches',
+  'como estas', 'cómo estás', 'como anda', 'todo bien', 'que tal', 'qué tal',
+  'gracias', 'ok', 'dale', 'okey', 'bien', 'perfecto', 'genial', 'joya',
+  'ok gracias', 'muchas gracias', 'nada mas', 'nada más',
+]);
+
 export async function generateOffTopicResponse(
   input: string,
   stepContext: string,
 ): Promise<string | null> {
+  const normalized = input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+
+  if (SIMPLE_GREETINGS.has(normalized)) {
+    return '😊 ¡Hola! Cuando quieras seguimos con tu pedido.';
+  }
+
   const prompt = `Sos NORA, un asistente de WhatsApp que conecta usuarios con profesionales del hogar en Argentina.
 
 El usuario escribió: "${input}"
