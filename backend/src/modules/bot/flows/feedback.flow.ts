@@ -358,13 +358,20 @@ export class FeedbackFlow implements FlowHandler {
 
     if (professionalPhone) {
       const userName = (tempData.userName as string) || 'el usuario';
+      const templateName = (wouldRecommend && rating >= 4)
+        ? 'nora_pro_felicitacion_calificacion'
+        : 'nora_pro_pedir_calificacion_usuario';
+
+      const templateParams = (wouldRecommend && rating >= 4)
+        ? [request?.assignedProfessional?.name || 'Profesional', userName]
+        : [userName];
 
       await this.coordinationService.sendMessageWithWindowCheck(
         professionalPhone,
         'PROFESSIONAL',
         `El usuario ya calificó el trabajo. ¿Cómo evaluás a ${userName} del 1 al 5?`,
-        'nora_pro_pedir_calificacion_usuario',
-        [userName],
+        templateName,
+        templateParams,
       );
 
       await this.botRepository.upsert(professionalPhone, {
