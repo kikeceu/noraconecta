@@ -1456,7 +1456,7 @@ export class CoordinationFlow implements FlowHandler {
 
     return {
       response: {
-        text: `¡Todo listo! ${tempData.professionalName || 'El profesional'} ya tiene tus datos para la visita.`,
+        text: `✅ ¡${tempData.professionalName || 'El profesional'} aceptó la fecha! La visita quedó confirmada para ${scheduleText}.`,
       },
       nextStep: 'AWAITING_VISIT',
       tempData: {
