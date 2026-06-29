@@ -217,14 +217,76 @@ export class FeedbackFlow implements FlowHandler {
       };
     }
 
+    const wouldRecommend = resolved === 'YES';
+    const rating = Number(tempData.userRating);
+
+    const requestId = tempData.requestId as string | undefined;
+    if (requestId) {
+      const request = await prisma.request.findUnique({
+        where: { id: requestId },
+        include: {
+          assignedProfessional: { select: { phone: true, name: true } },
+        },
+      });
+
+      const professionalPhone = (tempData.professionalPhone as string | undefined) || request?.assignedProfessional?.phone;
+      const userName = (tempData.userName as string) || 'el usuario';
+
+      if (professionalPhone) {
+        let proMessage = `El usuario ya calificó el trabajo. ¿Cómo evaluás a ${userName} del 1 al 5?`;
+        let templateName = 'nora_pro_pedir_calificacion_usuario';
+        let templateParams = [userName];
+
+        if (wouldRecommend && rating >= 4) {
+          const professionalName = request?.assignedProfessional?.name || 'Profesional';
+          try {
+            const motivationText = await this.notificationService.notifyProfessionalPositiveFeedback(
+              professionalPhone,
+              professionalName,
+              userName,
+            );
+            proMessage = `${motivationText}\n\n¿Cómo evaluás a ${userName} del 1 al 5?`;
+            templateName = 'nora_pro_felicitacion_calificacion';
+            templateParams = [professionalName, userName];
+          } catch (err) {
+            console.error('[FeedbackFlow] Failed to build positive feedback notification:', err);
+          }
+        }
+
+        try {
+          await this.coordinationService.sendMessageWithWindowCheck(
+            professionalPhone,
+            'PROFESSIONAL',
+            proMessage,
+            templateName,
+            templateParams,
+          );
+          await this.botRepository.upsert(professionalPhone, {
+            role: 'PROFESSIONAL',
+            currentFlow: 'FEEDBACK',
+            currentStep: 'FEEDBACK_PRO_RATING',
+            tempData: {
+              requestId,
+              professionalPhone,
+              professionalName: request?.assignedProfessional?.name,
+              userPhone: tempData.userPhone,
+              userName: tempData.userName,
+            } as Prisma.InputJsonValue,
+          });
+        } catch (err) {
+          console.error('[FeedbackFlow] Failed to notify professional for rating:', err);
+        }
+      }
+    }
+
     return {
       response: {
-        text: `${resolved === 'YES' ? 'Gracias por tu recomendación.' : 'Gracias por tu opinión.'}\n\nPara ayudar a otros vecinos a saber qué esperar, ¿cuánto pagaste por este trabajo? Escribí solo el monto (ej: 5000) o "no sé" para saltearlo.`,
+        text: `${wouldRecommend ? 'Gracias por tu recomendación.' : 'Gracias por tu opinión.'}\n\nPara ayudar a otros vecinos a saber qué esperar, ¿cuánto pagaste por este trabajo? Escribí solo el monto (ej: 5000) o "no sé" para saltearlo.`,
       },
       nextStep: 'FEEDBACK_AMOUNT',
       tempData: {
         ...tempData,
-        userWouldRecommend: resolved === 'YES',
+        userWouldRecommend: wouldRecommend,
       },
     };
   }
@@ -328,63 +390,6 @@ export class FeedbackFlow implements FlowHandler {
     if (userComment) {
       void this.analyzeSentiment(requestId, userComment).catch((err) => {
         console.error('[FeedbackFlow] sentiment analysis failed:', err);
-      });
-    }
-
-    const professionalPhoneFromTemp = tempData.professionalPhone as string | undefined;
-    const request = await prisma.request.findUnique({
-      where: { id: requestId },
-      include: {
-        assignedProfessional: { select: { phone: true, name: true } },
-      },
-    });
-
-    const professionalPhone = professionalPhoneFromTemp || request?.assignedProfessional?.phone;
-
-    if (wouldRecommend && rating >= 4 && professionalPhone) {
-      const professionalName = request?.assignedProfessional?.name || 'Profesional';
-      const userName = (tempData.userName as string) || 'el usuario';
-
-      try {
-        await this.notificationService.notifyProfessionalPositiveFeedback(
-          professionalPhone,
-          professionalName,
-          userName,
-        );
-      } catch (err) {
-        console.error('[FeedbackFlow] Failed to send positive feedback notification:', err);
-      }
-    }
-
-    if (professionalPhone) {
-      const userName = (tempData.userName as string) || 'el usuario';
-      const templateName = (wouldRecommend && rating >= 4)
-        ? 'nora_pro_felicitacion_calificacion'
-        : 'nora_pro_pedir_calificacion_usuario';
-
-      const templateParams = (wouldRecommend && rating >= 4)
-        ? [request?.assignedProfessional?.name || 'Profesional', userName]
-        : [userName];
-
-      await this.coordinationService.sendMessageWithWindowCheck(
-        professionalPhone,
-        'PROFESSIONAL',
-        `El usuario ya calificó el trabajo. ¿Cómo evaluás a ${userName} del 1 al 5?`,
-        templateName,
-        templateParams,
-      );
-
-      await this.botRepository.upsert(professionalPhone, {
-        role: 'PROFESSIONAL',
-        currentFlow: 'FEEDBACK',
-        currentStep: 'FEEDBACK_PRO_RATING',
-        tempData: {
-          requestId,
-          professionalPhone,
-          professionalName: request?.assignedProfessional?.name,
-          userPhone: tempData.userPhone,
-          userName: tempData.userName,
-        } as Prisma.InputJsonValue,
       });
     }
 
