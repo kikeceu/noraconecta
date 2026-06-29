@@ -9,6 +9,7 @@ import {
   TEMPLATE_USER_CONFIRMAR_SERVICIO,
   TEMPLATE_USER_CANCELAR_PEDIDO,
   TEMPLATE_PRO_NUEVO_PEDIDO_SIN_MEDIA,
+  TEMPLATE_PRO_FELICITACION_CALIFICACION,
 } from '../../utils/whatsapp-templates';
 
 export interface ProfessionalInfo {
@@ -322,6 +323,22 @@ export class NotificationService {
         { payload: 'cancelar_pedido', text: 'Sí, cancelar' },
         { payload: 'no_cancelar', text: 'No, seguir' },
       ],
+    );
+  }
+
+  async notifyProfessionalPositiveFeedback(
+    professionalPhone: string,
+    professionalName: string,
+    userName: string,
+  ): Promise<void> {
+    const message = `🌟 ¡Buenas noticias, ${professionalName}! ${userName} quedó muy conforme con tu trabajo. Gracias a esto, tu posición en NORA mejoró — la próxima vez que ${userName} necesite un profesional, vas a ser el primero en recibir el pedido. Cuanto mejor sea tu reputación, más trabajo vas a recibir. ¡Seguí así! 💪`;
+
+    await this.sendWithWindowCheck(
+      professionalPhone,
+      'PROFESSIONAL',
+      message,
+      TEMPLATE_PRO_FELICITACION_CALIFICACION,
+      [professionalName, userName],
     );
   }
 

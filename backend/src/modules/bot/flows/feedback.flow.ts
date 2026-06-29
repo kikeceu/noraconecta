@@ -4,6 +4,7 @@ import { callLLM } from '../../../lib/llm-client';
 import { BotRepository } from '../bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { RequestsService, Satisfaction } from '../../requests/requests.service';
+import { NotificationService } from '../../notifications/notification.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 
@@ -14,6 +15,7 @@ export class FeedbackFlow implements FlowHandler {
     private readonly requestsService: RequestsService,
     private readonly botRepository: BotRepository,
     private readonly coordinationService: CoordinationService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   getInitialStep(): string {
@@ -338,6 +340,21 @@ export class FeedbackFlow implements FlowHandler {
     });
 
     const professionalPhone = professionalPhoneFromTemp || request?.assignedProfessional?.phone;
+
+    if (wouldRecommend && rating >= 4 && professionalPhone) {
+      const professionalName = request?.assignedProfessional?.name || 'Profesional';
+      const userName = (tempData.userName as string) || 'el usuario';
+
+      try {
+        await this.notificationService.notifyProfessionalPositiveFeedback(
+          professionalPhone,
+          professionalName,
+          userName,
+        );
+      } catch (err) {
+        console.error('[FeedbackFlow] Failed to send positive feedback notification:', err);
+      }
+    }
 
     if (professionalPhone) {
       const userName = (tempData.userName as string) || 'el usuario';

@@ -101,3 +101,8 @@ export const MEMBERSHIP_EXPIRY_REMINDER_TEMPLATE = 'nora_pro_membresia_por_vence
 
 /** Professional license was rejected — re-upload CTA */
 export const LICENSE_REJECTED_TEMPLATE = 'nora_pro_credencial_rechazada';
+
+// ── Feedback templates ──────────────────────────────────────────────────
+
+/** Positive feedback congratulations to professional */
+export const TEMPLATE_PRO_FELICITACION_CALIFICACION = 'nora_pro_felicitacion_calificacion';
