@@ -124,7 +124,17 @@ export class MatchingService {
     mentionedDate?: string | null,
     description?: string | null,
     technicalBrief?: string | null,
+    userId?: string,
   ): Promise<MatchResult | null> {
+    // Rule 2: exclude professionals with negative feedback for this user
+    if (userId) {
+      const excluded = await this.matchingRepository.findExcludedProfessionals(userId, categoryId);
+      if (excluded.length > 0) {
+        excludedProfessionalIds = [...new Set([...excludedProfessionalIds, ...excluded])];
+        console.log(`[Matching] Excluded ${excluded.length} professionals with negative feedback for user ${userId}`);
+      }
+    }
+
     const config = await this.loadScoringConfig();
 
     const eligible =
@@ -220,6 +230,26 @@ export class MatchingService {
         return { professionalId: '', score: 0, requiresLicensedProfessional: true };
       }
       return null;
+    }
+
+    // Rule 1: try the user's preferred professional first
+    if (userId) {
+      const preferredId = await this.matchingRepository.findPreferredProfessional(userId, categoryId);
+
+      if (preferredId) {
+        const preferredInFiltered = filtered.find(p => p.id === preferredId);
+
+        if (preferredInFiltered) {
+          console.log(`[Matching] Preferred professional found for user ${userId}: ${preferredId}`);
+          return {
+            professionalId: preferredId,
+            score: 100,
+            requiresLicensedProfessional,
+          };
+        } else {
+          console.log(`[Matching] Preferred professional ${preferredId} not available for user ${userId}, falling back to scoring`);
+        }
+      }
     }
 
     const scored = await this.scoreProfessionals(

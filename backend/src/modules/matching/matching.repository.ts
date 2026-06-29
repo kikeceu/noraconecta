@@ -571,4 +571,80 @@ export class MatchingRepository {
     }
     return result;
   }
+
+  async findPreferredProfessional(
+    userId: string,
+    categoryId: string,
+  ): Promise<string | null> {
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        wouldRecommend: true,
+        ratedByUserAt: { not: null },
+        request: {
+          userId,
+          categoryId,
+          status: 'COMPLETED',
+        },
+      },
+      select: {
+        punctualityRating: true,
+        qualityRating: true,
+        communicationRating: true,
+        priceFairnessRating: true,
+        request: {
+          select: {
+            assignedProfessionalId: true,
+          },
+        },
+      },
+      orderBy: {
+        ratedByUserAt: 'desc',
+      },
+    });
+
+    for (const f of feedbacks) {
+      const profId = f.request.assignedProfessionalId;
+      if (!profId) continue;
+
+      const ratings = [
+        f.punctualityRating,
+        f.qualityRating,
+        f.communicationRating,
+        f.priceFairnessRating,
+      ].filter((r): r is number => r !== null);
+
+      if (ratings.length === 0) continue;
+
+      const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+      if (avg >= 4) return profId;
+    }
+
+    return null;
+  }
+
+  async findExcludedProfessionals(
+    userId: string,
+    categoryId: string,
+  ): Promise<string[]> {
+    const feedbacks = await prisma.feedback.findMany({
+      where: {
+        wouldRecommend: false,
+        ratedByUserAt: { not: null },
+        request: {
+          userId,
+          categoryId,
+          status: 'COMPLETED',
+        },
+      },
+      select: {
+        request: {
+          select: { assignedProfessionalId: true },
+        },
+      },
+    });
+
+    return feedbacks
+      .map(f => f.request.assignedProfessionalId)
+      .filter((id): id is string => id !== null);
+  }
 }

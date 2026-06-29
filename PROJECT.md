@@ -85,12 +85,12 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── config.service.ts    # Key-value config get/update
 │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
 │   │   │   ├── matching/
-│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + sistema híbrido keywords+LLM de detección de matrícula con priorización en score (AUT-235, AUT-240, AUT-251, AUT-343)
-│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251)
+│   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + sistema híbrido keywords+LLM de detección de matrícula con priorización en score (AUT-235, AUT-240, AUT-251, AUT-343) + Regla 1: profesional preferido por historial positivo (wouldRecommend:true + rating≥4) — AUT-366 + Regla 2: exclusión de profesionales con wouldRecommend:false — AUT-366. userId parámetro opcional en findBestCandidate
+│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251) + findPreferredProfessional + findExcludedProfessionals por historial usuario-profesional (AUT-366)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251) + persistencia de barrio y código postal desde Nominatim (AUT-307)
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251) + persistencia de barrio y código postal desde Nominatim (AUT-307) + pasa userId en los 6 llamados a findBestCandidate (AUT-366)
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback + CreateRequestInput con technicalBrief + findActivesByProfessionalId (AUT-298)
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation, getReputationBreakdown, getUserComments (AUT-345)
@@ -1077,6 +1077,11 @@ Servicio interno, invocado por el módulo de Pedidos, Profesionales y los endpoi
   - `ProfessionalInfo` extendido con `licenseStatus`. `RequestBasicInfo` extendido con `requiresLicense`.
   - Archivos modificados: `llm-client.ts`, `matching.service.ts`, `requests.service.ts`, `requests.repository.ts`, `notification.service.ts`. No modifica `schema.prisma`.
 
+- **Profesional preferido por historial (AUT-366, REGLA 1)**: si el usuario tuvo un pedido COMPLETED en la misma categoría con un profesional y el feedback fue positivo (`wouldRecommend: true` Y promedio de ratings ≥ 4), NORA intenta asignar ese profesional primero. Si pasa los hard filters (activo, con cupo, etc.), se asigna directamente con score 100 sin pasar por scoring. Si no está disponible, cae al scoring normal.
+- **Profesional excluido por historial (AUT-366, REGLA 2)**: si el usuario dejó `wouldRecommend: false` para un profesional en un pedido COMPLETED de la misma categoría, ese profesional se agrega automáticamente a `excludedProfessionalIds` antes de `findEligibleProfessionals`, por lo que nunca aparece en el matching para ese usuario.
+- `findBestCandidate()` acepta nuevo parámetro opcional `userId?: string`. Si no se pasa, el comportamiento es el actual sin cambios. Los 6 llamados en `requests.service.ts` (create, reject, processTimeouts CREATED, processTimeouts reassignment, cancelByProfessional, reassignAfterNegotiation) pasan `userId`.
+- Nuevos métodos en `MatchingRepository`: `findPreferredProfessional(userId, categoryId)` y `findExcludedProfessionals(userId, categoryId)`. No modifica `schema.prisma`.
+
 ### Storage
 
 | Endpoint                      | Método | Descripción                                                    | Auth      |
@@ -1586,13 +1591,13 @@ const role = phone_number_id === WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL
 
 **Sin variables configuradas:** Si `WHATSAPP_API_TOKEN_USER`, `WHATSAPP_API_TOKEN_PROFESSIONAL`, `WHATSAPP_PHONE_NUMBER_ID_USER` o `WHATSAPP_PHONE_NUMBER_ID_PROFESSIONAL` no están configuradas, el servidor arranca con un warning y el endpoint `/webhooks/whatsapp` responde 503. El simulador opera con normalidad.
 
-### Matching (ACTUALIZADO AUT-186, AUT-239, AUT-251)
+### Matching (ACTUALIZADO AUT-186, AUT-239, AUT-251, AUT-366)
 
 Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 
 | Método                  | Descripción                                         |
 |-------------------------|-----------------------------------------------------|
-| `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona. Acepta `isUrgent`, `mentionedDate` y `problemType` opcionales para bonus de disponibilidad contextual y especialización (AUT-251, AUT-240) |
+| `findBestCandidate()`   | Encuentra el mejor profesional para categoría + zona. Acepta `isUrgent`, `mentionedDate` y `problemType` opcionales para bonus de disponibilidad contextual y especialización (AUT-251, AUT-240). Acepta `userId` opcional para aplicar reglas de preferencia/exclusión por historial (AUT-366) |
 | `calculateScore()`      | Calcula el score individual de un profesional       |
 
 **Repository (matching.repository.ts) — queries de scoring:**
@@ -1609,6 +1614,8 @@ Servicio interno sin endpoints REST. Invocado por el módulo de Pedidos.
 | `findRequestsForReminder()`     | Busca pedidos ASSIGNED con `updatedAt` entre 60 y 90 min atrás (incluye `assignedProfessional.phone`) |
 | `findRequestsForReassignment()` | Busca pedidos ASSIGNED con `updatedAt` > 90 min atrás          |
 | `getProfessionalAvailability()` | Lee `availabilityStructured` de profesionales y retorna Map con slots por día/hora (AUT-251) |
+| `findPreferredProfessional()`    | Busca profesional con feedback positivo previo del usuario en la misma categoría: `wouldRecommend:true` + rating promedio ≥ 4. Retorna el más reciente (AUT-366) |
+| `findExcludedProfessionals()`    | Busca profesionales con `wouldRecommend:false` del usuario en la misma categoría para exclusión automática (AUT-366) |
 
 **Filtros duros**: status ACTIVE | OBSERVATION, zona coincidente, categoría coincidente, `canReceiveRequests = true`, máximo de pedidos activos configurable, no rechazó el pedido actual.
 
