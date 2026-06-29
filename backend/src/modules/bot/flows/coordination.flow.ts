@@ -658,8 +658,10 @@ export class CoordinationFlow implements FlowHandler {
 
         const existingRequest = await prisma.request.findUnique({
           where: { id: requestId },
-          select: { clientAddress: true },
+          select: { clientAddress: true, userLatitude: true, userLongitude: true },
         });
+
+        const scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
 
         if (existingRequest?.clientAddress) {
           const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
@@ -667,9 +669,17 @@ export class CoordinationFlow implements FlowHandler {
             professionalName,
           });
 
+          const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(userName,
+            scheduleText,
+            existingRequest.clientAddress,
+            tempData.userPhone as string,
+            existingRequest.userLatitude ?? null,
+            existingRequest.userLongitude ?? null,
+          );
+
           return {
             response: {
-              text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+              text: professionalMessage,
             },
             nextStep: null,
             tempData: {
@@ -689,7 +699,7 @@ export class CoordinationFlow implements FlowHandler {
 
         const requestForGps = await prisma.request.findUnique({
           where: { id: requestId },
-          select: { userLatitude: true, geoNode: { select: { name: true } } },
+          select: { userLatitude: true, userLongitude: true, geoNode: { select: { name: true } } },
         });
 
         const needsGps = !requestForGps?.userLatitude;
@@ -701,9 +711,18 @@ export class CoordinationFlow implements FlowHandler {
 
         const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
+        const professionalMessage2 = this.coordinationService.notifyProfessionalVisitConfirmed(
+          userName,
+          scheduleText,
+          zoneName,
+          tempData.userPhone as string,
+          requestForGps?.userLatitude ?? null,
+          requestForGps?.userLongitude ?? null,
+        );
+
         return {
           response: {
-            text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+            text: professionalMessage2,
           },
           nextStep: null,
           tempData: {
@@ -906,9 +925,11 @@ export class CoordinationFlow implements FlowHandler {
       const hours = getHoursArgentina(newScheduledAt).toString().padStart(2, '0');
       const minutes = getMinutesArgentina(newScheduledAt).toString().padStart(2, '0');
 
+      const scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
+
       const existingRequest = await prisma.request.findUnique({
         where: { id: requestId },
-        select: { clientAddress: true },
+        select: { clientAddress: true, userLatitude: true, userLongitude: true },
       });
 
       if (existingRequest?.clientAddress) {
@@ -917,9 +938,18 @@ export class CoordinationFlow implements FlowHandler {
           professionalName,
         });
 
+        const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(
+          userName,
+          scheduleText,
+          existingRequest.clientAddress,
+          tempData.userPhone as string,
+          existingRequest.userLatitude ?? null,
+          existingRequest.userLongitude ?? null,
+        );
+
         return {
           response: {
-            text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+            text: professionalMessage,
           },
           nextStep: null,
           tempData: {
@@ -939,7 +969,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const requestForGps = await prisma.request.findUnique({
         where: { id: requestId },
-        select: { userLatitude: true, geoNode: { select: { name: true } } },
+        select: { userLatitude: true, userLongitude: true, geoNode: { select: { name: true } } },
       });
 
       const needsGps = !requestForGps?.userLatitude;
@@ -951,9 +981,18 @@ export class CoordinationFlow implements FlowHandler {
 
       const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
+      const professionalMessage4 = this.coordinationService.notifyProfessionalVisitConfirmed(
+        userName,
+        scheduleText,
+        zoneName,
+        tempData.userPhone as string,
+        requestForGps?.userLatitude ?? null,
+        requestForGps?.userLongitude ?? null,
+      );
+
       return {
         response: {
-          text: `Horario confirmado para el ${dayName} a las ${hours}:${minutes}. Le aviso a ${userName}.`,
+          text: professionalMessage4,
         },
         nextStep: null,
         tempData: {
@@ -1411,32 +1450,6 @@ export class CoordinationFlow implements FlowHandler {
         address,
       }, maxLocations);
     }
-
-    const scheduledAt = request?.scheduledAt;
-
-    let scheduleText = '';
-    if (scheduledAt) {
-      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-      const dayName = dayNames[getDayArgentina(scheduledAt)];
-      const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
-      const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
-      scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
-    }
-
-    const userName = request?.user?.name || 'el usuario';
-    const userPhone = request?.user?.phone || 'No disponible';
-
-    this.coordinationService.notifyProfessionalVisitConfirmed(
-      tempData.professionalPhone as string,
-      userName,
-      scheduleText,
-      address,
-      userPhone,
-      request?.userLatitude ?? null,
-      request?.userLongitude ?? null,
-    ).catch((err) => {
-      console.error('[CoordinationFlow] Failed to notify professional visit confirmed:', err);
-    });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { _locationSuggestions, ...cleanTempData } = tempData;

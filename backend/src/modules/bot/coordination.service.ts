@@ -288,57 +288,26 @@ export class CoordinationService {
     await this.sendWithWindowCheck(phone, role, text, templateName, templateParams);
   }
 
-  async notifyProfessionalVisitConfirmed(
-    professionalPhone: string,
+  notifyProfessionalVisitConfirmed(
     userName: string,
     scheduleText: string,
     address: string,
     userPhone: string,
     userLatitude: number | null,
     userLongitude: number | null,
-  ): Promise<void> {
-    const hasCoordinates = !!(userLatitude && userLongitude);
-
+  ): string {
     let message =
-      `✅ Visita confirmada\n` +
-      `*Cliente:* ${userName}\n` +
-      `*Día y hora:* ${scheduleText}\n` +
-      `*Dirección:* ${address}\n` +
-      `*Teléfono:* ${userPhone}`;
+      `✅ ¡Todo listo! Le confirmé la visita a ${userName}.\n` +
+      `📅 ${scheduleText}\n` +
+      `📍 ${address}\n` +
+      `📞 ${userPhone}`;
 
-    if (hasCoordinates) {
+    if (userLatitude && userLongitude) {
       const mapsUrl = `https://www.google.com/maps?q=${userLatitude},${userLongitude}`;
-      message += `\n*Ubicación:* ${mapsUrl}`;
+      message += `\n🗺️ Ver ubicación: ${mapsUrl}`;
     }
 
-    const needsTemplate = await shouldUseTemplate(
-      professionalPhone,
-      'PROFESSIONAL',
-      this.botRepository,
-    );
-
-    if (!needsTemplate) {
-      await this.whatsappAdapter.sendText(professionalPhone, message, 'PROFESSIONAL');
-      return;
-    }
-
-    if (hasCoordinates) {
-      const coords = `${userLatitude},${userLongitude}`;
-      await this.whatsappAdapter.sendTemplateWithButton(
-        professionalPhone,
-        'nora_pro_visita_confirmada_ubicacion',
-        [userName, scheduleText, address, userPhone],
-        coords,
-        'PROFESSIONAL',
-      );
-    } else {
-      await this.whatsappAdapter.sendTemplate(
-        professionalPhone,
-        'nora_pro_visita_confirmada',
-        [userName, scheduleText, address, userPhone],
-        'PROFESSIONAL',
-      );
-    }
+    return message;
   }
 
   async notifyProfessionalClientAcceptedSchedule(
