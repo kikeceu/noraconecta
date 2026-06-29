@@ -189,6 +189,7 @@ Criterios:
       mentionedDate,
       input.description ?? null,
       input.technicalBrief ?? null,
+      user.id,
     );
 
     void this.requestsRepository.update(request.id, {
@@ -397,6 +398,7 @@ Criterios:
       request.mentionedDate,
       request.description ?? null,
       request.technicalBrief ?? null,
+      request.userId,
     );
 
     if (!match?.professionalId) {
@@ -1034,6 +1036,7 @@ Criterios:
           request.mentionedDate,
           request.description ?? null,
           request.technicalBrief ?? null,
+          request.userId,
         );
 
         if (!match || !match.professionalId) {
@@ -1190,6 +1193,7 @@ Criterios:
           request.mentionedDate,
           request.description ?? null,
           request.technicalBrief ?? null,
+          request.userId,
         );
 
         if (!match || !match.professionalId) {
@@ -1361,6 +1365,7 @@ Criterios:
       request.mentionedDate,
       request.description ?? null,
       request.technicalBrief ?? null,
+      request.userId,
     );
 
     let userMessage: string;
@@ -1467,6 +1472,7 @@ Criterios:
       request.mentionedDate,
       request.description ?? null,
       request.technicalBrief ?? null,
+      request.userId,
     );
 
     if (!match?.professionalId) {
