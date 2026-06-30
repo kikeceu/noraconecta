@@ -1179,12 +1179,13 @@ export class UserRequestFlow implements FlowHandler {
     const photos = (tempData.photoUrls as string[]) || [];
     const newPhotos = message.imageUrls || [];
     const mergedPhotos = [...photos, ...newPhotos].slice(0, 3);
+    const descriptionIsComplete = !!tempData._descriptionIsComplete;
 
     if (newPhotos.length > 0) {
       tempData.photoUrls = mergedPhotos;
 
       if (mergedPhotos.length >= 3) {
-        if (tempData.descriptionAudioUrl) {
+        if (tempData.descriptionAudioUrl || descriptionIsComplete) {
           return this.handleAskAudio({}, tempData);
         }
         return {
@@ -1204,7 +1205,7 @@ export class UserRequestFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase();
 
     if (inputText === 'continuar' || !!inputText) {
-      if (tempData.descriptionAudioUrl) {
+      if (tempData.descriptionAudioUrl || descriptionIsComplete) {
         return this.handleAskAudio({}, tempData);
       }
       return {
@@ -1225,8 +1226,8 @@ export class UserRequestFlow implements FlowHandler {
     message: { text?: string; audioUrl?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    if (tempData.descriptionAudioUrl) {
-      tempData.audioUrl = tempData.descriptionAudioUrl;
+    if (tempData.descriptionAudioUrl || tempData._descriptionIsComplete) {
+      tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText },
@@ -1281,6 +1282,9 @@ export class UserRequestFlow implements FlowHandler {
             tempData,
           };
         }
+
+        // NO_QUESTIONS — description is already sufficient
+        tempData._descriptionIsComplete = true;
       } catch {
         // LLM error — non-blocking, proceed to technical brief
       }
