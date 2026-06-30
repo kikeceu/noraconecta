@@ -544,6 +544,8 @@ export class CoordinationFlow implements FlowHandler {
             targetPhone: request.assignedProfessional?.phone,
             targetRole: 'PROFESSIONAL',
             message: professionalMessage,
+            templateName: 'nora_pro_propuesta_horario_usuario',
+            templateParams: [request.user?.name || 'el usuario', formattedDate],
             flow: 'COORDINATION',
             step: 'AWAITING_CONFIRMATION',
             tempData: {
@@ -690,6 +692,8 @@ export class CoordinationFlow implements FlowHandler {
                 targetPhone: tempData.userPhone,
                 targetRole: 'USER',
                 message: finalizeResult.response.text,
+                templateName: 'nora_user_visita_confirmada',
+                templateParams: [professionalName, dayName, `${hours}:${minutes}`],
                 flow: 'COORDINATION',
                 step: finalizeResult.nextStep,
                 tempData: finalizeResult.tempData,
@@ -733,6 +737,8 @@ export class CoordinationFlow implements FlowHandler {
               targetPhone: tempData.userPhone,
               targetRole: 'USER',
               message: userMessage,
+              templateName: needsGps ? 'nora_user_pedir_ubicacion' : 'nora_user_visita_confirmada',
+              templateParams: needsGps ? [professionalName, zoneName] : [professionalName, dayName, `${hours}:${minutes}`],
               flow: 'COORDINATION',
               step: targetStep,
               tempData: {
@@ -961,6 +967,8 @@ export class CoordinationFlow implements FlowHandler {
               targetPhone: tempData.userPhone,
               targetRole: 'USER',
               message: finalizeResult.response.text,
+              templateName: 'nora_user_visita_confirmada',
+              templateParams: [professionalName, dayName, `${hours}:${minutes}`],
               flow: 'COORDINATION',
               step: finalizeResult.nextStep,
               tempData: finalizeResult.tempData,
@@ -1001,29 +1009,31 @@ export class CoordinationFlow implements FlowHandler {
           requestId,
           scheduledAt: newScheduledAt.toISOString(),
           pendingNotification: {
-            targetPhone: tempData.userPhone,
-            targetRole: 'USER',
-            message: userMessage,
-            flow: 'COORDINATION',
-            step: targetStep,
-            tempData: {
-              requestId,
-              userId: tempData.userId,
-              userName,
-              userPhone: tempData.userPhone,
-              professionalId: tempData.professionalId,
-              professionalName,
-              professionalPhone: tempData.professionalPhone,
-              categoryName: tempData.categoryName,
-              description: tempData.description,
-              scheduledAt: newScheduledAt.toISOString(),
+              targetPhone: tempData.userPhone,
+              targetRole: 'USER',
+              message: userMessage,
+              templateName: needsGps ? 'nora_user_pedir_ubicacion' : 'nora_user_visita_confirmada',
+              templateParams: needsGps ? [professionalName, zoneName] : [professionalName, dayName, `${hours}:${minutes}`],
+              flow: 'COORDINATION',
+              step: targetStep,
+              tempData: {
+                requestId,
+                userId: tempData.userId,
+                userName,
+                userPhone: tempData.userPhone,
+                professionalId: tempData.professionalId,
+                professionalName,
+                professionalPhone: tempData.professionalPhone,
+                categoryName: tempData.categoryName,
+                description: tempData.description,
+                scheduledAt: newScheduledAt.toISOString(),
+              },
             },
-          },
-        } as Record<string, unknown>,
-      };
-    }
+          } as Record<string, unknown>,
+        };
+      }
 
-    await prisma.request.update({
+      await prisma.request.update({
       where: { id: requestId },
       data: {
         coordinationStatus: 'AWAITING_USER_CONFIRMATION',
@@ -1052,6 +1062,8 @@ export class CoordinationFlow implements FlowHandler {
           targetPhone: tempData.userPhone,
           targetRole: 'USER',
           message: userMessage,
+          templateName: 'nora_user_horario_alternativo',
+          templateParams: [professionalName, alternativeText],
           flow: 'COORDINATION',
           step: 'AWAITING_USER_CONFIRMATION',
           tempData: {
