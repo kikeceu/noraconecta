@@ -608,21 +608,53 @@ export class UserRequestFlow implements FlowHandler {
   private async proceedAfterService(
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    const categoryName = tempData.categoryName as string;
+
     if (tempData.geoNodeId) {
-      const categoryName = tempData.categoryName as string;
       const zoneName = tempData.geoNodeName as string;
+      const userId = tempData.userId as string;
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const allSavedLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
+
+      const matchingLocations = allSavedLocations.filter(
+        (loc) => loc.geoNodeId === tempData.geoNodeId,
+      );
+
+      if (matchingLocations.length === 0) {
+        return {
+          response: {
+            text: `¡Perfecto! Un servicio de ${categoryName} en ${zoneName}. Contame qué te está pasando — podés escribirlo o mandarme un audio.`,
+          },
+          nextStep: 'ASK_DESCRIPTION',
+          tempData,
+        };
+      }
+
+      tempData._savedLocations = matchingLocations;
+
+      if (matchingLocations.length === 1) {
+        const loc = matchingLocations[0];
+        return {
+          response: {
+            text: `¡Perfecto! Un servicio de ${categoryName} en ${zoneName}. ¿Es para ${loc.address}?\n1. Sí\n2. No, es otra ubicación`,
+          },
+          nextStep: 'ASK_SAVED_LOCATION',
+          tempData,
+        };
+      }
+
+      const list = matchingLocations.map((loc, i) => `${i + 1}. ${loc.address}`).join('\n');
+      const otherOptionNumber = matchingLocations.length + 1;
       return {
         response: {
-          text: `Entendido: ${categoryName} en ${zoneName}. Describí el problema. Podés escribirlo o mandar un audio.`,
+          text: `¡Perfecto! Un servicio de ${categoryName} en ${zoneName}. ¿Para qué dirección es?\n\n${list}\n${otherOptionNumber}. Otra ubicación`,
         },
-        nextStep: 'ASK_DESCRIPTION',
+        nextStep: 'ASK_SAVED_LOCATION',
         tempData,
       };
     }
 
     const userId = tempData.userId as string;
-    const categoryName = tempData.categoryName as string;
-
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const savedLocations = (user?.savedLocations as unknown as SavedLocation[]) || [];
 
@@ -637,7 +669,7 @@ export class UserRequestFlow implements FlowHandler {
 
       return {
         response: {
-          text: `Entendido: ${categoryName}. ¿Es para ${loc.address}?\n1. Sí\n2. No, es otra ubicación`,
+          text: `¡Perfecto! Un servicio de ${categoryName}. ¿Es para ${loc.address}?\n1. Sí\n2. No, es otra ubicación`,
         },
         nextStep: 'ASK_SAVED_LOCATION',
         tempData,
@@ -649,7 +681,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-        text: `Entendido: ${categoryName}. ¿Para qué dirección es el servicio?\n\n${list}\n${otherOptionNumber}. Otra ubicación`,
+        text: `¡Perfecto! Un servicio de ${categoryName}. ¿Para qué dirección es el servicio?\n\n${list}\n${otherOptionNumber}. Otra ubicación`,
       },
       nextStep: 'ASK_SAVED_LOCATION',
       tempData,
