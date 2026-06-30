@@ -52,6 +52,8 @@ export interface PendingNotification {
   flow: string | null;
   step: string | null;
   tempData: Record<string, unknown>;
+  templateName?: string;
+  templateParams?: string[];
 }
 
 export interface SavedLocation {

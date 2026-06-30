@@ -15,6 +15,7 @@ import { MembershipsService } from '../modules/memberships/memberships.service';
 import { MembershipsRepository } from '../modules/memberships/memberships.repository';
 import { PlansRepository } from '../modules/plans/plans.repository';
 import { ConfigRepository } from '../modules/config/config.repository';
+import { shouldUseTemplate } from '../utils/whatsapp-utils';
 import { R2Client } from '../lib/r2-client';
 
 const botRepository = new BotRepository();
@@ -327,10 +328,19 @@ async function handlePendingNotification(
 ): Promise<void> {
   if (!pendingNotification) return;
 
-  const { targetPhone, targetRole, message } = pendingNotification;
+  const { targetPhone, targetRole, message, templateName, templateParams } = pendingNotification;
 
   try {
-    await adapter.sendText(targetPhone, message, targetRole);
+    if (templateName && templateParams) {
+      const needsTemplate = await shouldUseTemplate(targetPhone, targetRole, botRepository);
+      if (needsTemplate) {
+        await adapter.sendTemplate(targetPhone, templateName, templateParams, targetRole);
+      } else {
+        await adapter.sendText(targetPhone, message, targetRole);
+      }
+    } else {
+      await adapter.sendText(targetPhone, message, targetRole);
+    }
 
     // Clear pendingMessage from target session so it's not delivered again
     const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
