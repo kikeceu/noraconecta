@@ -21,14 +21,17 @@ async function generateClarificationQuestions(
   const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
 El usuario necesita un ${categoryName} y describió su problema asi: "${description}".
 
-Tu tarea: determinar si falta informacion CLAVE que el profesional necesitaria saber antes de llegar.
-Si falta info importante, formula UNA sola pregunta corta y directa en español rioplatense.
-Si ya tenes suficiente informacion, responde exactamente: NO_QUESTIONS
+Tu única tarea: determinar si la descripción es tan AMBIGUA que un profesional de ${categoryName} podría rechazar el trabajo al llegar, por no ser lo que esperaba.
 
-Ejemplos de buenas preguntas:
-- "El corte de luz es en todo el depto o solo en un ambiente?"
-- "La perdida es constante o intermitente?"
-- "Tenes acceso al medidor de gas?"
+NO preguntes por detalles técnicos menores que el profesional resuelve en el lugar (material de algo, marca, modelo, antigüedad del equipo, tipo específico de pieza, etc.) — esos detalles NO determinan si el profesional acepta o no el trabajo.
+
+SOLO preguntá si:
+- No queda claro qué tipo de trabajo es dentro del oficio (ej: "arreglar la luz" podría ser un cambio de lámpara o una instalación eléctrica completa — son trabajos muy distintos)
+- Falta un dato que cambiaría completamente el alcance o la complejidad del trabajo
+
+Si la descripción ya permite entender de qué se trata el trabajo en términos generales, respondé exactamente: NO_QUESTIONS
+
+Si hace falta preguntar, formulá UNA sola pregunta corta y directa en español rioplatense, enfocada en desambiguar el TIPO de trabajo, no en detalles técnicos.
 
 Responde SOLO la pregunta o NO_QUESTIONS. Sin explicaciones.`;
 
