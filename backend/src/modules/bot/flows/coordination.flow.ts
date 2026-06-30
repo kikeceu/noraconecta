@@ -667,6 +667,7 @@ export class CoordinationFlow implements FlowHandler {
           const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
             ...tempData,
             professionalName,
+            _confirmedByProfessional: true,
           });
 
           const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(userName,
@@ -936,6 +937,7 @@ export class CoordinationFlow implements FlowHandler {
         const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
           ...tempData,
           professionalName,
+          _confirmedByProfessional: true,
         });
 
         const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(
@@ -1457,17 +1459,24 @@ export class CoordinationFlow implements FlowHandler {
     return {
       response: {
         text: (() => {
-	  const _sat = tempData.scheduledAt as string | undefined;
-	  if (_sat) {
-	    const _d = new Date(_sat);
-	    const _days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-	    const _day = _days[getDayArgentina(_d)];
-	    const _h = getHoursArgentina(_d).toString().padStart(2, '0');
-	    const _m = getMinutesArgentina(_d).toString().padStart(2, '0');
-	            return `✅ ¡Perfecto! Ya está todo coordinado con ${tempData.professionalName || 'el profesional'} — te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
-	  }
-          return `✅ ¡Perfecto! Ya está todo coordinado con ${tempData.professionalName || 'el profesional'} — te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
-	})(),
+          const _sat = tempData.scheduledAt as string | undefined;
+          const _confirmedByProfessional = tempData._confirmedByProfessional as boolean | undefined;
+          const _profName = tempData.professionalName || 'el profesional';
+
+          const _greeting = _confirmedByProfessional
+            ? `✅ ¡${_profName} confirmó tu propuesta de horario!`
+            : `✅ ¡Perfecto! Ya está todo coordinado con ${_profName}.`;
+
+          if (_sat) {
+            const _d = new Date(_sat);
+            const _days = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            const _day = _days[getDayArgentina(_d)];
+            const _h = getHoursArgentina(_d).toString().padStart(2, '0');
+            const _m = getMinutesArgentina(_d).toString().padStart(2, '0');
+            return `${_greeting} Te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
+          }
+          return _greeting;
+        })(),
       },
       nextStep: 'AWAITING_VISIT',
       tempData: {
