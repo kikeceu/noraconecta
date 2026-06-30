@@ -1464,9 +1464,9 @@ export class CoordinationFlow implements FlowHandler {
 	    const _day = _days[getDayArgentina(_d)];
 	    const _h = getHoursArgentina(_d).toString().padStart(2, '0');
 	    const _m = getMinutesArgentina(_d).toString().padStart(2, '0');
-	    return `✅ ¡${tempData.professionalName || 'El profesional'} aceptó la fecha! La visita quedó confirmada para el ${_day} a las ${_h}:${_m}.`;
+	            return `✅ ¡Perfecto! Ya está todo coordinado con ${tempData.professionalName || 'el profesional'} — te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
 	  }
-	  return `✅ ¡${tempData.professionalName || 'El profesional'} aceptó la fecha! La visita quedó confirmada.`;
+          return `✅ ¡Perfecto! Ya está todo coordinado con ${tempData.professionalName || 'el profesional'} — te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
 	})(),
       },
       nextStep: 'AWAITING_VISIT',
