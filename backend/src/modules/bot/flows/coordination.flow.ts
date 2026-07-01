@@ -11,9 +11,29 @@ import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
+import { callLLM } from '../../../lib/llm-client';
 import { upsertSavedLocationByAddress, findLocationsByGeoNode, touchSavedLocation, DEFAULT_MAX_SAVED_LOCATIONS } from './location-saver.helper';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
+
+async function extractCleanAddress(rawText: string): Promise<string> {
+  const prompt = `El usuario escribió lo siguiente como dirección de su domicilio: "${rawText}"
+
+Tu tarea: extraer únicamente la dirección limpia, sin frases introductorias como "es en", "está en", "vivo en", "la dirección es", "quiero en", etc.
+
+Si el texto ya es una dirección limpia, devolvela tal cual.
+Si no podés identificar una dirección válida, devolvé el texto original sin cambios.
+
+Respondé SOLO con la dirección limpia. Sin explicaciones.`;
+
+  try {
+    const response = await callLLM(prompt);
+    const cleaned = response.trim();
+    return cleaned.length > 0 ? cleaned : rawText;
+  } catch {
+    return rawText;
+  }
+}
 
 export class CoordinationFlow implements FlowHandler {
   readonly flowName = 'COORDINATION';
@@ -1333,7 +1353,8 @@ export class CoordinationFlow implements FlowHandler {
       return this.handleLocationSuggestionResponse(message, tempData);
     }
 
-    const address = message.text?.trim();
+    const rawAddress = message.text?.trim();
+    const address = rawAddress ? await extractCleanAddress(rawAddress) : rawAddress;
 
     // --- Caso: ya viene con clientAddress pre-llenado (reutilizó savedLocation) ---
     const request = await prisma.request.findUnique({
