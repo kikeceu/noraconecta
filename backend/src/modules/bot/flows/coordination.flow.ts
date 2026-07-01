@@ -738,16 +738,6 @@ export class CoordinationFlow implements FlowHandler {
 
         const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
-        await this.coordinationService.notifyProfessionalVisitConfirmed(
-          tempData.professionalPhone as string,
-          userName,
-          scheduleText,
-          zoneName,
-          tempData.userPhone as string,
-          requestForGps?.userLatitude ?? null,
-          requestForGps?.userLongitude ?? null,
-        );
-
         return {
           response: {
             text: '',
@@ -1014,16 +1004,6 @@ export class CoordinationFlow implements FlowHandler {
         : `${professionalName} confirmó la visita para el ${dayName} a las ${hours}:${minutes}. Por favor, indicá la dirección exacta donde realizarás el trabajo (calle, número, piso, depto, referencia o número de manzana si es barrio privado).`;
 
       const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
-
-      await this.coordinationService.notifyProfessionalVisitConfirmed(
-        tempData.professionalPhone as string,
-        userName,
-        scheduleText,
-        zoneName,
-        tempData.userPhone as string,
-        requestForGps?.userLatitude ?? null,
-        requestForGps?.userLongitude ?? null,
-      );
 
       return {
         response: {
