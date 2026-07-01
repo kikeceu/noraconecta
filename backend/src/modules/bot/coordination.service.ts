@@ -288,14 +288,15 @@ export class CoordinationService {
     await this.sendWithWindowCheck(phone, role, text, templateName, templateParams);
   }
 
-  notifyProfessionalVisitConfirmed(
+  async notifyProfessionalVisitConfirmed(
+    professionalPhone: string,
     userName: string,
     scheduleText: string,
     address: string,
     userPhone: string,
     userLatitude: number | null,
     userLongitude: number | null,
-  ): string {
+  ): Promise<void> {
     let message =
       `✅ ¡Todo listo! Le confirmé la visita a ${userName}.\n` +
       `📅 ${scheduleText}\n` +
@@ -305,9 +306,23 @@ export class CoordinationService {
     if (userLatitude && userLongitude) {
       const mapsUrl = `https://www.google.com/maps?q=${userLatitude},${userLongitude}`;
       message += `\n🗺️ Ver ubicación: ${mapsUrl}`;
-    }
 
-    return message;
+      await this.sendWithWindowCheck(
+        professionalPhone,
+        'PROFESSIONAL',
+        message,
+        'nora_pro_visita_confirmada_ubicacion',
+        [userName, scheduleText, address, userPhone],
+      );
+    } else {
+      await this.sendWithWindowCheck(
+        professionalPhone,
+        'PROFESSIONAL',
+        message,
+        'nora_pro_visita_confirmada',
+        [userName, scheduleText, address, userPhone],
+      );
+    }
   }
 
   async notifyProfessionalClientAcceptedSchedule(
