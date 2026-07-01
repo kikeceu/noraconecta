@@ -247,6 +247,7 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       imageUrls: parsed.message.imageUrls,
       audioUrl: parsed.message.audioUrl,
       location: parsed.message.location,
+      buttonPayload: parsed.message.buttonPayload,
       role: parsed.role,
     });
 
@@ -376,6 +377,7 @@ async function processWithAccumulatedPhotos(
     const result = await botService.processMessage({
       phone: accumulator.phone,
       imageUrls: accumulator.imageUrls,
+      buttonPayload: accumulator.originalParsed.message.buttonPayload,
       role: accumulator.role,
     });
 

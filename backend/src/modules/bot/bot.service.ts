@@ -52,6 +52,7 @@ export type ProcessMessageInput = {
   imageUrls?: string[];
   audioUrl?: string;
   location?: LocationData;
+  buttonPayload?: string;
   role?: BotRole;
 };
 
@@ -653,6 +654,7 @@ export class BotService {
         imageUrls,
         audioUrl,
         location: input.location,
+        buttonPayload: input.buttonPayload,
       },
     };
 

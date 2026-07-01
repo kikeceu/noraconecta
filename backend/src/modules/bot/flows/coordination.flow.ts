@@ -86,7 +86,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleAwaitingAcceptance(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
@@ -108,7 +108,7 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const detailsShown = tempData._detailsShown as boolean;
 
     // Second exchange: after details are shown, interpret '1' as ACCEPT
@@ -484,7 +484,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleConfirmAvailability(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
@@ -496,7 +496,7 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = await resolveOptionWithFallback('CONFIRM_AVAILABILITY', inputText);
 
     if (resolved === 'YES') {
@@ -862,7 +862,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleConfirmProAvailability(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
@@ -874,7 +874,7 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = await resolveOptionWithFallback('CONFIRM_PRO_AVAILABILITY', inputText);
 
     if (resolved !== 'YES') {
@@ -1531,10 +1531,10 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handlePostNegotiation(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const requestId = tempData.requestId as string;
     const categoryName = (tempData.categoryName as string) || 'el servicio';
     const reassigned = tempData._reassigned as boolean;
@@ -1592,7 +1592,7 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleAwaitingVisitConfirmation(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
@@ -1604,7 +1604,7 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = await resolveOptionWithFallback('AWAITING_VISIT_CONFIRMATION', inputText);
 
     if (resolved === 'CONFIRM') {

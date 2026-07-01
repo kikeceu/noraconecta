@@ -149,8 +149,8 @@ export class UserRequestFlow implements FlowHandler {
     const tempData = (session.tempData as Record<string, unknown>) || {};
 
     // Handle button payloads that arrive when user has no active flow context
-    if (step === 'INIT' && message.text) {
-      const payload = message.text.trim();
+    if (step === 'INIT' && (message.text || message.buttonPayload)) {
+      const payload = (message.buttonPayload || message.text || '').trim();
       switch (payload) {
         case BOT_PAYLOADS.NOTIFY_WHEN_AVAILABLE:
           return this.handleNotifyWhenAvailable(tempData);
@@ -1326,10 +1326,10 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handleDescriptionMismatch(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim().toLowerCase() || '';
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const categoryName = tempData.categoryName as string;
 
     if (!message.text?.trim()) {
@@ -1418,10 +1418,10 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handleConfirm(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim().toLowerCase();
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = inputText ? resolveOption('CONFIRM', inputText) : null;
 
     if (resolved === 'YES') {
@@ -1520,10 +1520,10 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handleWaitingConsent(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const inputText = message.text?.trim().toLowerCase();
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = inputText ? await resolveOptionWithFallback('WAITING_CONSENT', inputText) : null;
 
     if (resolved === 'YES') {
@@ -1843,10 +1843,10 @@ export class UserRequestFlow implements FlowHandler {
   }
 
   private async handlePostCancel(
-    message: { text?: string },
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const input = message.text?.trim() || '';
+    const input = (message.buttonPayload || message.text?.trim() || '');
     const resolved = await resolveOptionWithFallback('POST_CANCEL', input);
 
     if (resolved === 'NEW_REQUEST') {
