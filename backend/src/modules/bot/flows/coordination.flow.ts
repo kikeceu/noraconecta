@@ -3,9 +3,7 @@ import prisma from '../../../lib/prisma';
 import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../../utils/date-utils';
 import { RequestsService } from '../../requests/requests.service';
 import { RequestsRepository } from '../../requests/requests.repository';
-import { MatchingRepository } from '../../matching/matching.repository';
 import { UsersRepository } from '../../users/users.repository';
-import { BotRepository } from '../../bot/bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { ConfigRepository } from '../../config/config.repository';
 import { AbuseDetectionService } from '../abuse-detection.service';
@@ -60,6 +58,8 @@ export class CoordinationFlow implements FlowHandler {
         return this.handleAwaitingVisit(message, tempData, role);
       case 'CANCEL_CONFIRMATION':
         return handleCancelConfirmation(context, this.requestsService, this.notificationService);
+      case 'POST_NEGOTIATION':
+        return this.handlePostNegotiation(message, tempData);
       default:
         return this.handleAwaitingAvailability(message, tempData, role);
     }
@@ -1157,32 +1157,38 @@ export class CoordinationFlow implements FlowHandler {
         const professionalName = (tempData.professionalName as string) || 'el profesional';
 
         if (negotiationRounds >= MAX_NEGOTIATION_ROUNDS) {
-          const requestsRepo = new RequestsRepository();
-          const usersRepo = new UsersRepository();
-          const matchingRepo = new MatchingRepository();
-          const botRepo = new BotRepository();
-          const requestsService = new RequestsService(requestsRepo, usersRepo, matchingRepo, botRepo);
-
+          let reassigned = false;
           try {
-            await requestsService.reassignAfterNegotiation(requestId, professionalId);
+            const result = await this.requestsService.reassignAfterNegotiation(requestId, professionalId);
+            reassigned = !!(result && result.status === 'ASSIGNED');
             console.log(
               '[CoordinationFlow] Negotiation exhausted, reassigning:',
-              { requestId, professionalId },
+              { requestId, professionalId, reassigned },
             );
           } catch (err) {
             console.error('[CoordinationFlow] Failed to reassign after negotiation:', err);
           }
 
-          const professionalName = (tempData.professionalName as string) || 'el profesional';
           const categoryName = (tempData.categoryName as string) || 'el servicio';
-          const message = `No pudimos coordinar un horario con ${professionalName}, tu ${categoryName}. Estamos buscando otro profesional disponible para tu pedido.\n\n1. Seguir esperando\n2. Cancelar mi pedido`;
+          const userPhone = tempData.userPhone as string;
+
+          await this.coordinationService.notifyUserNegotiationExhausted(
+            userPhone,
+            professionalName,
+            reassigned,
+          );
 
           return {
-            response: {
-              text: message,
-            },
-            nextStep: null,
-            tempData: { _clearTempData: true } as Record<string, unknown>,
+            response: { text: '' },
+            nextStep: 'POST_NEGOTIATION',
+            tempData: {
+              requestId,
+              categoryName,
+              professionalName,
+              userId: tempData.userId,
+              userPhone,
+              _reassigned: reassigned,
+            } as Record<string, unknown>,
           };
         }
 
@@ -1500,6 +1506,55 @@ export class CoordinationFlow implements FlowHandler {
         ...cleanTempData,
         clientAddress: address,
       },
+    };
+  }
+
+  private async handlePostNegotiation(
+    message: { text?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = message.text?.trim().toLowerCase() || '';
+    const requestId = tempData.requestId as string;
+    const categoryName = (tempData.categoryName as string) || 'el servicio';
+    const reassigned = tempData._reassigned as boolean;
+
+    if (inputText === '1' || inputText === 'si' || inputText === 'sí' || inputText === 'dale' || inputText === 'seguir esperando' || inputText === 'avisame') {
+      return {
+        response: {
+          text: reassigned
+            ? 'Perfecto, te avisamos cuando el nuevo profesional confirme.'
+            : 'Anotado. Te avisamos cuando haya un profesional disponible en tu zona.',
+        },
+        nextStep: null,
+        tempData: { _clearTempData: true },
+      };
+    }
+
+    if (inputText === '2' || inputText === 'no' || inputText === 'cancelar' || inputText === 'cancelar mi pedido') {
+      if (requestId) {
+        try {
+          await this.requestsService.cancelByUser(requestId);
+        } catch (err) {
+          console.error('[CoordinationFlow] Failed to cancel request after negotiation:', err);
+        }
+      }
+      return {
+        response: {
+          text: `Entendido, cancelamos tu pedido de ${categoryName}. Si necesitás ayuda en otro momento, escribinos cuando quieras.`,
+        },
+        nextStep: null,
+        tempData: { _clearTempData: true },
+      };
+    }
+
+    const retryMessage = reassigned
+      ? `No pudimos coordinar un horario. Ya le asignamos tu pedido a otro profesional.\n\n1. Seguir esperando\n2. Cancelar mi pedido`
+      : `No hay profesionales disponibles en tu zona por ahora.\n\n1. Avisame cuando haya uno\n2. Cancelar mi pedido`;
+
+    return {
+      response: { text: retryMessage },
+      nextStep: 'POST_NEGOTIATION',
+      tempData,
     };
   }
 
