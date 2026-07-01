@@ -652,6 +652,28 @@ export class CoordinationService {
     }
   }
 
+  async notifyUserNegotiationExhausted(
+    userPhone: string,
+    professionalName: string,
+    reassigned: boolean,
+  ): Promise<void> {
+    const message = reassigned
+      ? `No pudimos coordinar un horario con ${professionalName}. Ya le asignamos tu pedido a otro profesional — te avisamos cuando confirme.\n\n1. Seguir esperando\n2. Cancelar mi pedido`
+      : `No pudimos coordinar un horario con ${professionalName} y no hay otros profesionales disponibles en tu zona por ahora.\n\n1. Avisame cuando haya uno disponible\n2. Cancelar mi pedido`;
+
+    const templateName = reassigned
+      ? 'nora_user_reasignando_por_negociacion'
+      : 'nora_user_sin_profesional_negociacion';
+
+    await this.sendWithWindowCheck(
+      userPhone,
+      'USER',
+      message,
+      templateName,
+      [professionalName],
+    );
+  }
+
   private async sendWithWindowCheck(
     phone: string,
     role: 'USER' | 'PROFESSIONAL',
