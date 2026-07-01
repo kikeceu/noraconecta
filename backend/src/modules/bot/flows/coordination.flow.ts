@@ -672,7 +672,9 @@ export class CoordinationFlow implements FlowHandler {
             _confirmedByProfessional: true,
           });
 
-          const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(userName,
+          await this.coordinationService.notifyProfessionalVisitConfirmed(
+            tempData.professionalPhone as string,
+            userName,
             scheduleText,
             existingRequest.clientAddress,
             tempData.userPhone as string,
@@ -682,7 +684,7 @@ export class CoordinationFlow implements FlowHandler {
 
           return {
             response: {
-              text: professionalMessage,
+              text: '',
             },
             nextStep: null,
             tempData: {
@@ -716,7 +718,8 @@ export class CoordinationFlow implements FlowHandler {
 
         const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
-        const professionalMessage2 = this.coordinationService.notifyProfessionalVisitConfirmed(
+        await this.coordinationService.notifyProfessionalVisitConfirmed(
+          tempData.professionalPhone as string,
           userName,
           scheduleText,
           zoneName,
@@ -727,7 +730,7 @@ export class CoordinationFlow implements FlowHandler {
 
         return {
           response: {
-            text: professionalMessage2,
+            text: '',
           },
           nextStep: null,
           tempData: {
@@ -946,7 +949,8 @@ export class CoordinationFlow implements FlowHandler {
           _confirmedByProfessional: true,
         });
 
-        const professionalMessage = this.coordinationService.notifyProfessionalVisitConfirmed(
+        await this.coordinationService.notifyProfessionalVisitConfirmed(
+          tempData.professionalPhone as string,
           userName,
           scheduleText,
           existingRequest.clientAddress,
@@ -957,7 +961,7 @@ export class CoordinationFlow implements FlowHandler {
 
         return {
           response: {
-            text: professionalMessage,
+            text: '',
           },
           nextStep: null,
           tempData: {
@@ -991,7 +995,8 @@ export class CoordinationFlow implements FlowHandler {
 
       const targetStep = needsGps ? 'AWAITING_GPS' : 'AWAITING_LOCATION';
 
-      const professionalMessage4 = this.coordinationService.notifyProfessionalVisitConfirmed(
+      await this.coordinationService.notifyProfessionalVisitConfirmed(
+        tempData.professionalPhone as string,
         userName,
         scheduleText,
         zoneName,
@@ -1002,7 +1007,7 @@ export class CoordinationFlow implements FlowHandler {
 
       return {
         response: {
-          text: professionalMessage4,
+          text: '',
         },
         nextStep: null,
         tempData: {
