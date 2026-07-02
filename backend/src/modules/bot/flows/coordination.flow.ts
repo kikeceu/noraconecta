@@ -436,17 +436,84 @@ export class CoordinationFlow implements FlowHandler {
 
       const parsedDate = result.date;
       const formattedDate = formatDateTimeArgentina(parsedDate);
+
+      const assignedRequest = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { assignedProfessionalId: true },
+      });
+      const professionalId = assignedRequest?.assignedProfessionalId;
+
+      if (professionalId) {
+        const requestsRepo = new RequestsRepository();
+        const hasConflict = await requestsRepo.findConflictingSchedule(
+          professionalId,
+          parsedDate,
+          requestId,
+        );
+
+        if (hasConflict) {
+          return {
+            response: {
+              text: 'Ese horario no está disponible para el profesional. Indicá otro día y hora. Por ejemplo: *viernes 13/06 a las 16:00*',
+            },
+            nextStep: 'AWAITING_AVAILABILITY',
+            tempData: { ...tempData, negotiationRounds },
+          };
+        }
+      }
+
+      const request = await prisma.request.update({
+        where: { id: requestId },
+        data: {
+          coordinationStatus: 'AWAITING_CONFIRMATION',
+          clientAvailability: formatDateTimeArgentina(parsedDate),
+          scheduledAt: parsedDate,
+        },
+        include: {
+          user: { select: { name: true, phone: true } },
+          assignedProfessional: { select: { name: true, phone: true } },
+          category: { select: { name: true } },
+        },
+      });
+
+      const professionalName = request.assignedProfessional?.name || 'El profesional';
+      const professionalMessage = `Tu cliente ${request.user?.name || 'el usuario'} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario`;
+
       return {
         response: {
-          text: `Entendido, ¿confirmás el *${formattedDate}*?\n1. Sí\n2. No, corregir`,
+          text: `Le aviso a ${professionalName} que podés el ${formattedDate}. Esperá su confirmación.`,
         },
-        nextStep: 'CONFIRM_AVAILABILITY',
+        nextStep: 'AWAITING_AVAILABILITY',
         tempData: {
-          ...tempData,
-          parsedScheduledAt: parsedDate.toISOString(),
+          requestId,
           availability,
+          scheduledAt: parsedDate.toISOString(),
           negotiationRounds,
-        },
+          _sent: true,
+          pendingNotification: {
+            targetPhone: request.assignedProfessional?.phone,
+            targetRole: 'PROFESSIONAL',
+            message: professionalMessage,
+            templateName: 'nora_pro_propuesta_horario_usuario',
+            templateParams: [request.user?.name || 'el usuario', formattedDate],
+            flow: 'COORDINATION',
+            step: 'AWAITING_CONFIRMATION',
+            tempData: {
+              requestId,
+              userId: request.userId,
+              userName: request.user?.name,
+              userPhone: request.user?.phone,
+              professionalId: request.assignedProfessionalId,
+              professionalName,
+              professionalPhone: request.assignedProfessional?.phone,
+              availability,
+              scheduledAt: parsedDate.toISOString(),
+              negotiationRounds,
+              categoryName: request.category?.name,
+              description: request.description,
+            },
+          },
+        } as Record<string, unknown>,
       };
     }
 
