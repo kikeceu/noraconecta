@@ -188,8 +188,7 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleAskLocation(message, tempData);
       case 'ASK_PHOTOS':
         return this.handleAskPhotos(message, tempData);
-      case 'ASK_AUDIO':
-        return this.handleAskAudio(message, tempData);
+
       case 'CLARIFICATION':
         return this.handleClarification(message, tempData);
       case 'CONFIRM':
@@ -1182,18 +1181,18 @@ export class UserRequestFlow implements FlowHandler {
     const photos = (tempData.photoUrls as string[]) || [];
     const newPhotos = message.imageUrls || [];
     const mergedPhotos = [...photos, ...newPhotos].slice(0, 3);
-    const descriptionIsComplete = !!tempData._descriptionIsComplete;
 
     if (newPhotos.length > 0) {
       tempData.photoUrls = mergedPhotos;
 
       if (mergedPhotos.length >= 3) {
-        if (tempData.descriptionAudioUrl || descriptionIsComplete) {
-          return this.handleAskAudio({}, tempData);
+        if (tempData.descriptionAudioUrl) {
+          tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
         }
+        const confirmText = this.buildConfirmation(tempData);
         return {
-          response: { text: 'Recibí 3 fotos. ¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
-          nextStep: 'ASK_AUDIO',
+          response: { text: confirmText },
+          nextStep: 'CONFIRM',
           tempData,
         };
       }
@@ -1208,12 +1207,13 @@ export class UserRequestFlow implements FlowHandler {
     const inputText = message.text?.trim().toLowerCase();
 
     if (inputText === 'continuar' || !!inputText) {
-      if (tempData.descriptionAudioUrl || descriptionIsComplete) {
-        return this.handleAskAudio({}, tempData);
+      if (tempData.descriptionAudioUrl) {
+        tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
       }
+      const confirmText = this.buildConfirmation(tempData);
       return {
-        response: { text: '¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
-        nextStep: 'ASK_AUDIO',
+        response: { text: confirmText },
+        nextStep: 'CONFIRM',
         tempData,
       };
     }
@@ -1221,42 +1221,6 @@ export class UserRequestFlow implements FlowHandler {
     return {
       response: { text: '' },
       nextStep: 'ASK_PHOTOS',
-      tempData,
-    };
-  }
-
-  private async handleAskAudio(
-    message: { text?: string; audioUrl?: string },
-    tempData: Record<string, unknown>,
-  ): Promise<FlowStepResult> {
-    if (tempData.descriptionAudioUrl || tempData._descriptionIsComplete) {
-      tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
-      const confirmText = this.buildConfirmation(tempData);
-      return {
-        response: { text: confirmText },
-        nextStep: 'CONFIRM',
-        tempData,
-      };
-    }
-
-    if (message.audioUrl) {
-      tempData.audioUrl = message.audioUrl;
-    }
-
-    const inputText = message.text?.trim().toLowerCase();
-
-    if (inputText === 'continuar' || !!inputText || message.audioUrl) {
-      const confirmText = this.buildConfirmation(tempData);
-      return {
-        response: { text: confirmText },
-        nextStep: 'CONFIRM',
-        tempData,
-      };
-    }
-
-    return {
-      response: { text: '¿Querés enviar un audio con más detalle? Escribí "no" para continuar.' },
-      nextStep: 'ASK_AUDIO',
       tempData,
     };
   }
@@ -1393,7 +1357,6 @@ export class UserRequestFlow implements FlowHandler {
     const zone = tempData.geoNodeName as string;
     const description = tempData.description as string;
     const photos = (tempData.photoUrls as string[]) || [];
-    const hasAudio = !!tempData.audioUrl;
 
     let text = `*Resumen del pedido:*\n\n`;
     text += `*Nombre:* ${name}\n`;
@@ -1407,10 +1370,6 @@ export class UserRequestFlow implements FlowHandler {
 
     if (photos.length > 0) {
       text += `*Fotos:* ${photos.length} adjunta(s)\n`;
-    }
-
-    if (hasAudio) {
-      text += `*Audio:* Sí\n`;
     }
 
     text += `\n¿Confirmo la búsqueda de un profesional?\n1. Sí\n2. No`;
