@@ -254,10 +254,14 @@ export class BotService {
           ? userIdentity.name
           : null;
 
+      const isNewUser = !userIdentity.name || userIdentity.name === userIdentity.phone;
+
       let greetingText: string;
       if (alreadyGreetedToday) {
         greetingText =
           '¡Acá estoy! Escribime qué servicio necesitás y en qué zona.';
+      } else if (isNewUser) {
+        greetingText = `¡Hola! Soy ${process.env.APP_NAME ?? 'NORA'} 👋 Te conecto con profesionales del hogar cerca tuyo. ¿Cómo te llamás?`;
       } else {
         greetingText = userName
           ? `¡Hola ${userName}! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.`
@@ -353,14 +357,32 @@ export class BotService {
         sessionTempData.userId = userIdentity.userId;
         if (!sessionTempData.name) sessionTempData.name = userIdentity.name || '';
         sessionTempData.phone = userIdentity.phone;
-
-        session = await this.botRepository.upsert(input.phone, {
-          role,
-          currentFlow: session.currentFlow,
-          currentStep: session.currentStep,
-          tempData: { ...(session.tempData as Record<string, unknown>), ...sessionTempData } as Prisma.InputJsonValue,
-        });
       }
+
+      if (!session.currentFlow && role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
+        const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
+        const [extracted, extractedName] = await Promise.all([
+          extractServiceAndZone(input.text.trim()),
+          extractName(input.text.trim()),
+        ]);
+        if (extracted.serviceName || extracted.zoneName) {
+          sessionTempData._extractedServiceName = extracted.serviceName;
+          sessionTempData._extractedZoneName = extracted.zoneName;
+        }
+        const isNameless = !userIdentity.name || userIdentity.name === userIdentity.phone;
+        if (extractedName && isNameless) {
+          sessionTempData.name = extractedName;
+          sessionTempData._isNewUser = true;
+          await this.usersService.updateName(userIdentity.userId, extractedName);
+        }
+      }
+
+      session = await this.botRepository.upsert(input.phone, {
+        role,
+        currentFlow: session.currentFlow,
+        currentStep: session.currentStep,
+        tempData: { ...(session.tempData as Record<string, unknown>), ...sessionTempData } as Prisma.InputJsonValue,
+      });
     }
 
     await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
