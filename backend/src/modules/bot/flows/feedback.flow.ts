@@ -333,7 +333,7 @@ export class FeedbackFlow implements FlowHandler {
 
     return {
       response: {
-        text: '¿Querés dejar algún comentario sobre el trabajo? Escribí lo que quieras o "omitir" para terminar.',
+        text: '¿Querés dejar algún comentario sobre el trabajo? Escribí lo que quieras o "no" para terminar.',
       },
       nextStep: 'FEEDBACK_COMMENT',
       tempData,
@@ -366,7 +366,7 @@ export class FeedbackFlow implements FlowHandler {
     }
 
     const rawComment = message.text?.trim() || '';
-    const userComment = rawComment && rawComment.toLowerCase() !== 'omitir' ? rawComment : undefined;
+    const userComment = rawComment && rawComment.toLowerCase() !== 'no' ? rawComment : undefined;
 
     try {
       await this.requestsService.rateProfessional(requestId, {

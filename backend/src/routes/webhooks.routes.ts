@@ -297,9 +297,13 @@ async function sendResponse(
     }
 
     await new Promise(resolve => setTimeout(resolve, 1500));
-    await adapter.sendText(phone, responseText, role);
+    if (responseText?.trim()) {
+      await adapter.sendText(phone, responseText, role);
+    }
   } else {
-    await adapter.sendText(phone, responseText, role);
+    if (responseText?.trim()) {
+      await adapter.sendText(phone, responseText, role);
+    }
 
     if (result.mediaUrls?.length) {
       for (const mediaUrl of result.mediaUrls) {
