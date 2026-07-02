@@ -193,8 +193,6 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleClarification(message, tempData);
       case 'CONFIRM':
         return this.handleConfirm(message, tempData);
-      case 'SEARCHING':
-        return this.handleSearching();
       case 'WAITING_CONSENT':
         return this.handleWaitingConsent(message, tempData);
       case 'WAITING':
@@ -752,10 +750,11 @@ export class UserRequestFlow implements FlowHandler {
 
     const categoryName = tempData.categoryName as string;
     const zoneName = loc.zoneName || 'tu zona';
+    const locationText = loc.address ? `, ${loc.address}` : '';
 
     return {
       response: {
-        text: `Entendido: ${categoryName} en ${zoneName}. Describí el problema. Podés escribirlo o mandar un audio.`,
+	text: `Entendido: ${categoryName} en ${zoneName}${locationText}. Describí el problema. Podés escribirlo o mandar un audio.`,
       },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
@@ -1210,6 +1209,7 @@ export class UserRequestFlow implements FlowHandler {
       if (tempData.descriptionAudioUrl) {
         tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
       }
+      delete tempData.photoUrls;
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText },
@@ -1372,7 +1372,7 @@ export class UserRequestFlow implements FlowHandler {
       text += `*Fotos:* ${photos.length} adjunta(s)\n`;
     }
 
-    text += `\n¿Confirmo la búsqueda de un profesional?\n1. Sí\n2. No`;
+    text += `\n¿Confirmo la búsqueda? Si aceptás, te aviso cuando un profesional confirme.\n1. Sí\n2. No`;
     return text;
   }
 
@@ -1406,11 +1406,11 @@ export class UserRequestFlow implements FlowHandler {
         if (request.status === 'ASSIGNED') {
           return {
             response: {
-              text: 'Buscando el profesional ideal... te aviso cuando confirme.',
+              text: '',
               requestId: request.id,
             },
-            nextStep: 'SEARCHING',
-            tempData,
+            nextStep: null,
+            tempData: { _clearTempData: true },
           };
         }
 
@@ -1581,16 +1581,6 @@ export class UserRequestFlow implements FlowHandler {
           `Perfecto, te aviso en cuanto encuentre a alguien. ` +
           `Si en 24hs no apareció nadie, te lo hago saber.`,
         requestId,
-      },
-      nextStep: null,
-      tempData: { _clearTempData: true },
-    };
-  }
-
-  private async handleSearching(): Promise<FlowStepResult> {
-    return {
-      response: {
-        text: 'Buscando el profesional ideal... te aviso cuando confirme.',
       },
       nextStep: null,
       tempData: { _clearTempData: true },
