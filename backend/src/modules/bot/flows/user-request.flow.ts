@@ -276,6 +276,28 @@ export class UserRequestFlow implements FlowHandler {
       return this.handleAskService({}, tempData);
     }
 
+    const extractedServiceName = tempData._extractedServiceName as string | undefined;
+    const extractedZoneName = tempData._extractedZoneName as string | undefined;
+
+    if (extractedServiceName || extractedZoneName) {
+      let contextText = '';
+      if (extractedServiceName && extractedZoneName) {
+        contextText = `Entendí que necesitás un ${extractedServiceName} en ${extractedZoneName}.`;
+      } else if (extractedServiceName) {
+        contextText = `Entendí que necesitás un ${extractedServiceName}.`;
+      } else if (extractedZoneName) {
+        contextText = `Entendí que estás en ${extractedZoneName}.`;
+      }
+
+      return {
+        response: {
+          text: `¡Perfecto! ${contextText} ¿Me decís tu nombre para continuar?`,
+        },
+        nextStep: 'ASK_NAME',
+        tempData,
+      };
+    }
+
     return {
       response: { text: `¡Hola! Soy ${process.env.APP_NAME ?? 'NORA'} 👋 Te conecto con el profesional del hogar que necesitás, cerca tuyo. ¿Cómo te llamás?` },
       nextStep: 'ASK_NAME',
