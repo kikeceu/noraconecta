@@ -18,22 +18,20 @@ async function generateClarificationQuestions(
   description: string,
   categoryName: string,
 ): Promise<string | null> {
-  const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
-El usuario necesita un ${categoryName} y describió su problema asi: "${description}".
+  const prompt = `Sos un dispatcher experto en servicios del hogar en Argentina. Tu trabajo es decidir si necesitás más info antes de enviar un profesional.
 
-Tu única tarea: determinar si la descripción es tan AMBIGUA que un profesional de ${categoryName} podría rechazar el trabajo al llegar, por no ser lo que esperaba.
+Servicio: ${categoryName}
+Descripción del usuario: "${description}"
 
-NO preguntes por detalles técnicos menores que el profesional resuelve en el lugar (material de algo, marca, modelo, antigüedad del equipo, tipo específico de pieza, etc.) — esos detalles NO determinan si el profesional acepta o no el trabajo.
+Hacete esta pregunta: ¿Un ${categoryName} experimentado puede llegar al domicilio y empezar a diagnosticar o trabajar con esta descripción?
 
-SOLO preguntá si:
-- No queda claro qué tipo de trabajo es dentro del oficio (ej: "arreglar la luz" podría ser un cambio de lámpara o una instalación eléctrica completa — son trabajos muy distintos)
-- Falta un dato que cambiaría completamente el alcance o la complejidad del trabajo
+Si la respuesta es SÍ → respondé exactamente: NO_QUESTIONS
 
-Si la descripción ya permite entender de qué se trata el trabajo en términos generales, respondé exactamente: NO_QUESTIONS
+Solo respondé con UNA pregunta si la descripción no permite saber NI SIQUIERA de qué tipo de problema se trata — no el detalle, el TIPO. Por ejemplo, un electricista no sabe si tiene que cambiar una lámpara o instalar un tablero nuevo son trabajos completamente distintos que requieren herramientas y tiempo diferentes.
 
-Si hace falta preguntar, formulá UNA sola pregunta corta y directa en español rioplatense, enfocada en desambiguar el TIPO de trabajo, no en detalles técnicos.
+Si la descripción menciona dónde está el problema, qué pasa, o cualquier síntoma observable → NO_QUESTIONS
 
-Responde SOLO la pregunta o NO_QUESTIONS. Sin explicaciones.`;
+Respondé SOLO con la pregunta o NO_QUESTIONS. Sin explicaciones.`;
 
   const response = await callLLM(prompt);
   const trimmed = response.trim();
