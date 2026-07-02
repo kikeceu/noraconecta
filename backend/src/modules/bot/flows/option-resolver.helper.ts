@@ -217,12 +217,17 @@ Si es OFF_TOPIC, generá una respuesta corta y cordial en español rioplatense q
 
 Si es ON_TOPIC, respondé exactamente: ON_TOPIC
 
-Respondé SOLO con la respuesta cordial o "ON_TOPIC".`;
+Respondé ÚNICAMENTE con el texto de la respuesta cordial, sin ningún prefijo como "OFF_TOPIC:" ni numeración. Si el mensaje es ON_TOPIC, respondé exactamente: ON_TOPIC`;
 
   try {
     const response = await callLLM(prompt);
     const trimmed = response.trim();
-    return trimmed === 'ON_TOPIC' ? null : trimmed;
+    const cleaned = trimmed
+      .replace(/^OFF_TOPIC:\s*/i, '')
+      .replace(/^ON_TOPIC:\s*/i, '')
+      .replace(/^\d+\.\s*/i, '')
+      .trim();
+    return cleaned === 'ON_TOPIC' ? null : (cleaned.length > 0 ? cleaned : null);
   } catch {
     return null;
   }
