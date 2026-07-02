@@ -347,18 +347,29 @@ async function handlePendingNotification(
       await adapter.sendText(targetPhone, message, targetRole);
     }
 
-    // Clear pendingMessage from target session so it's not delivered again
-    const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
-    if (targetSession) {
-      const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
-      const { pendingMessage: _, ...cleanTempData } = targetTempData;
+    const notificationTempData = (pendingNotification.tempData as Record<string, unknown>) || {};
+    const hasNotificationTempData = Object.keys(notificationTempData).length > 0;
 
+    if (hasNotificationTempData) {
       await botRepository.upsert(targetPhone, {
         role: targetRole,
-        currentFlow: targetSession.currentFlow,
-        currentStep: targetSession.currentStep,
-        tempData: cleanTempData as Prisma.InputJsonValue,
+        currentFlow: pendingNotification.flow,
+        currentStep: pendingNotification.step,
+        tempData: notificationTempData as Prisma.InputJsonValue,
       });
+    } else {
+      const targetSession = await botRepository.findByPhoneAndRole(targetPhone, targetRole);
+      if (targetSession) {
+        const targetTempData = (targetSession.tempData as Record<string, unknown>) || {};
+        const { pendingMessage: _, ...cleanTempData } = targetTempData;
+
+        await botRepository.upsert(targetPhone, {
+          role: targetRole,
+          currentFlow: targetSession.currentFlow,
+          currentStep: targetSession.currentStep,
+          tempData: cleanTempData as Prisma.InputJsonValue,
+        });
+      }
     }
   } catch (err) {
     // eslint-disable-next-line no-console
