@@ -138,7 +138,7 @@ export class WhatsAppAdapter {
     const role: WhatsAppRole =
       phoneNumberId === this.phoneNumberIdProfessional ? 'PROFESSIONAL' : 'USER';
 
-    const message: IncomingMessage = { phone };
+    const message: IncomingMessage = { phone, messageId: msg.id };
 
     if (msg.type === 'text' && msg.text?.body) {
       message.text = msg.text.body;
