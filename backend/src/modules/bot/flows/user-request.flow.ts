@@ -576,9 +576,12 @@ export class UserRequestFlow implements FlowHandler {
     const number = parseInt(inputText, 10);
 
     if (isNaN(number) || number < 1 || number > availableCategories.length) {
-      const list = availableCategories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+      const randomIndex = Math.floor(Math.random() * availableCategories.length);
+      const example = availableCategories[randomIndex];
       return {
-        response: { text: `Elegi un numero entre 1 y ${availableCategories.length}:\n\n${list}` },
+        response: { 
+          text: `No entendí bien tu respuesta. Escribime el número del servicio que necesitás, por ejemplo *${randomIndex + 1}* para ${example.name}.`
+        },
         nextStep: 'ASK_SERVICE',
         tempData,
       };
