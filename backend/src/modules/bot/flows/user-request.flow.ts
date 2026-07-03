@@ -1333,7 +1333,8 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
-    const resolved = await resolveOptionWithFallback('DESCRIPTION_MISMATCH', inputText);
+    const mismatchContext = tempData._mismatchType === 'UNCERTAIN' ? 'CONFIRM_SERVICE' : 'DESCRIPTION_MISMATCH';
+    const resolved = await resolveOptionWithFallback(mismatchContext, inputText);
 
     if (resolved === 'CHANGE_SERVICE') {
       return this.handleAskService(message, {

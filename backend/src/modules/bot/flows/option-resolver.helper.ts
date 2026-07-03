@@ -100,7 +100,10 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
   DESCRIPTION_MISMATCH: [
     { value: 'CHANGE_SERVICE', label: 'Cambiar servicio', aliases: ['1', 'cambiar', 'cambiar servicio', 'cambiar el servicio', BOT_PAYLOADS.CAMBIAR_SERVICIO] },
     { value: 'REFORMULATE', label: 'Reformular descripción', aliases: ['2', 'reformular', 'reformular descripcion', 'corregir', BOT_PAYLOADS.REFORMULAR_DESCRIPCION] },
-    { value: 'SI_CORRECTO', label: 'Sí, es correcto', aliases: [BOT_PAYLOADS.SI_CORRECTO, 'si es correcto', 'sí es correcto', 'correcto'] },
+  ],
+  CONFIRM_SERVICE: [
+    { value: 'SI_CORRECTO', label: 'Sí, es correcto', aliases: ['1', 'si', 'sí', 'dale', 'ok', BOT_PAYLOADS.SI_CORRECTO, 'si es correcto', 'sí es correcto', 'correcto'] },
+    { value: 'CHANGE_SERVICE', label: 'Cambiar servicio', aliases: ['2', 'cambiar', 'cambiar servicio', BOT_PAYLOADS.CAMBIAR_SERVICIO] },
   ],
   ASK_SAVED_LOCATION_SINGLE: [
     { value: 'YES', label: 'Sí', aliases: ['1', 'si', 'sí', 'dale', 'ok'] },
