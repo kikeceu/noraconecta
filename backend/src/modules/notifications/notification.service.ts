@@ -1,4 +1,4 @@
-import { BotRole } from '@prisma/client';
+import { BotRole, Prisma } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
@@ -103,6 +103,17 @@ export class NotificationService {
         { payload: BOT_PAYLOADS.NO_PUEDO, text: 'No puedo tomarlo' },
       ],
     );
+
+    await this.botRepository.upsert(professional.phone, {
+      role: 'PROFESSIONAL',
+      currentFlow: 'COORDINATION',
+      currentStep: 'AWAITING_ACCEPTANCE',
+      tempData: {
+        requestId: request.id,
+        categoryName: request.categoryName,
+        zoneName: request.zoneName,
+      } as Prisma.InputJsonValue,
+    });
   }
 
   async notifyProfessionalReassigned(
@@ -157,11 +168,7 @@ export class NotificationService {
           'PROFESSIONAL',
         );
       }
-      // Photos and audio are sent after the professional asks for details.
-      return;
-    }
-
-    if (hasMedia) {
+    } else if (hasMedia) {
       const briefSection = request.technicalBrief
         ? `\n\n📋 ${request.technicalBrief.substring(0, MAX_BRIEF_LENGTH)}`
         : '';
@@ -191,6 +198,21 @@ export class NotificationService {
       );
     }
     // Photos and audio are sent after the professional asks for details.
+
+    await this.botRepository.upsert(professionalPhone, {
+      role: 'PROFESSIONAL',
+      currentFlow: 'COORDINATION',
+      currentStep: 'AWAITING_ACCEPTANCE',
+      tempData: {
+        requestId: request.id,
+        categoryName: request.categoryName,
+        zoneName: request.zoneName,
+        description: request.description,
+        photoUrls: request.photoUrls,
+        audioUrl: request.audioUrl ?? undefined,
+        technicalBrief: request.technicalBrief ?? undefined,
+      } as Prisma.InputJsonValue,
+    });
   }
 
   async notifyUserNoResponse(user: UserInfo): Promise<void> {
