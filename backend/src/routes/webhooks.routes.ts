@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { createClient } from 'redis';
 import { Prisma } from '@prisma/client';
 import { WhatsAppAdapter, WhatsAppRole, ParsedIncoming } from '../lib/whatsapp-adapter';
 import { BotService } from '../modules/bot/bot.service';
@@ -43,6 +44,30 @@ function getProfessionalsService(): ProfessionalsService {
 }
 
 const botService = new BotService(botRepository, usersService, requestsRepository, professionalsRepository, getProfessionalsService(), securityService);
+
+const redisClient = createClient({ url: process.env.REDIS_URL });
+redisClient.connect().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('[webhooks] Redis connection failed:', err);
+});
+
+const DEDUP_TTL_SECONDS = 3600;
+const DEDUP_KEY_PREFIX = 'wamid:';
+
+async function isDuplicateMessage(messageId: string): Promise<boolean> {
+  try {
+    const key = `${DEDUP_KEY_PREFIX}${messageId}`;
+    const result = await redisClient.set(key, '1', {
+      NX: true,
+      EX: DEDUP_TTL_SECONDS,
+    });
+    return result === null;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[webhooks] Redis dedup check failed:', err);
+    return false;
+  }
+}
 
 interface PhotoAccumulator {
   phone: string;
@@ -241,6 +266,16 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       }
     }
 
+    const messageId = parsed.message.messageId;
+    if (messageId) {
+      const duplicate = await isDuplicateMessage(messageId);
+      if (duplicate) {
+        // eslint-disable-next-line no-console
+        console.log(`[webhooks] Duplicate message ignored: ${messageId}`);
+        return;
+      }
+    }
+
     const result = await botService.processMessage({
       phone: parsed.message.phone,
       text: parsed.message.text,
@@ -388,6 +423,16 @@ async function processWithAccumulatedPhotos(
     console.log(
       `[webhooks] Processing accumulated photos from ${accumulator.phone} as ${accumulator.role} (${accumulator.imageUrls.length} photos)`,
     );
+
+    const accumMessageId = accumulator.originalParsed.message.messageId;
+    if (accumMessageId) {
+      const duplicate = await isDuplicateMessage(accumMessageId);
+      if (duplicate) {
+        // eslint-disable-next-line no-console
+        console.log(`[webhooks] Duplicate accumulated photos ignored: ${accumMessageId}`);
+        return;
+      }
+    }
 
     const result = await botService.processMessage({
       phone: accumulator.phone,

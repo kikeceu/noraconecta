@@ -12,6 +12,7 @@ export interface IncomingMessage {
   audioUrl?: string;
   location?: LocationData;
   buttonPayload?: string;
+  messageId?: string;
 }
 
 export interface BotResponse {
