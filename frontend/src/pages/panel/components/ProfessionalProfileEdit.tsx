@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Upload, ExternalLink, Loader2 } from 'lucide-react';
 import { updateProfile, uploadProfileFile, getDepartments } from '../../../lib/panel-api';
 import type { PanelProfessional } from '../../../types/panel';
@@ -128,6 +128,9 @@ export function ProfessionalProfileEdit({
     declaredHasLicense: professional.declaredHasLicense ?? null as boolean | null,
   });
 
+  const formRef = useRef(form);
+  useEffect(() => { formRef.current = form; }, [form]);
+
   const [sameSchedule, setSameSchedule] = useState(false);
 
   const [uploadingDniFront, setUploadingDniFront] = useState(false);
@@ -180,6 +183,7 @@ export function ProfessionalProfileEdit({
 
   const handleSave = async () => {
     setSaving(true);
+    const form = formRef.current;
     setError(null);
 
     const errors: { dniNumber?: string; cuil?: string } = {};
@@ -321,10 +325,17 @@ export function ProfessionalProfileEdit({
                     type="checkbox"
                     checked={form.selectedDays.includes(day)}
                     onChange={() => {
-                      const days = form.selectedDays.includes(day)
-                        ? form.selectedDays.filter((d) => d !== day)
-                        : [...form.selectedDays, day];
-                      setForm({ ...form, selectedDays: days });
+                      setForm((prev) => {
+                        const isAdding = !prev.selectedDays.includes(day);
+                        const days = isAdding
+                          ? [...prev.selectedDays, day]
+                          : prev.selectedDays.filter((d) => d !== day);
+                        const newTimeSlots = { ...prev.timeSlots };
+                        if (sameSchedule && isAdding && prev.selectedDays.length > 0) {
+                          newTimeSlots[day] = { ...prev.timeSlots[prev.selectedDays[0]] };
+                        }
+                        return { ...prev, selectedDays: days, timeSlots: newTimeSlots };
+                      });
                     }}
                     className="rounded border-gray-300 text-[#0B6E4F] cursor-pointer"
                   />
@@ -341,7 +352,24 @@ export function ProfessionalProfileEdit({
                 <input
                   type="checkbox"
                   checked={sameSchedule}
-                  onChange={() => setSameSchedule(!sameSchedule)}
+                  onChange={() => {
+                    const newSameSchedule = !sameSchedule;
+                    setSameSchedule(newSameSchedule);
+                    if (newSameSchedule && form.selectedDays.length > 0) {
+                      const firstWithSlot = form.selectedDays.find(
+                        (d) => form.timeSlots[d]?.from && form.timeSlots[d]?.to
+                      );
+                      if (firstWithSlot) {
+                        setForm((prev) => {
+                          const newTimeSlots = { ...prev.timeSlots };
+                          for (const day of prev.selectedDays) {
+                            newTimeSlots[day] = { ...prev.timeSlots[firstWithSlot] };
+                          }
+                          return { ...prev, timeSlots: newTimeSlots };
+                        });
+                      }
+                    }
+                  }}
                   className="rounded border-gray-300 text-[#0B6E4F] cursor-pointer"
                 />
                 Mismo horario para todos los días
@@ -349,7 +377,7 @@ export function ProfessionalProfileEdit({
             )}
 
             {!sameSchedule &&
-              form.selectedDays
+              [...form.selectedDays]
                 .sort((a, b) => (a === 0 ? 1 : b === 0 ? -1 : a - b))
                 .map((day) => (
                   <div key={day} className="flex items-center gap-3 mt-2">

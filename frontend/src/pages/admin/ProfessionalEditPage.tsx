@@ -401,10 +401,17 @@ export function ProfessionalEditPage() {
                     type="checkbox"
                     checked={form.selectedDays.includes(day)}
                     onChange={() => {
-                      const days = form.selectedDays.includes(day)
-                        ? form.selectedDays.filter((d) => d !== day)
-                        : [...form.selectedDays, day];
-                      setForm({ ...form, selectedDays: days });
+                      const isAdding = !form.selectedDays.includes(day);
+                      const days = isAdding
+                        ? [...form.selectedDays, day]
+                        : form.selectedDays.filter((d) => d !== day);
+
+                      const newTimeSlots = { ...form.timeSlots };
+                      if (sameSchedule && isAdding && form.selectedDays.length > 0) {
+                        newTimeSlots[day] = { ...form.timeSlots[form.selectedDays[0]] };
+                      }
+
+                      setForm({ ...form, selectedDays: days, timeSlots: newTimeSlots });
                     }}
                     className="rounded border-gray-300 text-green-700 cursor-pointer"
                   />
