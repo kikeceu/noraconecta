@@ -15,6 +15,7 @@ import { CategoriesPage } from './pages/admin/CategoriesPage';
 import { PlansPage } from './pages/admin/PlansPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { PromotionsPage } from './pages/admin/PromotionsPage';
+import { PromptsPage } from './pages/admin/PromptsPage';
 
 export function AppAdmin() {
   return (
@@ -45,6 +46,7 @@ export function AppAdmin() {
                 <Route path="/professionals/:id/edit" element={<ProfessionalEditPage />} />
                 <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/prompts" element={<PromptsPage />} />
               </Route>
             </Route>
           </Route>
