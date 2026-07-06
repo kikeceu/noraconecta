@@ -20,6 +20,7 @@ import { CategoriesPage } from './pages/admin/CategoriesPage';
 import { PlansPage } from './pages/admin/PlansPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { PromotionsPage } from './pages/admin/PromotionsPage';
+import { PromptsPage } from './pages/admin/PromptsPage';
 import { resolveHostContext, type HostContext } from './lib/host';
 import type { ReactNode } from 'react';
 
@@ -51,6 +52,7 @@ function renderAdminRoutes(context: HostContext): ReactNode {
           <Route path="zones" element={<ZonesPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="plans" element={<PlansPage />} />
+          <Route path="prompts" element={<PromptsPage />} />
           <Route
             element={
               <ProtectedRoute

@@ -275,6 +275,16 @@ export interface DashboardMetrics {
   professionalsByStatus: { status: string; count: number }[];
 }
 
+export interface PromptTemplate {
+  key: string;
+  content: string;
+  defaultContent: string;
+  description: string;
+  variables: string[];
+  isEditable: boolean;
+  updatedAt: string;
+}
+
 export interface ListResponse<T> {
   data: T[];
   pagination: Pagination;

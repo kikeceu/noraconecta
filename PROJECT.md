@@ -159,7 +159,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── main-landing.tsx            # Entry point: landing build (noraconecta.com.ar)
 │   │   ├── main-admin.tsx              # Entry point: admin build (admin.noraconecta.com.ar)
 │   │   ├── main-app.tsx                # Entry point: app build (app.noraconecta.com.ar)
-│   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains
+│   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains. Ruta /admin/prompts agregada — AUT-400
 │   │   ├── App-landing.tsx             # Root component (landing): /simulator only
 │   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build)
 │   │   ├── App-app.tsx                 # Root component (app): /verify/:token, /panel/:sessionToken, /planes (production build)
@@ -179,7 +179,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── useChat.ts             # Chat state management: messages, loading, session, API calls. Polling de mensajes externos del simulador cada 2s vía /simulator/messages (AUT-268)
 │   │   ├── lib/
 │   │   │   ├── api.ts                 # REST client for /bot/message, /bot/session/reset, /storage/presign-upload
-│   │   │   ├── admin-api.ts           # REST client for all admin endpoints. adminCreateProfessional: alta directa de profesional con disponibilidad opcional — AUT-351, AUT-354. updateProfessional, uploadProfessionalFile: edición de profesional con upload de archivos — AUT-355. getMembershipDiscountConfig, setMembershipDiscount — AUT-334. getCurrentPlan: consulta de plan activo — AUT-348. cancelMembership: cancelación de membresía — AUT-353. getPendingDataChanges: incluye previousValues y newValues — AUT-359. getProfessionalsWithPendingChanges: IDs de profesionales con cambios pendientes — AUT-359
+│   │   │   ├── admin-api.ts           # REST client for all admin endpoints. adminCreateProfessional: alta directa de profesional con disponibilidad opcional — AUT-351, AUT-354. updateProfessional, uploadProfessionalFile: edición de profesional con upload de archivos — AUT-355. getMembershipDiscountConfig, setMembershipDiscount — AUT-334. getCurrentPlan: consulta de plan activo — AUT-348. cancelMembership: cancelación de membresía — AUT-353. getPendingDataChanges: incluye previousValues y newValues — AUT-359. getProfessionalsWithPendingChanges: IDs de profesionales con cambios pendientes — AUT-359. getPrompts, updatePrompt, resetPrompt — AUT-400
 │   │   │   ├── onboarding-api.ts      # API client for professional onboarding. submitVerification incluye licenseUrl — AUT-323. submitLicenseResubmission: re-subida de credencial vía ?mode=license — AUT-335
 │   │   │   ├── panel-api.ts           # REST client for professional panel. updateProfile (PATCH), uploadProfileFile (R2 presigned), getDepartments (session-authenticated) — AUT-356
 │   │   │   ├── host.ts                # Hostname detection: resolveHostContext(), getAdminDashboardPath() (NEW)
@@ -187,13 +187,13 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── types/
 │   │   │   ├── chat.ts                # TypeScript interfaces for messages, responses
 │   │   │   ├── onboarding.ts          # OnboardingStep (incluye 'license'), FileUploadInfo, OnboardingFormData (incluye licenseUrl), TokenValidationResponse (incluye requiresLicense, licenseLabel, declaredHasLicense) — AUT-323
-│   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) + MembershipStatusKind extendido con CANCELED — AUT-353 (NEW)
+│   │   │   ├── admin.ts               # Interfaces for all admin entities (Professional, User, Request, Escalation, etc.) + MembershipStatusKind extendido con CANCELED — AUT-353 + PromptTemplate para gestión de prompts LLM — AUT-400 (NEW)
 │   │   │   └── panel.ts               # Interfaces for professional panel data (PanelData, PanelOrder, etc.) + totalEarnings en ActivityStatsResponse (AUT-328) + userComments en PanelReputation (AUT-345) + features en PanelMembershipData.plan (AUT-361)
 │   │   ├── context/
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
 │   │   │       ├── admin/
-│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; logo SVG en desktop/mobile header y header mobile dark (#111110) (AUT-210)
+│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; logo SVG en desktop/mobile header y header mobile dark (#111110); link "Prompts IA" en superAdminItems — AUT-400 (AUT-210)
 │   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard; context-aware redirect paths (NEW)
 │   │   │       │   └── ConfirmDialog.tsx   # Reusable confirm modal for destructive actions (NEW)
 │   │   ├── pages/
@@ -211,6 +211,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── ZonesPage.tsx                # Hierarchical tree (Country → Province → Department) with toggles
 │   │   │   │   ├── CategoriesPage.tsx           # Table with inline toggles + create/edit modal con toggle "requiere credencial" y campo licenseLabel — AUT-324
 │   │   │   │   ├── PlansPage.tsx                # Plan cards con modal crear/editar (nombre, precio, descuento, features, toggle activo), botón desactivar con confirmación, lista de beneficios en cards — AUT-340
+│   │   │   │   ├── PromptsPage.tsx              # Gestión de prompts LLM: tabla con key/descripción/variables/isEditable/updatedAt, modal de edición con textarea, botón restaurar default con confirmación; solo superadmin edita — AUT-400
 │   │   │   │   └── SettingsPage.tsx             # Config form (12 matching weights, penalties, limits, system params) — AUT-334, AUT-337
 │   │   │   │   └── PromotionsPage.tsx            # Membership discount management: activate/deactivate promo with percentage and duration, shows active/inactive state — AUT-336
 │   │   │   └── onboarding/
