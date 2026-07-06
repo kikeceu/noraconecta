@@ -16,6 +16,7 @@ import type {
   RequestOrder,
   Escalation,
   SystemConfig,
+  PromptTemplate,
   ListResponse,
   SingleResponse,
   EscalationStatus,
@@ -542,4 +543,22 @@ export function markDataChangeReviewed(requestId: string): Promise<{ data: { ok:
 
 export function getProfessionalsWithPendingChanges(): Promise<{ data: string[] }> {
   return request('/professionals/data-changes/professionals');
+}
+
+// Prompts
+export function getPrompts(): Promise<ListResponse<PromptTemplate>> {
+  return request<ListResponse<PromptTemplate>>('/admin/prompts');
+}
+
+export function updatePrompt(key: string, content: string): Promise<SingleResponse<{ ok: boolean }>> {
+  return request<SingleResponse<{ ok: boolean }>>(`/admin/prompts/${key}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ content }),
+  });
+}
+
+export function resetPrompt(key: string): Promise<SingleResponse<{ ok: boolean }>> {
+  return request<SingleResponse<{ ok: boolean }>>(`/admin/prompts/${key}/reset`, {
+    method: 'POST',
+  });
 }

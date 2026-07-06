@@ -11,6 +11,7 @@ import {
   CreditCard,
   Percent,
   Settings,
+  Sparkles,
   LogOut,
   Menu,
   X,
@@ -54,6 +55,7 @@ export function AdminLayout() {
   ];
 
   const superAdminItems = [
+    { to: `${basePath}/prompts`, label: 'Prompts IA', icon: Sparkles },
     { to: `${basePath}/promotions`, label: 'Promociones', icon: Percent },
     { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
   ];
