@@ -272,10 +272,10 @@ async function seedPromptTemplates(): Promise<void> {
       isEditable: true,
       defaultContent: `Sos un dispatcher experto en servicios del hogar en Argentina. Tu trabajo es decidir si necesitás más info antes de enviar un profesional.
 
-Servicio: \${categoryName}
-Descripción del usuario: "\${description}"
+Servicio: {{categoryName}}
+Descripción del usuario: "{{description}}"
 
-Hacete esta pregunta: ¿Un \${categoryName} experimentado puede llegar al domicilio y empezar a diagnosticar o trabajar con esta descripción?
+Hacete esta pregunta: ¿Un {{categoryName}} experimentado puede llegar al domicilio y empezar a diagnosticar o trabajar con esta descripción?
 
 Si la respuesta es SÍ → respondé exactamente: NO_QUESTIONS
 
@@ -291,11 +291,10 @@ Respondé SOLO con la pregunta o NO_QUESTIONS. Sin explicaciones.`,
       variables: ['categoryName', 'description', 'clarificationAnswer'],
       isEditable: true,
       defaultContent: `Sos un asistente experto en servicios del hogar en Argentina.
-Genera un brief tecnico CORTO (maximo 3 lineas) para un profesional \${categoryName} que va a atender este pedido.
+Genera un brief tecnico CORTO (maximo 3 lineas) para un profesional {{categoryName}} que va a atender este pedido.
 
-Descripcion del usuario: "\${description}"
-\${clarificationAnswer ? 'Respuesta adicional del usuario: "\${clarificationAnswer}"' : ''}
-
+Descripcion del usuario: "{{description}}"
+{{clarificationAnswer}}
 El brief debe incluir:
 - Que es el problema en terminos tecnicos
 - Detalles relevantes para el profesional
@@ -306,7 +305,7 @@ Responde solo el brief, sin saludos ni explicaciones.`,
     {
       key: 'extract_name',
       description: 'Extrae el nombre completo de una persona de un mensaje de WhatsApp',
-      variables: ['text'],
+      variables: ['input'],
       isEditable: false,
       defaultContent: `Extraé el nombre completo de la persona del siguiente mensaje. Incluí apellido si está presente.
 Si no hay ningún nombre de persona, respondé exactamente: null
@@ -320,7 +319,7 @@ Ejemplos:
 - "Hola soy Juan" → "Juan"
 - "buenos dias" → null
 
-Mensaje: "\${text}"`,
+Mensaje: "{{input}}"`,
     },
     {
       key: 'validate_description_match',
@@ -329,8 +328,8 @@ Mensaje: "\${text}"`,
       isEditable: true,
       defaultContent: `Sos un validador de servicios del hogar en Argentina.
 
-Servicio solicitado: \${categoryName}
-Descripcion: "\${description}"
+Servicio solicitado: {{categoryName}}
+Descripcion: "{{description}}"
 
 Analiza si la descripcion tiene relacion con el servicio:
 - INVALIDO: el problema describe CLARAMENTE un oficio completamente distinto (ej: pedir electricista y describir perdida de agua, pedir pintor y describir problema de gas)
@@ -344,7 +343,7 @@ Responde SOLO con una palabra: VALIDO, INVALIDO o INCIERTO`,
       description: 'Extrae la dirección limpia eliminando frases introductorias',
       variables: ['rawText'],
       isEditable: false,
-      defaultContent: `El usuario escribió lo siguiente como dirección de su domicilio: "\${rawText}"
+      defaultContent: `El usuario escribió lo siguiente como dirección de su domicilio: "{{rawText}}"
 
 Tu tarea: extraer únicamente la dirección limpia, sin frases introductorias como "es en", "está en", "vivo en", "la dirección es", "quiero en", etc.
 
@@ -358,7 +357,7 @@ Respondé SOLO con la dirección limpia. Sin explicaciones.`,
       description: 'Detecta si el usuario expresa intención de cancelar un pedido o visita',
       variables: ['text'],
       isEditable: true,
-      defaultContent: `El usuario escribió: "\${text}"
+      defaultContent: `El usuario escribió: "{{text}}"
 ¿Está expresando intención de cancelar un pedido o visita?
 Respondé SOLO: SI o NO`,
     },
@@ -369,10 +368,10 @@ Respondé SOLO: SI o NO`,
       isEditable: true,
       defaultContent: `Sos NORA, asistente de WhatsApp en Argentina. El usuario está respondiendo a una pregunta con opciones.
 
-El usuario escribió: "\${input}"
+El usuario escribió: "{{input}}"
 
 Opciones disponibles:
-\${optionsList}
+{{optionsList}}
 
 ¿A cuál opción se refiere el usuario? Respondé SOLO con el valor exacto (ej: YES, NO, ACCEPT, CONFIRM, etc.) o "null" si genuinamente no está claro.`,
     },
@@ -383,9 +382,9 @@ Opciones disponibles:
       isEditable: true,
       defaultContent: `Sos NORA, un asistente de WhatsApp que conecta usuarios con profesionales del hogar en Argentina.
 
-El usuario escribió: "\${input}"
+El usuario escribió: "{{input}}"
 
-Contexto actual: \${stepContext}
+Contexto actual: {{stepContext}}
 
 Determiná si el mensaje es:
 1. OFF_TOPIC: un saludo, pregunta sobre vos, comentario casual, o algo no relacionado con el pedido
@@ -405,7 +404,7 @@ Respondé ÚNICAMENTE con el texto de la respuesta cordial, sin ningún prefijo 
       description: 'Analiza el sentimiento de un comentario de feedback de un cliente',
       variables: ['comment'],
       isEditable: true,
-      defaultContent: `Analizá este comentario de un cliente sobre un trabajo: "\${comment}"
+      defaultContent: `Analizá este comentario de un cliente sobre un trabajo: "{{comment}}"
 Respondé SOLO con un JSON válido sin markdown:
 {"puntualidad":1,"precio_justo":0,"calidad_trabajo":1,"limpieza":0,"actitud":1,"recomendable":true}
 Valores: 1=positivo, -1=negativo, 0=no mencionado. recomendable: true/false/null`,
@@ -415,7 +414,7 @@ Valores: 1=positivo, -1=negativo, 0=no mencionado. recomendable: true/false/null
       description: 'Extrae el horario de inicio y fin de trabajo de un texto del profesional',
       variables: ['inputText'],
       isEditable: false,
-      defaultContent: `Extraé el horario de inicio y fin de trabajo de este texto: "\${inputText}"
+      defaultContent: `Extraé el horario de inicio y fin de trabajo de este texto: "{{inputText}}"
 Devolvé SOLO un JSON con este formato exacto:
 {"from": "HH:MM", "to": "HH:MM"}
 Si no podés determinarlo con certeza, devolvé: {"error": "ambiguo"}

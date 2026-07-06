@@ -1,5 +1,6 @@
 import { callLLM } from '../../../lib/llm-client';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
+import { promptService } from '../../prompts/prompt.service';
 
 export interface StepOption {
   value: string;
@@ -156,18 +157,11 @@ export async function resolveOptionWithFallback(
     }
   }
 
-  const optionsList = options
+  const optionsListText = options
     .map(o => `- ${o.value}: "${o.label}" (también acepta: ${o.aliases.filter(a => !['1','2','3','4','5','6','7','8','9'].includes(a)).slice(0, 3).join(', ')})`)
     .join('\n');
 
-  const prompt = `Sos NORA, asistente de WhatsApp en Argentina. El usuario está respondiendo a una pregunta con opciones.
-
-El usuario escribió: "${input}"
-
-Opciones disponibles:
-${optionsList}
-
-¿A cuál opción se refiere el usuario? Respondé SOLO con el valor exacto (ej: YES, NO, ACCEPT, CONFIRM, etc.) o "null" si genuinamente no está claro.`;
+  const prompt = await promptService.getPrompt('resolve_option', { input, optionsList: optionsListText });
 
   try {
     const response = await callLLM(prompt);
@@ -203,24 +197,7 @@ export async function generateOffTopicResponse(
     return '😊 ¡Hola! Cuando quieras seguimos con tu pedido.';
   }
 
-  const prompt = `Sos NORA, un asistente de WhatsApp que conecta usuarios con profesionales del hogar en Argentina.
-
-El usuario escribió: "${input}"
-
-Contexto actual: ${stepContext}
-
-Determiná si el mensaje es:
-1. OFF_TOPIC: un saludo, pregunta sobre vos, comentario casual, o algo no relacionado con el pedido
-2. ON_TOPIC: un intento de responder al contexto actual aunque mal escrito
-
-Si es OFF_TOPIC, generá una respuesta corta y cordial en español rioplatense que:
-- Responda brevemente al comentario (ej: si saluda, saludar de vuelta)
-- Recuerde el contexto actual
-- No supere 2 líneas
-
-Si es ON_TOPIC, respondé exactamente: ON_TOPIC
-
-Respondé ÚNICAMENTE con el texto de la respuesta cordial, sin ningún prefijo como "OFF_TOPIC:" ni numeración. Si el mensaje es ON_TOPIC, respondé exactamente: ON_TOPIC`;
+  const prompt = await promptService.getPrompt('generate_off_topic_response', { input, stepContext });
 
   try {
     const response = await callLLM(prompt);

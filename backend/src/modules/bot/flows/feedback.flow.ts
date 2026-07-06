@@ -7,6 +7,7 @@ import { RequestsService, Satisfaction } from '../../requests/requests.service';
 import { NotificationService } from '../../notifications/notification.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
+import { promptService } from '../../prompts/prompt.service';
 
 export class FeedbackFlow implements FlowHandler {
   readonly flowName = 'FEEDBACK';
@@ -563,10 +564,7 @@ export class FeedbackFlow implements FlowHandler {
   }
 
   private async analyzeSentiment(requestId: string, comment: string): Promise<void> {
-    const prompt = `Analizá este comentario de un cliente sobre un trabajo: "${comment}"
-Respondé SOLO con un JSON válido sin markdown:
-{"puntualidad":1,"precio_justo":0,"calidad_trabajo":1,"limpieza":0,"actitud":1,"recomendable":true}
-Valores: 1=positivo, -1=negativo, 0=no mencionado. recomendable: true/false/null`;
+    const prompt = await promptService.getPrompt('analyze_feedback', { comment });
 
     try {
       const text = await callLLM(prompt);

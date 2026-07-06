@@ -11,6 +11,7 @@ import { BOT_PAYLOADS } from '../constants/bot-payloads';
 import { callLLM, transcribeAudio } from '../../../lib/llm-client';
 import { reverseGeocode } from '../../../lib/nominatim-client';
 import prisma from '../../../lib/prisma';
+import { promptService } from '../../prompts/prompt.service';
 
 const nlpService = new NlpService();
 
@@ -18,20 +19,7 @@ async function generateClarificationQuestions(
   description: string,
   categoryName: string,
 ): Promise<string | null> {
-  const prompt = `Sos un dispatcher experto en servicios del hogar en Argentina. Tu trabajo es decidir si necesitás más info antes de enviar un profesional.
-
-Servicio: ${categoryName}
-Descripción del usuario: "${description}"
-
-Hacete esta pregunta: ¿Un ${categoryName} experimentado puede llegar al domicilio y empezar a diagnosticar o trabajar con esta descripción?
-
-Si la respuesta es SÍ → respondé exactamente: NO_QUESTIONS
-
-Solo respondé con UNA pregunta si la descripción no permite saber NI SIQUIERA de qué tipo de problema se trata — no el detalle, el TIPO. Por ejemplo, un electricista no sabe si tiene que cambiar una lámpara o instalar un tablero nuevo son trabajos completamente distintos que requieren herramientas y tiempo diferentes.
-
-Si la descripción menciona dónde está el problema, qué pasa, o cualquier síntoma observable → NO_QUESTIONS
-
-Respondé SOLO con la pregunta o NO_QUESTIONS. Sin explicaciones.`;
+  const prompt = await promptService.getPrompt('clarification_questions', { categoryName, description });
 
   const response = await callLLM(prompt);
   const trimmed = response.trim();
@@ -43,25 +31,17 @@ async function generateTechnicalBrief(
   categoryName: string,
   clarificationAnswer: string | null,
 ): Promise<string> {
-  const prompt = `Sos un asistente experto en servicios del hogar en Argentina.
-Genera un brief tecnico CORTO (maximo 3 lineas) para un profesional ${categoryName} que va a atender este pedido.
-
-Descripcion del usuario: "${description}"
-${clarificationAnswer ? `Respuesta adicional del usuario: "${clarificationAnswer}"` : ''}
-
-El brief debe incluir:
-- Que es el problema en terminos tecnicos
-- Detalles relevantes para el profesional
-- Nivel de urgencia si aplica
-
-Responde solo el brief, sin saludos ni explicaciones.`;
+  const prompt = await promptService.getPrompt('technical_brief', {
+    categoryName,
+    description,
+    clarificationAnswer: clarificationAnswer ? `Respuesta adicional del usuario: "${clarificationAnswer}"` : '',
+  });
 
   return callLLM(prompt);
 }
 
 async function extractName(input: string): Promise<string> {
-  const prompt = `Extraé solo el nombre propio de esta frase. Si hay nombre y apellido, devolvé ambos. Devolvé SOLO el nombre, sin explicaciones.
-Frase: "${input}"`;
+  const prompt = await promptService.getPrompt('extract_name', { input });
   try {
     const response = await callLLM(prompt);
     return response.trim() || input.trim();
@@ -73,17 +53,7 @@ Frase: "${input}"`;
 type DescriptionValidation = 'VALID' | 'INVALID' | 'UNCERTAIN';
 
 async function validateDescription(description: string, categoryName: string): Promise<DescriptionValidation> {
-  const prompt = `Sos un validador de servicios del hogar en Argentina.
-
-Servicio solicitado: ${categoryName}
-Descripcion: "${description}"
-
-Analiza si la descripcion tiene relacion con el servicio:
-- INVALIDO: el problema describe CLARAMENTE un oficio completamente distinto (ej: pedir electricista y describir perdida de agua, pedir pintor y describir problema de gas)
-- INCIERTO: hay ambiguedad razonable, podria relacionarse con el servicio pero no es claro
-- VALIDO: la descripcion tiene relacion directa o indirecta con el servicio
-
-Responde SOLO con una palabra: VALIDO, INVALIDO o INCIERTO`;
+  const prompt = await promptService.getPrompt('validate_description_match', { categoryName, description });
 
   try {
     const response = await callLLM(prompt);

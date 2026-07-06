@@ -64,11 +64,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.controller.ts # Request validation, response formatting. updateProfile: edición de perfil autenticada por session token — AUT-356. getSessionDepartments: departamentos disponibles para edición — AUT-356. adminCreate: alta directa de profesional con disponibilidad opcional — AUT-351, AUT-354. adminUpdate: edición completa con zonas, disponibilidad y archivos — AUT-355. updateLicenseStatus — AUT-324. getEarnings: endpoint de ganancias — AUT-327. getMembershipDiscount — AUT-329. verify soporta ?mode=license para re-subida de credencial — AUT-335. getCurrentPlan: endpoint público de plan activo — AUT-348. cancelMembership: cancelación de membresía activa — AUT-353. getProfessionalsWithPendingChanges: IDs de profesionales con cambios sensibles pendientes — AUT-359
 │   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. adminCreate: alta directa de profesional en ACTIVE con zonas y disponibilidad opcional (availability + availabilityStructured) — AUT-351, AUT-354. adminUpdate: edición completa de profesional con zonas, disponibilidad y archivos, compara valores reales contra DB y registra previousValues/newValues solo en campos con cambio real — AUT-355, AUT-359. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getMembershipDiscount: consulta de descuento de membresía desde SystemConfig con validación de expiración — AUT-329. updateLicenseStatus: aprobación/rechazo de credencial por admin; notifica al profesional vía WhatsApp cuando se rechaza con nuevo token y CTA de re-subida — AUT-324, AUT-335. submitLicenseResubmission: re-subida de credencial vía token con ?mode=license — AUT-335. sendWithWindowCheck: helper de envío con template/text según ventana 24hs — AUT-335. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323. getPanelData incluye userComments anónimos en reputación — AUT-345, trialRequestsLimit leído desde SystemConfig en vez de hardcodeado — AUT-349, dniNumber, licenseUrl, declaredHasLicense, availabilityStructured — AUT-356. getCurrentPlan: devuelve el plan activo del profesional vía MembershipsService — AUT-348
 │   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323. findById ahora incluye category en el tipo de retorno — AUT-335. createDataChangeRequest: acepta previousValues y newValues — AUT-358, AUT-359. findPendingDataChangeRequests: incluye previousValues y newValues en el retorno — AUT-359. getProfessionalsWithPendingChanges: IDs de profesionales con cambios PENDING — AUT-359
-│   │   │   ├── admin/
-│   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount — AUT-334
-│   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount — AUT-334
-│   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334
-│   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
+   │   │   │   ├── admin/
+   │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount, GET /admin/prompts, PATCH /admin/prompts/:key, POST /admin/prompts/:key/reset, POST /admin/prompts/:key/invalidate-cache — AUT-334, AUT-399
+   │   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount, listPrompts, updatePrompt, resetPrompt, invalidatePromptCache — AUT-334, AUT-399
+   │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334
+   │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 4 endpoints under /plans (GET, POST, PATCH, DELETE)
 │   │   │   │   ├── plans.controller.ts # Request validation, response formatting. create/update aceptan features, deactivate endpoint — AUT-340
@@ -79,12 +79,15 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── memberships.controller.ts # Request validation, response formatting
 │   │   │   │   ├── memberships.service.ts    # canReceiveRequests, activateMembership, getStatus, getActiveMembership (AUT-331). cancelMembership — AUT-353. sendExpirationReminders: cron diario de notificación de vencimiento con sendWithWindowCheck (AUT-330)
 │   │   │   │   └── memberships.repository.ts # Prisma queries for Membership/Professional models + findExpiringMemberships, markReminderSent, clearExpiredReminderFlags (AUT-330). updateStatus extendido con CANCELED — AUT-353
-│   │   │   ├── config/
-│   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
-│   │   │   │   ├── config.controller.ts # Request validation, response formatting
-│   │   │   │   ├── config.service.ts    # Key-value config get/update
-│   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
-│   │   │   ├── matching/
+   │   │   │   ├── config/
+   │   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
+   │   │   │   │   ├── config.controller.ts # Request validation, response formatting
+   │   │   │   │   ├── config.service.ts    # Key-value config get/update
+   │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
+   │   │   │   ├── prompts/                        # (AUT-399)
+   │   │   │   │   ├── prompt.service.ts    # In-memory cache (Map<string,string>), getPrompt(key, vars): loads from DB on cache miss, replaces {{varName}} placeholders, throws if key not found
+   │   │   │   │   └── prompt.repository.ts # Prisma queries for PromptTemplate model: findByKey, findAll, update, resetToDefault
+   │   │   │   ├── matching/
 │   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + sistema híbrido keywords+LLM de detección de matrícula con priorización en score (AUT-235, AUT-240, AUT-251, AUT-343) + Regla 1: profesional preferido por historial positivo (wouldRecommend:true + rating≥4) — AUT-366 + Regla 2: exclusión de profesionales con wouldRecommend:false — AUT-366. userId parámetro opcional en findBestCandidate
 │   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251) + findPreferredProfessional + findExcludedProfessionals por historial usuario-profesional (AUT-366)
 │   │   │   ├── requests/
@@ -368,7 +371,7 @@ src/
 
 ## Schema
 
-### PromptTemplate (AUT-398)
+### PromptTemplate (AUT-398, AUT-399)
 
 Modelo para externalizar prompts LLM del código a la DB. Permite editar prompts desde el admin sin deploy.
 
@@ -385,6 +388,10 @@ Modelo para externalizar prompts LLM del código a la DB. Permite editar prompts
 **Seed inicial (10 prompts):**
 - Editables: `clarification_questions`, `technical_brief`, `validate_description_match`, `detect_cancellation_intent`, `resolve_option`, `generate_off_topic_response`, `analyze_feedback`
 - No editables: `extract_name`, `clean_address`, `extract_working_hours`
+
+**PromptService (AUT-399):** cache en memoria (`Map<string,string>`), getPrompt(key, vars) reemplaza `{{varName}}` placeholders. Invalida cache al editar/resetear desde admin endpoints.
+
+**Placeholders:** formato `{{variable}}` (no `${variable}` de JS template literals). El seed fue actualizado acordemente.
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/seed.ts` (`seedPromptTemplates()`), `backend/prisma/migrations/20260706000000_add_prompt_template/migration.sql`
 
@@ -2348,6 +2355,14 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
   - Todos los pesos, penalizaciones y límites son configurables vía `SystemConfig` con defaults en `MATCHING_*` keys.
   - `findBestCandidate()` retorna `null` si ningún profesional pasa los filtros.
   - Sin endpoints REST propios — es invocado internamente por el módulo de Pedidos.
+- Prompts LLM (AUT-399):
+  - `PromptService` mantiene un cache en memoria (`Map<string, string>`) con el contenido de los prompts
+  - `getPrompt(key, vars)`: si la key no está en cache, la carga desde DB vía `PromptRepository.findByKey()`. Si no existe en DB, lanza error. Luego reemplaza placeholders `{{varName}}` con los valores del objeto `vars`
+  - El cache se invalida automáticamente al editar (`PATCH /admin/prompts/:key`) o resetear (`POST /admin/prompts/:key/reset`) un prompt desde el admin
+  - `POST /admin/prompts/:key/invalidate-cache` permite forzar la invalidación sin modificar contenido
+  - Los prompts con `isEditable: false` no pueden editarse vía `PATCH /admin/prompts/:key` (retorna 403)
+  - Todos los endpoints de prompts requieren rol `SUPERADMIN`
+  - Los placeholders en seed y DB usan formato `{{variable}}` (no `${variable}` de JS template literals)
 - Pedidos:
   - Usuario con pedido activo (CREATED, ASSIGNED, ACCEPTED, PENDING_CONFIRMATION) no puede crear otro → 409
   - Usuario bloqueado no puede crear pedidos → 403
