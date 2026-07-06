@@ -9,6 +9,7 @@ import { ProfessionalsRepository } from '../professionals/professionals.reposito
 import { ProfessionalsService } from '../professionals/professionals.service';
 import { SecurityService } from './security.service';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
+import { isAckMessage } from './flows/ack-detector.helper';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
 import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
@@ -105,6 +106,11 @@ export class BotService {
         flow: undefined,
         step: undefined,
       };
+    }
+
+    if (role === 'USER' && input.text?.trim() && isAckMessage(input.text.trim())) {
+      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+      return { text: '', flow: undefined, step: undefined };
     }
 
     if (role === 'PROFESSIONAL') {
