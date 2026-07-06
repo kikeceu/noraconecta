@@ -366,6 +366,28 @@ src/
 - **utils**: Pure helper functions
 - **middleware**: Request interceptors (auth, error handling)
 
+## Schema
+
+### PromptTemplate (AUT-398)
+
+Modelo para externalizar prompts LLM del código a la DB. Permite editar prompts desde el admin sin deploy.
+
+| Campo           | Tipo      | Descripción                                                    |
+|----------------|----------|----------------------------------------------------------------|
+| `key`           | String   | PK — identificador único del prompt (ej: `clarification_questions`) |
+| `content`       | String   | Texto actual del prompt (@db.Text). Editable desde el admin    |
+| `defaultContent`| String   | Valor original hardcodeado (@db.Text). Solo se escribe en seed |
+| `description`   | String   | Descripción legible del prompt                                 |
+| `variables`     | String[] | Array de nombres de variables que acepta el prompt             |
+| `isEditable`    | Boolean  | Si `false`, el prompt no es editable desde el admin (default: true) |
+| `updatedAt`     | DateTime | Timestamp de última modificación                               |
+
+**Seed inicial (10 prompts):**
+- Editables: `clarification_questions`, `technical_brief`, `validate_description_match`, `detect_cancellation_intent`, `resolve_option`, `generate_off_topic_response`, `analyze_feedback`
+- No editables: `extract_name`, `clean_address`, `extract_working_hours`
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/seed.ts` (`seedPromptTemplates()`), `backend/prisma/migrations/20260706000000_add_prompt_template/migration.sql`
+
 ## Build Targets (Frontend Subdomain Configuration)
 
 El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.

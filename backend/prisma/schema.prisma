@@ -414,3 +414,13 @@ model BotSecurity {
   @@index([phone])
   @@index([blockedUntil])
 }
+
+model PromptTemplate {
+  key            String   @id
+  content        String   @db.Text
+  defaultContent String   @db.Text
+  description    String
+  variables      String[]
+  isEditable     Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+}
