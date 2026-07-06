@@ -25,4 +25,20 @@ router.post('/membership-discount', requireSuperAdmin, (req, res, next) => {
   void adminController.setMembershipDiscount(req, res, next);
 });
 
+router.get('/prompts', requireSuperAdmin, (req, res, next) => {
+  void adminController.listPrompts(req, res, next);
+});
+
+router.patch('/prompts/:key', requireSuperAdmin, (req, res, next) => {
+  void adminController.updatePrompt(req, res, next);
+});
+
+router.post('/prompts/:key/reset', requireSuperAdmin, (req, res, next) => {
+  void adminController.resetPrompt(req, res, next);
+});
+
+router.post('/prompts/:key/invalidate-cache', requireSuperAdmin, (req, res, next) => {
+  adminController.invalidatePromptCache(req, res, next);
+});
+
 export default router;

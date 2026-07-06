@@ -13,18 +13,12 @@ import { resolveOptionWithFallback, generateOffTopicResponse } from './option-re
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
 import { callLLM } from '../../../lib/llm-client';
 import { upsertSavedLocationByAddress, findLocationsByGeoNode, touchSavedLocation, DEFAULT_MAX_SAVED_LOCATIONS } from './location-saver.helper';
+import { promptService } from '../../prompts/prompt.service';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
 
 async function extractCleanAddress(rawText: string): Promise<string> {
-  const prompt = `El usuario escribió lo siguiente como dirección de su domicilio: "${rawText}"
-
-Tu tarea: extraer únicamente la dirección limpia, sin frases introductorias como "es en", "está en", "vivo en", "la dirección es", "quiero en", etc.
-
-Si el texto ya es una dirección limpia, devolvela tal cual.
-Si no podés identificar una dirección válida, devolvé el texto original sin cambios.
-
-Respondé SOLO con la dirección limpia. Sin explicaciones.`;
+  const prompt = await promptService.getPrompt('clean_address', { rawText });
 
   try {
     const response = await callLLM(prompt);

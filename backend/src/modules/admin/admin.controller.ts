@@ -7,6 +7,8 @@ import { RequestsRepository } from '../requests/requests.repository';
 import { MatchingRepository } from '../matching/matching.repository';
 import { UsersRepository } from '../users/users.repository';
 import { BotRepository } from '../bot/bot.repository';
+import { promptRepository } from '../prompts/prompt.repository';
+import { promptService } from '../prompts/prompt.service';
 
 const adminRepository = new AdminRepository();
 const configRepository = new ConfigRepository();
@@ -85,6 +87,57 @@ export class AdminController {
       };
       await adminService.setMembershipDiscount(active, discountPct, durationHours);
       res.status(200).json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async listPrompts(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const prompts = await promptRepository.findAll();
+      res.status(200).json({ data: prompts });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updatePrompt(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { key } = req.params as { key: string };
+      const { content } = req.body as { content: string };
+      const record = await promptRepository.findByKey(key);
+      if (!record) {
+        res.status(404).json({ error: 'Prompt not found' });
+        return;
+      }
+      if (!record.isEditable) {
+        res.status(403).json({ error: 'This prompt is not editable' });
+        return;
+      }
+      await promptRepository.update(key, content);
+      promptService.invalidate(key);
+      res.status(200).json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async resetPrompt(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { key } = req.params as { key: string };
+      await promptRepository.resetToDefault(key);
+      promptService.invalidate(key);
+      res.status(200).json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  invalidatePromptCache(req: Request, res: Response, next: NextFunction): void {
+    try {
+      const { key } = req.params as { key: string };
+      promptService.invalidate(key);
+      res.status(200).json({ data: { ok: true } });
     } catch (err) {
       next(err);
     }

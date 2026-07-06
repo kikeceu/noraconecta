@@ -6,6 +6,7 @@ import { CategoriesRepository } from '../../categories/categories.repository';
 import { resolveOption } from './option-resolver.helper';
 import prisma from '../../../lib/prisma';
 import { callLLM } from '../../../lib/llm-client';
+import { promptService } from '../../prompts/prompt.service';
 
 export class ProfessionalRegisterFlow implements FlowHandler {
   readonly flowName = 'PROFESSIONAL_REGISTER';
@@ -546,15 +547,7 @@ export class ProfessionalRegisterFlow implements FlowHandler {
 
       if (!hoursStep || hoursStep === 'WAITING_INPUT') {
         tempData._hoursStep = 'WAITING_INPUT';
-        const prompt = `Extraé el horario de inicio y fin de trabajo de este texto: "${inputText}"
-Devolvé SOLO un JSON con este formato exacto:
-{"from": "HH:MM", "to": "HH:MM"}
-Si no podés determinarlo con certeza, devolvé: {"error": "ambiguo"}
-Ejemplos válidos de entrada:
-- "de 8 a 18" → {"from": "08:00", "to": "18:00"}
-- "de 9 a 17:30" → {"from": "09:00", "to": "17:30"}
-- "mañana y tarde" → {"error": "ambiguo"}
-- "8 a 6 de la tarde" → {"from": "08:00", "to": "18:00"}`;
+        const prompt = await promptService.getPrompt('extract_working_hours', { inputText });
 
         try {
           const llmResponse = await callLLM(prompt);
@@ -674,15 +667,7 @@ Ejemplos válidos de entrada:
       const currentIndex = tempData._currentDayIndex as number;
       const perDaySlots = tempData._perDaySlots as { day: number; from: string; to: string }[];
 
-      const prompt = `Extraé el horario de inicio y fin de trabajo de este texto: "${inputText}"
-Devolvé SOLO un JSON con este formato exacto:
-{"from": "HH:MM", "to": "HH:MM"}
-Si no podés determinarlo con certeza, devolvé: {"error": "ambiguo"}
-Ejemplos válidos de entrada:
-- "de 8 a 14" → {"from": "08:00", "to": "14:00"}
-- "de 9 a 17:30" → {"from": "09:00", "to": "17:30"}
-- "mañana y tarde" → {"error": "ambiguo"}
-- "8 a 6 de la tarde" → {"from": "08:00", "to": "18:00"}`;
+      const prompt = await promptService.getPrompt('extract_working_hours', { inputText });
 
       try {
         const llmResponse = await callLLM(prompt);

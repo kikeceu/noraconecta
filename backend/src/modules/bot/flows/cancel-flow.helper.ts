@@ -5,6 +5,7 @@ import { NotificationService } from '../../notifications/notification.service';
 import { resolveOption } from './option-resolver.helper';
 import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
+import { promptService } from '../../prompts/prompt.service';
 
 const CANCEL_KEYWORDS = [
   'cancelar',
@@ -24,9 +25,7 @@ export function isCancellationIntent(text: string): boolean {
 export async function detectCancellationIntent(text: string): Promise<boolean> {
   if (isCancellationIntent(text)) return true;
 
-  const prompt = `El usuario escribió: "${text}"
-¿Está expresando intención de cancelar un pedido o visita?
-Respondé SOLO: SI o NO`;
+  const prompt = await promptService.getPrompt('detect_cancellation_intent', { text });
 
   try {
     const response = await callLLM(prompt);
