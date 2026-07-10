@@ -1180,6 +1180,37 @@ export class CoordinationFlow implements FlowHandler {
         const hours = getHoursArgentina(alternativeScheduledAt).toString().padStart(2, '0');
         const minutes = getMinutesArgentina(alternativeScheduledAt).toString().padStart(2, '0');
 
+        const scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
+
+        const existingRequest = await prisma.request.findUnique({
+          where: { id: requestId },
+          select: { clientAddress: true, userLatitude: true, userLongitude: true },
+        });
+
+        if (existingRequest?.clientAddress) {
+          const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
+            ...tempData,
+            professionalName,
+            _confirmedByProfessional: false,
+          });
+
+          await this.coordinationService.notifyProfessionalVisitConfirmed(
+            tempData.professionalPhone as string,
+            userName,
+            scheduleText,
+            existingRequest.clientAddress,
+            tempData.userPhone as string,
+            existingRequest.userLatitude ?? null,
+            existingRequest.userLongitude ?? null,
+          );
+
+          return {
+            response: { text: finalizeResult.response.text },
+            nextStep: finalizeResult.nextStep,
+            tempData: finalizeResult.tempData,
+          };
+        }
+
         this.coordinationService.notifyProfessionalClientAcceptedSchedule(
           tempData.professionalPhone as string,
           userName,
