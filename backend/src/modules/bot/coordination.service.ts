@@ -344,8 +344,15 @@ export class CoordinationService {
   async sendReminders(): Promise<number> {
     const now = new Date();
 
-    const reminderStart = new Date(now.getTime() + 23 * 60 * 60 * 1000);
+    const argHour = getHoursArgentina(now);
+    if (argHour < 8 || argHour >= 21) {
+      return 0;
+    }
+
+    const reminderStart = new Date(now.getTime() + 20 * 60 * 60 * 1000);
     const reminderEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const minCoordinationAge = new Date(now.getTime() - 6 * 60 * 60 * 1000);
 
     const visits = await prisma.request.findMany({
       where: {
@@ -354,6 +361,8 @@ export class CoordinationService {
           gte: reminderStart,
           lt: reminderEnd,
         },
+        reminderSentAt: null,
+        updatedAt: { lte: minCoordinationAge },
       },
       include: {
         user: { select: { name: true, phone: true } },
@@ -368,12 +377,17 @@ export class CoordinationService {
       if (!visit.scheduledAt) continue;
 
       const scheduledAt = visit.scheduledAt;
-      const hours = scheduledAt.getHours().toString().padStart(2, '0');
-      const minutes = scheduledAt.getMinutes().toString().padStart(2, '0');
+      const hours = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
+      const minutes = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
 
       const professionalName = visit.assignedProfessional?.name || 'El profesional';
       const userPhone = visit.user?.phone;
       const professionalPhone = visit.assignedProfessional?.phone;
+
+      await prisma.request.update({
+        where: { id: visit.id },
+        data: { reminderSentAt: now },
+      });
 
       if (userPhone) {
         const categoryName = visit.category?.name || 'el servicio';
