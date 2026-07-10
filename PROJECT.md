@@ -396,6 +396,16 @@ Modelo para externalizar prompts LLM del código a la DB. Permite editar prompts
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/seed.ts` (`seedPromptTemplates()`), `backend/prisma/migrations/20260706000000_add_prompt_template/migration.sql`
 
+### Request — reminderSentAt (AUT-404)
+
+| Campo           | Tipo      | Descripción                                                    |
+|----------------|----------|----------------------------------------------------------------|
+| `reminderSentAt`| DateTime? | Timestamp del último envío de recordatorio de visita al usuario. Previene envíos duplicados del cron de recordatorios (`null` = no enviado). |
+
+**Uso:** El cron de recordatorios de visita (AUT-405) consulta requests con `scheduledAt` dentro de la ventana 20-24hs y `reminderSentAt IS NULL` para evitar múltiples notificaciones en ejecuciones consecutivas.
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260710123919_add_reminder_sent_at_to_request/migration.sql`
+
 ## Build Targets (Frontend Subdomain Configuration)
 
 El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.

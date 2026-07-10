@@ -299,6 +299,7 @@ model Request {
   isUrgent               Boolean  @default(false)
   mentionedDate          String?
   technicalBrief         String?
+  reminderSentAt         DateTime?
 
   events     RequestEvent[]
   feedback   Feedback?
