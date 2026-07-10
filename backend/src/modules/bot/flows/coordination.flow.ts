@@ -511,6 +511,14 @@ export class CoordinationFlow implements FlowHandler {
       };
     }
 
+    if (role === 'PROFESSIONAL') {
+      return {
+        response: { text: 'Esperando que el usuario proponga un horario para la visita.' },
+        nextStep: 'AWAITING_AVAILABILITY',
+        tempData,
+      };
+    }
+
     const request = await prisma.request.findUnique({
       where: { id: requestId },
       select: {
