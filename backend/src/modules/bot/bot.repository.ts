@@ -78,9 +78,10 @@ export class BotRepository {
   }
 
   async setLastTemplateSentAt(phone: string, role: BotRole, at: Date): Promise<void> {
-    await prisma.botSession.update({
+    await prisma.botSession.upsert({
       where: { phone_role: { phone, role } },
-      data: { lastTemplateSentAt: at },
+      update: { lastTemplateSentAt: at },
+      create: { phone, role, lastTemplateSentAt: at },
     });
   }
 
