@@ -165,6 +165,8 @@ export class WhatsAppAdapter {
       );
     }
 
+    console.log('[adapter] msg.type:', msg.type, 'msg raw:', JSON.stringify(msg));
+
     if (msg.type === 'interactive') {
       const interactiveMsg = msg as unknown as WhatsAppInteractiveMessage;
       if (interactiveMsg.interactive?.type === 'button_reply') {
