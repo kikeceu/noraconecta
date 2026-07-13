@@ -1204,7 +1204,10 @@ export class UserRequestFlow implements FlowHandler {
       if (tempData.descriptionAudioUrl) {
         tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
       }
-      delete tempData.photoUrls;
+      const existingPhotos = (tempData.photoUrls as string[]) || [];
+      if (existingPhotos.length === 0) {
+        delete tempData.photoUrls;
+      }
       const confirmText = this.buildConfirmation(tempData);
       return {
         response: { text: confirmText },
