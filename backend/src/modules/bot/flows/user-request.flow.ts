@@ -1381,6 +1381,7 @@ export class UserRequestFlow implements FlowHandler {
 
     if (resolved === 'YES') {
       try {
+        console.log('[CONFIRM] photoUrls al crear request:', JSON.stringify((tempData.photoUrls as string[]) || []));
         const request = await this.requestsService.create({
           phone: tempData.phone as string,
           categoryId: tempData.categoryId as string,
