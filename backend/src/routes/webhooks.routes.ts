@@ -242,6 +242,8 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       if (isPhotoStep) {
         const key = `${parsed.message.phone}:${parsed.role}`;
 
+        console.log('[debounce] acumulando foto:', parsed.message.imageUrls);
+
         const existing = photoAccumulators.get(key);
         if (existing) {
           clearTimeout(existing.timer);
@@ -415,6 +417,7 @@ async function handlePendingNotification(
 async function processWithAccumulatedPhotos(
   accumulator: PhotoAccumulator,
 ): Promise<void> {
+  console.log('[debounce] procesando fotos acumuladas:', accumulator.imageUrls); // ← ACÁ
   try {
     const adapter = getWhatsappAdapter();
     if (!adapter) return;
