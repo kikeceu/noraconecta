@@ -1177,6 +1177,8 @@ export class UserRequestFlow implements FlowHandler {
     if (newPhotos.length > 0) {
       tempData.photoUrls = mergedPhotos;
 
+      console.log('[ASK_PHOTOS] photoUrls en tempData:', JSON.stringify(tempData.photoUrls));
+
       if (mergedPhotos.length >= 3) {
         if (tempData.descriptionAudioUrl) {
           tempData.audioUrl = (tempData.descriptionAudioUrl as string) || tempData.audioUrl;
