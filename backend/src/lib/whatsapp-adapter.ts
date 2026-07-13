@@ -156,6 +156,8 @@ export class WhatsAppAdapter {
 
     const message: IncomingMessage = { phone, messageId: msg.id };
 
+    console.log('[adapter] msg raw completo:', JSON.stringify(msg));
+
     if (msg.type === 'text' && msg.text?.body) {
       message.text = msg.text.body;
     }
