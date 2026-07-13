@@ -1577,6 +1577,27 @@ export class CoordinationFlow implements FlowHandler {
       }, maxLocations);
     }
 
+    const professionalPhone = tempData.professionalPhone as string | undefined;
+    if (professionalPhone && request?.scheduledAt) {
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const dayName = dayNames[getDayArgentina(request.scheduledAt)];
+      const hours = getHoursArgentina(request.scheduledAt).toString().padStart(2, '0');
+      const minutes = getMinutesArgentina(request.scheduledAt).toString().padStart(2, '0');
+      const scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
+      const userName = (tempData.userName as string) || 'el usuario';
+      const userPhone = tempData.userPhone as string;
+
+      await this.coordinationService.notifyProfessionalVisitConfirmed(
+        professionalPhone,
+        userName,
+        scheduleText,
+        address,
+        userPhone,
+        request.userLatitude ?? null,
+        request.userLongitude ?? null,
+      );
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { _locationSuggestions, ...cleanTempData } = tempData;
 
