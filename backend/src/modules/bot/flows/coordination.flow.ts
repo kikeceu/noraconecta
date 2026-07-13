@@ -1578,7 +1578,9 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const professionalPhone = tempData.professionalPhone as string | undefined;
-    if (professionalPhone && request?.scheduledAt) {
+    const confirmedByProfessional = tempData._confirmedByProfessional as boolean | undefined;
+
+    if (professionalPhone && request?.scheduledAt && !confirmedByProfessional) {
       const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
       const dayName = dayNames[getDayArgentina(request.scheduledAt)];
       const hours = getHoursArgentina(request.scheduledAt).toString().padStart(2, '0');
