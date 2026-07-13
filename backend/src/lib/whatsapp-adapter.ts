@@ -64,12 +64,28 @@ interface WhatsAppInteractiveMessage {
   };
 }
 
+interface WhatsAppButtonMessage {
+  from: string;
+  id: string;
+  timestamp: string;
+  type: 'button';
+  button: {
+    payload: string;
+    text: string;
+  };
+  context?: {
+    from: string;
+    id: string;
+  };
+}
+
 type WhatsAppInboundMessage =
   | WhatsAppTextMessage
   | WhatsAppImageMessage
   | WhatsAppAudioMessage
   | WhatsAppLocationMessage
-  | WhatsAppInteractiveMessage;
+  | WhatsAppInteractiveMessage
+  | WhatsAppButtonMessage;
 
 interface WhatsAppWebhookValue {
   messaging_product: string;
@@ -173,6 +189,12 @@ export class WhatsAppAdapter {
         message.text = interactiveMsg.interactive.button_reply.id;
         message.buttonPayload = interactiveMsg.interactive.button_reply.id;
       }
+    }
+
+    if (msg.type === 'button') {
+      const buttonMsg = msg as unknown as WhatsAppButtonMessage;
+      message.text = buttonMsg.button?.payload;
+      message.buttonPayload = buttonMsg.button?.payload;
     }
 
     return { message, role };
