@@ -230,6 +230,13 @@ export class NotificationService {
         { payload: BOT_PAYLOADS.NO_NOTIFY, text: 'Por ahora no' },
       ],
     );
+
+    await this.botRepository.upsert(user.phone, {
+      role: 'USER',
+      currentFlow: 'USER_REQUEST',
+      currentStep: 'WAITING_CONSENT',
+      tempData: {} as Prisma.InputJsonValue,
+    });
   }
 
   async notifyProfessionalCancelledByUser(
