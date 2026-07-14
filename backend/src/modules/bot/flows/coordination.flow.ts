@@ -132,6 +132,32 @@ export class CoordinationFlow implements FlowHandler {
       // REJECT falls through to the resolver below
     }
 
+    // If professional writes '1' on first exchange and request has no media → accept directly
+    if (inputText === '1' && !detailsShown) {
+      const hasMedia = ((tempData.photoUrls as string[]) || []).length > 0 || !!tempData.audioUrl;
+      if (!hasMedia) {
+        try {
+          await this.requestsService.accept(requestId);
+
+          return {
+            response: {
+              text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
+            },
+            nextStep: null,
+            tempData: { _clearTempData: true },
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'No se pudo aceptar el pedido.';
+
+          return {
+            response: { text: errorMessage },
+            nextStep: null,
+            tempData: { _clearTempData: true },
+          };
+        }
+      }
+    }
+
     if (['1', 'ver detalles', 'detalle', 'detalles', 'ver pedido', BOT_PAYLOADS.VER_DETALLES].includes(inputText)) {
       let categoryName = tempData.categoryName as string | undefined;
       let zoneName = tempData.zoneName as string | undefined;
