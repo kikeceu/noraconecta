@@ -93,7 +93,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
-│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251) + persistencia de barrio y código postal desde Nominatim (AUT-307) + pasa userId en los 6 llamados a findBestCandidate (AUT-366)
+│   │   │   │   ├── requests.service.ts    # Request lifecycle, matching, reassignment, timeouts (cron log + CREATED→NO_RESPONSE notification, AUT-287) + technicalBrief support + análisis LLM síncrono en create() (AUT-251) + persistencia de barrio y código postal desde Nominatim (AUT-307) + pasa userId en los 6 llamados a findBestCandidate (AUT-366) + notifyProfessionalReassigned en reject y reassignAfterNegotiation: el nuevo profesional recibe notificación WhatsApp inmediata al ser reasignado (AUT-425)
 │   │   │   │   └── requests.repository.ts # Prisma queries for Request/RequestEvent/Feedback + CreateRequestInput con technicalBrief + findActivesByProfessionalId (AUT-298)
 │   │   │   ├── reputation/
 │   │   │   │   ├── reputation.service.ts    # Automatic penalizations, badge evaluation, getReputationBreakdown, getUserComments (AUT-345)

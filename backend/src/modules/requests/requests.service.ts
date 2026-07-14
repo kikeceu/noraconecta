@@ -436,6 +436,35 @@ Criterios:
 
     await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
 
+    // Notify the new professional about the reassignment after reject
+    if (this.notificationService) {
+      const categoryName = await this.getCategoryName(request.categoryId);
+      const zoneName = await this.getZoneName(request.geoNodeId);
+      const professional = await prisma.professional.findUnique({
+        where: { id: match.professionalId },
+        select: { phone: true, name: true },
+      });
+      if (professional) {
+        this.notificationService
+          .notifyProfessionalReassigned(professional, {
+            id: request.id,
+            categoryName,
+            zoneName,
+            description: request.description,
+            timeoutHours: responseTimeoutHours,
+            photoUrls: request.photoUrls ?? [],
+            audioUrl: request.audioUrl || undefined,
+            technicalBrief: request.technicalBrief,
+          })
+          .catch((err) => {
+            console.error(
+              '[RequestsService] Failed to notify professional reassigned after reject:',
+              err,
+            );
+          });
+      }
+    }
+
     return updated;
   }
 
@@ -1519,6 +1548,35 @@ Criterios:
     });
 
     await this.requestsRepository.updateLastAssignedAt(match.professionalId, now);
+
+    // Notify the new professional about the reassignment after negotiation exhaustion
+    if (this.notificationService) {
+      const categoryName = await this.getCategoryName(request.categoryId);
+      const zoneName = await this.getZoneName(request.geoNodeId);
+      const professional = await prisma.professional.findUnique({
+        where: { id: match.professionalId },
+        select: { phone: true, name: true },
+      });
+      if (professional) {
+        this.notificationService
+          .notifyProfessionalReassigned(professional, {
+            id: request.id,
+            categoryName,
+            zoneName,
+            description: request.description,
+            timeoutHours: responseTimeoutHours,
+            photoUrls: request.photoUrls ?? [],
+            audioUrl: request.audioUrl || undefined,
+            technicalBrief: request.technicalBrief,
+          })
+          .catch((err) => {
+            console.error(
+              '[RequestsService] Failed to notify professional reassigned after negotiation:',
+              err,
+            );
+          });
+      }
+    }
 
     return updated;
   }
