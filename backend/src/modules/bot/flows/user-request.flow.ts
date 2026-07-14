@@ -1427,7 +1427,7 @@ export class UserRequestFlow implements FlowHandler {
               text:
                 `En este momento no encontré un profesional disponible para tu pedido. ` +
                 `Estoy buscando opciones — si aparece alguien, ¿querés que te avise? ` +
-                `Puede demorar hasta 24hs.\n1. Sí\n2. No`,
+                `Puede demorar hasta 24hs.`,
               options: ['Sí', 'No'],
               requestId: request.id,
             },
@@ -1529,7 +1529,7 @@ export class UserRequestFlow implements FlowHandler {
       text:
         `En este momento no encontré un profesional disponible para tu pedido. ` +
         `Estoy buscando opciones — si aparece alguien, ¿querés que te avise? ` +
-        `Puede demorar hasta 24hs.\n1. Sí\n2. No`,
+        `Puede demorar hasta 24hs.`,
       options: ['Sí', 'No'],
       },
       nextStep: 'WAITING_CONSENT',
