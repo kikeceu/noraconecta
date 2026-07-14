@@ -404,6 +404,21 @@ export class CoordinationService {
             { payload: BOT_PAYLOADS.CANCELAR_VISITA, text: 'Necesito cancelar' },
           ],
         );
+
+        await this.botRepository.upsert(userPhone, {
+          role: 'USER',
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_VISIT_CONFIRMATION',
+          tempData: {
+            requestId: visit.id,
+            userId: visit.userId,
+            userName: visit.user?.name,
+            professionalId: visit.assignedProfessionalId,
+            professionalName: visit.assignedProfessional?.name,
+            professionalPhone: visit.assignedProfessional?.phone,
+            scheduledAt: visit.scheduledAt?.toISOString(),
+          } as Prisma.InputJsonValue,
+        });
       }
 
       if (professionalPhone) {
