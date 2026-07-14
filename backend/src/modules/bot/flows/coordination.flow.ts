@@ -1721,15 +1721,48 @@ export class CoordinationFlow implements FlowHandler {
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
-    if (role !== 'PROFESSIONAL') {
+    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
+
+    if (role === 'USER') {
+      const resolved = await resolveOptionWithFallback('AWAITING_VISIT_CONFIRMATION', inputText);
+
+      if (resolved === 'CONFIRM') {
+        return {
+          response: { text: '¡Perfecto! Te esperamos para la visita. 🙌' },
+          nextStep: 'AWAITING_VISIT',
+          tempData,
+        };
+      }
+
+      if (resolved === 'CANCEL') {
+        const requestId = tempData.requestId as string;
+        const userId = tempData.userId as string;
+
+        if (!requestId || !userId) {
+          return {
+            response: { text: 'No pude identificar el pedido. Escribinos para revisarlo.' },
+            nextStep: null,
+            tempData: { _clearTempData: true },
+          };
+        }
+
+        return {
+          response: { text: '¿Confirmás que querés cancelar la visita?' },
+          nextStep: 'CANCEL_CONFIRMATION',
+          tempData: {
+            ...tempData,
+            cancelTarget: 'visit',
+          },
+        };
+      }
+
       return {
-        response: { text: 'Esperando confirmación del profesional.' },
+        response: { text: 'No entendí. Respondé:\n1. Confirmo\n2. Necesito cancelar' },
         nextStep: 'AWAITING_VISIT_CONFIRMATION',
         tempData,
       };
     }
 
-    const inputText = (message.buttonPayload || message.text?.trim() || '').toLowerCase();
     const resolved = await resolveOptionWithFallback('AWAITING_VISIT_CONFIRMATION', inputText);
 
     if (resolved === 'CONFIRM') {
