@@ -135,6 +135,37 @@ export class UserRequestFlow implements FlowHandler {
       }
     }
 
+    // Cancel intent interceptor: fires before handleInit when user has no active session
+    // and writes a cancellation intent (e.g. "quiero cancelar el pedido")
+    if (step === 'INIT') {
+      const cancelAliases = ['cancelar', 'quiero cancelar', 'cancelar pedido', 'cancel'];
+      const inputNormalized = (message.text || '').toLowerCase().trim();
+      if (cancelAliases.some((c) => inputNormalized.includes(c))) {
+        const userId = tempData.userId as string;
+        if (userId) {
+          const activeRequest = await prisma.request.findFirst({
+            where: {
+              userId,
+              status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
+            },
+            select: {
+              id: true,
+              category: { select: { name: true } },
+            },
+          });
+          if (activeRequest) {
+            return {
+              response: {
+                text: `¿Confirmás que querés cancelar tu pedido de ${activeRequest.category?.name || 'el servicio'}?`,
+              },
+              nextStep: 'CANCEL_CONFIRMATION',
+              tempData: { ...tempData, requestId: activeRequest.id },
+            };
+          }
+        }
+      }
+    }
+
     switch (step) {
       case 'INIT':
         return this.handleInit(tempData);
