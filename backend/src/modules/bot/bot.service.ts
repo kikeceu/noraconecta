@@ -706,6 +706,8 @@ export class BotService {
     if (!finalTempData.name && userIdentity.name) finalTempData.name = userIdentity.name;
     if (!finalTempData.phone) finalTempData.phone = userIdentity.phone;
 
+    console.log('[DEBUG] result.nextStep:', result.nextStep, '| session.currentFlow:', session.currentFlow);
+
     const updatedSession = await this.botRepository.upsert(input.phone, {
       role,
       currentFlow: result.nextStep ? session.currentFlow : null,
