@@ -266,11 +266,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const verDetallesResponse: FlowStepResult = {
         response: {
-          text: [
-            `Pedido de ${detailCategoryName} en ${detailZoneName}.`,
-            `Descripción: ${detailDescription}`,
-            '1. Aceptar\n2. Rechazar',
-          ].join('\n\n'),
+          text: '¿Lo tomás?\n1. Aceptar\n2. Rechazar',
           mediaUrls: detailPhotoUrls,
           audioUrl: detailAudioUrl,
           mediaFirst: true,
