@@ -1199,7 +1199,7 @@ export class CoordinationFlow implements FlowHandler {
           const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
             ...tempData,
             professionalName,
-            _confirmedByProfessional: false,
+            _confirmedByProfessional: true,
           });
 
           await this.coordinationService.notifyProfessionalVisitConfirmed(
