@@ -154,12 +154,14 @@ export class UserRequestFlow implements FlowHandler {
             },
           });
           if (activeRequest) {
+            const categoryName = activeRequest.category?.name || 'el servicio';
             return {
               response: {
-                text: `¿Confirmás que querés cancelar tu pedido de ${activeRequest.category?.name || 'el servicio'}?`,
+                text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}?`,
+                options: ['Sí, cancelar', 'No, seguir con el pedido'],
               },
               nextStep: 'CANCEL_CONFIRMATION',
-              tempData: { ...tempData, requestId: activeRequest.id },
+              tempData: { ...tempData, requestId: activeRequest.id, categoryName },
             };
           }
         }
