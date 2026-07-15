@@ -124,6 +124,16 @@ enum BotRole {
   PROFESSIONAL
 }
 
+enum ProfessionalEventType {
+  PANEL_INTRO_ACCEPTANCE
+  PANEL_INTRO_COMPLETION
+  DIDI_VERIFICATION_SENT
+  DIDI_VERIFICATION_COMPLETED
+  WHATSAPP_FLOW_REGISTERED
+  MERCADO_PAGO_CONNECTED
+  FIRST_PAYMENT_RECEIVED
+}
+
 model Category {
   id               String   @id @default(cuid())
   name             String   @unique
@@ -191,7 +201,8 @@ model Professional {
   memberships Membership[]
   requests    Request[]          @relation("AssignedProfessional")
   events           RequestEvent[]
-  dataChangeRequests ProfessionalDataChangeRequest[]
+  dataChangeRequests  ProfessionalDataChangeRequest[]
+  professionalEvents  ProfessionalEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -213,6 +224,17 @@ model ProfessionalDataChangeRequest {
 
   @@index([professionalId])
   @@index([status])
+}
+
+model ProfessionalEvent {
+  id             String                 @id @default(cuid())
+  professionalId String
+  type           ProfessionalEventType
+  metadata       Json?
+  createdAt      DateTime               @default(now())
+  professional   Professional           @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId, type])
 }
 
 model ProfessionalZone {
