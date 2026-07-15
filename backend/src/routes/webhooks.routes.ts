@@ -239,7 +239,6 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
 
     // Media context check: only download if the current step allows this media type
     if (parsed.message.mediaId && parsed.message.mediaType) {
-      console.log('[DEBUG-429] mediaId:', parsed.message.mediaId, 'mediaType:', parsed.message.mediaType);
       const session = await botRepository.findByPhoneAndRole(
         parsed.message.phone,
         parsed.role,
@@ -312,7 +311,6 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
     }
 
     const messageId = parsed.message.messageId;
-    console.log('[DEBUG-dedup] messageId:', messageId);
     if (messageId) {
       const duplicate = await isDuplicateMessage(messageId);
       if (duplicate) {
@@ -321,8 +319,7 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
         return;
       }
     }
-     
-    console.log('[DEBUG-before-process] processWebhookAsync calling botService');
+
     const result = await botService.processMessage({
       phone: parsed.message.phone,
       text: parsed.message.text,
@@ -482,7 +479,6 @@ async function processWithAccumulatedPhotos(
       }
     }
 
-    console.log('[DEBUG-before-process] processWithAccumulatedPhotos calling botService');
     const result = await botService.processMessage({
       phone: accumulator.phone,
       imageUrls: accumulator.imageUrls,
