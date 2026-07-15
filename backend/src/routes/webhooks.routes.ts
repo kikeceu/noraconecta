@@ -249,8 +249,8 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       if (!allowedTypes.includes(parsed.message.mediaType)) {
         const outOfContextMessage =
           parsed.message.mediaType === 'image'
-            ? '📸 Recibí tu foto, pero en este momento no puedo procesarla. Las fotos solo se pueden enviar cuando estés describiendo un problema en un pedido y NORA te lo solicite. Si necesitás un profesional, escribime qué servicio buscás.'
-            : '🎤 Recibí tu audio, pero en este momento no puedo procesarlo. Los audios solo se pueden enviar cuando estés describiendo el problema de tu pedido y NORA te lo solicite. Si necesitás un profesional, escribime qué servicio buscás.';
+            ? '📸 Recibí tu foto, pero en este momento no puedo procesarla. Las fotos solo se pueden enviar cuando estés describiendo un problema en un pedido y NORA te lo solicite.'
+            : '🎤 Recibí tu audio, pero en este momento no puedo procesarlo. Los audios solo se pueden enviar cuando estés describiendo el problema de tu pedido y NORA te lo solicite.';
         await adapter.sendText(parsed.message.phone, outOfContextMessage, parsed.role);
         return;
       }
