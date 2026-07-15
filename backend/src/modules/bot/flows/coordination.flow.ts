@@ -8,6 +8,7 @@ import { CoordinationService } from '../coordination.service';
 import { ConfigRepository } from '../../config/config.repository';
 import { AbuseDetectionService } from '../abuse-detection.service';
 import { NotificationService } from '../../notifications/notification.service';
+import { ProfessionalsService } from '../../professionals/professionals.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
@@ -37,6 +38,7 @@ export class CoordinationFlow implements FlowHandler {
     private readonly coordinationService: CoordinationService,
     private readonly usersRepository: UsersRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly professionalsService: ProfessionalsService,
     private readonly notificationService?: NotificationService,
   ) {}
 
@@ -114,11 +116,10 @@ export class CoordinationFlow implements FlowHandler {
       if (acceptAliases.includes(inputText)) {
         try {
           await this.requestsService.accept(requestId);
+          const acceptText = await this.buildAcceptanceText(requestId);
 
           return {
-            response: {
-              text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
-            },
+            response: { text: acceptText },
             nextStep: null,
             tempData: { _clearTempData: true },
           };
@@ -141,11 +142,10 @@ export class CoordinationFlow implements FlowHandler {
       if (!hasMedia) {
         try {
           await this.requestsService.accept(requestId);
+          const acceptText = await this.buildAcceptanceText(requestId);
 
           return {
-            response: {
-              text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
-            },
+            response: { text: acceptText },
             nextStep: null,
             tempData: { _clearTempData: true },
           };
@@ -314,11 +314,10 @@ export class CoordinationFlow implements FlowHandler {
     if (resolved === 'ACCEPT') {
       try {
         await this.requestsService.accept(requestId);
+        const acceptText = await this.buildAcceptanceText(requestId);
 
         return {
-          response: {
-            text: '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.',
-          },
+          response: { text: acceptText },
           nextStep: null,
           tempData: { _clearTempData: true },
         };
@@ -1861,6 +1860,37 @@ export class CoordinationFlow implements FlowHandler {
       nextStep: 'AWAITING_VISIT_CONFIRMATION',
       tempData,
     };
+  }
+
+  private async buildAcceptanceText(requestId: string): Promise<string> {
+    let acceptText = '¡Perfecto! Aceptaste el pedido. El usuario va a coordinar la visita por acá.';
+
+    try {
+      const request = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: { assignedProfessionalId: true },
+      });
+
+      const professionalId = request?.assignedProfessionalId;
+      if (!professionalId) return acceptText;
+
+      const panelEventExists = await prisma.professionalEvent.findFirst({
+        where: { professionalId, type: 'PANEL_INTRO_ACCEPTANCE' },
+        select: { id: true },
+      });
+
+      if (!panelEventExists) {
+        const { panelUrl } = await this.professionalsService.generateSessionToken(professionalId);
+        acceptText += `\n\n💡 Podés gestionar tus pedidos desde tu panel web: ${panelUrl}\nCuando quieras acceder nuevamente, escribime *panel*.`;
+        await prisma.professionalEvent.create({
+          data: { professionalId, type: 'PANEL_INTRO_ACCEPTANCE' },
+        });
+      }
+    } catch (error) {
+      console.error('[CoordinationFlow] Failed to send panel intro on acceptance:', error);
+    }
+
+    return acceptText;
   }
 
   private isSameSchedule(proposed: Date, available: Date | null): boolean {
