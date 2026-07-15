@@ -786,7 +786,7 @@ export class UserRequestFlow implements FlowHandler {
 
     return {
       response: {
-	text: `Entendido: ${categoryName} en ${zoneName}${locationText}. Describí el problema. Podés escribirlo o mandar un audio.`,
+	text: `✅ ${categoryName} en ${zoneName}${locationText ? `\n📍 ${loc.address}` : ''}\n\nDescribí el problema. Podés escribirlo o mandar un audio.`,
       },
       nextStep: 'ASK_DESCRIPTION',
       tempData,
