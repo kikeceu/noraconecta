@@ -239,6 +239,7 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
 
     // Media context check: only download if the current step allows this media type
     if (parsed.message.mediaId && parsed.message.mediaType) {
+      console.log('[DEBUG-429] mediaId:', parsed.message.mediaId, 'mediaType:', parsed.message.mediaType);
       const session = await botRepository.findByPhoneAndRole(
         parsed.message.phone,
         parsed.role,
@@ -311,6 +312,7 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
     }
 
     const messageId = parsed.message.messageId;
+    console.log('[DEBUG-dedup] messageId:', messageId);
     if (messageId) {
       const duplicate = await isDuplicateMessage(messageId);
       if (duplicate) {
