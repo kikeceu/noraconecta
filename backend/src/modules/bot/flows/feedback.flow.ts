@@ -5,6 +5,7 @@ import { BotRepository } from '../bot.repository';
 import { CoordinationService } from '../coordination.service';
 import { RequestsService, Satisfaction } from '../../requests/requests.service';
 import { NotificationService } from '../../notifications/notification.service';
+import { ProfessionalsService } from '../../professionals/professionals.service';
 import { FlowContext, FlowHandler, FlowStepResult } from './types';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { promptService } from '../../prompts/prompt.service';
@@ -17,6 +18,7 @@ export class FeedbackFlow implements FlowHandler {
     private readonly botRepository: BotRepository,
     private readonly coordinationService: CoordinationService,
     private readonly notificationService: NotificationService,
+    private readonly professionalsService: ProfessionalsService,
   ) {}
 
   getInitialStep(): string {
@@ -251,6 +253,27 @@ export class FeedbackFlow implements FlowHandler {
             templateParams = [professionalName, userName];
           } catch (err) {
             console.error('[FeedbackFlow] Failed to build positive feedback notification:', err);
+          }
+        }
+
+        const professionalId = request?.assignedProfessionalId;
+
+        if (professionalId) {
+          try {
+            const panelCompletionExists = await prisma.professionalEvent.findFirst({
+              where: { professionalId, type: 'PANEL_INTRO_COMPLETION' },
+              select: { id: true },
+            });
+
+            if (!panelCompletionExists) {
+              const { panelUrl } = await this.professionalsService.generateSessionToken(professionalId);
+              proMessage += `\n\n📊 Ya podés ver tu historial y calificaciones en tu panel web: ${panelUrl}`;
+              await prisma.professionalEvent.create({
+                data: { professionalId, type: 'PANEL_INTRO_COMPLETION' },
+              });
+            }
+          } catch (err) {
+            console.error('[FeedbackFlow] Failed to add panel link to feedback message:', err);
           }
         }
 
