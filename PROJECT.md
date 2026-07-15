@@ -406,6 +406,38 @@ Modelo para externalizar prompts LLM del código a la DB. Permite editar prompts
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260710123919_add_reminder_sent_at_to_request/migration.sql`
 
+### ProfessionalEvent (AUT-435)
+
+Modelo para trackear eventos de onboarding y ciclo de vida del profesional sin sobrecargar la tabla `Professional`. Extensible para futuros eventos del roadmap.
+
+**Enum `ProfessionalEventType`:**
+
+| Valor                        | Descripción                                          |
+|------------------------------|------------------------------------------------------|
+| `PANEL_INTRO_ACCEPTANCE`     | Panel presentado al aceptar primer pedido            |
+| `PANEL_INTRO_COMPLETION`     | Panel presentado al completar primer trabajo         |
+| `DIDI_VERIFICATION_SENT`     | Link DiDi enviado al profesional                     |
+| `DIDI_VERIFICATION_COMPLETED`| DiDi confirmó identidad                              |
+| `WHATSAPP_FLOW_REGISTERED`   | Completar registro via WhatsApp Flow                 |
+| `MERCADO_PAGO_CONNECTED`     | Vinculó cuenta MP via OAuth                          |
+| `FIRST_PAYMENT_RECEIVED`     | Recibió primer pago via MP                           |
+
+**Modelo `ProfessionalEvent`:**
+
+| Campo            | Tipo                     | Descripción                                    |
+|-----------------|--------------------------|------------------------------------------------|
+| `id`             | String                   | PK (cuid)                                      |
+| `professionalId` | String                   | FK → Professional                              |
+| `type`           | ProfessionalEventType    | Tipo de evento                                 |
+| `metadata`       | Json?                    | Metadata adicional del evento                  |
+| `createdAt`      | DateTime                 | Fecha de creación                              |
+
+**Índices:** `@@index([professionalId, type])`
+
+**Relación en `Professional`:** `professionalEvents ProfessionalEvent[]`
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo + enum + relación), `backend/prisma/migrations/20260715000000_add_professional_event/migration.sql`
+
 ## Build Targets (Frontend Subdomain Configuration)
 
 El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.
