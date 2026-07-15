@@ -1221,6 +1221,7 @@ export class CoordinationFlow implements FlowHandler {
             ...tempData,
             professionalName,
             _confirmedByProfessional: true,
+            _userAcceptedAlternative: true,
           });
 
           await this.coordinationService.notifyProfessionalVisitConfirmed(
@@ -1629,11 +1630,14 @@ export class CoordinationFlow implements FlowHandler {
         text: (() => {
           const _sat = tempData.scheduledAt as string | undefined;
           const _confirmedByProfessional = tempData._confirmedByProfessional as boolean | undefined;
+          const _userAcceptedAlternative = tempData._userAcceptedAlternative as boolean | undefined;
           const _profName = tempData.professionalName || 'el profesional';
 
-          const _greeting = _confirmedByProfessional
-            ? `✅ ¡${_profName} confirmó tu propuesta de horario!`
-            : `✅ ¡Perfecto! Ya está todo coordinado con ${_profName}.`;
+          const _greeting = _userAcceptedAlternative
+            ? `✅ ¡Perfecto! Ya está todo coordinado con ${_profName}.`
+            : _confirmedByProfessional
+              ? `✅ ¡${_profName} confirmó tu propuesta de horario!`
+              : `✅ ¡Perfecto! Ya está todo coordinado con ${_profName}.`;
 
           if (_sat) {
             const _d = new Date(_sat);
