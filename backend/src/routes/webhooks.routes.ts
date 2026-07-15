@@ -321,7 +321,8 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
         return;
       }
     }
-
+     
+    console.log('[DEBUG-before-process] processWebhookAsync calling botService');
     const result = await botService.processMessage({
       phone: parsed.message.phone,
       text: parsed.message.text,
@@ -481,6 +482,7 @@ async function processWithAccumulatedPhotos(
       }
     }
 
+    console.log('[DEBUG-before-process] processWithAccumulatedPhotos calling botService');
     const result = await botService.processMessage({
       phone: accumulator.phone,
       imageUrls: accumulator.imageUrls,
