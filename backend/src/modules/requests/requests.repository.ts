@@ -235,6 +235,7 @@ export class RequestsRepository {
       where: {
         assignedProfessionalId: professionalId,
         coordinationStatus: 'SCHEDULED',
+        status: { in: ['ASSIGNED', 'ACCEPTED'] },
         id: { not: excludeRequestId },
         scheduledAt: { not: null },
       },
