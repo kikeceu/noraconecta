@@ -170,17 +170,13 @@ export class WhatsAppAdapter {
     }
 
     if (msg.type === 'image' && msg.image?.id) {
-      message.imageUrls = [
-        await this.downloadAndUploadToR2(msg.image.id, 'request-photos', role),
-      ];
+      message.mediaId = msg.image.id;
+      message.mediaType = 'image';
     }
 
     if (msg.type === 'audio' && msg.audio?.id) {
-      message.audioUrl = await this.downloadAndUploadToR2(
-        msg.audio.id,
-        'request-audio',
-        role,
-      );
+      message.mediaId = msg.audio.id;
+      message.mediaType = 'audio';
     }
 
     console.log('[adapter] msg.type:', msg.type, 'msg raw:', JSON.stringify(msg));

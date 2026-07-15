@@ -54,6 +54,12 @@ redisClient.connect().catch((err) => {
 const DEDUP_TTL_SECONDS = 3600;
 const DEDUP_KEY_PREFIX = 'wamid:';
 
+const MEDIA_ALLOWED_STEPS: Record<string, ('image' | 'audio')[]> = {
+  ASK_PHOTOS: ['image'],
+  ASK_DESCRIPTION: ['audio'],
+  CLARIFICATION: ['audio'],
+};
+
 async function isDuplicateMessage(messageId: string): Promise<boolean> {
   try {
     const key = `${DEDUP_KEY_PREFIX}${messageId}`;
@@ -230,6 +236,42 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
     console.log(
       `[webhooks] Processing WhatsApp message from ${parsed.message.phone} as ${parsed.role}`,
     );
+
+    // Media context check: only download if the current step allows this media type
+    if (parsed.message.mediaId && parsed.message.mediaType) {
+      const session = await botRepository.findByPhoneAndRole(
+        parsed.message.phone,
+        parsed.role,
+      );
+      const currentStep = session?.currentStep ?? 'INIT';
+      const allowedTypes = MEDIA_ALLOWED_STEPS[currentStep] ?? [];
+
+      if (!allowedTypes.includes(parsed.message.mediaType)) {
+        const outOfContextMessage =
+          parsed.message.mediaType === 'image'
+            ? '📸 Recibí tu foto, pero en este momento no puedo procesarla. Las fotos solo se pueden enviar cuando estés describiendo un problema en un pedido y NORA te lo solicite. Si necesitás un profesional, escribime qué servicio buscás.'
+            : '🎤 Recibí tu audio, pero en este momento no puedo procesarlo. Los audios solo se pueden enviar cuando estés describiendo el problema de tu pedido y NORA te lo solicite. Si necesitás un profesional, escribime qué servicio buscás.';
+        await adapter.sendText(parsed.message.phone, outOfContextMessage, parsed.role);
+        return;
+      }
+
+      // Step allows this media type → download and upload to R2
+      if (parsed.message.mediaType === 'image') {
+        const url = await adapter.downloadAndUploadToR2(
+          parsed.message.mediaId,
+          'request-photos',
+          parsed.role,
+        );
+        parsed.message.imageUrls = [url];
+      } else if (parsed.message.mediaType === 'audio') {
+        const url = await adapter.downloadAndUploadToR2(
+          parsed.message.mediaId,
+          'request-audio',
+          parsed.role,
+        );
+        parsed.message.audioUrl = url;
+      }
+    }
 
     // Photo debounce: accumulate images when the user is in ASK_PHOTOS step
     if (parsed.message.imageUrls?.length) {

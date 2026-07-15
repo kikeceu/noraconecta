@@ -13,6 +13,8 @@ export interface IncomingMessage {
   location?: LocationData;
   buttonPayload?: string;
   messageId?: string;
+  mediaId?: string;
+  mediaType?: 'image' | 'audio';
 }
 
 export interface BotResponse {
