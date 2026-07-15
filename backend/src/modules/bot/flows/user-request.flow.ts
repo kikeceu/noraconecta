@@ -589,7 +589,7 @@ export class UserRequestFlow implements FlowHandler {
       const list = availableCategories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
       return {
         response: {
-          text: `Entendí que buscás "${inputText}", pero ese servicio aún no está disponible en NORA. Por ahora ofrecemos:\n\n${list}\n\n¿Alguno de estos te sirve? Respondé con el número.`,
+          text: `Ese servicio aún no está disponible en NORA. Por ahora ofrecemos:\n\n${list}\n\n¿Alguno de estos te sirve? Respondé con el número.`,
         },
         nextStep: 'ASK_SERVICE',
         tempData,
