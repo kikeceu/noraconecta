@@ -496,7 +496,7 @@ export class UserRequestFlow implements FlowHandler {
 
       return {
         response: {
-          text: `${greeting}${infoText}${list}\n\nResponde con el numero.`,
+          text: `${infoText}${list}\n\nResponde con el numero.`,
         },
         nextStep: 'ASK_SERVICE',
         tempData,
