@@ -579,11 +579,17 @@ export class UserRequestFlow implements FlowHandler {
     const number = parseInt(inputText, 10);
 
     if (isNaN(number) || number < 1 || number > availableCategories.length) {
-      const randomIndex = Math.floor(Math.random() * availableCategories.length);
-      const example = availableCategories[randomIndex];
+      const nlpResult = await nlpService.resolveCategory(inputText);
+      if (nlpResult.match) {
+        tempData.categoryId = nlpResult.match.id;
+        tempData.categoryName = nlpResult.match.name;
+        return this.proceedAfterService(tempData);
+      }
+
+      const list = availableCategories.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
       return {
-        response: { 
-          text: `No entendí bien tu respuesta. Escribime el número del servicio que necesitás, por ejemplo *${randomIndex + 1}* para ${example.name}.`
+        response: {
+          text: `Entendí que buscás "${inputText}", pero ese servicio aún no está disponible en NORA. Por ahora ofrecemos:\n\n${list}\n\n¿Alguno de estos te sirve? Respondé con el número.`,
         },
         nextStep: 'ASK_SERVICE',
         tempData,
