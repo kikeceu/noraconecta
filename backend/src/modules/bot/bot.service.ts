@@ -22,6 +22,27 @@ const EMPTY_WORDS = new Set([
   'ok', 'dale', 'okey', 'bien', 'bueno', 'holis', 'holaa', 'holiii',
 ]);
 
+const STEPS_EXPECTING_RESPONSE = [
+  'CONFIRM',
+  'AWAITING_CONFIRMATION',
+  'AWAITING_USER_CONFIRMATION',
+  'AWAITING_ACCEPTANCE',
+  'AWAITING_VISIT_CONFIRMATION',
+  'CANCEL_CONFIRMATION',
+  'WAITING_CONSENT',
+  'FEEDBACK_RECOMMEND',
+  'FEEDBACK_PRO_RECOMMEND',
+  'AWAITING_WORK_COMPLETION',
+  'POST_CANCEL',
+  'CONFIRM_SERVICE',
+  'DESCRIPTION_MISMATCH',
+  'ASK_SAVED_LOCATION_SINGLE',
+  'CONFIRM_AVAILABILITY',
+  'CONFIRM_PRO_AVAILABILITY',
+  'AWAITING_VISIT',
+  'AWAITING_AVAILABILITY',
+];
+
 function hasActionableContent(text: string): boolean {
   const words = text.trim().split(/\s+/);
   if (words.length < 3) return false;
@@ -109,8 +130,11 @@ export class BotService {
     }
 
     if (role === 'USER' && input.text?.trim() && isAckMessage(input.text.trim())) {
-      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-      return { text: '', flow: undefined, step: undefined };
+      const currentStep = session?.currentStep;
+      if (!currentStep || !STEPS_EXPECTING_RESPONSE.includes(currentStep)) {
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+        return { text: '', flow: undefined, step: undefined };
+      }
     }
 
     if (role === 'PROFESSIONAL') {
