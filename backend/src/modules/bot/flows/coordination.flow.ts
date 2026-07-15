@@ -84,6 +84,9 @@ export class CoordinationFlow implements FlowHandler {
     tempData: Record<string, unknown>,
     role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
+    const ACCEPT_REJECT_WITH_MEDIA = '¿Lo tomás?\n1. Aceptar\n2. Rechazar';
+    const ACCEPT_REJECT_NO_MEDIA = '1. Aceptar\n2. Ahora no puedo';
+
     const requestId = tempData.requestId as string;
 
     if (!requestId) {
@@ -197,7 +200,7 @@ export class CoordinationFlow implements FlowHandler {
       if (!hasMedia) {
         return {
           response: {
-            text: `Pedido de ${categoryName} en ${zoneName}.\n\nDescripción: ${description}\n\n1. Aceptar\n2. Ahora no puedo`,
+            text: `Pedido de ${categoryName} en ${zoneName}.\n\nDescripción: ${description}\n\n${ACCEPT_REJECT_NO_MEDIA}`,
           },
           nextStep: 'AWAITING_ACCEPTANCE',
           tempData: {
@@ -212,11 +215,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const detailsResponse: FlowStepResult = {
         response: {
-          text: [
-            `Pedido de ${categoryName} en ${zoneName}.`,
-            `Descripción: ${description}`,
-            '1. Aceptar\n2. Rechazar',
-          ].join('\n\n'),
+          text: ACCEPT_REJECT_WITH_MEDIA,
           mediaUrls: photoUrls,
           audioUrl,
           mediaFirst: true,
@@ -277,7 +276,7 @@ export class CoordinationFlow implements FlowHandler {
       if (!detailHasMedia) {
         return {
           response: {
-            text: `Pedido de ${detailCategoryName} en ${detailZoneName}.\n\nDescripción: ${detailDescription}\n\n1. Aceptar\n2. Ahora no puedo`,
+            text: `Pedido de ${detailCategoryName} en ${detailZoneName}.\n\nDescripción: ${detailDescription}\n\n${ACCEPT_REJECT_NO_MEDIA}`,
           },
           nextStep: 'AWAITING_ACCEPTANCE',
           tempData: {
@@ -292,7 +291,7 @@ export class CoordinationFlow implements FlowHandler {
 
       const verDetallesResponse: FlowStepResult = {
         response: {
-          text: '¿Lo tomás?\n1. Aceptar\n2. Rechazar',
+          text: ACCEPT_REJECT_WITH_MEDIA,
           mediaUrls: detailPhotoUrls,
           audioUrl: detailAudioUrl,
           mediaFirst: true,
