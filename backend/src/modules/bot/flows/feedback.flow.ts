@@ -248,7 +248,7 @@ export class FeedbackFlow implements FlowHandler {
               professionalName,
               userName,
             );
-            proMessage = `${motivationText}\n\n¿Cómo evaluás a ${userName} del 1 al 5?`;
+            proMessage = motivationText;
             templateName = 'nora_pro_felicitacion_calificacion';
             templateParams = [professionalName, userName];
           } catch (err) {
@@ -276,6 +276,8 @@ export class FeedbackFlow implements FlowHandler {
             console.error('[FeedbackFlow] Failed to add panel link to feedback message:', err);
           }
         }
+
+	proMessage = `\n\n¿Cómo evaluás a ${userName} del 1 al 5?`;
 
         try {
           await this.coordinationService.sendMessageWithWindowCheck(
