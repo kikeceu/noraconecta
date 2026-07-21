@@ -430,16 +430,18 @@ export class CoordinationService {
         const address = visit.clientAddress || 'la dirección';
         const userName = visit.user?.name || 'el usuario';
         const categoryName = visit.category?.name || 'el servicio';
-        const professionalMessage =
-         `📋 ${categoryName}\n\nRecordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n\n` +
-         '1. Confirmo\n2. No puedo ir';
+        let professionalMessage = `📋 ${categoryName}\n\nRecordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.`;
+        if (securityCode) {
+          professionalMessage += `\n\n🔐 Código de seguridad: *${securityCode}*\nAl llegar, decile este código al cliente.`;
+        }
+        professionalMessage += '\n\n1. Confirmo\n2. No puedo ir';
 
         await this.sendWithWindowCheck(
           professionalPhone,
           'PROFESSIONAL',
           professionalMessage,
           'nora_pro_visita_recordatorio',
-          [`${hours}:${minutes}`, userName, address],
+          [`${hours}:${minutes}`, userName, address, securityCode ?? ''],
           [
             { payload: BOT_PAYLOADS.CONFIRMO_VISITA, text: 'Confirmo' },
             { payload: BOT_PAYLOADS.NO_PUEDO_IR, text: 'No puedo ir' },
