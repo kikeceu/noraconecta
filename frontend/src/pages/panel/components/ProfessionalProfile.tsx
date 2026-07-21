@@ -1,10 +1,14 @@
 import type { PanelProfessional, ProfessionalStatus } from '../../../types/panel';
 import { PanelCard } from './PanelCard';
 import { brand } from '../../../lib/brand';
+import { useState } from 'react';
+import { uploadProfileFile, uploadProfilePhoto } from '../../../lib/panel-api';
 
 interface ProfessionalProfileProps {
   professional: PanelProfessional;
   onEdit: () => void;
+  sessionToken: string;
+  onPhotoUploaded: (url: string) => void;
 }
 
 const STATUS_CONFIG: Record<ProfessionalStatus, { label: string; bg: string; text: string }> = {
@@ -34,11 +38,40 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ProfessionalProfile({ professional, onEdit }: ProfessionalProfileProps) {
+export function ProfessionalProfile({ professional, onEdit, sessionToken, onPhotoUploaded }: ProfessionalProfileProps) {
   const status = STATUS_CONFIG[professional.status] || STATUS_CONFIG.PENDING;
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const photoUrl = await uploadProfileFile(file);
+      await uploadProfilePhoto(sessionToken, photoUrl);
+      onPhotoUploaded(photoUrl);
+    } catch (err) {
+      console.error('Failed to upload photo:', err);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl space-y-8">
+      {!professional.photoUrl && (
+        <div
+          className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 mb-2"
+          style={{ fontFamily: 'DM Sans' }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <p className="text-sm text-amber-800">
+            <strong>Completá tu perfil:</strong> subí tu foto para que los usuarios puedan reconocerte antes de la visita.
+          </p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1
           className="text-3xl font-bold text-[#111827]"
@@ -54,6 +87,47 @@ export function ProfessionalProfile({ professional, onEdit }: ProfessionalProfil
           Editar perfil
         </button>
       </div>
+
+      <PanelCard>
+        <SectionHeader>Foto de perfil</SectionHeader>
+        <div className="flex items-center gap-6">
+          <div className="shrink-0">
+            {professional.photoUrl ? (
+              <img
+                src={professional.photoUrl}
+                alt="Foto de perfil"
+                className="w-20 h-20 rounded-full object-cover border-2 border-[#E5E7EB]"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-[#F3F4F6] flex items-center justify-center border-2 border-dashed border-[#D1D5DB]">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>
+              {professional.photoUrl ? 'Tu foto actual' : 'Todavía no subiste una foto'}
+            </p>
+            <label
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#F3F4F6] text-[#374151] hover:bg-[#E5E7EB] transition-colors cursor-pointer"
+              style={{ fontFamily: 'DM Sans' }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
+              {professional.photoUrl ? 'Cambiar foto' : 'Subir foto'}
+            </label>
+            {uploadingPhoto && (
+              <p className="text-xs text-[#6B7280]" style={{ fontFamily: 'DM Sans' }}>Subiendo...</p>
+            )}
+          </div>
+        </div>
+      </PanelCard>
 
       <PanelCard>
         <SectionHeader>Estado del Profesional</SectionHeader>

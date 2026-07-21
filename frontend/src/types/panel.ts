@@ -17,6 +17,7 @@ export interface PanelProfessional {
   cuil: string | null;
   references: string | null;
   presentationVideoUrl: string | null;
+  photoUrl?: string | null;
 }
 
 export type ProfessionalStatus =
