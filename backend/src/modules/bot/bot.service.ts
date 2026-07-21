@@ -12,7 +12,7 @@ import { BOT_PAYLOADS } from './constants/bot-payloads';
 import { isAckMessage } from './flows/ack-detector.helper';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
-import { Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
+import { BotSession, Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 const EMPTY_WORDS = new Set([
@@ -693,6 +693,18 @@ export class BotService {
       };
     }
 
+    let _prsRequestId: string | undefined;
+
+    if (role === 'PROFESSIONAL') {
+      const requestSessions = await this.botRepository.findActiveRequestSessions(input.phone);
+      if (requestSessions.length > 0) {
+        const activeSession = requestSessions[0];
+        session.currentStep = activeSession.currentStep;
+        session.tempData = activeSession.tempData;
+        _prsRequestId = activeSession.requestId;
+      }
+    }
+
     const step = session.currentStep || flowHandler.getInitialStep();
 
     const imageUrls = step === 'ASK_PHOTOS' ? input.imageUrls : undefined;
@@ -732,12 +744,29 @@ export class BotService {
 
     console.log('[DEBUG] result.nextStep:', result.nextStep, '| session.currentFlow:', session.currentFlow);
 
-    const updatedSession = await this.botRepository.upsert(input.phone, {
-      role,
-      currentFlow: result.nextStep ? session.currentFlow : null,
-      currentStep: result.nextStep || null,
-      tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
-    });
+    let updatedSession: BotSession;
+
+    if (role === 'PROFESSIONAL' && _prsRequestId) {
+      if (result.nextStep) {
+        await this.botRepository.upsertRequestSession(input.phone, _prsRequestId, result.nextStep, finalTempData);
+      } else {
+        await this.botRepository.deleteRequestSession(_prsRequestId);
+      }
+      const remainingSessions = await this.botRepository.findActiveRequestSessions(input.phone);
+      updatedSession = await this.botRepository.upsert(input.phone, {
+        role,
+        currentFlow: remainingSessions.length > 0 ? session.currentFlow : null,
+        currentStep: null,
+        tempData: {} as Prisma.InputJsonValue,
+      });
+    } else {
+      updatedSession = await this.botRepository.upsert(input.phone, {
+        role,
+        currentFlow: result.nextStep ? session.currentFlow : null,
+        currentStep: result.nextStep || null,
+        tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
+      });
+    }
 
     if (pendingNotification) {
       console.log('[pendingNotification] targetPhone:', pendingNotification.targetPhone, 'step:', pendingNotification.step, 'tempData:', JSON.stringify(pendingNotification.tempData));
@@ -748,12 +777,33 @@ export class BotService {
         userId: pendingNotification.tempData.userId,
       };
 
-      await this.botRepository.upsert(pendingNotification.targetPhone, {
-        role: pendingNotification.targetRole,
-        currentFlow: pendingNotification.flow,
-        currentStep: pendingNotification.step,
-        tempData: targetTempData as Prisma.InputJsonValue,
-      });
+      const targetRequestId = pendingNotification.tempData.requestId as string | undefined;
+      const isProCoordination = pendingNotification.targetRole === 'PROFESSIONAL' &&
+        pendingNotification.flow === 'COORDINATION' &&
+        targetRequestId &&
+        pendingNotification.step;
+
+      if (isProCoordination) {
+        await this.botRepository.upsertRequestSession(
+          pendingNotification.targetPhone,
+          targetRequestId!,
+          pendingNotification.step!,
+          targetTempData,
+        );
+        await this.botRepository.upsert(pendingNotification.targetPhone, {
+          role: pendingNotification.targetRole,
+          currentFlow: pendingNotification.flow,
+          currentStep: null,
+          tempData: {} as Prisma.InputJsonValue,
+        });
+      } else {
+        await this.botRepository.upsert(pendingNotification.targetPhone, {
+          role: pendingNotification.targetRole,
+          currentFlow: pendingNotification.flow,
+          currentStep: pendingNotification.step,
+          tempData: targetTempData as Prisma.InputJsonValue,
+        });
+      }
     }
 
     return {
@@ -898,6 +948,13 @@ export class BotService {
             ? 'AWAITING_ACCEPTANCE'
             : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
+
+          const existingPRS = await this.botRepository.findRequestSessionByRequestId(activeRequest.id);
+          if (!existingPRS) {
+            await this.botRepository.upsertRequestSession(phone, activeRequest.id, stepName, {
+              requestId: activeRequest.id,
+            });
+          }
         } else if (alreadySentToday) {
           const { callLLM } = await import('../../lib/llm-client');
 
@@ -945,6 +1002,13 @@ Contexto de NORA para responder preguntas:
             ? 'AWAITING_ACCEPTANCE'
             : 'AWAITING_AVAILABILITY';
           requestId = activeRequest.id;
+
+          const existingPRS = await this.botRepository.findRequestSessionByRequestId(activeRequest.id);
+          if (!existingPRS) {
+            await this.botRepository.upsertRequestSession(phone, activeRequest.id, stepName, {
+              requestId: activeRequest.id,
+            });
+          }
         } else if (alreadySentToday) {
           const { callLLM } = await import('../../lib/llm-client');
 
