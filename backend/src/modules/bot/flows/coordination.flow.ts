@@ -1699,10 +1699,12 @@ export class CoordinationFlow implements FlowHandler {
             const _h = getHoursArgentina(_d).toString().padStart(2, '0');
             const _m = getMinutesArgentina(_d).toString().padStart(2, '0');
             let text = `${_greeting} Te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
-            if (securityCode) {
+            const hoursUntilVisit = (_d.getTime() - Date.now()) / (1000 * 60 * 60);
+            const isWithin20Hours = hoursUntilVisit < 20;
+            if (isWithin20Hours && securityCode) {
               text += `\n\n🔐 Código de seguridad: *${securityCode}*\nCuando llegue, pedile este código para confirmar su identidad.`;
             }
-            if (profileLink) {
+            if (isWithin20Hours && profileLink) {
               text += `\n\n👤 Conocé a tu profesional: ${profileLink}`;
             }
             return text;
