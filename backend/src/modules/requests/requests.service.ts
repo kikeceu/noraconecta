@@ -538,20 +538,23 @@ Criterios:
       }
     }
 
+    const categoryName = (request as any).category?.name || 'el servicio';
+    const zoneName = (request as any).geoNode?.name || 'tu zona';
+
     let shouldNotifyProfessional = false;
     let professionalMessage: string | null = null;
 
     if (hasConfirmedVisit && scheduledAt) {
       shouldNotifyProfessional = true;
       const formattedDate = formatDateTimeArgentina(scheduledAt);
-      professionalMessage = `El usuario canceló la visita programada para el ${formattedDate}. Quedás disponible para nuevas asignaciones.`;
+      professionalMessage = `📋 ${categoryName} en ${zoneName}\n\nEl usuario canceló la visita programada para el ${formattedDate}. Quedás disponible para nuevas asignaciones.`;
     } else if (
       request.status === 'ACCEPTED' &&
       request.assignedProfessionalId
     ) {
       shouldNotifyProfessional = true;
       professionalMessage =
-        'El usuario canceló el pedido. Quedás disponible para nuevas asignaciones.';
+        `📋 ${categoryName} en ${zoneName}\n\nEl usuario canceló el pedido. Quedás disponible para nuevas asignaciones.`;
     }
 
     let hoursBeforeVisit: number | null = null;
