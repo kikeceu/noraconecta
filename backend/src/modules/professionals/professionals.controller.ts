@@ -656,6 +656,27 @@ export class ProfessionalsController {
     }
   }
 
+  async getPublicProfile(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { id } = req.params as { id: string };
+
+      const profile = await professionalsService.getPublicProfile(id);
+
+      if (!profile) {
+        res.status(404).json({ error: 'Professional not found' });
+        return;
+      }
+
+      res.status(200).json({ data: profile });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async cancelMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };
