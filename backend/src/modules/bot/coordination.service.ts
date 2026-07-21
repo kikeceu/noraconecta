@@ -138,18 +138,8 @@ export class CoordinationService {
         continue;
       }
 
-      const session = await this.botRepository.findByPhoneAndRole(professionalPhone, 'PROFESSIONAL');
-      const tempData = (session?.tempData as Record<string, unknown>) || {};
-      const sessionRequestId = typeof tempData.requestId === 'string' ? tempData.requestId : null;
-
-      if (
-        session?.currentFlow === 'FEEDBACK' &&
-        session?.currentStep === 'AWAITING_WORK_COMPLETION' &&
-        sessionRequestId &&
-        sessionRequestId !== request.id
-      ) {
-        continue;
-      }
+      const existingPRS = await this.botRepository.findRequestSessionByRequestId(request.id);
+      const tempData = (existingPRS?.tempData as Record<string, unknown>) || {};
 
       const completionAttemptRaw = tempData.completionAttempt;
       const completionAttempt =
@@ -186,18 +176,12 @@ export class CoordinationService {
           ],
         );
 
+        await this.botRepository.upsertRequestSession(professionalPhone, request.id, 'AWAITING_WORK_COMPLETION', {
+          requestId: request.id, userId: request.userId, userPhone: request.user?.phone,
+          userName, completionAttempt: 1, completionLastCheckAt: now.toISOString(),
+        });
         await this.botRepository.upsert(professionalPhone, {
-          role: 'PROFESSIONAL',
-          currentFlow: 'FEEDBACK',
-          currentStep: 'AWAITING_WORK_COMPLETION',
-          tempData: {
-            requestId: request.id,
-            userId: request.userId,
-            userPhone: request.user?.phone,
-            userName,
-            completionAttempt: 1,
-            completionLastCheckAt: now.toISOString(),
-          } as Prisma.InputJsonValue,
+          role: 'PROFESSIONAL', currentFlow: 'FEEDBACK', currentStep: null, tempData: {} as Prisma.InputJsonValue,
         });
 
         continue;
@@ -220,19 +204,13 @@ export class CoordinationService {
           ],
         );
 
+        await this.botRepository.upsertRequestSession(professionalPhone, request.id, 'AWAITING_WORK_COMPLETION', {
+          ...tempData,
+          requestId: request.id, userId: request.userId, userPhone: request.user?.phone,
+          userName, completionAttempt: 2, completionLastCheckAt: now.toISOString(),
+        });
         await this.botRepository.upsert(professionalPhone, {
-          role: 'PROFESSIONAL',
-          currentFlow: 'FEEDBACK',
-          currentStep: 'AWAITING_WORK_COMPLETION',
-          tempData: {
-            ...tempData,
-            requestId: request.id,
-            userId: request.userId,
-            userPhone: request.user?.phone,
-            userName,
-            completionAttempt: 2,
-            completionLastCheckAt: now.toISOString(),
-          } as Prisma.InputJsonValue,
+          role: 'PROFESSIONAL', currentFlow: 'FEEDBACK', currentStep: null, tempData: {} as Prisma.InputJsonValue,
         });
 
         continue;
@@ -440,17 +418,13 @@ export class CoordinationService {
           ],
         );
 
+        await this.botRepository.upsertRequestSession(professionalPhone, visit.id, 'AWAITING_VISIT_CONFIRMATION', {
+          requestId: visit.id, professionalId: visit.assignedProfessionalId,
+          userPhone: visit.user?.phone, userName: visit.user?.name,
+          scheduledAt: visit.scheduledAt?.toISOString(),
+        });
         await this.botRepository.upsert(professionalPhone, {
-          role: 'PROFESSIONAL',
-          currentFlow: 'COORDINATION',
-          currentStep: 'AWAITING_VISIT_CONFIRMATION',
-          tempData: {
-            requestId: visit.id,
-            professionalId: visit.assignedProfessionalId,
-            userPhone: visit.user?.phone,
-            userName: visit.user?.name,
-            scheduledAt: visit.scheduledAt?.toISOString(),
-          } as Prisma.InputJsonValue,
+          role: 'PROFESSIONAL', currentFlow: 'COORDINATION', currentStep: null, tempData: {} as Prisma.InputJsonValue,
         });
       }
 

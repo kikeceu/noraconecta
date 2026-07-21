@@ -1,5 +1,5 @@
 import prisma from '../../lib/prisma';
-import { BotSession, BotRole, Prisma } from '@prisma/client';
+import { BotSession, BotRole, ProfessionalRequestSession, Prisma } from '@prisma/client';
 
 export type UpsertSessionInput = {
   phone: string;
@@ -87,5 +87,37 @@ export class BotRepository {
 
   async deleteByPhone(phone: string): Promise<void> {
     await prisma.botSession.deleteMany({ where: { phone } });
+  }
+
+  async upsertRequestSession(
+    phone: string,
+    requestId: string,
+    currentStep: string,
+    tempData: Record<string, unknown>,
+  ): Promise<void> {
+    await prisma.professionalRequestSession.upsert({
+      where: { requestId },
+      create: { phone, requestId, currentStep, tempData: tempData as Prisma.InputJsonValue },
+      update: { currentStep, tempData: tempData as Prisma.InputJsonValue },
+    });
+  }
+
+  async findActiveRequestSessions(phone: string): Promise<ProfessionalRequestSession[]> {
+    return prisma.professionalRequestSession.findMany({
+      where: { phone },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async findRequestSessionByRequestId(requestId: string): Promise<ProfessionalRequestSession | null> {
+    return prisma.professionalRequestSession.findUnique({
+      where: { requestId },
+    });
+  }
+
+  async deleteRequestSession(requestId: string): Promise<void> {
+    await prisma.professionalRequestSession.deleteMany({
+      where: { requestId },
+    });
   }
 }
