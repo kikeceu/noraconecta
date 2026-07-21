@@ -41,7 +41,10 @@ export class MatchingRepository {
       by: ['assignedProfessionalId'],
       where: {
         assignedProfessionalId: { in: professionalIds },
-        status: { in: ['ASSIGNED', 'ACCEPTED'] },
+        OR: [
+          { status: 'ASSIGNED' },
+          { status: 'ACCEPTED', coordinationStatus: { not: 'SCHEDULED' } },
+        ],
       },
       _count: { id: true },
     });
