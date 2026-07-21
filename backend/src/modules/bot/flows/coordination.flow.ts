@@ -1947,6 +1947,15 @@ export class CoordinationFlow implements FlowHandler {
           data: { professionalId, type: 'PANEL_INTRO_ACCEPTANCE' },
         });
       }
+
+      const profile = await prisma.professionalProfile.findUnique({
+        where: { professionalId },
+        select: { photoUrl: true },
+      });
+
+      if (!profile?.photoUrl) {
+        acceptText += `\n\n📸 *Tip:* Los usuarios pueden ver tu foto antes de la visita. Subila desde tu panel para generar más confianza.`;
+      }
     } catch (error) {
       console.error('[CoordinationFlow] Failed to send panel intro on acceptance:', error);
     }
