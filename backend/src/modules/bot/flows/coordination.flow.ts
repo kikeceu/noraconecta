@@ -487,6 +487,7 @@ export class CoordinationFlow implements FlowHandler {
           user: { select: { name: true, phone: true } },
           assignedProfessional: { select: { name: true, phone: true } },
           category: { select: { name: true } },
+          geoNode: { select: { name: true } },
         },
       });
 
@@ -524,6 +525,7 @@ export class CoordinationFlow implements FlowHandler {
               scheduledAt: parsedDate.toISOString(),
               negotiationRounds,
               categoryName: request.category?.name,
+              zoneName: request.geoNode?.name,
               description: request.description,
             },
           },
@@ -630,6 +632,7 @@ export class CoordinationFlow implements FlowHandler {
           user: { select: { name: true, phone: true } },
           assignedProfessional: { select: { name: true, phone: true } },
           category: { select: { name: true } },
+          geoNode: { select: { name: true } },
         },
       });
 
@@ -669,6 +672,7 @@ export class CoordinationFlow implements FlowHandler {
               scheduledAt: parsedDate.toISOString(),
               negotiationRounds,
               categoryName: request.category?.name,
+              zoneName: request.geoNode?.name,
               description: request.description,
             },
           },
@@ -931,12 +935,36 @@ export class CoordinationFlow implements FlowHandler {
       formattedDate = formatDateTimeArgentina(parsed);
     }
 
+    let categoryName = tempData.categoryName as string | undefined;
+    let zoneName = tempData.zoneName as string | undefined;
+
+    if (!categoryName || !zoneName) {
+      const request = await prisma.request.findUnique({
+        where: { id: requestId },
+        select: {
+          category: { select: { name: true } },
+          geoNode: { select: { name: true } },
+        },
+      });
+
+      if (request) {
+        categoryName = categoryName || request.category?.name;
+        zoneName = zoneName || request.geoNode?.name;
+      }
+    }
+
+    const header = categoryName && zoneName ? `📋 ${categoryName} en ${zoneName}\n\n` : '';
+
     return {
       response: {
-        text: `Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario`,
+        text: `${header}Tu cliente ${userName} puede el ${formattedDate}. ¿Confirmás?\n1. Sí\n2. Proponer otro horario`,
       },
       nextStep: 'AWAITING_CONFIRMATION',
-      tempData,
+      tempData: {
+        ...tempData,
+        categoryName,
+        zoneName,
+      },
     };
   }
 
