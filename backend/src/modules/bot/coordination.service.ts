@@ -350,7 +350,7 @@ export class CoordinationService {
       },
       include: {
         user: { select: { name: true, phone: true } },
-        assignedProfessional: { select: { name: true, phone: true } },
+        assignedProfessional: { select: { id: true, name: true, phone: true } },
         category: { select: { name: true } },
       },
     });
@@ -367,6 +367,20 @@ export class CoordinationService {
       const professionalName = visit.assignedProfessional?.name || 'El profesional';
       const userPhone = visit.user?.phone;
       const professionalPhone = visit.assignedProfessional?.phone;
+      const professionalId = visit.assignedProfessional?.id;
+
+      const securityCode = visit.securityCode;
+
+      const professionalProfile = professionalId
+        ? await prisma.professionalProfile.findUnique({
+            where: { professionalId },
+            select: { photoUrl: true },
+          })
+        : null;
+
+      const profileLink = professionalProfile?.photoUrl && professionalId
+        ? `${process.env.APP_URL || 'https://app.noraconecta.com'}/pro/${professionalId}`
+        : null;
 
       await prisma.request.update({
         where: { id: visit.id },
@@ -375,14 +389,21 @@ export class CoordinationService {
 
       if (userPhone) {
         const categoryName = visit.category?.name || 'el servicio';
-        const userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}.\n\n1. Confirmo\n2. Necesito cancelar`;
+        let userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}.`;
+        if (securityCode) {
+          userMessage += `\n\n🔐 Código de seguridad: *${securityCode}*\nCuando llegue, pedile este código para confirmar su identidad.`;
+        }
+        if (profileLink) {
+          userMessage += `\n\n👤 Conocé a tu profesional: ${profileLink}`;
+        }
+        userMessage += `\n\n1. Confirmo\n2. Necesito cancelar`;
 
         await this.sendWithWindowCheck(
           userPhone,
           'USER',
           userMessage,
           'nora_user_visita_recordatorio',
-          [professionalName, categoryName, `${hours}:${minutes}`],
+          [professionalName, categoryName, `${hours}:${minutes}`, securityCode ?? '', profileLink ?? ''],
           [
             { payload: BOT_PAYLOADS.CONFIRMO_VISITA_USER, text: 'Confirmo' },
             { payload: BOT_PAYLOADS.CANCELAR_VISITA, text: 'Necesito cancelar' },
