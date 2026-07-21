@@ -120,6 +120,14 @@ export function ProfessionalPanelPage() {
           : <ProfessionalProfile
               professional={data.professional}
               onEdit={() => setEditingProfile(true)}
+              sessionToken={sessionToken!}
+              onPhotoUploaded={(url) => {
+                setState((prev) =>
+                  prev.status === 'ready'
+                    ? { ...prev, data: { ...prev.data, professional: { ...prev.data.professional, photoUrl: url } } }
+                    : prev
+                );
+              }}
             />
       )}
       {activeTab === 'pending' && <ProfessionalPendingRequests sessionToken={sessionToken!} />}

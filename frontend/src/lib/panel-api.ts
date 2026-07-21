@@ -231,3 +231,21 @@ export async function confirmScheduleRequest(
     throw new Error(err.error || 'Failed to confirm schedule');
   }
 }
+
+export async function uploadProfilePhoto(
+  sessionToken: string,
+  photoUrl: string,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/professionals/session/${encodeURIComponent(sessionToken)}/profile/photo`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ photoUrl }),
+    },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Failed to upload profile photo');
+  }
+}

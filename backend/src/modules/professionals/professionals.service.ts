@@ -13,6 +13,7 @@ import { WhatsAppAdapter, WhatsAppRole } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
 import { LICENSE_REJECTED_TEMPLATE } from '../../utils/whatsapp-templates';
 import { MembershipsService } from '../memberships/memberships.service';
+import prisma from '../../lib/prisma';
 
 const VERIFICATION_TOKEN_TTL_HOURS = 168; // 7 days
 const SESSION_TOKEN_TTL_DAYS = 30;
@@ -403,9 +404,13 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
       ? parseInt(trialRequestsLimitConfig.value, 10) || 5
       : 5;
 
-    const [reputationBreakdown, userComments] = await Promise.all([
+    const [reputationBreakdown, userComments, profile] = await Promise.all([
       this.reputationService.getReputationBreakdown(professional.id),
       this.reputationService.getUserComments(professional.id),
+      prisma.professionalProfile.findUnique({
+        where: { professionalId: professional.id },
+        select: { photoUrl: true },
+      }),
     ]);
 
     return {
@@ -431,6 +436,7 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
         licenseUrl: panelData.professional!.licenseUrl,
         declaredHasLicense: panelData.professional!.declaredHasLicense,
         availabilityStructured: panelData.professional!.availabilityStructured,
+        photoUrl: profile?.photoUrl ?? null,
       },
       membership: {
         activeMembership: panelData.membership,
@@ -1095,6 +1101,22 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     const updated = await this.professionalsRepository.findById(id);
     if (!updated) throw new AppError('Professional not found', 404);
     return updated;
+  }
+
+  async uploadProfilePhoto(professionalId: string, photoUrl: string): Promise<void> {
+    await prisma.professionalProfile.upsert({
+      where: { professionalId },
+      update: { photoUrl },
+      create: { professionalId, photoUrl },
+    });
+  }
+
+  async getProfilePhoto(professionalId: string): Promise<string | null> {
+    const profile = await prisma.professionalProfile.findUnique({
+      where: { professionalId },
+      select: { photoUrl: true },
+    });
+    return profile?.photoUrl ?? null;
   }
 
   async getCurrentPlan(professionalId: string): Promise<{ planId: string; planName: string } | null> {

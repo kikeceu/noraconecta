@@ -18,6 +18,10 @@ router.post('/verify/:token', (req, res, next) => {
   void professionalsController.verify(req, res, next);
 });
 
+router.patch('/session/:token/profile/photo', (req, res, next) => {
+  void professionalsController.uploadProfilePhoto(req, res, next);
+});
+
 router.patch('/session/:token/profile', (req, res, next) => {
   void professionalsController.updateProfile(req, res, next);
 });

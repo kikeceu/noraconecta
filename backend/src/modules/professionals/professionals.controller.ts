@@ -629,6 +629,33 @@ export class ProfessionalsController {
     }
   }
 
+  async uploadProfilePhoto(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { token } = req.params as { token: string };
+      const { photoUrl } = req.body as { photoUrl?: string };
+
+      if (!photoUrl) {
+        res.status(400).json({ error: 'photoUrl is required' });
+        return;
+      }
+
+      const professional = await professionalsService.getSessionByToken(token);
+      if (!professional) {
+        res.status(401).json({ error: 'Invalid session token', statusCode: 401 });
+        return;
+      }
+
+      await professionalsService.uploadProfilePhoto(professional.id, photoUrl);
+      res.status(200).json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async cancelMembership(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { id } = req.params as { id: string };
