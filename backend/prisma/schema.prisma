@@ -447,3 +447,15 @@ model PromptTemplate {
   isEditable     Boolean  @default(true)
   updatedAt      DateTime @updatedAt
 }
+
+model ProfessionalRequestSession {
+  id          String   @id @default(cuid())
+  phone       String
+  requestId   String   @unique
+  currentStep String
+  tempData    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phone])
+}
