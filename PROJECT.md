@@ -480,7 +480,7 @@ Perfil profesional extendido con relación 1:1 opcional con `Professional`. Alma
 
 **Nota:** Los campos `references` y `presentationVideoUrl` existen también en `Professional` y permanecen allí por ahora. La migración a `ProfessionalProfile` es para uso futuro.
 
-**Archivos:** `backend/prisma/schema.prisma` (modelo + relación en `Professional`)
+**Archivos:** `backend/prisma/schema.prisma` (modelo + relación en `Professional`), `backend/prisma/migrations/20260721144929_add_professional_profile_and_security_code/migration.sql`
 
 ### Request — securityCode (AUT-446)
 
@@ -488,7 +488,7 @@ Perfil profesional extendido con relación 1:1 opcional con `Professional`. Alma
 |---------------|----------|-----------------------------------------------------------------|
 | `securityCode`| String?  | Código de seguridad para uso en coordinación de visitas (uso futuro) |
 
-**Archivos:** `backend/prisma/schema.prisma` (campo en modelo `Request`)
+**Archivos:** `backend/prisma/schema.prisma` (campo en modelo `Request`), `backend/prisma/migrations/20260721144929_add_professional_profile_and_security_code/migration.sql`
 
 ## Build Targets (Frontend Subdomain Configuration)
 
