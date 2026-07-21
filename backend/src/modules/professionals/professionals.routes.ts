@@ -90,6 +90,11 @@ router.get('/departments', requireAuth, (req, res, next) => {
   void professionalsController.listDepartments(req, res, next);
 });
 
+// No auth — public
+router.get('/:id/public-profile', (req, res, next) => {
+  void professionalsController.getPublicProfile(req, res, next);
+});
+
 router.delete('/:id/membership', requireSuperAdmin, (req, res, next) => {
   void professionalsController.cancelMembership(req, res, next);
 });

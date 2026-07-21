@@ -1119,6 +1119,34 @@ console.log('[approve] needsTemplate:', needsTemplate, 'phone:', approvedProfess
     return profile?.photoUrl ?? null;
   }
 
+  async getPublicProfile(professionalId: string): Promise<{
+    name: string;
+    categoryName: string;
+    hasBadge: boolean;
+    isVerified: boolean;
+    photoUrl: string | null;
+  } | null> {
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId, status: 'ACTIVE' },
+      select: {
+        name: true,
+        hasBadge: true,
+        category: { select: { name: true } },
+        profile: { select: { photoUrl: true } },
+      },
+    });
+
+    if (!professional) return null;
+
+    return {
+      name: professional.name,
+      categoryName: professional.category?.name ?? '',
+      hasBadge: professional.hasBadge,
+      isVerified: true,
+      photoUrl: professional.profile?.photoUrl ?? null,
+    };
+  }
+
   async getCurrentPlan(professionalId: string): Promise<{ planId: string; planName: string } | null> {
     const membership = await this.membershipsService.getActiveMembership(professionalId) as {
       planId: string;
