@@ -438,6 +438,28 @@ Modelo para trackear eventos de onboarding y ciclo de vida del profesional sin s
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo + enum + relación), `backend/prisma/migrations/20260715000000_add_professional_event/migration.sql`
 
+### ProfessionalRequestSession (AUT-441)
+
+Modelo para soporte de pedidos simultáneos del profesional. Guarda una sesión de coordinación por pedido, independiente de `BotSession` que mantiene una sola sesión por `(phone, role)`.
+
+**Modelo `ProfessionalRequestSession`:**
+
+| Campo         | Tipo      | Descripción                                    |
+|--------------|----------|------------------------------------------------|
+| `id`          | String   | PK (cuid)                                      |
+| `phone`       | String   | Teléfono del profesional                       |
+| `requestId`   | String   | ID del pedido activo (único por pedido)        |
+| `currentStep` | String   | Step actual del flujo de coordinación          |
+| `tempData`    | Json?    | Datos temporales del flujo                     |
+| `createdAt`   | DateTime | Fecha de creación                              |
+| `updatedAt`   | DateTime | Última modificación                            |
+
+**Índices:** `@@index([phone])`, `requestId` tiene constraint `@unique`.
+
+**Relación con BotSession:** `BotSession` del profesional se mantiene para datos globales (`lastInboundAt`, `lastTemplateSentAt`, flows no-COORDINATION como registro y feedback). `ProfessionalRequestSession` es por pedido y permite manejar múltiples pedidos simultáneos sin pisarse.
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260721000000_add_professional_request_session/migration.sql`
+
 ## Build Targets (Frontend Subdomain Configuration)
 
 El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.
