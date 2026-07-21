@@ -104,15 +104,11 @@ export class NotificationService {
       ],
     );
 
+    await this.botRepository.upsertRequestSession(professional.phone, request.id, 'AWAITING_ACCEPTANCE', {
+      requestId: request.id, categoryName: request.categoryName, zoneName: request.zoneName,
+    });
     await this.botRepository.upsert(professional.phone, {
-      role: 'PROFESSIONAL',
-      currentFlow: 'COORDINATION',
-      currentStep: 'AWAITING_ACCEPTANCE',
-      tempData: {
-        requestId: request.id,
-        categoryName: request.categoryName,
-        zoneName: request.zoneName,
-      } as Prisma.InputJsonValue,
+      role: 'PROFESSIONAL', currentFlow: 'COORDINATION', currentStep: null, tempData: {} as Prisma.InputJsonValue,
     });
   }
 
@@ -199,19 +195,13 @@ export class NotificationService {
     }
     // Photos and audio are sent after the professional asks for details.
 
+    await this.botRepository.upsertRequestSession(professionalPhone, request.id, 'AWAITING_ACCEPTANCE', {
+      requestId: request.id, categoryName: request.categoryName, zoneName: request.zoneName,
+      description: request.description, photoUrls: request.photoUrls,
+      audioUrl: request.audioUrl ?? undefined, technicalBrief: request.technicalBrief ?? undefined,
+    });
     await this.botRepository.upsert(professionalPhone, {
-      role: 'PROFESSIONAL',
-      currentFlow: 'COORDINATION',
-      currentStep: 'AWAITING_ACCEPTANCE',
-      tempData: {
-        requestId: request.id,
-        categoryName: request.categoryName,
-        zoneName: request.zoneName,
-        description: request.description,
-        photoUrls: request.photoUrls,
-        audioUrl: request.audioUrl ?? undefined,
-        technicalBrief: request.technicalBrief ?? undefined,
-      } as Prisma.InputJsonValue,
+      role: 'PROFESSIONAL', currentFlow: 'COORDINATION', currentStep: null, tempData: {} as Prisma.InputJsonValue,
     });
   }
 
