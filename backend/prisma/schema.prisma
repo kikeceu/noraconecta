@@ -203,6 +203,7 @@ model Professional {
   events           RequestEvent[]
   dataChangeRequests  ProfessionalDataChangeRequest[]
   professionalEvents  ProfessionalEvent[]
+  profile              ProfessionalProfile?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -235,6 +236,17 @@ model ProfessionalEvent {
   professional   Professional           @relation(fields: [professionalId], references: [id])
 
   @@index([professionalId, type])
+}
+
+model ProfessionalProfile {
+  id                   String       @id @default(cuid())
+  professionalId       String       @unique
+  professional         Professional @relation(fields: [professionalId], references: [id])
+  photoUrl             String?
+  references           String?
+  presentationVideoUrl String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 }
 
 model ProfessionalZone {
@@ -321,6 +333,7 @@ model Request {
   isUrgent               Boolean  @default(false)
   mentionedDate          String?
   technicalBrief         String?
+  securityCode           String?
   reminderSentAt         DateTime?
 
   events     RequestEvent[]

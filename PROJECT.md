@@ -460,6 +460,36 @@ Modelo para soporte de pedidos simultáneos del profesional. Guarda una sesión 
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260721000000_add_professional_request_session/migration.sql`
 
+### ProfessionalProfile (AUT-446)
+
+Perfil profesional extendido con relación 1:1 opcional con `Professional`. Almacena datos de perfil que actualmente viven en `Professional` pero que migrarán en el futuro (`references`, `presentationVideoUrl`), más campos nuevos (`photoUrl`).
+
+**Modelo `ProfessionalProfile`:**
+
+| Campo                   | Tipo      | Descripción                                    |
+|------------------------|----------|------------------------------------------------|
+| `id`                    | String   | PK (cuid)                                      |
+| `professionalId`        | String   | FK → Professional (único, relación 1:1)        |
+| `photoUrl`              | String?  | URL de foto de perfil                          |
+| `references`            | String?  | Referencias/experiencia del profesional        |
+| `presentationVideoUrl`  | String?  | URL del video de presentación                  |
+| `createdAt`             | DateTime | Fecha de creación                              |
+| `updatedAt`             | DateTime | Última modificación                            |
+
+**Relación en `Professional`:** `profile ProfessionalProfile?` — relación inversa opcional.
+
+**Nota:** Los campos `references` y `presentationVideoUrl` existen también en `Professional` y permanecen allí por ahora. La migración a `ProfessionalProfile` es para uso futuro.
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo + relación en `Professional`)
+
+### Request — securityCode (AUT-446)
+
+| Campo          | Tipo     | Descripción                                                     |
+|---------------|----------|-----------------------------------------------------------------|
+| `securityCode`| String?  | Código de seguridad para uso en coordinación de visitas (uso futuro) |
+
+**Archivos:** `backend/prisma/schema.prisma` (campo en modelo `Request`)
+
 ## Build Targets (Frontend Subdomain Configuration)
 
 El frontend tiene tres entrypoints separados para producción, cada uno asociado a un subdominio distinto.
