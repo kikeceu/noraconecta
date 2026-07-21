@@ -17,6 +17,12 @@ import { upsertSavedLocationByAddress, findLocationsByGeoNode, touchSavedLocatio
 import { promptService } from '../../prompts/prompt.service';
 
 const MAX_NEGOTIATION_ROUNDS = 3;
+const SECURITY_CODE_MIN = 1000;
+const SECURITY_CODE_RANGE = 9000;
+
+function generateSecurityCode(): string {
+  return Math.floor(SECURITY_CODE_MIN + Math.random() * SECURITY_CODE_RANGE).toString();
+}
 
 async function extractCleanAddress(rawText: string): Promise<string> {
   const prompt = await promptService.getPrompt('clean_address', { rawText });
@@ -1223,11 +1229,14 @@ export class CoordinationFlow implements FlowHandler {
         const professionalName = (tempData.professionalName as string) || 'El profesional';
         const userName = (tempData.userName as string) || 'el usuario';
 
+        const securityCode = generateSecurityCode();
+
         await prisma.request.update({
           where: { id: requestId },
           data: {
             coordinationStatus: 'SCHEDULED',
             scheduledAt: alternativeScheduledAt,
+            securityCode,
           },
         });
 
@@ -1249,6 +1258,7 @@ export class CoordinationFlow implements FlowHandler {
             professionalName,
             _confirmedByProfessional: true,
             _userAcceptedAlternative: true,
+            _securityCode: securityCode,
           });
 
           await this.coordinationService.notifyProfessionalVisitConfirmed(
@@ -1587,11 +1597,14 @@ export class CoordinationFlow implements FlowHandler {
     requestId: string,
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
+    const securityCode = (tempData._securityCode as string) || generateSecurityCode();
+
     await prisma.request.update({
       where: { id: requestId },
       data: {
         coordinationStatus: 'SCHEDULED',
         clientAddress: address,
+        securityCode,
       },
     });
 
@@ -1605,8 +1618,21 @@ export class CoordinationFlow implements FlowHandler {
         geoNode: { select: { name: true } },
         userId: true,
         user: { select: { name: true, phone: true } },
+        assignedProfessionalId: true,
+        securityCode: true,
       },
     });
+
+    const professionalProfile = request?.assignedProfessionalId
+      ? await prisma.professionalProfile.findUnique({
+          where: { professionalId: request.assignedProfessionalId },
+          select: { photoUrl: true },
+        })
+      : null;
+
+    const profileLink = professionalProfile?.photoUrl && request?.assignedProfessionalId
+      ? `${process.env.APP_URL || 'https://app.noraconecta.com'}/pro/${request.assignedProfessionalId}`
+      : null;
 
     // --- Persistir en savedLocations (solo si la dirección no vino de una savedLocation ya tocada) ---
     if (request?.userId && !tempData._locationSuggestions) {
@@ -1672,7 +1698,14 @@ export class CoordinationFlow implements FlowHandler {
             const _day = _days[getDayArgentina(_d)];
             const _h = getHoursArgentina(_d).toString().padStart(2, '0');
             const _m = getMinutesArgentina(_d).toString().padStart(2, '0');
-            return `${_greeting} Te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
+            let text = `${_greeting} Te va a estar esperando el ${_day} a las ${_h}:${_m}. 🙌`;
+            if (securityCode) {
+              text += `\n\n🔐 Código de seguridad: *${securityCode}*\nCuando llegue, pedile este código para confirmar su identidad.`;
+            }
+            if (profileLink) {
+              text += `\n\n👤 Conocé a tu profesional: ${profileLink}`;
+            }
+            return text;
           }
           return _greeting;
         })(),
