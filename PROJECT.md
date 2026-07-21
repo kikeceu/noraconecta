@@ -89,7 +89,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
    │   │   │   │   └── prompt.repository.ts # Prisma queries for PromptTemplate model: findByKey, findAll, update, resetToDefault
    │   │   │   ├── matching/
 │   │   │   │   ├── matching.service.ts    # Scoring ponderado + filtros duros + disponibilidad contextual + especialización + sistema híbrido keywords+LLM de detección de matrícula con priorización en score (AUT-235, AUT-240, AUT-251, AUT-343) + Regla 1: profesional preferido por historial positivo (wouldRecommend:true + rating≥4) — AUT-366 + Regla 2: exclusión de profesionales con wouldRecommend:false — AUT-366. userId parámetro opcional en findBestCandidate
-│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251) + findPreferredProfessional + findExcludedProfessionals por historial usuario-profesional (AUT-366)
+│   │   │   │   └── matching.repository.ts # Prisma queries para motor de matching + getSentimentScores + getProfessionalAvailability (AUT-235, AUT-251) + findPreferredProfessional + findExcludedProfessionals por historial usuario-profesional (AUT-366) + countActiveRequests excluye profesionales con pedidos ACCEPTED y coordinationStatus SCHEDULED permitiendo pedidos simultáneos (AUT-438)
 │   │   │   ├── requests/
 │   │   │   │   ├── requests.routes.ts     # 10 endpoints under /requests
 │   │   │   │   ├── requests.controller.ts # Request validation, response formatting
