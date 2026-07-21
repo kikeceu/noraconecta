@@ -274,9 +274,12 @@ export class CoordinationService {
     userPhone: string,
     userLatitude: number | null,
     userLongitude: number | null,
+    categoryName?: string,
+    zoneName?: string,
   ): Promise<void> {
+    const header = categoryName && zoneName ? `📋 ${categoryName} en ${zoneName}\n\n` : '';
     let message =
-      `✅ ¡Todo listo! Le confirmé la visita a ${userName}.\n` +
+      `${header}✅ ¡Todo listo! Le confirmé la visita a ${userName}.\n` +
       `📅 ${scheduleText}\n` +
       `📍 ${address}\n` +
       `📞 ${userPhone}`;
@@ -309,11 +312,14 @@ export class CoordinationService {
     dayName: string,
     hours: string,
     minutes: string,
+    categoryName?: string,
+    zoneName?: string,
   ): Promise<void> {
+    const header = categoryName && zoneName ? `📋 ${categoryName} en ${zoneName}\n\n` : '';
     await this.sendWithWindowCheck(
       professionalPhone,
       'PROFESSIONAL',
-      `¡${userName} aceptó el ${dayName} a las ${hours}:${minutes}! La visita quedó confirmada.`,
+      `${header}¡${userName} aceptó el ${dayName} a las ${hours}:${minutes}! La visita quedó confirmada.`,
       'nora_pro_cliente_acepto_horario',
       [userName, dayName, `${hours}:${minutes}`],
     );
@@ -402,8 +408,9 @@ export class CoordinationService {
       if (professionalPhone) {
         const address = visit.clientAddress || 'la dirección';
         const userName = visit.user?.name || 'el usuario';
+        const categoryName = visit.category?.name || 'el servicio';
         const professionalMessage =
-         `Recordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n\n` +
+         `📋 ${categoryName}\n\nRecordatorio: mañana a las ${hours}:${minutes} tenés visita en ${address}.\n\n` +
          '1. Confirmo\n2. No puedo ir';
 
         await this.sendWithWindowCheck(

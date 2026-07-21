@@ -90,7 +90,7 @@ export class NotificationService {
     request: RequestBasicInfo,
   ): Promise<void> {
     const message =
-      `Tenés un pedido pendiente de respuesta. ¿Podés atenderlo? Aceptalo o rechazalo desde tu panel antes de que venza el tiempo.`;
+      `📋 ${request.categoryName} en ${request.zoneName}\n\nTenés un pedido pendiente de respuesta. ¿Podés atenderlo? Aceptalo o rechazalo antes de que venza el tiempo.`;
 
     await this.sendWithWindowCheck(
       professional.phone,
