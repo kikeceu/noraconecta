@@ -245,6 +245,7 @@ model ProfessionalProfile {
   professionalId       String       @unique
   professional         Professional @relation(fields: [professionalId], references: [id])
   photoUrl             String?
+  photoRequestedAt     DateTime?
   references           String?
   presentationVideoUrl String?
   createdAt            DateTime     @default(now())
