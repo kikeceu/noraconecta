@@ -263,6 +263,80 @@ async function seedCategories(): Promise<void> {
   console.log('Categories seeded successfully.');
 }
 
+async function seedMendozaCoordinates(): Promise<void> {
+  const coordinates: Array<{ name: string; lat: number; lng: number }> = [
+    { name: 'Capital', lat: -32.8908, lng: -68.8272 },
+    { name: 'Godoy Cruz', lat: -32.9247, lng: -68.8383 },
+    { name: 'Guaymallén', lat: -32.8833, lng: -68.7833 },
+    { name: 'Las Heras', lat: -32.8333, lng: -68.8167 },
+    { name: 'Luján de Cuyo', lat: -33.0333, lng: -68.8833 },
+    { name: 'Maipú', lat: -32.9833, lng: -68.7833 },
+    { name: 'Lavalle', lat: -32.7167, lng: -68.0167 },
+    { name: 'Rivadavia', lat: -33.1833, lng: -68.4667 },
+    { name: 'San Martín', lat: -33.0833, lng: -68.4667 },
+    { name: 'Junín', lat: -33.1333, lng: -68.3833 },
+    { name: 'Santa Rosa', lat: -33.0667, lng: -68.2167 },
+    { name: 'La Paz', lat: -33.4667, lng: -67.5500 },
+    { name: 'San Rafael', lat: -34.6167, lng: -68.3333 },
+    { name: 'General Alvear', lat: -34.9833, lng: -67.7000 },
+    { name: 'Malargüe', lat: -35.4667, lng: -69.5833 },
+    { name: 'Tunuyán', lat: -33.5667, lng: -69.0167 },
+    { name: 'Tupungato', lat: -33.3667, lng: -69.1333 },
+    { name: 'San Carlos', lat: -33.7667, lng: -69.0500 },
+  ];
+
+  const mendoza = await prisma.geoNode.findFirst({
+    where: { name: 'Mendoza', parent: { name: 'Argentina' } },
+  });
+
+  if (!mendoza) {
+    // eslint-disable-next-line no-console
+    console.log('Mendoza province not found. Skipping coordinate seed.');
+    return;
+  }
+
+  const departamentoLevel = await prisma.geoLevel.findFirst({
+    where: { name: 'Departamento' },
+  });
+
+  let updated = 0;
+  let created = 0;
+
+  for (const coord of coordinates) {
+    const nameCandidates = coord.name === 'Capital' ? [coord.name, 'Ciudad'] : [coord.name];
+
+    const node = await prisma.geoNode.findFirst({
+      where: {
+        name: { in: nameCandidates },
+        parentId: mendoza.id,
+      },
+    });
+
+    if (node) {
+      await prisma.geoNode.update({
+        where: { id: node.id },
+        data: { latitude: coord.lat, longitude: coord.lng },
+      });
+      updated++;
+    } else {
+      await prisma.geoNode.create({
+        data: {
+          name: coord.name,
+          levelId: departamentoLevel?.id ?? null,
+          parentId: mendoza.id,
+          latitude: coord.lat,
+          longitude: coord.lng,
+          isActive: true,
+        },
+      });
+      created++;
+    }
+  }
+
+  // eslint-disable-next-line no-console
+  console.log(`Mendoza coordinates seeded: ${updated} updated, ${created} created.`);
+}
+
 async function seedPromptTemplates(): Promise<void> {
   const templates = [
     {
@@ -454,6 +528,7 @@ Ejemplos válidos de entrada:
 async function main(): Promise<void> {
   await seedAdmin();
   await seedArgentinaGeoHierarchy();
+  await seedMendozaCoordinates();
   await seedSystemConfig();
   await seedPlans();
   await seedCategories();

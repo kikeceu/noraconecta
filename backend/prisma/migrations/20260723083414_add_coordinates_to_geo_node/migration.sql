@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "GeoNode" ADD COLUMN "latitude" DOUBLE PRECISION;
+ALTER TABLE "GeoNode" ADD COLUMN "longitude" DOUBLE PRECISION;
