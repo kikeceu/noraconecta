@@ -276,6 +276,8 @@ export class CoordinationService {
     userLongitude: number | null,
     categoryName?: string,
     zoneName?: string,
+    securityCode?: string | null,
+    scheduledAt?: Date | null,
   ): Promise<void> {
     const header = categoryName && zoneName ? `📋 ${categoryName} en ${zoneName}\n\n` : '';
     let message =
@@ -287,7 +289,20 @@ export class CoordinationService {
     if (userLatitude && userLongitude) {
       const mapsUrl = `https://www.google.com/maps?q=${userLatitude},${userLongitude}`;
       message += `\n🗺️ Ver ubicación: ${mapsUrl}`;
+    }
 
+    // When the visit is scheduled within 20hs, the reminder (20-24hs window) will
+    // not be triggered, so the security code must be delivered here instead.
+    const hoursUntilVisit = scheduledAt
+      ? (scheduledAt.getTime() - Date.now()) / (1000 * 60 * 60)
+      : null;
+    const isWithin20Hours = hoursUntilVisit !== null && hoursUntilVisit < 20;
+
+    if (isWithin20Hours && securityCode) {
+      message += `\n\n🔐 Código de seguridad: *${securityCode}*\nAl llegar, decile este código al cliente.`;
+    }
+
+    if (userLatitude && userLongitude) {
       await this.sendWithWindowCheck(
         professionalPhone,
         'PROFESSIONAL',
