@@ -473,6 +473,7 @@ Perfil profesional extendido con relación 1:1 opcional con `Professional`. Alma
 | `id`                    | String   | PK (cuid)                                      |
 | `professionalId`        | String   | FK → Professional (único, relación 1:1)        |
 | `photoUrl`              | String?  | URL de foto de perfil                          |
+| `photoRequestedAt`      | DateTime? | Fecha en que NORA solicitó la foto por WhatsApp; señal usada por el webhook para decidir si descargar imágenes en `AWAITING_VISIT` — AUT-452 |
 | `references`            | String?  | Referencias/experiencia del profesional        |
 | `presentationVideoUrl`  | String?  | URL del video de presentación                  |
 | `createdAt`             | DateTime | Fecha de creación                              |
@@ -482,7 +483,7 @@ Perfil profesional extendido con relación 1:1 opcional con `Professional`. Alma
 
 **Nota:** Los campos `references` y `presentationVideoUrl` existen también en `Professional` y permanecen allí por ahora. La migración a `ProfessionalProfile` es para uso futuro.
 
-**Archivos:** `backend/prisma/schema.prisma` (modelo + relación en `Professional`), `backend/prisma/migrations/20260721144929_add_professional_profile_and_security_code/migration.sql`
+**Archivos:** `backend/prisma/schema.prisma` (modelo + relación en `Professional`), `backend/prisma/migrations/20260721144929_add_professional_profile_and_security_code/migration.sql`, `backend/prisma/migrations/20260723160820_add_photo_requested_at_to_professional_profile/migration.sql` (AUT-452)
 
 ### Request — securityCode (AUT-446)
 
