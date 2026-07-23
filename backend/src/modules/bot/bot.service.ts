@@ -434,7 +434,7 @@ export class BotService {
     const userText = input.text?.trim();
     if (
       userText &&
-      session.currentFlow &&
+      (session.currentFlow || role === 'PROFESSIONAL') &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
       session.currentStep !== 'SELECT_CANCEL_REQUEST'
     ) {
