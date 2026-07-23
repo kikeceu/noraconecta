@@ -785,10 +785,13 @@ export class CoordinationFlow implements FlowHandler {
         const scheduleText = `el ${dayName} a las ${hours}:${minutes}`;
 
         if (existingRequest?.clientAddress) {
+          const securityCode = generateSecurityCode();
+
           const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
             ...tempData,
             professionalName,
             _confirmedByProfessional: true,
+            _securityCode: securityCode,
           });
 
           await this.coordinationService.notifyProfessionalVisitConfirmed(
@@ -799,6 +802,10 @@ export class CoordinationFlow implements FlowHandler {
             tempData.userPhone as string,
             existingRequest.userLatitude ?? null,
             existingRequest.userLongitude ?? null,
+            undefined,
+            undefined,
+            securityCode,
+            scheduledAt,
           );
 
           return {
@@ -1076,10 +1083,13 @@ export class CoordinationFlow implements FlowHandler {
       });
 
       if (existingRequest?.clientAddress) {
+        const securityCode = generateSecurityCode();
+
         const finalizeResult = await this.finalizeLocation(existingRequest.clientAddress, requestId, {
           ...tempData,
           professionalName,
           _confirmedByProfessional: true,
+          _securityCode: securityCode,
         });
 
         await this.coordinationService.notifyProfessionalVisitConfirmed(
@@ -1090,6 +1100,10 @@ export class CoordinationFlow implements FlowHandler {
           tempData.userPhone as string,
           existingRequest.userLatitude ?? null,
           existingRequest.userLongitude ?? null,
+          undefined,
+          undefined,
+          securityCode,
+          newScheduledAt,
         );
 
         return {
@@ -1672,6 +1686,10 @@ export class CoordinationFlow implements FlowHandler {
         userPhone,
         request.userLatitude ?? null,
         request.userLongitude ?? null,
+        undefined,
+        undefined,
+        securityCode,
+        request.scheduledAt ?? null,
       );
     }
 
