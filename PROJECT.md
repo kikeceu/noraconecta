@@ -2051,11 +2051,13 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 
 - Unique constraint: `(countryId, level)`
 
-### GeoNode
+### GeoNode (ACTUALIZADO AUT-406)
 | Columna   | Tipo     | Descripción                                     |
 |----------|----------|-------------------------------------------------|
 | id       | CUID     | PK, autogenerado                                |
 | name     | String   | Nombre del nodo ("Mendoza", "Maipú")            |
+| latitude | Float?   | Latitud del centroide (ej: -32.8908) — AUT-406  |
+| longitude| Float?   | Longitud del centroide (ej: -68.8272) — AUT-406 |
 | levelId  | CUID?    | FK a GeoLevel (null para países)                |
 | parentId | CUID?    | FK a GeoNode padre (null para países)           |
 | isActive | Boolean  | Habilitado para matching (default: true)        |

@@ -41,6 +41,8 @@ model GeoLevel {
 model GeoNode {
   id        String   @id @default(cuid())
   name      String
+  latitude  Float?
+  longitude Float?
   levelId   String?
   level     GeoLevel? @relation(fields: [levelId], references: [id])
   parentId  String?
