@@ -206,6 +206,7 @@ model Professional {
   dataChangeRequests  ProfessionalDataChangeRequest[]
   professionalEvents  ProfessionalEvent[]
   profile              ProfessionalProfile?
+  escalations         Escalation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -403,6 +404,7 @@ model Escalation {
   reportedBy     String
   user           User             @relation(fields: [reportedBy], references: [id])
   professionalId String
+  professional   Professional     @relation(fields: [professionalId], references: [id])
   status         EscalationStatus @default(OPEN)
   resolution     String?
   resolvedBy     String?

@@ -2134,7 +2134,7 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | createdAt             | DateTime | Autogenerado                            |
 | updatedAt             | DateTime | Autogenerado (on update)                |
 
-- Relaciones: `zones` → ProfessionalZone[], `memberships` → Membership[], `requests` → Request[] (@relation "AssignedProfessional"), `events` → RequestEvent[]
+- Relaciones: `zones` → ProfessionalZone[], `memberships` → Membership[], `requests` → Request[] (@relation "AssignedProfessional"), `events` → RequestEvent[], `escalations` → Escalation[] (inversa formalizada en AUT-457)
 - Índices (AUT-311): `@@index([categoryId, status])`
 
 ### ProfessionalZone
@@ -2269,6 +2269,8 @@ Sección temporal para testing del flujo de asignación. El profesional ve los p
 | resolvedBy    | String?  | Admin que resolvió                       |
 | createdAt     | DateTime | Autogenerado                             |
 | updatedAt     | DateTime | Autogenerado (on update)                 |
+
+- Relaciones: `request` → Request, `user` → User (reportedBy), `professional` → Professional (relación formalizada en AUT-457 para exponer `professional.name` en el listado del admin)
 
 ### RequestPricing (AUT-316)
 | Columna    | Tipo                    | Descripción                                       |

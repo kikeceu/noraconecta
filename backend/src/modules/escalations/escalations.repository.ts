@@ -62,7 +62,11 @@ export class EscalationsRepository {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { request: true, user: true },
+        include: {
+          request: true,
+          user: true,
+          professional: { select: { name: true } },
+        },
       }),
       prisma.escalation.count({ where }),
     ]);
