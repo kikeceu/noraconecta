@@ -280,6 +280,9 @@ export function ProfessionalsPage() {
                   Zona
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
+                  Categoría
+                </th>
+                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
                   Teléfono
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
@@ -297,7 +300,7 @@ export function ProfessionalsPage() {
               {loading
                 ? [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(7)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 rounded w-3/4" />
                         </td>
@@ -327,6 +330,9 @@ export function ProfessionalsPage() {
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {p.zones?.[0]?.geoNode?.name || '—'}
                       </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {p.category?.name || '—'}
+                      </td>
                       <td className="px-4 py-3 text-sm font-mono text-gray-600">
                         {p.phone || '—'}
                       </td>
@@ -355,7 +361,7 @@ export function ProfessionalsPage() {
               {!loading && filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-12 text-center text-sm text-gray-500"
                   >
                     {error ? (
@@ -409,6 +415,10 @@ export function ProfessionalsPage() {
                     <p>
                       <span className="text-gray-500">Zona:</span>{' '}
                       {p.zones?.[0]?.geoNode?.name || '—'}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Categoría:</span>{' '}
+                      {p.category?.name || '—'}
                     </p>
                     <p>
                       <span className="text-gray-500">Teléfono:</span> {p.phone || '—'}
