@@ -1783,10 +1783,41 @@ export class CoordinationFlow implements FlowHandler {
   }
 
   private async handleAwaitingVisit(
-    _message: { text?: string },
+    message: { text?: string; imageUrls?: string[] },
     tempData: Record<string, unknown>,
-    _role: 'USER' | 'PROFESSIONAL',
+    role: 'USER' | 'PROFESSIONAL',
   ): Promise<FlowStepResult> {
+    const imageUrls = message.imageUrls;
+
+    if (role === 'PROFESSIONAL' && imageUrls && imageUrls.length > 0) {
+      const requestData = await prisma.request.findFirst({
+        where: { id: tempData.requestId as string },
+        select: { assignedProfessionalId: true },
+      });
+
+      if (requestData?.assignedProfessionalId) {
+        await prisma.professionalProfile.upsert({
+          where: { professionalId: requestData.assignedProfessionalId },
+          update: {
+            photoUrl: imageUrls[0],
+            photoRequestedAt: null,
+          },
+          create: {
+            professionalId: requestData.assignedProfessionalId,
+            photoUrl: imageUrls[0],
+          },
+        });
+
+        return {
+          response: {
+            text: '✅ ¡Perfecto! Tu foto ya está en tu perfil. Los usuarios podrán verte antes de la visita.',
+          },
+          nextStep: 'AWAITING_VISIT',
+          tempData,
+        };
+      }
+    }
+
     return {
       response: { text: 'Ya tenés la visita coordinada. Te avisaremos cuando haya novedades.' },
       nextStep: 'AWAITING_VISIT',
@@ -1961,15 +1992,6 @@ export class CoordinationFlow implements FlowHandler {
         await prisma.professionalEvent.create({
           data: { professionalId, type: 'PANEL_INTRO_ACCEPTANCE' },
         });
-      }
-
-      const profile = await prisma.professionalProfile.findUnique({
-        where: { professionalId },
-        select: { photoUrl: true },
-      });
-
-      if (!profile?.photoUrl) {
-        acceptText += `\n\n📸 *Tip:* Los usuarios pueden ver tu foto antes de la visita. Subila desde tu panel para generar más confianza.`;
       }
     } catch (error) {
       console.error('[CoordinationFlow] Failed to send panel intro on acceptance:', error);

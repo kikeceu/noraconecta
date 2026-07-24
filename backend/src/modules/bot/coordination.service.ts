@@ -302,6 +302,24 @@ export class CoordinationService {
       message += `\n\n🔐 Código de seguridad: *${securityCode}*\nAl llegar, decile este código al cliente.`;
     }
 
+    // If the professional has no profile photo yet, request one now and flag the
+    // pending request in ProfessionalProfile.photoRequestedAt so an image reply
+    // during AWAITING_VISIT gets stored as their profile picture.
+    const professional = await prisma.professional.findUnique({
+      where: { phone: professionalPhone },
+      select: { id: true, profile: { select: { photoUrl: true } } },
+    });
+
+    if (professional && !professional.profile?.photoUrl) {
+      message += `\n\n📸 Para que el usuario pueda reconocerte, necesito tu foto de perfil. Enviame una foto ahora.`;
+
+      await prisma.professionalProfile.upsert({
+        where: { professionalId: professional.id },
+        update: { photoRequestedAt: new Date() },
+        create: { professionalId: professional.id, photoRequestedAt: new Date() },
+      });
+    }
+
     if (userLatitude && userLongitude) {
       await this.sendWithWindowCheck(
         professionalPhone,

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from 'redis';
 import { Prisma } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { WhatsAppAdapter, WhatsAppRole, ParsedIncoming } from '../lib/whatsapp-adapter';
 import { BotService } from '../modules/bot/bot.service';
 import { BotRepository } from '../modules/bot/bot.repository';
@@ -244,6 +245,52 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
         parsed.role,
       );
       const currentStep = session?.currentStep ?? 'INIT';
+
+      // Profile photo capture: a professional in AWAITING_VISIT with a pending photo
+      // request can reply with an image to set their profile picture. This bypasses
+      // the standard MEDIA_ALLOWED_STEPS check and photo-accumulation debounce.
+      if (
+        parsed.message.mediaType === 'image' &&
+        currentStep === 'AWAITING_VISIT' &&
+        parsed.role === 'PROFESSIONAL'
+      ) {
+        const professional = await prisma.professional.findUnique({
+          where: { phone: parsed.message.phone },
+          select: {
+            profile: { select: { photoRequestedAt: true, photoUrl: true } },
+          },
+        });
+
+        if (
+          professional?.profile?.photoRequestedAt &&
+          !professional.profile.photoUrl
+        ) {
+          const url = await adapter.downloadAndUploadToR2(
+            parsed.message.mediaId,
+            'profile-photos',
+            parsed.role,
+          );
+          parsed.message.imageUrls = [url];
+
+          const result = await botService.processMessage({
+            phone: parsed.message.phone,
+            text: parsed.message.text,
+            imageUrls: parsed.message.imageUrls,
+            audioUrl: parsed.message.audioUrl,
+            location: parsed.message.location,
+            buttonPayload: parsed.message.buttonPayload,
+            role: parsed.role,
+          });
+
+          await sendResponse(adapter, parsed.message.phone, parsed.role, result);
+
+          if (result.pendingNotification) {
+            await handlePendingNotification(adapter, result.pendingNotification);
+          }
+          return;
+        }
+      }
+
       const allowedTypes = MEDIA_ALLOWED_STEPS[currentStep] ?? [];
 
       if (!allowedTypes.includes(parsed.message.mediaType)) {
