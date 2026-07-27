@@ -211,10 +211,11 @@ export async function handleCancelConfirmation(
   }
 
   const categoryName = (tempData.categoryName as string) || 'el servicio';
+  const clientAddress = tempData.clientAddress as string | null;
 
   return {
     response: {
-      text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+      text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}${clientAddress ? ` en ${clientAddress}` : ''}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
     },
     nextStep: 'CANCEL_CONFIRMATION',
     tempData,

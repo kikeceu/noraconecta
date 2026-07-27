@@ -502,6 +502,7 @@ export class BotService {
                 requestId: r.id,
                 professionalId: professional.id,
                 categoryName: r.category?.name || 'el servicio',
+                clientAddress: r.clientAddress || null,
                 phone: input.phone,
               };
 
@@ -556,7 +557,7 @@ export class BotService {
       const freshTempData = (session.tempData as Record<string, unknown>) || {};
       const candidates = freshTempData._cancelCandidates as string[] | undefined;
       const requestsData = freshTempData._cancelRequestsData as
-        | { id: string; categoryName: string; geoNodeName: string; scheduledAt: string | null }[]
+        | { id: string; categoryName: string; geoNodeName: string; scheduledAt: string | null; clientAddress: string | null }[]
         | undefined;
 
       if (candidates && requestsData && candidates.length > 0) {
@@ -583,7 +584,7 @@ export class BotService {
 
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
           return {
-            text: `¿Confirmás que querés cancelar tu pedido de ${selectedData.categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+            text: `¿Confirmás que querés cancelar tu pedido de ${selectedData.categoryName}${selectedData.clientAddress ? ` en ${selectedData.clientAddress}` : ''}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
             flow: session.currentFlow || undefined,
             step: 'CANCEL_CONFIRMATION',
           };
@@ -595,7 +596,7 @@ export class BotService {
             const date = r.scheduledAt
               ? ` (visita el ${formatDateTimeArgentina(new Date(r.scheduledAt))})`
               : ' (pendiente de confirmar)';
-            return `${i + 1}. ${r.categoryName} en ${r.geoNodeName}${date}`;
+            return `${i + 1}. ${r.categoryName} en ${r.geoNodeName}${r.clientAddress ? ` - ${r.clientAddress}` : ''}${date}`;
           })
           .join('\n');
 
