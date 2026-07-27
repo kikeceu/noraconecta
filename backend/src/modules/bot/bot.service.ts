@@ -606,7 +606,11 @@ export class BotService {
       }
     }
 
-    if (!session.currentFlow) {
+    if (
+      !session.currentFlow &&
+      session.currentStep !== 'CANCEL_CONFIRMATION' &&
+      session.currentStep !== 'SELECT_CANCEL_REQUEST'
+    ) {
       if (role === 'PROFESSIONAL') {
         const state = await this.resolveProfessionalState(input.phone, input.text);
 
@@ -683,7 +687,17 @@ export class BotService {
       }
     }
 
-    const flowHandler = getFlowHandlerByName(session.currentFlow);
+    // Ensure CANCEL_CONFIRMATION and SELECT_CANCEL_REQUEST use the correct flow
+    // when the session has no currentFlow. In-memory only, no DB upsert.
+    if (
+      (session.currentStep === 'CANCEL_CONFIRMATION' ||
+        session.currentStep === 'SELECT_CANCEL_REQUEST') &&
+      !session.currentFlow
+    ) {
+      session.currentFlow = 'COORDINATION';
+    }
+
+    const flowHandler = getFlowHandlerByName(session.currentFlow || '');
     if (!flowHandler) {
       await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
       return {
@@ -695,7 +709,11 @@ export class BotService {
 
     let _prsRequestId: string | undefined;
 
-    if (role === 'PROFESSIONAL') {
+    if (
+      role === 'PROFESSIONAL' &&
+      session.currentStep !== 'CANCEL_CONFIRMATION' &&
+      session.currentStep !== 'SELECT_CANCEL_REQUEST'
+    ) {
       const requestSessions = await this.botRepository.findActiveRequestSessions(input.phone);
       if (requestSessions.length > 0) {
         const activeSession = requestSessions[0];
