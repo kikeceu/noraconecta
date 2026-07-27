@@ -707,11 +707,29 @@ export class BotService {
       };
     }
 
-    let _prsRequestId: string | undefined;
-
     if (role === 'PROFESSIONAL' && input.imageUrls?.length) {
-       console.log('[DEBUG-PHOTO] imageUrls antes del bloque PRS:', input.imageUrls?.length);
+      const profile = await prisma.professionalProfile.findFirst({
+       where: { professional: { phone: input.phone } },
+       select: { photoRequestedAt: true, photoUrl: true, professionalId: true },
+      });
+     
+      if (profile?.photoRequestedAt && !profile.photoUrl) {
+       await prisma.professionalProfile.update({
+        where: { professionalId: profile.professionalId! },
+        data: { photoUrl: input.imageUrls[0], photoRequestedAt: null },
+      });
+     
+      await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+     
+      return {
+       text: '✅ ¡Perfecto! Tu foto ya está en tu perfil. Los usuarios podrán verte antes de la visita.',
+       flow: undefined,
+       step: undefined,
+      };
+     }
     }
+
+    let _prsRequestId: string | undefined;
 
     if (
       role === 'PROFESSIONAL' &&
