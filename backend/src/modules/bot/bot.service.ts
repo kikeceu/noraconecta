@@ -517,7 +517,7 @@ export class BotService {
                   const date = r.scheduledAt
                     ? ` (visita el ${formatDateTimeArgentina(r.scheduledAt)})`
                     : ' (pendiente de confirmar)';
-                  return `${i + 1}. ${r.category?.name || 'Servicio'} en ${r.geoNode?.name || 'tu zona'}${date}`;
+                  return `${i + 1}. ${r.category?.name || 'Servicio'} en ${r.geoNode?.name || 'tu zona'}${r.clientAddress ? ` - ${r.clientAddress}` : ''}${date}`;
                 })
                 .join('\n');
 
@@ -535,6 +535,7 @@ export class BotService {
                     categoryName: r.category?.name || 'Servicio',
                     geoNodeName: r.geoNode?.name || 'tu zona',
                     scheduledAt: r.scheduledAt?.toISOString() || null,
+                    clientAddress: r.clientAddress || null,
                   })),
                 } as Prisma.InputJsonValue,
               });
