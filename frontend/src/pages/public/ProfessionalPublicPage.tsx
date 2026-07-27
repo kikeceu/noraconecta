@@ -103,25 +103,25 @@ export function ProfessionalPublicPage() {
           )}
         </div>
 
-	// Modal:
-	{showPhoto && (
-	  <div
-	    className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-	    onClick={() => setShowPhoto(false)}
-	  >
-	    <img
-	      src={profile.photoUrl!}
-	      alt={profile.name}
-	      className="max-w-full max-h-full rounded-xl object-contain"
-	    />
-	  </div>
-	)}
-
         {/* Footer */}
         <p className="text-xs text-[#9CA3AF] text-center mt-2" style={{ fontFamily: 'DM Sans' }}>
           Este profesional fue seleccionado por NORA para atender tu pedido.
         </p>
       </div>
+          
+      // Modal:
+      {showPhoto && (
+	<div
+	  className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+	  onClick={() => setShowPhoto(false)}
+	>
+	  <img
+	    src={profile.photoUrl!}
+	    alt={profile.name}
+	    className="max-w-full max-h-full rounded-xl object-contain"
+	  />
+	</div>
+      )}     
     </div>
   );
 }
