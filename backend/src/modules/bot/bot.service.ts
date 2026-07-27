@@ -709,6 +709,10 @@ export class BotService {
 
     let _prsRequestId: string | undefined;
 
+    if (role === 'PROFESSIONAL' && input.imageUrls?.length) {
+       console.log('[DEBUG-PHOTO] imageUrls antes del bloque PRS:', input.imageUrls?.length);
+    }
+
     if (
       role === 'PROFESSIONAL' &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
