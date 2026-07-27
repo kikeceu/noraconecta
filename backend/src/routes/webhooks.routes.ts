@@ -246,12 +246,12 @@ async function processWebhookAsync(payload: unknown): Promise<void> {
       );
       const currentStep = session?.currentStep ?? 'INIT';
 
-      // Profile photo capture: a professional in AWAITING_VISIT with a pending photo
-      // request can reply with an image to set their profile picture. This bypasses
-      // the standard MEDIA_ALLOWED_STEPS check and photo-accumulation debounce.
+      // Profile photo capture: a professional with a pending photo request can reply
+      // with an image to set their profile picture, regardless of the current session
+      // step. The photoRequestedAt flag is the only signal needed. This bypasses the
+      // standard MEDIA_ALLOWED_STEPS check and photo-accumulation debounce.
       if (
         parsed.message.mediaType === 'image' &&
-        currentStep === 'AWAITING_VISIT' &&
         parsed.role === 'PROFESSIONAL'
       ) {
         const professional = await prisma.professional.findUnique({
