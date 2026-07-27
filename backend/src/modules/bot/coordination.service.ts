@@ -430,13 +430,21 @@ export class CoordinationService {
           userMessage += `\n\n👤 Conocé a tu profesional: ${profileLink}`;
         }
         userMessage += `\n\n1. Confirmo\n2. Necesito cancelar`;
+	
+	const userTemplateName = profileLink
+	  ? 'nora_user_visita_recordatorio_con_foto'
+	  : 'nora_user_visita_recordatorio';
+
+	const userTemplateParams = profileLink
+	  ? [professionalName, categoryName, `${hours}:${minutes}`, securityCode ?? '', profileLink]
+	  : [professionalName, categoryName, `${hours}:${minutes}`, securityCode ?? ''];
 
         await this.sendWithWindowCheck(
           userPhone,
           'USER',
           userMessage,
-          'nora_user_visita_recordatorio',
-          [professionalName, categoryName, `${hours}:${minutes}`, securityCode ?? '', profileLink ?? ''],
+          userTemplateName,
+          userTemplateParams,
           [
             { payload: BOT_PAYLOADS.CONFIRMO_VISITA_USER, text: 'Confirmo' },
             { payload: BOT_PAYLOADS.CANCELAR_VISITA, text: 'Necesito cancelar' },
