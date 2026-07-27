@@ -277,7 +277,7 @@ export class FeedbackFlow implements FlowHandler {
           }
         }
 
-	proMessage = `\n\n¿Cómo evaluás a ${userName} del 1 al 5?`;
+	proMessage += `\n\n¿Cómo evaluás a ${userName} del 1 al 5?`;
 
         try {
           await this.coordinationService.sendMessageWithWindowCheck(
