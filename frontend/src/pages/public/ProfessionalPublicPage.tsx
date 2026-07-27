@@ -16,6 +16,7 @@ export function ProfessionalPublicPage() {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showPhoto, setShowPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -61,7 +62,8 @@ export function ProfessionalPublicPage() {
           <img
             src={profile.photoUrl}
             alt={profile.name}
-            className="w-28 h-28 rounded-full object-cover border-4 border-[#E5E7EB]"
+            className="w-28 h-28 rounded-full object-cover border-4 border-[#E5E7EB] cursor-pointer"
+            onClick={() => setShowPhoto(true)}
           />
         ) : (
           <div className="w-28 h-28 rounded-full bg-[#F3F4F6] border-4 border-[#E5E7EB] flex items-center justify-center">
@@ -100,6 +102,20 @@ export function ProfessionalPublicPage() {
             </span>
           )}
         </div>
+
+	// Modal:
+	{showPhoto && (
+	  <div
+	    className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+	    onClick={() => setShowPhoto(false)}
+	  >
+	    <img
+	      src={profile.photoUrl!}
+	      alt={profile.name}
+	      className="max-w-full max-h-full rounded-xl object-contain"
+	    />
+	  </div>
+	)}
 
         {/* Footer */}
         <p className="text-xs text-[#9CA3AF] text-center mt-2" style={{ fontFamily: 'DM Sans' }}>
