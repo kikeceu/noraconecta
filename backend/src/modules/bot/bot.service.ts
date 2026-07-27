@@ -725,11 +725,20 @@ export class BotService {
 
     const step = session.currentStep || flowHandler.getInitialStep();
 
+    let isProfessionalProfilePhoto = false;
+    if (role === 'PROFESSIONAL' && !!input.imageUrls?.length) {
+      const profile = await prisma.professionalProfile.findFirst({
+       where: { professional: { phone: input.phone } },
+       select: { photoRequestedAt: true, photoUrl: true },
+      });
+      isProfessionalProfilePhoto = !!(profile?.photoRequestedAt && !profile.photoUrl);
+    }
+
     const imageUrls =
-      step === 'ASK_PHOTOS' ||
-      (step === 'AWAITING_VISIT' && role === 'PROFESSIONAL' && !!input.imageUrls?.length)
-        ? input.imageUrls
-        : undefined;
+    step === 'ASK_PHOTOS' || isProfessionalProfilePhoto
+     ? input.imageUrls
+     : undefined;
+
     const audioUrl = (step === 'ASK_DESCRIPTION' || step === 'CLARIFICATION') ? input.audioUrl : undefined;
 
     const context: FlowContext = {
