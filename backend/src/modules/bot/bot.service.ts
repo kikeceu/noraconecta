@@ -737,7 +737,8 @@ export class BotService {
       role === 'PROFESSIONAL' &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
       session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
-      session.currentStep !== 'FEEDBACK_PRO_RATING'
+      session.currentStep !== 'FEEDBACK_PRO_RATING' &&
+      session.currentStep !== 'FEEDBACK_PRO_RECOMMEND'
     ) {
       const requestSessions = await this.botRepository.findActiveRequestSessions(input.phone);
       if (requestSessions.length > 0) {
