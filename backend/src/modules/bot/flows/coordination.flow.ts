@@ -1899,7 +1899,7 @@ export class CoordinationFlow implements FlowHandler {
       try {
         const result = await this.requestsService.cancelByProfessional(requestId, professionalId);
 
-        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.';
+        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario.';
 
         const abuseDetection = new AbuseDetectionService();
         const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);

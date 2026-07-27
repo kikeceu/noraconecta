@@ -74,7 +74,7 @@ export async function handleCancelConfirmation(
 
         const result = await requestsService.cancelByProfessional(requestId, professionalId);
 
-        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.';
+        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario.';
 
         const abuseDetection = new AbuseDetectionService();
         const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);
