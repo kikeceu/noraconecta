@@ -109,7 +109,6 @@ export function ProfessionalPublicPage() {
         </p>
       </div>
           
-      // Modal:
       {showPhoto && (
 	<div
 	  className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
