@@ -63,7 +63,7 @@ export function ProfessionalPublicPage() {
             src={profile.photoUrl}
             alt={profile.name}
             className="w-28 h-28 rounded-full object-cover border-4 border-[#E5E7EB] cursor-pointer"
-            onClick={() => setShowPhoto(true)}
+            onClick={() => { console.log('click foto'); setShowPhoto(true); }}
           />
         ) : (
           <div className="w-28 h-28 rounded-full bg-[#F3F4F6] border-4 border-[#E5E7EB] flex items-center justify-center">
@@ -109,18 +109,18 @@ export function ProfessionalPublicPage() {
         </p>
       </div>
           
-      {showPhoto && (
-	<div
-	  className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
-	  onClick={() => setShowPhoto(false)}
-	>
-	  <img
-	    src={profile.photoUrl!}
-	    alt={profile.name}
-	    className="max-w-full max-h-full rounded-xl object-contain"
-	  />
-	</div>
-      )}     
+      {showPhoto && profile.photoUrl && (
+  <div
+    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '16px' }}
+    onClick={() => setShowPhoto(false)}
+  >
+    <img
+      src={profile.photoUrl}
+      alt={profile.name}
+      style={{ maxWidth: '100%', maxHeight: '100%', borderRadius: '12px', objectFit: 'contain' }}
+    />
+  </div>
+)} 
     </div>
   );
 }
