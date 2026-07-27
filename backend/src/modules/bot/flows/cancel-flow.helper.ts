@@ -6,6 +6,7 @@ import { resolveOption } from './option-resolver.helper';
 import { callLLM } from '../../../lib/llm-client';
 import prisma from '../../../lib/prisma';
 import { promptService } from '../../prompts/prompt.service';
+import { formatDateTimeArgentina } from '../../../utils/date-utils';
 
 const CANCEL_KEYWORDS = [
   'cancelar',
@@ -73,7 +74,7 @@ export async function handleCancelConfirmation(
 
         const result = await requestsService.cancelByProfessional(requestId, professionalId);
 
-        let responseText = result.userMessage;
+        let responseText = 'Entendido. Cancelaste la visita. Le avisamos al usuario y buscamos otro profesional.';
 
         const abuseDetection = new AbuseDetectionService();
         const abuseLevel = await abuseDetection.checkProfessionalAbuse(professionalId);
@@ -102,6 +103,17 @@ export async function handleCancelConfirmation(
             targetPhone: result.userPhone,
             targetRole: 'USER',
             message: result.userMessage,
+            templateName: result.hadConfirmedVisit
+              ? 'nora_user_pro_cancelo_visita'
+              : 'nora_user_pro_cancelo_pedido',
+            templateParams:
+              result.hadConfirmedVisit && result.scheduledAt
+                ? [
+                    result.professionalName,
+                    result.categoryName,
+                    formatDateTimeArgentina(result.scheduledAt),
+                  ]
+                : [result.professionalName, result.categoryName],
             flow: null,
             step: null,
             tempData: {},
