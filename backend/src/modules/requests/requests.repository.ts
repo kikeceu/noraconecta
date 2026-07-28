@@ -63,6 +63,26 @@ export class RequestsRepository {
     });
   }
 
+  async findActivesByUserId(
+    userId: string,
+  ): Promise<(Request & { category: { name: string }; geoNode: { name: string } })[]> {
+    return prisma.request.findMany({
+      where: {
+        userId,
+        OR: [
+          { status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] } },
+          { status: 'NO_RESPONSE', waitingUserConsent: true },
+        ],
+      },
+      include: {
+        assignedProfessional: { select: { phone: true, name: true } },
+        category: { select: { name: true } },
+        geoNode: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findAll(skip: number, take: number): Promise<{ requests: Request[]; total: number }> {
     const [requests, total] = await Promise.all([
       prisma.request.findMany({
