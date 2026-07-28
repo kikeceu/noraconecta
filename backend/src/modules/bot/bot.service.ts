@@ -453,7 +453,15 @@ export class BotService {
             const list = userSessions
               .map((s, i) => {
                 const data = (s.tempData as Record<string, unknown>) || {};
-                return `${i + 1}. ${(data.categoryName as string) || 'Servicio'}`;
+                const categoryName = (data.categoryName as string) || 'Servicio';
+                const geoNodeName = data.geoNodeName as string | undefined;
+                const clientAddress = data.clientAddress as string | undefined;
+
+                let label = categoryName;
+                if (geoNodeName) label += ` en ${geoNodeName}`;
+                if (clientAddress) label += ` - ${clientAddress}`;
+
+                return `${i + 1}. ${label}`;
               })
               .join('\n');
 
@@ -465,10 +473,15 @@ export class BotService {
                 ...freshTempData,
                 _previousFlow: session.currentFlow,
                 _previousStep: session.currentStep,
-                _activeUserSessions: userSessions.map((s) => ({
-                  requestId: s.requestId,
-                  categoryName: (s.tempData as Record<string, unknown>)?.categoryName,
-                })),
+                _activeUserSessions: userSessions.map((s) => {
+                  const data = (s.tempData as Record<string, unknown>) || {};
+                  return {
+                    requestId: s.requestId,
+                    categoryName: data.categoryName,
+                    geoNodeName: data.geoNodeName,
+                    clientAddress: data.clientAddress,
+                  };
+                }),
                 phone: input.phone,
               } as Prisma.InputJsonValue,
             });
@@ -641,7 +654,12 @@ export class BotService {
 
     if (userText && session.currentStep === 'SELECT_CANCEL_USER_REQUEST' && role === 'USER') {
       const freshTempData = (session.tempData as Record<string, unknown>) || {};
-      const activeSessions = freshTempData._activeUserSessions as Array<{ requestId: string; categoryName: string }> | undefined;
+      const activeSessions = freshTempData._activeUserSessions as Array<{
+        requestId: string;
+        categoryName: string;
+        geoNodeName?: string;
+        clientAddress?: string;
+      }> | undefined;
 
       if (activeSessions) {
         const index = parseInt(userText, 10);
@@ -664,15 +682,27 @@ export class BotService {
           });
 
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+
+          const cancelLabel = [
+            selected.categoryName,
+            selected.geoNodeName ? `en ${selected.geoNodeName}` : null,
+            selected.clientAddress ? `- ${selected.clientAddress}` : null,
+          ].filter(Boolean).join(' ');
+
           return {
-            text: `¿Confirmás que querés cancelar tu pedido de ${selected.categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+            text: `¿Confirmás que querés cancelar tu pedido de ${cancelLabel}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
             flow: session.currentFlow || undefined,
             step: 'CANCEL_CONFIRMATION',
           };
         }
 
         const list = activeSessions
-          .map((s, i) => `${i + 1}. ${s.categoryName || 'Servicio'}`)
+          .map((s, i) => {
+            let label = s.categoryName || 'Servicio';
+            if (s.geoNodeName) label += ` en ${s.geoNodeName}`;
+            if (s.clientAddress) label += ` - ${s.clientAddress}`;
+            return `${i + 1}. ${label}`;
+          })
           .join('\n');
 
         return {
@@ -1080,11 +1110,20 @@ export class BotService {
       if (role === 'USER' && result.nextStep) {
         const requestId = finalTempData.requestId as string | undefined;
         if (requestId) {
+          const existingSession = await this.botRepository.findUserRequestSessionByRequestId(requestId);
+          const existingData = (existingSession?.tempData as Record<string, unknown>) || {};
+
           await this.botRepository.upsertUserRequestSession(
             input.phone,
             requestId,
             result.nextStep,
-            finalTempData,
+            {
+              ...finalTempData,
+              categoryName: (finalTempData.categoryName as string) || existingData.categoryName,
+              categoryId: (finalTempData.categoryId as string) || existingData.categoryId,
+              geoNodeName: (finalTempData.geoNodeName as string) || existingData.geoNodeName,
+              clientAddress: (finalTempData.clientAddress as string) || existingData.clientAddress,
+            },
           );
         }
       }
