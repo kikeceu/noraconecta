@@ -53,17 +53,29 @@ export async function parseDateTimeNatural(
     timeStyle: 'short',
   });
 
+  const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+  const todayArg = new Date(referenceDate.getTime() - 3 * 60 * 60 * 1000);
+  const nextDays = Array.from({ length: 8 }, (_, i) => {
+    const d = new Date(todayArg);
+    d.setUTCDate(d.getUTCDate() + i + 1);
+    const dayName = dayNames[d.getUTCDay()];
+    const day = d.getUTCDate().toString().padStart(2, '0');
+    const month = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+    return `${dayName} ${day}/${month}`;
+  }).join(', ');
+
   const prompt = `Hoy es ${now}, zona horaria Argentina (UTC-3).
+Los próximos 8 días son: ${nextDays}.
 El usuario escribió: "${input}"
-Interpretá la fecha y hora mencionada y devolvé SOLO un JSON válido sin markdown:
+Interpretá la fecha y hora mencionada. Usá la lista de días para calcular correctamente cuándo es "el sábado", "el próximo viernes", etc. — nunca uses una fecha pasada.
+Devolvé SOLO un JSON válido sin markdown:
 {"date": "YYYY-MM-DDTHH:MM:00-03:00"}
 Si es ambiguo o no se puede determinar, devolvé:
 {"error": "ambiguo"}`;
 
   try {
-    console.log('[parseDateTimeNatural] prompt:', prompt);
     const response = await callLLM(prompt);
-    console.log('[parseDateTimeNatural] raw response:', JSON.stringify(response)); // AGREGAR
     const parsed = JSON.parse(response.trim());
     if (parsed.error) return { success: false, reason: 'ambiguous' };
     if (parsed.date) {
