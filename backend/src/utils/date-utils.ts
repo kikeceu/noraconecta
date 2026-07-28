@@ -62,6 +62,7 @@ Si es ambiguo o no se puede determinar, devolvé:
 
   try {
     const response = await callLLM(prompt);
+    console.log('[parseDateTimeNatural] raw response:', JSON.stringify(response)); // AGREGAR
     const parsed = JSON.parse(response.trim());
     if (parsed.error) return { success: false, reason: 'ambiguous' };
     if (parsed.date) {
