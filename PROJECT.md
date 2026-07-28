@@ -462,6 +462,26 @@ Modelo para soporte de pedidos simultáneos del profesional. Guarda una sesión 
 
 **Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260721000000_add_professional_request_session/migration.sql`
 
+### UserRequestSession (AUT-464)
+
+Equivalente a `ProfessionalRequestSession` pero para el lado del usuario. Soporta múltiples pedidos activos simultáneos por usuario, guardando una sesión por pedido independiente de `BotSession`.
+
+**Modelo `UserRequestSession`:**
+
+| Campo         | Tipo      | Descripción                                    |
+|--------------|----------|------------------------------------------------|
+| `id`          | String   | PK (cuid)                                      |
+| `phone`       | String   | Teléfono del usuario                           |
+| `requestId`   | String   | ID del pedido activo (único por pedido)        |
+| `currentStep` | String?  | Step actual del flujo (nullable)               |
+| `tempData`    | Json?    | Datos temporales del flujo                     |
+| `createdAt`   | DateTime | Fecha de creación                              |
+| `updatedAt`   | DateTime | Última modificación                            |
+
+**Índices:** `@@index([phone])`, `requestId` tiene constraint `@unique`.
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo), `backend/prisma/migrations/20260728083044_add_user_request_session/migration.sql`
+
 ### ProfessionalProfile (AUT-446)
 
 Perfil profesional extendido con relación 1:1 opcional con `Professional`. Almacena datos de perfil que actualmente viven en `Professional` pero que migrarán en el futuro (`references`, `presentationVideoUrl`), más campos nuevos (`photoUrl`).
