@@ -901,14 +901,14 @@ export class BotService {
       if (resolved === '1' || resolved.toLowerCase() === 'sí' || resolved.toLowerCase() === 'si') {
         session = await this.botRepository.upsert(input.phone, {
 	role,
-	currentFlow: null,
-	currentStep: null,
+	currentFlow: 'USER_REQUEST',
+	currentStep: 'INIT',
 	tempData: {} as Prisma.InputJsonValue,
 	});
 	return {
 	  text: '¡Perfecto! ¿Qué otro servicio necesitás?',
-	  flow: undefined,
-	  step: undefined,
+	  flow: 'USER_REQUEST',
+	  step: 'INIT',
 	};
       } else {
         session = await this.botRepository.upsert(input.phone, {
