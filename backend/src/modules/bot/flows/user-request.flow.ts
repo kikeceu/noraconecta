@@ -171,7 +171,7 @@ export class UserRequestFlow implements FlowHandler {
 
     switch (step) {
       case 'INIT':
-        return this.handleInit(tempData);
+        return this.handleInit(message, tempData);
       case 'ASK_NAME':
         return this.handleAskName(message, tempData);
       case 'ASK_SERVICE':
@@ -204,11 +204,12 @@ export class UserRequestFlow implements FlowHandler {
       case 'POST_CANCEL':
         return this.handlePostCancel(message, tempData);
       default:
-        return this.handleInit(tempData);
+        return this.handleInit(message, tempData);
     }
   }
 
   private async handleInit(
+    message: { text?: string; buttonPayload?: string },
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
     const userId = tempData.userId as string;
@@ -285,7 +286,7 @@ export class UserRequestFlow implements FlowHandler {
     const hasName = currentName && currentName !== phone;
 
     if (hasName) {
-      return this.handleAskService({}, tempData);
+      return this.handleAskService(message, tempData);
     }
 
     const extractedServiceName = tempData._extractedServiceName as string | undefined;
