@@ -603,6 +603,10 @@ export class CoordinationService {
     let userProposedAt: Date | null = null;
     if (clientAvailability) {
       const availabilityResult = await parseDateTimeNatural(clientAvailability, new Date());
+      console.log('[confirmVisit] clientAvailability parsed:', {
+    	input: clientAvailability,
+    	result: availabilityResult,
+      });
       if (availabilityResult.success) {
         userProposedAt = availabilityResult.date;
       }
