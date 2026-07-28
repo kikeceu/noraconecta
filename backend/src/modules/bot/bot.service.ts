@@ -696,6 +696,22 @@ export class BotService {
           };
         }
 
+        const normalized = userText.toLowerCase().trim();
+        if (normalized === 'salir' || normalized === 'no' || normalized === 'no quiero cancelar') {
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: 'COORDINATION',
+            currentStep: 'AWAITING_VISIT',
+            tempData: { ...freshTempData } as Prisma.InputJsonValue,
+          });
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: 'Entendido, no se canceló ningún pedido.',
+            flow: 'COORDINATION',
+            step: 'AWAITING_VISIT',
+          };
+        }
+
         const list = activeSessions
           .map((s, i) => {
             let label = s.categoryName || 'Servicio';
@@ -706,7 +722,7 @@ export class BotService {
           .join('\n');
 
         return {
-          text: `Respondé con un número del 1 al ${activeSessions.length}.\n${list}`,
+          text: `Respondé con un número del 1 al ${activeSessions.length}, o escribí "salir" para cancelar.\n${list}`,
           flow: session.currentFlow || undefined,
           step: 'SELECT_CANCEL_USER_REQUEST',
         };
@@ -1164,6 +1180,26 @@ export class BotService {
           currentStep: pendingNotification.step,
           tempData: targetTempData as Prisma.InputJsonValue,
         });
+
+        if (pendingNotification.targetRole === 'USER') {
+          const targetRequestId = pendingNotification.tempData.requestId as string | undefined;
+          if (targetRequestId && pendingNotification.step) {
+            const existingSession = await this.botRepository.findUserRequestSessionByRequestId(targetRequestId);
+            const existingData = (existingSession?.tempData as Record<string, unknown>) || {};
+            await this.botRepository.upsertUserRequestSession(
+              pendingNotification.targetPhone,
+              targetRequestId,
+              pendingNotification.step,
+              {
+                ...targetTempData,
+                categoryName: (targetTempData.categoryName as string) || existingData.categoryName,
+                categoryId: (targetTempData.categoryId as string) || existingData.categoryId,
+                geoNodeName: (targetTempData.geoNodeName as string) || existingData.geoNodeName,
+                clientAddress: (targetTempData.clientAddress as string) || existingData.clientAddress,
+              },
+            );
+          }
+        }
       }
     }
 
