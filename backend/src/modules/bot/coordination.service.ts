@@ -9,6 +9,12 @@ import { ConfigRepository } from '../config/config.repository';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
 
 const DEFAULT_WORK_COMPLETION_CHECK_HOURS = 24;
+const SECURITY_CODE_MIN = 1000;
+const SECURITY_CODE_RANGE = 9000;
+
+function generateSecurityCode(): string {
+  return Math.floor(SECURITY_CODE_MIN + Math.random() * SECURITY_CODE_RANGE).toString();
+}
 
 export type CoordinationInitData = {
   requestId: string;
@@ -513,8 +519,10 @@ export class CoordinationService {
         status: true,
         coordinationStatus: true,
         clientAvailability: true,
+        clientAddress: true,
         userId: true,
         userLatitude: true,
+        userLongitude: true,
         assignedProfessionalId: true,
         description: true,
         user: { select: { name: true, phone: true } },
@@ -671,15 +679,6 @@ export class CoordinationService {
       return;
     }
 
-    console.log('[CoordinationService.confirmVisit] Confirmed schedule → AWAITING_LOCATION');
-    await prisma.request.update({
-      where: { id: requestId },
-      data: {
-        coordinationStatus: 'AWAITING_LOCATION',
-        scheduledAt,
-      },
-    });
-
     if (request.user?.phone) {
       const professionalName = request.assignedProfessional?.name || 'El profesional';
       const categoryName = request.category?.name || 'el servicio';
@@ -688,6 +687,87 @@ export class CoordinationService {
       const dayName = dayNames[getDayArgentina(scheduledAt)];
       const hours2 = getHoursArgentina(scheduledAt).toString().padStart(2, '0');
       const minutes2 = getMinutesArgentina(scheduledAt).toString().padStart(2, '0');
+
+      if (request.clientAddress) {
+        const securityCode = generateSecurityCode();
+
+        await prisma.request.update({
+          where: { id: requestId },
+          data: {
+            coordinationStatus: 'SCHEDULED',
+            scheduledAt,
+            securityCode,
+          },
+        });
+
+        console.log('[CoordinationService.confirmVisit] Request already has address → SCHEDULED');
+
+        const hoursUntilVisit = (scheduledAt.getTime() - Date.now()) / (1000 * 60 * 60);
+        const isWithin20Hours = hoursUntilVisit < 20;
+
+        const professionalProfile = request.assignedProfessionalId
+          ? await prisma.professionalProfile.findUnique({
+              where: { professionalId: request.assignedProfessionalId },
+              select: { photoUrl: true },
+            })
+          : null;
+
+        const profileLink = professionalProfile?.photoUrl && request.assignedProfessionalId
+          ? `${process.env.APP_URL || 'https://app.noraconecta.com'}/pro/${request.assignedProfessionalId}`
+          : null;
+
+        let userMessage = `✅ ¡Perfecto! Ya está todo coordinado con ${professionalName}. Te va a estar esperando el ${dayName} a las ${hours2}:${minutes2}. 🙌`;
+        if (isWithin20Hours && securityCode) {
+          userMessage += `\n\n🔐 Código de seguridad: *${securityCode}*\nCuando llegue, pedile este código para confirmar su identidad.`;
+        }
+        if (isWithin20Hours && profileLink) {
+          userMessage += `\n\n👤 Conocé a tu profesional: ${profileLink}`;
+        }
+
+        await this.whatsappAdapter.sendText(request.user.phone, userMessage, 'USER');
+
+        await this.notifyProfessionalVisitConfirmed(
+          request.assignedProfessional?.phone || '',
+          request.user?.name || 'el usuario',
+          `el ${dayName} a las ${hours2}:${minutes2}`,
+          request.clientAddress,
+          request.user.phone,
+          request.userLatitude ?? null,
+          request.userLongitude ?? null,
+          undefined,
+          undefined,
+          securityCode,
+          scheduledAt,
+        );
+
+        await this.botRepository.upsert(request.user.phone, {
+          role: 'USER',
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_VISIT',
+          tempData: {
+            requestId,
+            userId: request.userId,
+            userName: request.user?.name,
+            userPhone: request.user.phone,
+            professionalId: request.assignedProfessionalId,
+            professionalName,
+            professionalPhone: request.assignedProfessional?.phone,
+            categoryName,
+            scheduledAt: scheduledAt.toISOString(),
+          } as Prisma.InputJsonValue,
+        });
+
+        return;
+      }
+
+      console.log('[CoordinationService.confirmVisit] Confirmed schedule → AWAITING_LOCATION');
+      await prisma.request.update({
+        where: { id: requestId },
+        data: {
+          coordinationStatus: 'AWAITING_LOCATION',
+          scheduledAt,
+        },
+      });
 
       const needsGps = !request.userLatitude;
       const zoneName = request.geoNode?.name || 'tu zona';
