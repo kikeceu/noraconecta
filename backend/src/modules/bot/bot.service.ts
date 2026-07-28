@@ -390,7 +390,12 @@ export class BotService {
         sessionTempData.phone = userIdentity.phone;
       }
 
-      if (!session.currentFlow && role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
+      if (
+        (!session.currentFlow || (session.currentFlow === 'USER_REQUEST' && session.currentStep === 'INIT')) &&
+        role === 'USER' &&
+        input.text?.trim() &&
+        hasActionableContent(input.text.trim())
+      ) {
         const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
         const [extracted, extractedName] = await Promise.all([
           extractServiceAndZone(input.text.trim()),
@@ -736,8 +741,9 @@ export class BotService {
           })
           .join('\n');
 
+        const exitOption = `${activeSessions.length + 1}. No quiero cancelar ninguno`;
         return {
-          text: `Respondé con un número del 1 al ${activeSessions.length}, o escribí "salir" para cancelar.\n${list}`,
+          text: `¿Cuál pedido querés cancelar?\n${list}\n${exitOption}`,
           flow: session.currentFlow || undefined,
           step: 'SELECT_CANCEL_USER_REQUEST',
         };
@@ -784,7 +790,8 @@ export class BotService {
         }
       }
 
-      if (!session.currentFlow && role === 'USER' && input.text?.trim()) {
+      if (!session.currentFlow && role === 'USER' && input.text?.trim() &&
+          session.currentStep !== 'SELECT_CANCEL_USER_REQUEST') {
         const userSessions = await this.botRepository.findActiveUserRequestSessions(input.phone);
 
         if (userSessions.length > 1) {
