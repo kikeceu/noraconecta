@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../../lib/prisma';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { shouldUseTemplate } from '../../utils/whatsapp-utils';
-import { parseDateTimeNatural, getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
+import { getDayArgentina, getHoursArgentina, getMinutesArgentina, formatDateTimeArgentina } from '../../utils/date-utils';
 import { ConfigRepository } from '../config/config.repository';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
 
@@ -512,6 +512,8 @@ export class CoordinationService {
   }
 
   async confirmVisit(requestId: string, scheduleText: string): Promise<void> {
+    void scheduleText;
+
     const request = await prisma.request.findUnique({
       where: { id: requestId },
       select: {
@@ -541,62 +543,16 @@ export class CoordinationService {
       throw new Error('Request is not awaiting confirmation');
     }
 
-    console.log('[CoordinationService.confirmVisit] Received schedule:', {
-      requestId,
-      scheduleText,
-      clientAvailability: request.clientAvailability,
-    });
-
-    const scheduleResult = await parseDateTimeNatural(scheduleText, new Date());
-
-    if (!scheduleResult.success) {
-      const errorText = scheduleResult.reason === 'past'
-        ? 'La fecha que indicaste ya pasó. Indicá una fecha futura. Por ejemplo: *viernes 13/06 a las 16:00*'
-        : 'No pude interpretar la fecha y hora. Indicá ambos datos. Por ejemplo: *viernes 13/06 a las 16:00*';
-
-      console.log('[CoordinationService.confirmVisit] Could not parse schedule, resetting to AWAITING_AVAILABILITY');
-      await prisma.request.update({
-        where: { id: requestId },
-        data: {
-          coordinationStatus: 'AWAITING_AVAILABILITY',
-          clientAvailability: null,
-        },
-      });
-
-      if (request.user?.phone) {
-        await this.whatsappAdapter.sendText(
-          request.user.phone,
-          errorText,
-          'USER',
-        );
-
-        await this.botRepository.upsert(request.user.phone, {
-          role: 'USER',
-          currentFlow: 'COORDINATION',
-          currentStep: 'AWAITING_AVAILABILITY',
-          tempData: {
-            requestId,
-            userId: request.userId,
-            userName: request.user?.name,
-            userPhone: request.user.phone,
-            professionalId: request.assignedProfessionalId,
-            professionalName: request.assignedProfessional?.name || 'El profesional',
-            professionalPhone: request.assignedProfessional?.phone,
-            categoryName: request.category?.name,
-            description: request.description,
-            negotiationRounds: 0,
-          } as Prisma.InputJsonValue,
-        });
-      }
-
-      return;
+    if (!request.scheduledAt) {
+      throw new Error('Request has no scheduledAt');
     }
 
-    const scheduledAt = scheduleResult.date;
+    const scheduledAt = request.scheduledAt;
 
-    console.log('[CoordinationService.confirmVisit] Parsed schedule:', {
-      scheduleText,
+    console.log('[CoordinationService.confirmVisit] Confirming schedule:', {
+      requestId,
       scheduledAt: scheduledAt.toISOString(),
+      clientAvailability: request.clientAvailability,
     });
 
     const userProposedAt: Date | null = request.scheduledAt ?? null;
