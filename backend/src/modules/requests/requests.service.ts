@@ -1103,7 +1103,8 @@ Criterios:
               select: { phone: true, name: true },
             });
             if (userData?.phone) {
-              this.notificationService.notifyUserNoResponse(userData).catch((err) => {
+              const categoryName = await this.getCategoryName(request.categoryId);
+              this.notificationService.notifyUserNoResponse(userData, categoryName).catch((err) => {
                 console.error('[RequestsService] Failed to notify user no response:', err);
               });
             }
@@ -1249,7 +1250,8 @@ Criterios:
               select: { phone: true, name: true },
             });
             if (userData?.phone) {
-              this.notificationService.notifyUserNoResponse(userData).catch((err) => {
+              const categoryName = await this.getCategoryName(request.categoryId);
+              this.notificationService.notifyUserNoResponse(userData, categoryName).catch((err) => {
                 console.error('[RequestsService] Failed to notify user no response:', err);
               });
             }
