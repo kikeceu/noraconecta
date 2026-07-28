@@ -180,9 +180,9 @@ export class BotService {
             flow: undefined,
             step: undefined,
           };
-        }
+    }
 
-        return {
+    return {
           text: 'Tu cuenta no está activa. Para más información, contactá a soporte.',
           flow: undefined,
           step: undefined,
@@ -436,7 +436,8 @@ export class BotService {
       userText &&
       (session.currentFlow || role === 'PROFESSIONAL') &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
-      session.currentStep !== 'SELECT_CANCEL_REQUEST'
+      session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
+      session.currentStep !== 'SELECT_CANCEL_USER_REQUEST'
     ) {
       const hasCancelIntent = await detectCancellationIntent(userText);
 
@@ -444,48 +445,76 @@ export class BotService {
         const freshTempData = (session.tempData as Record<string, unknown>) || {};
 
         if (role === 'USER') {
-          const userId = freshTempData.userId as string | undefined;
+          const userSessions = await this.botRepository.findActiveUserRequestSessions(input.phone);
 
-          if (userId) {
-            const activeRequest = await this.requestsRepository.findActiveByUserId(userId);
+          if (userSessions.length > 1) {
+            const list = userSessions
+              .map((s, i) => {
+                const data = (s.tempData as Record<string, unknown>) || {};
+                return `${i + 1}. ${(data.categoryName as string) || 'Servicio'}`;
+              })
+              .join('\n');
 
-            if (activeRequest) {
-              const updatedTempData: Record<string, unknown> = {
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: session.currentFlow,
+              currentStep: 'SELECT_CANCEL_USER_REQUEST',
+              tempData: {
                 ...freshTempData,
                 _previousFlow: session.currentFlow,
                 _previousStep: session.currentStep,
-                requestId: activeRequest.id,
-                categoryName: activeRequest.category?.name || 'el servicio',
+                _activeUserSessions: userSessions.map((s) => ({
+                  requestId: s.requestId,
+                  categoryName: (s.tempData as Record<string, unknown>)?.categoryName,
+                })),
                 phone: input.phone,
-              };
+              } as Prisma.InputJsonValue,
+            });
 
-              session = await this.botRepository.upsert(input.phone, {
-                role,
-                currentFlow: session.currentFlow,
-                currentStep: 'CANCEL_CONFIRMATION',
-                tempData: updatedTempData as Prisma.InputJsonValue,
-              });
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: `¿Cuál pedido querés cancelar?\n${list}`,
+              flow: session.currentFlow || undefined,
+              step: 'SELECT_CANCEL_USER_REQUEST',
+            };
+          } else if (userSessions.length === 1) {
+            const s = userSessions[0];
+            const data = (s.tempData as Record<string, unknown>) || {};
+            const categoryName = (data.categoryName as string) || 'el servicio';
 
-              await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-              return {
-                text: `¿Confirmás que querés cancelar tu pedido de ${activeRequest.category?.name || 'tu servicio'}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
-                flow: session.currentFlow || undefined,
-                step: 'CANCEL_CONFIRMATION',
-              };
-            } else {
-              session = await this.botRepository.upsert(input.phone, {
-                role,
-                currentFlow: 'USER_REQUEST',
-                currentStep: 'POST_CANCEL',
-                tempData: { ...freshTempData } as Prisma.InputJsonValue,
-              });
-              await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-              return {
-                text: 'Entendido, cancelé el pedido.\n1. Iniciar un nuevo pedido\n2. Por ahora no, gracias',
-                flow: 'USER_REQUEST',
-                step: 'POST_CANCEL',
-              };
-            }
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: session.currentFlow,
+              currentStep: 'CANCEL_CONFIRMATION',
+              tempData: {
+                ...freshTempData,
+                _previousFlow: session.currentFlow,
+                _previousStep: session.currentStep,
+                requestId: s.requestId,
+                categoryName,
+                phone: input.phone,
+              } as Prisma.InputJsonValue,
+            });
+
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+              flow: session.currentFlow || undefined,
+              step: 'CANCEL_CONFIRMATION',
+            };
+          } else {
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: 'USER_REQUEST',
+              currentStep: 'POST_CANCEL',
+              tempData: { ...freshTempData } as Prisma.InputJsonValue,
+            });
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: 'Entendido, cancelé el pedido.\n1. Iniciar un nuevo pedido\n2. Por ahora no, gracias',
+              flow: 'USER_REQUEST',
+              step: 'POST_CANCEL',
+            };
           }
         } else if (role === 'PROFESSIONAL') {
           const professional = await this.professionalsRepository.findByPhone(input.phone);
@@ -608,10 +637,56 @@ export class BotService {
       }
     }
 
+    if (userText && session.currentStep === 'SELECT_CANCEL_USER_REQUEST' && role === 'USER') {
+      const freshTempData = (session.tempData as Record<string, unknown>) || {};
+      const activeSessions = freshTempData._activeUserSessions as Array<{ requestId: string; categoryName: string }> | undefined;
+
+      if (activeSessions) {
+        const index = parseInt(userText, 10);
+
+        if (index >= 1 && index <= activeSessions.length) {
+          const selected = activeSessions[index - 1];
+
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: session.currentFlow,
+            currentStep: 'CANCEL_CONFIRMATION',
+            tempData: {
+              ...freshTempData,
+              _previousFlow: freshTempData._previousFlow || session.currentFlow,
+              _previousStep: 'SELECT_CANCEL_USER_REQUEST',
+              requestId: selected.requestId,
+              categoryName: selected.categoryName,
+              phone: input.phone,
+            } as Prisma.InputJsonValue,
+          });
+
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: `¿Confirmás que querés cancelar tu pedido de ${selected.categoryName}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+            flow: session.currentFlow || undefined,
+            step: 'CANCEL_CONFIRMATION',
+          };
+        }
+
+        const list = activeSessions
+          .map((s, i) => `${i + 1}. ${s.categoryName || 'Servicio'}`)
+          .join('\n');
+
+        return {
+          text: `Respondé con un número del 1 al ${activeSessions.length}.\n${list}`,
+          flow: session.currentFlow || undefined,
+          step: 'SELECT_CANCEL_USER_REQUEST',
+        };
+      }
+    }
+
     if (
       !session.currentFlow &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
-      session.currentStep !== 'SELECT_CANCEL_REQUEST'
+      session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
+      session.currentStep !== 'SELECT_CANCEL_USER_REQUEST' &&
+      session.currentStep !== 'SELECT_ACTIVE_REQUEST'
     ) {
       if (role === 'PROFESSIONAL') {
         const state = await this.resolveProfessionalState(input.phone, input.text);
@@ -647,7 +722,46 @@ export class BotService {
       }
 
       if (!session.currentFlow && role === 'USER' && input.text?.trim()) {
-        if (!hasActionableContent(input.text.trim())) {
+        const userSessions = await this.botRepository.findActiveUserRequestSessions(input.phone);
+
+        if (userSessions.length > 1) {
+          const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+          const list = userSessions
+            .map((s, i) => {
+              const data = (s.tempData as Record<string, unknown>) || {};
+              return `${i + 1}. ${(data.categoryName as string) || 'Servicio'}`;
+            })
+            .join('\n');
+
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: 'USER_REQUEST',
+            currentStep: 'SELECT_ACTIVE_REQUEST',
+            tempData: {
+              ...sessionTempData,
+              _activeUserSessions: userSessions.map((s) => ({
+                requestId: s.requestId,
+                categoryName: (s.tempData as Record<string, unknown>)?.categoryName,
+              })),
+            } as Prisma.InputJsonValue,
+          });
+
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: `Tenés estos pedidos activos:\n${list}\n\n¿Sobre cuál querés continuar? Respondé con el número.`,
+            flow: 'USER_REQUEST',
+            step: 'SELECT_ACTIVE_REQUEST',
+          };
+        }
+
+        if (userSessions.length === 1) {
+          const activeSession = userSessions[0];
+          session.currentFlow = 'USER_REQUEST';
+          session.currentStep = activeSession.currentStep || 'WAITING';
+          session.tempData = activeSession.tempData;
+        }
+
+        if (!session.currentFlow && !hasActionableContent(input.text.trim())) {
           return {
             text: '¡Hola! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.',
             flow: undefined,
@@ -655,30 +769,32 @@ export class BotService {
           };
         }
 
-        const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
-        const [extracted, extractedName] = await Promise.all([
-          extractServiceAndZone(input.text.trim()),
-          extractName(input.text.trim()),
-        ]);
-        const sessionTempData = (session.tempData as Record<string, unknown>) || {};
-        if (extracted.serviceName || extracted.zoneName) {
-          sessionTempData._extractedServiceName = extracted.serviceName;
-          sessionTempData._extractedZoneName = extracted.zoneName;
-        }
-        const isNameless = !userIdentity.name || userIdentity.name === userIdentity.phone;
-        if (extractedName && isNameless) {
-          sessionTempData.name = extractedName;
-          sessionTempData._isNewUser = true;
-          await this.usersService.updateName(userIdentity.userId, extractedName);
-        }
-        if (extracted.serviceName || extracted.zoneName || (extractedName && isNameless)) {
-          const handler = resolveFlowHandler(role);
-          session = await this.botRepository.upsert(input.phone, {
-            role,
-            currentFlow: handler.flowName,
-            currentStep: handler.getInitialStep(),
-            tempData: { ...sessionTempData } as Prisma.InputJsonValue,
-          });
+        if (!session.currentFlow) {
+          const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
+          const [extracted, extractedName] = await Promise.all([
+            extractServiceAndZone(input.text.trim()),
+            extractName(input.text.trim()),
+          ]);
+          const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+          if (extracted.serviceName || extracted.zoneName) {
+            sessionTempData._extractedServiceName = extracted.serviceName;
+            sessionTempData._extractedZoneName = extracted.zoneName;
+          }
+          const isNameless = !userIdentity.name || userIdentity.name === userIdentity.phone;
+          if (extractedName && isNameless) {
+            sessionTempData.name = extractedName;
+            sessionTempData._isNewUser = true;
+            await this.usersService.updateName(userIdentity.userId, extractedName);
+          }
+          if (extracted.serviceName || extracted.zoneName || (extractedName && isNameless)) {
+            const handler = resolveFlowHandler(role);
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: handler.flowName,
+              currentStep: handler.getInitialStep(),
+              tempData: { ...sessionTempData } as Prisma.InputJsonValue,
+            });
+          }
         }
       }
 
@@ -697,6 +813,50 @@ export class BotService {
       !session.currentFlow
     ) {
       session.currentFlow = 'COORDINATION';
+    }
+
+    if (
+      userText &&
+      session.currentStep === 'SELECT_ACTIVE_REQUEST' &&
+      role === 'USER'
+    ) {
+      const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+      const activeSessions = sessionTempData._activeUserSessions as Array<{ requestId: string; categoryName: string }> | undefined;
+
+      if (activeSessions) {
+        const index = parseInt(userText, 10);
+
+        if (index >= 1 && index <= activeSessions.length) {
+          const selected = activeSessions[index - 1];
+          const fullSession = await this.botRepository.findUserRequestSessionByRequestId(selected.requestId);
+
+          if (fullSession) {
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: 'USER_REQUEST',
+              currentStep: 'WAITING',
+              tempData: fullSession.tempData as Prisma.InputJsonValue,
+            });
+
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: `Seleccionaste tu pedido de ${selected.categoryName}. ¿Qué querés hacer?\n1. Ver estado\n2. Cancelar`,
+              flow: 'USER_REQUEST',
+              step: 'WAITING',
+            };
+          }
+        }
+
+        const list = activeSessions
+          .map((s, i) => `${i + 1}. ${s.categoryName || 'Servicio'}`)
+          .join('\n');
+
+        return {
+          text: `Respondé con un número del 1 al ${activeSessions.length}.\n${list}`,
+          flow: 'USER_REQUEST',
+          step: 'SELECT_ACTIVE_REQUEST',
+        };
+      }
     }
 
     const flowHandler = getFlowHandlerByName(session.currentFlow || '');
@@ -817,6 +977,14 @@ export class BotService {
         tempData: {} as Prisma.InputJsonValue,
       });
     } else {
+      if (role === 'USER' && !result.nextStep) {
+        const oldTempData = (session.tempData as Record<string, unknown>) || {};
+        const requestId = oldTempData.requestId as string | undefined;
+        if (requestId) {
+          await this.botRepository.deleteUserRequestSession(requestId);
+        }
+      }
+
       updatedSession = await this.botRepository.upsert(input.phone, {
         role,
         currentFlow: result.nextStep ? session.currentFlow : null,
@@ -861,6 +1029,22 @@ export class BotService {
           tempData: targetTempData as Prisma.InputJsonValue,
         });
       }
+    }
+
+    if (role === 'USER' && result.response.requestId) {
+      const sessionTempData = (session.tempData as Record<string, unknown>) || {};
+      await this.botRepository.upsertUserRequestSession(
+        input.phone,
+        result.response.requestId,
+        result.nextStep ?? null,
+        {
+          userId: sessionTempData.userId,
+          phone: input.phone,
+          requestId: result.response.requestId,
+          categoryName: sessionTempData.categoryName,
+          categoryId: sessionTempData.categoryId,
+        },
+      );
     }
 
     return {
