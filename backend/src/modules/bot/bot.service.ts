@@ -870,17 +870,16 @@ export class BotService {
 
       if (resolved === '1' || resolved.toLowerCase() === 'sí' || resolved.toLowerCase() === 'si') {
         session = await this.botRepository.upsert(input.phone, {
-          role,
-          currentFlow: null,
-          currentStep: null,
-          tempData: {} as Prisma.InputJsonValue,
-        });
-        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-        return {
-          text: '¡Perfecto! ¿Qué servicio necesitás?',
-          flow: undefined,
-          step: undefined,
-        };
+	role,
+	currentFlow: 'USER_REQUEST',
+	currentStep: 'INIT',
+	tempData: {} as Prisma.InputJsonValue,
+	});
+	return {
+	  text: '¡Perfecto! ¿Qué otro servicio necesitás?',
+	  flow: 'USER_REQUEST',
+	  step: 'INIT',
+	};
       } else {
         session = await this.botRepository.upsert(input.phone, {
           role,
