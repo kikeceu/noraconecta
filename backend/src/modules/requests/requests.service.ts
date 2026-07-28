@@ -104,10 +104,11 @@ export class RequestsService {
       throw new AppError('User is blocked', 403);
     }
 
-    const activeRequest = await this.requestsRepository.findActiveByUserId(user.id);
+    const activeRequests = await this.requestsRepository.findActivesByUserId(user.id);
+    const hasSameCategory = activeRequests.some((r) => r.categoryId === input.categoryId);
 
-    if (activeRequest) {
-      throw new AppError('User already has an active request', 409);
+    if (hasSameCategory) {
+      throw new AppError('User already has an active request for this category', 409);
     }
 
     const request = await this.requestsRepository.create({
