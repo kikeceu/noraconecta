@@ -598,20 +598,7 @@ export class CoordinationService {
       scheduledAt: scheduledAt.toISOString(),
     });
 
-    const clientAvailability = request.clientAvailability ?? undefined;
-
-    let userProposedAt: Date | null = null;
-    if (clientAvailability) {
-      const availabilityResult = await parseDateTimeNatural(clientAvailability, new Date());
-      console.log('[confirmVisit] clientAvailability parsed:', {
-    	input: clientAvailability,
-    	result: availabilityResult,
-      });
-      if (availabilityResult.success) {
-        userProposedAt = availabilityResult.date;
-      }
-    }
-
+    const userProposedAt: Date | null = request.scheduledAt ?? null;
     const isAlternative = !userProposedAt || !isSameSchedule(scheduledAt, userProposedAt);
 
     console.log('[CoordinationService.confirmVisit] Alternative detection:', {
