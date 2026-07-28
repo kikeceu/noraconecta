@@ -41,6 +41,7 @@ const STEPS_EXPECTING_RESPONSE = [
   'CONFIRM_PRO_AVAILABILITY',
   'AWAITING_VISIT',
   'AWAITING_AVAILABILITY',
+  'SELECT_NEW_REQUEST_CONFIRM',
 ];
 
 function hasActionableContent(text: string): boolean {
@@ -437,7 +438,8 @@ export class BotService {
       (session.currentFlow || role === 'PROFESSIONAL') &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
       session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
-      session.currentStep !== 'SELECT_CANCEL_USER_REQUEST'
+      session.currentStep !== 'SELECT_CANCEL_USER_REQUEST' &&
+      session.currentStep !== 'SELECT_NEW_REQUEST_CONFIRM'
     ) {
       const hasCancelIntent = await detectCancellationIntent(userText);
 
@@ -859,6 +861,90 @@ export class BotService {
       }
     }
 
+    if (
+      role === 'USER' &&
+      session.currentStep === 'SELECT_NEW_REQUEST_CONFIRM' &&
+      userText
+    ) {
+      const resolved = userText.trim();
+
+      if (resolved === '1' || resolved.toLowerCase() === 'sí' || resolved.toLowerCase() === 'si') {
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: null,
+          currentStep: null,
+          tempData: {} as Prisma.InputJsonValue,
+        });
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+        return {
+          text: '¡Perfecto! ¿Qué servicio necesitás?',
+          flow: undefined,
+          step: undefined,
+        };
+      } else {
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: 'COORDINATION',
+          currentStep: 'AWAITING_VISIT',
+          tempData: session.tempData as Prisma.InputJsonValue,
+        });
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+        return {
+          text: 'Perfecto, te avisamos cuando haya novedades.',
+          flow: 'COORDINATION',
+          step: 'AWAITING_VISIT',
+        };
+      }
+    }
+
+    if (
+      role === 'USER' &&
+      session.currentFlow === 'COORDINATION' &&
+      session.currentStep === 'AWAITING_VISIT' &&
+      userText
+    ) {
+      const userSessions = await this.botRepository.findActiveUserRequestSessions(input.phone);
+
+      const scheduledSessions = userSessions.filter((s) => {
+        const data = (s.tempData as Record<string, unknown>) || {};
+        return data.professionalName && data.scheduledAt;
+      });
+
+      if (scheduledSessions.length > 0) {
+        const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+        const visitList = scheduledSessions.map((s) => {
+          const data = (s.tempData as Record<string, unknown>) || {};
+          const professionalName = data.professionalName as string;
+          const categoryName = data.categoryName as string;
+          const scheduledAt = data.scheduledAt as string;
+          const date = new Date(scheduledAt);
+          const argDate = new Date(date.getTime() - 3 * 60 * 60 * 1000);
+          const dayName = dayNames[argDate.getUTCDay()];
+          const hours = argDate.getUTCHours().toString().padStart(2, '0');
+          const minutes = argDate.getUTCMinutes().toString().padStart(2, '0');
+          return `${professionalName} (${categoryName}) - ${dayName} a las ${hours}:${minutes}`;
+        }).join('\n');
+
+        const responseText = scheduledSessions.length === 1
+          ? `Tenés una visita coordinada con ${visitList}.\nSi querés cancelarla, escribí "cancelar".\n\n¿Querés hacer un nuevo pedido de otro servicio?\n1. Sí\n2. No, gracias`
+          : `Tenés estas visitas coordinadas:\n${visitList}\nSi querés cancelar alguna, escribí "cancelar".\n\n¿Querés hacer un nuevo pedido de otro servicio?\n1. Sí\n2. No, gracias`;
+
+        session = await this.botRepository.upsert(input.phone, {
+          role,
+          currentFlow: 'COORDINATION',
+          currentStep: 'SELECT_NEW_REQUEST_CONFIRM',
+          tempData: session.tempData as Prisma.InputJsonValue,
+        });
+
+        await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+        return {
+          text: responseText,
+          flow: 'COORDINATION',
+          step: 'SELECT_NEW_REQUEST_CONFIRM',
+        };
+      }
+    }
+
     const flowHandler = getFlowHandlerByName(session.currentFlow || '');
     if (!flowHandler) {
       await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
@@ -991,6 +1077,18 @@ export class BotService {
         currentStep: result.nextStep || null,
         tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
       });
+
+      if (role === 'USER' && result.nextStep) {
+        const requestId = finalTempData.requestId as string | undefined;
+        if (requestId) {
+          await this.botRepository.upsertUserRequestSession(
+            input.phone,
+            requestId,
+            result.nextStep,
+            finalTempData,
+          );
+        }
+      }
     }
 
     if (pendingNotification) {
