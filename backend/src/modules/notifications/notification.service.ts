@@ -205,16 +205,18 @@ export class NotificationService {
     });
   }
 
-  async notifyUserNoResponse(user: UserInfo): Promise<void> {
-    const message =
-      'No encontramos un profesional disponible para tu pedido en este momento. Podés intentarlo nuevamente más tarde.\n\n1. Sí, avisame\n2. Por ahora no, gracias';
+  async notifyUserNoResponse(user: UserInfo, categoryName?: string): Promise<void> {
+    const serviceText = categoryName
+      ? `para tu pedido de ${categoryName}`
+      : 'para tu pedido';
+    const message = `No encontramos un profesional disponible ${serviceText} en este momento. Podés intentarlo nuevamente más tarde.\n\n1. Sí, avisame\n2. Por ahora no, gracias`;
 
     await this.sendWithWindowCheck(
       user.phone,
       'USER',
       message,
       'nora_user_sin_profesional',
-      [],
+      [categoryName || ''],
       [
         { payload: BOT_PAYLOADS.NOTIFY_WHEN_AVAILABLE, text: 'Sí, avisame' },
         { payload: BOT_PAYLOADS.NO_NOTIFY, text: 'Por ahora no' },
