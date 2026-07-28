@@ -143,7 +143,7 @@ export class UserRequestFlow implements FlowHandler {
       if (cancelAliases.some((c) => inputNormalized.includes(c))) {
         const userId = tempData.userId as string;
         if (userId) {
-          const activeRequest = await prisma.request.findFirst({
+          const activeRequests = await prisma.request.findMany({
             where: {
               userId,
               status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
@@ -153,7 +153,8 @@ export class UserRequestFlow implements FlowHandler {
               category: { select: { name: true } },
             },
           });
-          if (activeRequest) {
+          if (activeRequests.length === 1) {
+            const activeRequest = activeRequests[0];
             const categoryName = activeRequest.category?.name || 'el servicio';
             return {
               response: {
@@ -239,38 +240,46 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
-    const activeRequest = await prisma.request.findFirst({
+    const activeRequests = await prisma.request.findMany({
       where: {
         userId,
-        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED'] },
+        OR: [
+          { status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'PENDING_CONFIRMATION'] } },
+          { status: 'NO_RESPONSE', waitingUserConsent: true },
+        ],
       },
+      include: { category: { select: { name: true, id: true } } },
     });
 
-    if (activeRequest) {
-      let statusText: string;
+    const currentCategoryId = tempData.categoryId as string | undefined;
+    if (currentCategoryId) {
+      const sameCategory = activeRequests.find((r) => r.categoryId === currentCategoryId);
+      if (sameCategory) {
+        let statusText: string;
 
-      switch (activeRequest.status) {
-        case 'CREATED':
-          statusText =
-            'Estamos buscando un profesional para tu pedido. Te avisamos en cuanto confirmemos uno.';
-          break;
-        case 'ASSIGNED':
-          statusText =
-            'Ya asignamos un profesional para tu pedido, está por confirmar. Te avisamos en breve.';
-          break;
-        case 'ACCEPTED':
-          statusText =
-            'Tu profesional ya aceptó el pedido y está coordinando la visita con vos.';
-          break;
-        default:
-          statusText = 'Tenés un pedido en curso. Te avisamos cuando haya novedades.';
+        switch (sameCategory.status) {
+          case 'CREATED':
+            statusText =
+              'Estamos buscando un profesional para tu pedido de ' + (sameCategory.category?.name || 'este servicio') + '. Te avisamos en cuanto confirmemos uno.';
+            break;
+          case 'ASSIGNED':
+            statusText =
+              'Ya asignamos un profesional para tu pedido de ' + (sameCategory.category?.name || 'este servicio') + ', está por confirmar. Te avisamos en breve.';
+            break;
+          case 'ACCEPTED':
+            statusText =
+              'Tu profesional ya aceptó el pedido de ' + (sameCategory.category?.name || 'este servicio') + ' y está coordinando la visita con vos.';
+            break;
+          default:
+            statusText = 'Tenés un pedido de ' + (sameCategory.category?.name || 'este servicio') + ' en curso. Te avisamos cuando haya novedades.';
+        }
+
+        return {
+          response: { text: statusText },
+          nextStep: null,
+          tempData,
+        };
       }
-
-      return {
-        response: { text: statusText },
-        nextStep: null,
-        tempData,
-      };
     }
 
     const hasName = currentName && currentName !== phone;
