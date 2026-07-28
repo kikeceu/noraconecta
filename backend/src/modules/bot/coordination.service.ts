@@ -520,6 +520,7 @@ export class CoordinationService {
         coordinationStatus: true,
         clientAvailability: true,
         clientAddress: true,
+        scheduledAt: true,
         userId: true,
         userLatitude: true,
         userLongitude: true,
@@ -622,7 +623,7 @@ export class CoordinationService {
       if (request.user?.phone) {
         const professionalName = request.assignedProfessional?.name || 'El profesional';
         const categoryName = request.category?.name || 'el servicio';
-        const availability = clientAvailability || 'ese horario';
+        const availability = request.clientAvailability || 'ese horario';
 
         const alternativeText = formatDateTimeArgentina(scheduledAt);
 
@@ -655,7 +656,7 @@ export class CoordinationService {
             categoryName: request.category?.name,
             description: request.description,
             alternativeScheduledAt: scheduledAt.toISOString(),
-            availability: clientAvailability,
+            availability: request.clientAvailability,
             negotiationRounds: 0,
           } as Prisma.InputJsonValue,
         });
