@@ -61,6 +61,7 @@ Si es ambiguo o no se puede determinar, devolvé:
 {"error": "ambiguo"}`;
 
   try {
+    console.log('[parseDateTimeNatural] prompt:', prompt);
     const response = await callLLM(prompt);
     console.log('[parseDateTimeNatural] raw response:', JSON.stringify(response)); // AGREGAR
     const parsed = JSON.parse(response.trim());
