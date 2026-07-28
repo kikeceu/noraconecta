@@ -435,7 +435,7 @@ export class BotService {
     const userText = input.text?.trim();
     if (
       userText &&
-      (session.currentFlow || role === 'PROFESSIONAL') &&
+      (session.currentFlow || role === 'PROFESSIONAL' || role === 'USER') &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
       session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
       session.currentStep !== 'SELECT_CANCEL_USER_REQUEST' &&
@@ -488,7 +488,7 @@ export class BotService {
 
             await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
             return {
-              text: `¿Cuál pedido querés cancelar?\n${list}`,
+              text: `¿Cuál pedido querés cancelar?\n${list}\n${userSessions.length + 1}. No quiero cancelar ninguno`,
               flow: session.currentFlow || undefined,
               step: 'SELECT_CANCEL_USER_REQUEST',
             };
@@ -696,6 +696,21 @@ export class BotService {
           };
         }
 
+        if (index === activeSessions.length + 1) {
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: 'COORDINATION',
+            currentStep: 'AWAITING_VISIT',
+            tempData: { ...freshTempData } as Prisma.InputJsonValue,
+          });
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: 'Entendido, no se canceló ningún pedido.',
+            flow: 'COORDINATION',
+            step: 'AWAITING_VISIT',
+          };
+        }
+
         const normalized = userText.toLowerCase().trim();
         if (normalized === 'salir' || normalized === 'no' || normalized === 'no quiero cancelar') {
           session = await this.botRepository.upsert(input.phone, {
@@ -777,7 +792,13 @@ export class BotService {
           const list = userSessions
             .map((s, i) => {
               const data = (s.tempData as Record<string, unknown>) || {};
-              return `${i + 1}. ${(data.categoryName as string) || 'Servicio'}`;
+              const categoryName = (data.categoryName as string) || 'Servicio';
+              const geoNodeName = data.geoNodeName as string | undefined;
+              const clientAddress = data.clientAddress as string | undefined;
+              let label = categoryName;
+              if (geoNodeName) label += ` en ${geoNodeName}`;
+              if (clientAddress) label += ` - ${clientAddress}`;
+              return `${i + 1}. ${label}`;
             })
             .join('\n');
 
@@ -787,16 +808,21 @@ export class BotService {
             currentStep: 'SELECT_ACTIVE_REQUEST',
             tempData: {
               ...sessionTempData,
-              _activeUserSessions: userSessions.map((s) => ({
-                requestId: s.requestId,
-                categoryName: (s.tempData as Record<string, unknown>)?.categoryName,
-              })),
+              _activeUserSessions: userSessions.map((s) => {
+                const data = (s.tempData as Record<string, unknown>) || {};
+                return {
+                  requestId: s.requestId,
+                  categoryName: data.categoryName,
+                  geoNodeName: data.geoNodeName,
+                  clientAddress: data.clientAddress,
+                };
+              }),
             } as Prisma.InputJsonValue,
           });
 
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
           return {
-            text: `Tenés estos pedidos activos:\n${list}\n\n¿Sobre cuál querés continuar? Respondé con el número.`,
+            text: `Tenés estos pedidos activos:\n${list}\n${userSessions.length + 1}. Hacer un nuevo pedido\n\n¿Sobre cuál querés continuar? Respondé con el número.`,
             flow: 'USER_REQUEST',
             step: 'SELECT_ACTIVE_REQUEST',
           };
@@ -893,6 +919,21 @@ export class BotService {
               step: 'WAITING',
             };
           }
+        }
+
+        if (index === activeSessions.length + 1) {
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: 'USER_REQUEST',
+            currentStep: 'INIT',
+            tempData: {} as Prisma.InputJsonValue,
+          });
+          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+          return {
+            text: '¡Perfecto! ¿Qué otro servicio necesitás?',
+            flow: 'USER_REQUEST',
+            step: 'INIT',
+          };
         }
 
         const list = activeSessions
