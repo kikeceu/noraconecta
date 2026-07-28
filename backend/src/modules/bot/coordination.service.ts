@@ -422,7 +422,7 @@ export class CoordinationService {
 
       if (userPhone) {
         const categoryName = visit.category?.name || 'el servicio';
-        let userMessage = `Recordatorio: ${professionalName} visita tu domicilio mañana a las ${hours}:${minutes}.`;
+        let userMessage = `Recordatorio: ${professionalName} (${categoryName}) visita tu domicilio mañana a las ${hours}:${minutes}.`;
         if (securityCode) {
           userMessage += `\n\n🔐 Código de seguridad: *${securityCode}*\nCuando llegue, pedile este código para confirmar su identidad.`;
         }
