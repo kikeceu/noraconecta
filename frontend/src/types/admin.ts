@@ -276,6 +276,17 @@ export interface DashboardMetrics {
   unfulfilledDemand: { categoryName: string; geoNodeName: string; count: number }[];
 }
 
+export interface DemandInsights {
+  byCategory: {
+    categoryName: string;
+    geoNodeName: string;
+    count: number;
+    lastDate: string;
+  }[];
+  total: number;
+  totalCategories: number;
+}
+
 export interface PromptTemplate {
   key: string;
   content: string;

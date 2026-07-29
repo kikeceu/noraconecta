@@ -61,6 +61,20 @@ export class AdminController {
     }
   }
 
+  async getDemandInsights(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { geoNodeId } = req.query as { geoNodeId?: string };
+      const data = await adminService.getDemandInsights(geoNodeId || undefined);
+      res.status(200).json({ data });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getMembershipDiscount(
     _req: Request,
     res: Response,
