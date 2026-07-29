@@ -67,8 +67,8 @@ noraconecta/                   # Monorepo root (npm workspaces)
    │   │   │   ├── admin/
    │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount, GET /admin/prompts, PATCH /admin/prompts/:key, POST /admin/prompts/:key/reset, POST /admin/prompts/:key/invalidate-cache — AUT-334, AUT-399
    │   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount, listPrompts, updatePrompt, resetPrompt, invalidatePromptCache — AUT-334, AUT-399
-   │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334
-   │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter
+    │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334. getMetrics incluye unfulfilledDemand (demanda insatisfecha NOT_FULFILLED por categoría/zona, últimos 30 días) — AUT-481
+   │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter. getUnfulfilledDemand: groupBy NOT_FULFILLED por categoryId/geoNodeId (últimos 30 días, orden desc) + resolución de nombres — AUT-481
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 4 endpoints under /plans (GET, POST, PATCH, DELETE)
 │   │   │   │   ├── plans.controller.ts # Request validation, response formatting. create/update aceptan features, deactivate endpoint — AUT-340
@@ -200,7 +200,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── SimulatorPage.tsx       # Main simulator page: composes all chat components, phone/role state
 │   │   │   ├── admin/                  # Admin panel pages (NEW)
 │   │   │   │   ├── LoginPage.tsx               # Centered login form (email + password)
-│   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332)
+ │   │   │   │   ├── DashboardPage.tsx           # Metrics cards + paneles de rendimiento + seccion "Analisis" con 3 graficos Recharts (linea con rango 7/15/30d, barras por estado, donut por estado) + filtro jerárquico Provincia → Departamento (AUT-209, AUT-332). Card "Demanda sin cobertura" (total NOT_FULFILLED, trend warning) + gráfico de barras top 8 categorías/zonas sin cubrir, últimos 30 días (solo si hay datos) — AUT-481
 │   │   │   │   ├── ProfessionalsPage.tsx        # Table with status filter, hierarchical geo filter (Provincia → Departamento), badges, pagination, columna Categoría (category.name, "—" si no tiene) entre Zona y Teléfono — AUT-458, phone column between zone and status, botón "Nuevo profesional" con modal de alta directa en 2 pasos: Paso 1 (datos básicos) + Paso 2 (disponibilidad con días/horarios, opcional) — AUT-351, AUT-354. Filtro "Con cambios pendientes" e ícono de alerta naranja en profesionales con data changes PENDING — AUT-359 (AUT-205, AUT-341)
 │   │   │   │   ├── ProfessionalDetailPage.tsx   # Personal info, docs, history, approve/reject/suspend, generate session URL (enabled only for ACTIVE/OBSERVATION/PAUSED; blocked for PENDING/UNDER_REVIEW), credencial habilitante con approve/reject — AUT-324, sección Membresía con consulta de estado, botón contextual (Asignar/Cambiar plan/Renovar) y cancelación (SUPERADMIN only) — AUT-350, AUT-353, botón "Editar" (SUPERADMIN) redirige a página de edición — AUT-355. Tabla comparativa anterior → nuevo en cambios pendientes con links "Ver archivo" para URLs — AUT-359 (AUT-205)
 │   │   │   │   ├── ProfessionalEditPage.tsx     # Página de edición completa con 3 tabs (Básicos, Identidad, Perfil), upload de archivos con presigned URLs a R2, disponibilidad por días/horarios — AUT-355
@@ -694,7 +694,7 @@ Soporta filtro jerárquico por zona geográfica vía `geoNodeId` query param (AU
 
 | Endpoint                       | Método | Descripción                          | Auth requerida |
 |-------------------------------|--------|--------------------------------------|----------------|
-| `/admin/metrics`               | GET    | Dashboard KPIs (orders, professionals, escalations, feedback). Opcional: `?geoNodeId=<id>` para filtrar por zona | OPERATOR |
+| `/admin/metrics`               | GET    | Dashboard KPIs (orders, professionals, escalations, feedback, unfulfilledDemand — demanda insatisfecha NOT_FULFILLED por categoría/zona, últimos 30 días — AUT-481). Opcional: `?geoNodeId=<id>` para filtrar por zona | OPERATOR |
 | `/admin/geo-tree`              | GET    | Árbol geográfico jerárquico (Provincia → Departamento) para selector de filtro | OPERATOR |
 | `/admin/requests/auto-close`   | POST   | Trigger manual de auto-cierre de pedidos PENDING_CONFIRMATION > 24h (testing) | SUPERADMIN |
 
@@ -2591,7 +2591,7 @@ Panel de administración completo con 11 pantallas. Autenticación JWT en memori
 | Ruta | Pantalla | Rol mínimo | Funcionalidad |
 |------|----------|-----------|--------------|
 | `/admin/login` | Login | Ninguno | Formulario email + contraseña → JWT en memoria |
-| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado + sección "Análisis" con 3 gráficos Recharts (línea con selector 7d/15d/30d, pedidos por estado, profesionales por estado); H1 unificado con `text-4xl font-black tracking-tighter` (AUT-207, AUT-209) |
+| `/admin` | Dashboard | OPERATOR | 4 métricas + rendimiento + profesionales por estado + sección "Análisis" con 3 gráficos Recharts (línea con selector 7d/15d/30d, pedidos por estado, profesionales por estado); H1 unificado con `text-4xl font-black tracking-tighter` (AUT-207, AUT-209). Card "Demanda sin cobertura" + gráfico de barras top 8 de demanda insatisfecha NOT_FULFILLED últimos 30 días (AUT-481) |
 | `/admin/professionals` | Lista Profesionales | OPERATOR | Tabla desktop + cards mobile (<lg) con estado, zona, teléfono, DNI, registro y CTA de detalle; paginación compartida (AUT-207) |
 | `/admin/professionals/:id` | Detalle Profesional | OPERATOR | Info, docs R2, historial, acciones SUPERADMIN |
 | `/admin/users` | Usuarios | OPERATOR | Tabla desktop + cards mobile (<lg) con badge de bloqueo y acción bloquear/desbloquear; footer métricas + paginación (AUT-207) |
