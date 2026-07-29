@@ -447,6 +447,7 @@ export class BotService {
       session.currentStep !== 'SELECT_NEW_REQUEST_CONFIRM'
     ) {
       const hasCancelIntent = await detectCancellationIntent(userText);
+      console.log('[cancelIntent]', userText, '->', hasCancelIntent);
 
       if (hasCancelIntent) {
         const freshTempData = (session.tempData as Record<string, unknown>) || {};

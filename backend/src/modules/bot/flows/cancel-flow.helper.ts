@@ -26,11 +26,10 @@ export function isCancellationIntent(text: string): boolean {
 export async function detectCancellationIntent(text: string): Promise<boolean> {
   if (isCancellationIntent(text)) return true;
 
-  const prompt = await promptService.getPrompt('detect_cancellation_intent', { text });  
+  const prompt = await promptService.getPrompt('detect_cancellation_intent', { text });
 
   try {
     const response = await callLLM(prompt);
-    console.log('[detectCancellationIntent] text:', text, '| response:', response.trim());
     return response.trim().toUpperCase() === 'SI';
   } catch {
     return false;
