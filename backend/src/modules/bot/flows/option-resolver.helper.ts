@@ -114,6 +114,10 @@ export const STEP_OPTIONS: Record<string, StepOption[]> = {
     { value: 'NEW_REQUEST', label: 'Iniciar un nuevo pedido', aliases: ['1', 'iniciar', 'nuevo pedido', 'si', 'sí', 'quiero otro'] },
     { value: 'NO', label: 'Por ahora no, gracias', aliases: ['2', 'no', 'por ahora no', 'gracias', 'no gracias'] },
   ],
+  SELECT_REQUEST_ACTION: [
+    { value: 'VIEW_STATUS', label: 'Ver estado', aliases: ['1', 'ver estado', 'estado', 'ver', 'como va', 'cómo va'] },
+    { value: 'CANCEL', label: 'Cancelar', aliases: ['2', 'cancelar', 'cancelo', 'anular'] },
+  ],
 };
 
 function normalizeText(text: string): string {

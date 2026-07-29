@@ -12,6 +12,7 @@ import { callLLM, transcribeAudio } from '../../../lib/llm-client';
 import { reverseGeocode } from '../../../lib/nominatim-client';
 import prisma from '../../../lib/prisma';
 import { promptService } from '../../prompts/prompt.service';
+import { getDayArgentina, getHoursArgentina, getMinutesArgentina } from '../../../utils/date-utils';
 
 const nlpService = new NlpService();
 
@@ -199,6 +200,10 @@ export class UserRequestFlow implements FlowHandler {
         return this.handleWaitingConsent(message, tempData);
       case 'WAITING':
         return this.handleWaiting(tempData);
+      case 'SELECT_REQUEST_ACTION':
+        return this.handleSelectRequestAction(message, tempData);
+      case 'VIEW_REQUEST_STATUS':
+        return this.handleViewRequestStatus(tempData);
       case 'CANCEL_CONFIRMATION':
         return handleCancelConfirmation(context, this.requestsService, this.notificationService);
       case 'POST_CANCEL':
@@ -1630,6 +1635,100 @@ export class UserRequestFlow implements FlowHandler {
           `Perfecto, te aviso en cuanto encuentre a alguien. ` +
           `Si en 24hs no apareció nadie, te lo hago saber.`,
         requestId,
+      },
+      nextStep: null,
+      tempData: { _clearTempData: true },
+    };
+  }
+
+  private async handleSelectRequestAction(
+    message: { text?: string; buttonPayload?: string },
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const inputText = (message.buttonPayload || message.text || '').trim();
+    const resolved = await resolveOptionWithFallback('SELECT_REQUEST_ACTION', inputText);
+
+    if (resolved === 'VIEW_STATUS') {
+      return this.handleViewRequestStatus(tempData);
+    }
+
+    if (resolved === 'CANCEL') {
+      const categoryName = (tempData.categoryName as string) || 'el servicio';
+      const clientAddress = tempData.clientAddress as string | null;
+
+      return {
+        response: {
+          text: `¿Confirmás que querés cancelar tu pedido de ${categoryName}${clientAddress ? ` en ${clientAddress}` : ''}?\n1. Sí, cancelar\n2. No, seguir con el pedido`,
+        },
+        nextStep: 'CANCEL_CONFIRMATION',
+        tempData: { ...tempData, _previousStep: null },
+      };
+    }
+
+    const categoryName = (tempData.categoryName as string) || 'el servicio';
+    const clientAddress = tempData.clientAddress as string | null;
+
+    return {
+      response: {
+        text: `Seleccionaste tu pedido de ${categoryName}${clientAddress ? ` en ${clientAddress}` : ''}. ¿Qué querés hacer?\n1. Ver estado\n2. Cancelar`,
+      },
+      nextStep: 'SELECT_REQUEST_ACTION',
+      tempData,
+    };
+  }
+
+  private async handleViewRequestStatus(
+    tempData: Record<string, unknown>,
+  ): Promise<FlowStepResult> {
+    const categoryName = (tempData.categoryName as string) || 'el servicio';
+    const scheduledAt = tempData.scheduledAt as string | undefined;
+    const professionalName = tempData.professionalName as string | undefined;
+
+    if (scheduledAt && professionalName) {
+      const professionalId = tempData.professionalId as string | undefined;
+      const clientAddress = tempData.clientAddress as string | null;
+      const securityCode = tempData._securityCode as string | undefined;
+
+      const scheduledDate = new Date(scheduledAt);
+      const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+      const dayName = dayNames[getDayArgentina(scheduledDate)];
+      const hours = getHoursArgentina(scheduledDate).toString().padStart(2, '0');
+      const minutes = getMinutesArgentina(scheduledDate).toString().padStart(2, '0');
+
+      let profileLink: string | null = null;
+      if (professionalId) {
+        const professionalProfile = await prisma.professionalProfile.findUnique({
+          where: { professionalId },
+          select: { photoUrl: true },
+        });
+        if (professionalProfile?.photoUrl) {
+          profileLink = `${process.env.APP_URL || 'https://app.noraconecta.com'}/pro/${professionalId}`;
+        }
+      }
+
+      let text = `📋 Tu pedido de ${categoryName}:\n\n`;
+      text += `👷 Profesional: ${professionalName}\n`;
+      text += `📅 Visita: ${dayName} a las ${hours}:${minutes}\n`;
+      if (clientAddress) {
+        text += `📍 Dirección: ${clientAddress}\n`;
+      }
+      if (securityCode) {
+        text += `🔐 Código de seguridad: *${securityCode}*\n`;
+      }
+      if (profileLink) {
+        text += `👤 Conocé a tu profesional: ${profileLink}\n`;
+      }
+
+      return {
+        response: { text: text.trimEnd() },
+        nextStep: null,
+        tempData: { _clearTempData: true },
+      };
+    }
+
+    return {
+      response: {
+        text: `Estamos buscando un profesional para tu pedido de ${categoryName}. Te avisamos en cuanto tengamos uno.`,
       },
       nextStep: null,
       tempData: { _clearTempData: true },
