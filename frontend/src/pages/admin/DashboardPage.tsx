@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   TrendingDown,
   AlertCircle,
+  AlertTriangle,
+  ChevronDown,
   UserCheck,
   ShoppingBag,
   Percent,
@@ -68,6 +70,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [range, setRange] = useState<7 | 15 | 30>(30);
+  const [unfulfilledExpanded, setUnfulfilledExpanded] = useState(false);
   const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [geoTree, setGeoTree] = useState<{
@@ -138,6 +141,11 @@ export function DashboardPage() {
   );
 
   const ordersLastDaysByRange = metrics.ordersLast30Days.slice(-range);
+
+  const unfulfilledTotal = metrics.unfulfilledDemand.reduce(
+    (total, item) => total + item.count,
+    0,
+  );
 
   const cards = [
     {
@@ -273,6 +281,60 @@ export function DashboardPage() {
         ))}
       </div>
 
+      {/* Unfulfilled demand banner */}
+      {metrics.unfulfilledDemand.length > 0 && (
+        <div className="rounded-xl border border-orange-300 bg-orange-50 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setUnfulfilledExpanded((prev) => !prev)}
+            className="w-full flex items-center justify-between gap-4 px-5 py-3.5 text-left cursor-pointer hover:bg-orange-100/60 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-100 text-orange-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-orange-900">
+                  {unfulfilledTotal} pedido{unfulfilledTotal === 1 ? '' : 's'} sin cobertura
+                </p>
+                <p className="text-xs text-orange-700">
+                  En {metrics.unfulfilledDemand.length} categoría/zona distinta
+                  {metrics.unfulfilledDemand.length === 1 ? '' : 's'} · últimos 30 días
+                </p>
+              </div>
+            </div>
+            <ChevronDown
+              className={`w-5 h-5 text-orange-600 shrink-0 transition-transform ${
+                unfulfilledExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {unfulfilledExpanded && (
+            <div className="border-t border-orange-200 bg-white px-5 py-3">
+              <ul className="divide-y divide-gray-100">
+                {metrics.unfulfilledDemand.map((item, index) => (
+                  <li
+                    key={`${item.categoryName}-${item.geoNodeName}-${index}`}
+                    className="flex items-center justify-between gap-4 py-2"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-gray-900">
+                        {item.categoryName}
+                      </span>
+                      <span className="text-sm text-gray-500"> · {item.geoNodeName}</span>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">
+                      {item.count}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-6">
           <div className="mb-5 flex items-center justify-between gap-4">
@@ -328,6 +390,51 @@ export function DashboardPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
+
+        {metrics.unfulfilledDemand.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-5">
+              Demanda sin cobertura — últimos 30 días
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart
+                data={metrics.unfulfilledDemand.slice(0, 8)}
+                margin={{ top: 8, right: 8, left: 0, bottom: 50 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                <XAxis
+                  dataKey="categoryName"
+                  tick={{ fontSize: 11, fill: '#6B7280' }}
+                  interval={0}
+                  angle={-20}
+                  textAnchor="end"
+                  height={50}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 12, fill: '#6B7280' }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={30}
+                />
+                <Tooltip
+                  formatter={(value) => [value, 'Pedidos sin cubrir']}
+                  labelFormatter={(label, payload) => {
+                    const item = payload?.[0]?.payload as
+                      | { geoNodeName?: string }
+                      | undefined;
+                    return item?.geoNodeName
+                      ? `${label} en ${item.geoNodeName}`
+                      : String(label);
+                  }}
+                />
+                <Bar dataKey="count" fill="#F97316" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl border border-gray-200 p-6">

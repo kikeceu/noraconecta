@@ -32,6 +32,7 @@ export interface AdminMetrics {
   ordersByStatus: { status: string; count: number }[];
   ordersLast30Days: { date: string; count: number }[];
   professionalsByStatus: { status: string; count: number }[];
+  unfulfilledDemand: { categoryName: string; geoNodeName: string; count: number }[];
 }
 
 export class AdminService {
@@ -91,6 +92,7 @@ export class AdminService {
       feedbackStats,
       acceptanceStats,
       ordersLast30Days,
+      unfulfilledDemand,
     ] = await Promise.all([
       this.adminRepository.countOrdersByStatus(geoNodeId),
       this.adminRepository.countRecentOrders(geoNodeId),
@@ -99,6 +101,7 @@ export class AdminService {
       this.adminRepository.getFeedbackStats(geoNodeId),
       this.adminRepository.getAcceptanceStats(geoNodeId),
       this.adminRepository.getOrdersLast30Days(geoNodeId),
+      this.adminRepository.getUnfulfilledDemand(geoNodeId),
     ]);
 
     const activeOrders =
@@ -185,6 +188,7 @@ export class AdminService {
         status: p.status,
         count: p._count,
       })),
+      unfulfilledDemand,
     };
   }
 

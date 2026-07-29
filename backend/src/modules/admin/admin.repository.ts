@@ -21,6 +21,12 @@ interface AcceptanceAggregate {
   } | null;
 }
 
+interface UnfulfilledDemandItem {
+  categoryName: string;
+  geoNodeName: string;
+  count: number;
+}
+
 export class AdminRepository {
   async countOrdersByStatus(geoNodeId?: string): Promise<CountByStatus[]> {
     const result = await prisma.request.groupBy({
@@ -137,6 +143,50 @@ export class AdminRepository {
         acceptanceTimeMinutes: Math.round(totalMinutes / accepted.length),
       },
     };
+  }
+
+  async getUnfulfilledDemand(
+    geoNodeId?: string,
+  ): Promise<UnfulfilledDemandItem[]> {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const grouped = await prisma.request.groupBy({
+      by: ['categoryId', 'geoNodeId'],
+      where: {
+        status: 'NOT_FULFILLED',
+        createdAt: { gte: since },
+        ...(geoNodeId ? { geoNodeId } : {}),
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+
+    if (grouped.length === 0) {
+      return [];
+    }
+
+    const categoryIds = [...new Set(grouped.map((item) => item.categoryId))];
+    const geoNodeIds = [...new Set(grouped.map((item) => item.geoNodeId))];
+
+    const [categories, geoNodes] = await Promise.all([
+      prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true },
+      }),
+      prisma.geoNode.findMany({
+        where: { id: { in: geoNodeIds } },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const geoNodeMap = new Map(geoNodes.map((g) => [g.id, g.name]));
+
+    return grouped.map((item) => ({
+      categoryName: categoryMap.get(item.categoryId) ?? 'Desconocido',
+      geoNodeName: geoNodeMap.get(item.geoNodeId) ?? 'Desconocido',
+      count: item._count.id,
+    }));
   }
 
   async getGeoTree(): Promise<{

@@ -273,6 +273,7 @@ export interface DashboardMetrics {
   ordersByStatus: { status: string; count: number }[];
   ordersLast30Days: { date: string; count: number }[];
   professionalsByStatus: { status: string; count: number }[];
+  unfulfilledDemand: { categoryName: string; geoNodeName: string; count: number }[];
 }
 
 export interface PromptTemplate {
