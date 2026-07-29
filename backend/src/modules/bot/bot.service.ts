@@ -459,7 +459,8 @@ export class BotService {
               .map((s, i) => {
                 const data = (s.tempData as Record<string, unknown>) || {};
                 const categoryName = (data.categoryName as string) || 'Servicio';
-                const geoNodeName = data.geoNodeName as string | undefined;
+                const geoNodeName =
+                  (data.geoNodeName as string) || (data.zoneName as string) || undefined;
                 const clientAddress = data.clientAddress as string | undefined;
 
                 let label = categoryName;
@@ -483,7 +484,8 @@ export class BotService {
                   return {
                     requestId: s.requestId,
                     categoryName: data.categoryName,
-                    geoNodeName: data.geoNodeName,
+                    geoNodeName:
+                      (data.geoNodeName as string) || (data.zoneName as string) || undefined,
                     clientAddress: data.clientAddress,
                   };
                 }),
@@ -800,7 +802,8 @@ export class BotService {
             .map((s, i) => {
               const data = (s.tempData as Record<string, unknown>) || {};
               const categoryName = (data.categoryName as string) || 'Servicio';
-              const geoNodeName = data.geoNodeName as string | undefined;
+              const geoNodeName =
+                (data.geoNodeName as string) || (data.zoneName as string) || undefined;
               const clientAddress = data.clientAddress as string | undefined;
               let label = categoryName;
               if (geoNodeName) label += ` en ${geoNodeName}`;
@@ -820,7 +823,8 @@ export class BotService {
                 return {
                   requestId: s.requestId,
                   categoryName: data.categoryName,
-                  geoNodeName: data.geoNodeName,
+                  geoNodeName:
+                    (data.geoNodeName as string) || (data.zoneName as string) || undefined,
                   clientAddress: data.clientAddress,
                 };
               }),
