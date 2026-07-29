@@ -42,6 +42,8 @@ const STEPS_EXPECTING_RESPONSE = [
   'AWAITING_VISIT',
   'AWAITING_AVAILABILITY',
   'SELECT_NEW_REQUEST_CONFIRM',
+  'SELECT_ACTIVE_REQUEST',
+  'SELECT_REQUEST_ACTION',
 ];
 
 function hasActionableContent(text: string): boolean {
@@ -921,18 +923,22 @@ export class BotService {
           const fullSession = await this.botRepository.findUserRequestSessionByRequestId(selected.requestId);
 
           if (fullSession) {
+            const fullTempData = (fullSession.tempData as Record<string, unknown>) || {};
+            const categoryName = (fullTempData.categoryName as string) || selected.categoryName;
+            const clientAddress = fullTempData.clientAddress as string | null;
+
             session = await this.botRepository.upsert(input.phone, {
               role,
               currentFlow: 'USER_REQUEST',
-              currentStep: 'WAITING',
-              tempData: fullSession.tempData as Prisma.InputJsonValue,
+              currentStep: 'SELECT_REQUEST_ACTION',
+              tempData: fullTempData as Prisma.InputJsonValue,
             });
 
             await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
             return {
-              text: `Seleccionaste tu pedido de ${selected.categoryName}. ¿Qué querés hacer?\n1. Ver estado\n2. Cancelar`,
+              text: `Seleccionaste tu pedido de ${categoryName}${clientAddress ? ` en ${clientAddress}` : ''}. ¿Qué querés hacer?\n1. Ver estado\n2. Cancelar`,
               flow: 'USER_REQUEST',
-              step: 'WAITING',
+              step: 'SELECT_REQUEST_ACTION',
             };
           }
         }
