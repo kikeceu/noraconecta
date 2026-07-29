@@ -440,7 +440,7 @@ export class BotService {
     const userText = input.text?.trim();
     if (
       userText &&
-      (session.currentFlow || role === 'PROFESSIONAL' || role === 'USER') &&
+      (session.currentFlow || role === 'PROFESSIONAL') &&
       session.currentStep !== 'CANCEL_CONFIRMATION' &&
       session.currentStep !== 'SELECT_CANCEL_REQUEST' &&
       session.currentStep !== 'SELECT_CANCEL_USER_REQUEST' &&
@@ -705,33 +705,37 @@ export class BotService {
         }
 
         if (index === activeSessions.length + 1) {
+          const restoredFlow = (freshTempData._previousFlow as string) || null;
+          const restoredStep = (freshTempData._previousStep as string) || null;
           session = await this.botRepository.upsert(input.phone, {
             role,
-            currentFlow: 'COORDINATION',
-            currentStep: 'AWAITING_VISIT',
+            currentFlow: restoredFlow,
+            currentStep: restoredStep,
             tempData: { ...freshTempData } as Prisma.InputJsonValue,
           });
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
           return {
             text: 'Entendido, no se canceló ningún pedido.',
-            flow: 'COORDINATION',
-            step: 'AWAITING_VISIT',
+            flow: restoredFlow || undefined,
+            step: restoredStep || undefined,
           };
         }
 
         const normalized = userText.toLowerCase().trim();
         if (normalized === 'salir' || normalized === 'no' || normalized === 'no quiero cancelar') {
+          const restoredFlow = (freshTempData._previousFlow as string) || null;
+          const restoredStep = (freshTempData._previousStep as string) || null;
           session = await this.botRepository.upsert(input.phone, {
             role,
-            currentFlow: 'COORDINATION',
-            currentStep: 'AWAITING_VISIT',
+            currentFlow: restoredFlow,
+            currentStep: restoredStep,
             tempData: { ...freshTempData } as Prisma.InputJsonValue,
           });
           await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
           return {
             text: 'Entendido, no se canceló ningún pedido.',
-            flow: 'COORDINATION',
-            step: 'AWAITING_VISIT',
+            flow: restoredFlow || undefined,
+            step: restoredStep || undefined,
           };
         }
 
