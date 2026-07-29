@@ -35,6 +35,17 @@ export interface AdminMetrics {
   unfulfilledDemand: { categoryName: string; geoNodeName: string; count: number }[];
 }
 
+export interface DemandInsights {
+  byCategory: {
+    categoryName: string;
+    geoNodeName: string;
+    count: number;
+    lastDate: string;
+  }[];
+  total: number;
+  totalCategories: number;
+}
+
 export class AdminService {
   constructor(
     private readonly adminRepository: AdminRepository,
@@ -196,5 +207,15 @@ export class AdminService {
     provinces: { id: string; name: string; departments: { id: string; name: string }[] }[];
   }> {
     return this.adminRepository.getGeoTree();
+  }
+
+  async getDemandInsights(geoNodeId?: string): Promise<DemandInsights> {
+    const byCategory = await this.adminRepository.getDemandInsights(geoNodeId);
+
+    return {
+      byCategory,
+      total: byCategory.reduce((acc, item) => acc + item.count, 0),
+      totalCategories: new Set(byCategory.map((item) => item.categoryName)).size,
+    };
   }
 }

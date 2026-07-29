@@ -13,6 +13,10 @@ router.get('/geo-tree', requireAuth, (req, res, next) => {
   void adminController.getGeoTree(req, res, next);
 });
 
+router.get('/demand', requireAuth, (req, res, next) => {
+  void adminController.getDemandInsights(req, res, next);
+});
+
 router.post('/requests/auto-close', requireSuperAdmin, (req, res, next) => {
   void adminController.autoCloseRequests(req, res, next);
 });

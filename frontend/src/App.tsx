@@ -10,6 +10,7 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
 import { LoginPage } from './pages/admin/LoginPage';
 import { DashboardPage } from './pages/admin/DashboardPage';
+import { DemandPage } from './pages/admin/DemandPage';
 import { ProfessionalsPage } from './pages/admin/ProfessionalsPage';
 import { ProfessionalDetailPage } from './pages/admin/ProfessionalDetailPage';
 import { ProfessionalEditPage } from './pages/admin/ProfessionalEditPage';
@@ -42,6 +43,7 @@ function renderAdminRoutes(context: HostContext): ReactNode {
       >
         <Route element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="demand" element={<DemandPage />} />
           <Route path="professionals" element={<ProfessionalsPage />} />
           <Route
             path="professionals/:id"

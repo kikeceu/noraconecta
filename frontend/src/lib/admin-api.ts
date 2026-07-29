@@ -5,6 +5,7 @@ import {
 import type {
   LoginResponse,
   DashboardMetrics,
+  DemandInsights,
   Category,
   CountryResponse,
   GeoNode,
@@ -88,6 +89,13 @@ export function getGeoTree(): Promise<{
   };
 }> {
   return request('/admin/geo-tree');
+}
+
+export function getDemandInsights(
+  geoNodeId?: string,
+): Promise<SingleResponse<DemandInsights>> {
+  const query = geoNodeId ? `?geoNodeId=${geoNodeId}` : '';
+  return request<SingleResponse<DemandInsights>>(`/admin/demand${query}`);
 }
 
 // Categories
