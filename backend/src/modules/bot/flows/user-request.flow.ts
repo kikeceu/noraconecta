@@ -1722,7 +1722,7 @@ export class UserRequestFlow implements FlowHandler {
       return {
         response: { text: text.trimEnd() },
         nextStep: null,
-        tempData: { _clearTempData: true },
+        tempData: { _clearTempData: true, _skipSessionDelete: true },
       };
     }
 
@@ -1731,7 +1731,7 @@ export class UserRequestFlow implements FlowHandler {
         text: `Estamos buscando un profesional para tu pedido de ${categoryName}. Te avisamos en cuanto tengamos uno.`,
       },
       nextStep: null,
-      tempData: { _clearTempData: true },
+      tempData: { _clearTempData: true, _skipSessionDelete: true },
     };
   }
 

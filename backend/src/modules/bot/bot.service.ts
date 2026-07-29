@@ -1174,7 +1174,7 @@ export class BotService {
       if (role === 'USER' && !result.nextStep) {
         const oldTempData = (session.tempData as Record<string, unknown>) || {};
         const requestId = oldTempData.requestId as string | undefined;
-        if (requestId) {
+        if (requestId && !result.tempData._skipSessionDelete) {
           await this.botRepository.deleteUserRequestSession(requestId);
         }
       }
