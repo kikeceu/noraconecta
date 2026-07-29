@@ -927,7 +927,14 @@ export class BotService {
       role === 'USER'
     ) {
       const sessionTempData = (session.tempData as Record<string, unknown>) || {};
-      const activeSessions = sessionTempData._activeUserSessions as Array<{ requestId: string; categoryName: string }> | undefined;
+      const activeSessions = sessionTempData._activeUserSessions as
+        | Array<{
+            requestId: string;
+            categoryName: string;
+            geoNodeName?: string;
+            clientAddress?: string;
+          }>
+        | undefined;
 
       if (activeSessions) {
         const index = parseInt(userText, 10);
@@ -972,15 +979,33 @@ export class BotService {
           };
         }
 
-        const list = activeSessions
-          .map((s, i) => `${i + 1}. ${s.categoryName || 'Servicio'}`)
-          .join('\n');
+        if (hasActionableContent(userText)) {
+          // Actionable text (intent to make a new request) → start the flow directly.
+          const handler = resolveFlowHandler(role);
+          session = await this.botRepository.upsert(input.phone, {
+            role,
+            currentFlow: handler.flowName,
+            currentStep: handler.getInitialStep(),
+            tempData: { ...sessionTempData } as Prisma.InputJsonValue,
+          });
+          // Do not return — flow continues towards the dispatch below.
+        } else {
+          // Invalid text → show the full list with zone/address and the new-request option.
+          const list = activeSessions
+            .map((s, i) => {
+              let label = s.categoryName || 'Servicio';
+              if (s.geoNodeName) label += ` en ${s.geoNodeName}`;
+              if (s.clientAddress) label += ` - ${s.clientAddress}`;
+              return `${i + 1}. ${label}`;
+            })
+            .join('\n');
 
-        return {
-          text: `Respondé con un número del 1 al ${activeSessions.length}.\n${list}`,
-          flow: 'USER_REQUEST',
-          step: 'SELECT_ACTIVE_REQUEST',
-        };
+          return {
+            text: `Respondé con un número:\n${list}\n${activeSessions.length + 1}. Hacer un nuevo pedido`,
+            flow: 'USER_REQUEST',
+            step: 'SELECT_ACTIVE_REQUEST',
+          };
+        }
       }
     }
 
