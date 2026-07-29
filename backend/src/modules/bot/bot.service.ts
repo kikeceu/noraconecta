@@ -805,45 +805,59 @@ export class BotService {
 
         if (userSessions.length > 1) {
           const sessionTempData = (session.tempData as Record<string, unknown>) || {};
-          const list = userSessions
-            .map((s, i) => {
-              const data = (s.tempData as Record<string, unknown>) || {};
-              const categoryName = (data.categoryName as string) || 'Servicio';
-              const geoNodeName =
-                (data.geoNodeName as string) || (data.zoneName as string) || undefined;
-              const clientAddress = data.clientAddress as string | undefined;
-              let label = categoryName;
-              if (geoNodeName) label += ` en ${geoNodeName}`;
-              if (clientAddress) label += ` - ${clientAddress}`;
-              return `${i + 1}. ${label}`;
-            })
-            .join('\n');
 
-          session = await this.botRepository.upsert(input.phone, {
-            role,
-            currentFlow: 'USER_REQUEST',
-            currentStep: 'SELECT_ACTIVE_REQUEST',
-            tempData: {
-              ...sessionTempData,
-              _activeUserSessions: userSessions.map((s) => {
+          // If the text has actionable content, the user wants to start a new request.
+          if (hasActionableContent(input.text.trim())) {
+            const handler = resolveFlowHandler(role);
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: handler.flowName,
+              currentStep: handler.getInitialStep(),
+              tempData: { ...sessionTempData } as Prisma.InputJsonValue,
+            });
+            // no return — the normal flow continues below
+          } else {
+            // Text without actionable content (greeting, etc.) → show the active requests list.
+            const list = userSessions
+              .map((s, i) => {
                 const data = (s.tempData as Record<string, unknown>) || {};
-                return {
-                  requestId: s.requestId,
-                  categoryName: data.categoryName,
-                  geoNodeName:
-                    (data.geoNodeName as string) || (data.zoneName as string) || undefined,
-                  clientAddress: data.clientAddress,
-                };
-              }),
-            } as Prisma.InputJsonValue,
-          });
+                const categoryName = (data.categoryName as string) || 'Servicio';
+                const geoNodeName =
+                  (data.geoNodeName as string) || (data.zoneName as string) || undefined;
+                const clientAddress = data.clientAddress as string | undefined;
+                let label = categoryName;
+                if (geoNodeName) label += ` en ${geoNodeName}`;
+                if (clientAddress) label += ` - ${clientAddress}`;
+                return `${i + 1}. ${label}`;
+              })
+              .join('\n');
 
-          await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-          return {
-            text: `Tenés estos pedidos activos:\n${list}\n${userSessions.length + 1}. Hacer un nuevo pedido\n\n¿Sobre cuál querés continuar? Respondé con el número.`,
-            flow: 'USER_REQUEST',
-            step: 'SELECT_ACTIVE_REQUEST',
-          };
+            session = await this.botRepository.upsert(input.phone, {
+              role,
+              currentFlow: 'USER_REQUEST',
+              currentStep: 'SELECT_ACTIVE_REQUEST',
+              tempData: {
+                ...sessionTempData,
+                _activeUserSessions: userSessions.map((s) => {
+                  const data = (s.tempData as Record<string, unknown>) || {};
+                  return {
+                    requestId: s.requestId,
+                    categoryName: data.categoryName,
+                    geoNodeName:
+                      (data.geoNodeName as string) || (data.zoneName as string) || undefined,
+                    clientAddress: data.clientAddress,
+                  };
+                }),
+              } as Prisma.InputJsonValue,
+            });
+
+            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+            return {
+              text: `Tenés estos pedidos activos:\n${list}\n${userSessions.length + 1}. Hacer un nuevo pedido\n\n¿Sobre cuál querés continuar? Respondé con el número.`,
+              flow: 'USER_REQUEST',
+              step: 'SELECT_ACTIVE_REQUEST',
+            };
+          }
         }
 
         if (userSessions.length === 1) {
