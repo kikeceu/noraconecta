@@ -136,7 +136,7 @@ export class BotRepository {
 
   async findActiveUserRequestSessions(phone: string): Promise<UserRequestSession[]> {
     return prisma.userRequestSession.findMany({
-      where: { phone },
+      where: { phone, currentStep: { not: null } },
       orderBy: { updatedAt: 'desc' },
     });
   }
