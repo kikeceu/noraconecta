@@ -346,6 +346,28 @@ export class NotificationService {
     );
   }
 
+  async notifyUserAlternativeSchedule(
+    userPhone: string,
+    professionalName: string,
+    categoryName: string,
+    proposedAt: Date,
+  ): Promise<void> {
+    const alternativeText = formatDateTimeArgentina(proposedAt);
+    const message = `${professionalName}, tu ${categoryName}, propone el ${alternativeText}. ¿Te viene bien?\n1. Sí\n2. No`;
+
+    await this.sendWithWindowCheck(
+      userPhone,
+      'USER',
+      message,
+      'nora_user_horario_alternativo',
+      [professionalName, categoryName, alternativeText],
+      [
+        { payload: BOT_PAYLOADS.SI_ME_VIENE, text: 'Sí, me viene bien' },
+        { payload: BOT_PAYLOADS.NO_ME_VIENE, text: 'No' },
+      ],
+    );
+  }
+
   async notifyProfessionalPositiveFeedback(
     _professionalPhone: string,
     professionalName: string,
