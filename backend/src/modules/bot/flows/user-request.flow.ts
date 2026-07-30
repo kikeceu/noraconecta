@@ -1818,22 +1818,18 @@ export class UserRequestFlow implements FlowHandler {
   private async handleCancelarVisita(
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const userId = tempData.userId as string | undefined;
+    const requestId = tempData.requestId as string | undefined;
 
-    if (!userId) {
+    if (!requestId) {
       return {
-        response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
+        response: { text: 'No pude identificar el pedido. Escribinos para ayudarte.' },
         nextStep: null,
         tempData: { _clearTempData: true },
       };
     }
 
-    const request = await prisma.request.findFirst({
-      where: {
-        userId,
-        status: 'ACCEPTED',
-      },
-      orderBy: { createdAt: 'desc' },
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
     });
 
     if (!request) {
@@ -1890,22 +1886,18 @@ export class UserRequestFlow implements FlowHandler {
   private async handleCancelarPedido(
     tempData: Record<string, unknown>,
   ): Promise<FlowStepResult> {
-    const userId = tempData.userId as string | undefined;
+    const requestId = tempData.requestId as string | undefined;
 
-    if (!userId) {
+    if (!requestId) {
       return {
-        response: { text: 'No pude identificar tu cuenta. Escribinos para ayudarte.' },
+        response: { text: 'No pude identificar el pedido. Escribinos para ayudarte.' },
         nextStep: null,
         tempData: { _clearTempData: true },
       };
     }
 
-    const request = await prisma.request.findFirst({
-      where: {
-        userId,
-        status: { in: ['CREATED', 'ASSIGNED', 'ACCEPTED', 'NO_RESPONSE'] },
-      },
-      orderBy: { createdAt: 'desc' },
+    const request = await prisma.request.findUnique({
+      where: { id: requestId },
     });
 
     if (!request) {
