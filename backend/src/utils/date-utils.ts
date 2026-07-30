@@ -74,8 +74,13 @@ Devolvé SOLO un JSON válido sin markdown:
 Si es ambiguo o no se puede determinar, devolvé:
 {"error": "ambiguo"}`;
 
+console.log('[parseDateTimeNatural] now:', now);
+console.log('[parseDateTimeNatural] nextDays:', nextDays);
+console.log('[parseDateTimeNatural] input:', input);
+
   try {
     const response = await callLLM(prompt);
+    console.log('[parseDateTimeNatural] response:', response);
     const parsed = JSON.parse(response.trim());
     if (parsed.error) return { success: false, reason: 'ambiguous' };
     if (parsed.date) {
