@@ -8,7 +8,6 @@ import { BotRepository } from '../bot/bot.repository';
 import { WhatsAppAdapter } from '../../lib/whatsapp-adapter';
 import { R2Client } from '../../lib/r2-client';
 import { NotificationService } from '../notifications/notification.service';
-import { formatDateTimeArgentina } from '../../utils/date-utils';
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -646,8 +645,10 @@ export class RequestsController {
 
           if (user?.phone) {
             const professionalName = professional?.name || 'El profesional';
-            const alternativeText = formatDateTimeArgentina(new Date(proposedAt));
-            const userMessage = `${professionalName} propone el ${alternativeText}. ¿Te viene bien? (Sí / No)`;
+            const category = (request as unknown as Record<string, unknown>).category as
+              | { name: string }
+              | undefined;
+            const categoryName = category?.name || 'el servicio';
 
             const userSession = await botRepository.findByPhoneAndRole(user.phone, 'USER');
             const userTempData = (userSession?.tempData as Record<string, unknown>) || {};
@@ -662,9 +663,15 @@ export class RequestsController {
                 alternativeScheduledAt: new Date(proposedAt).toISOString(),
                 professionalName,
                 professionalPhone: professional?.phone,
-                pendingMessage: userMessage,
               },
             });
+
+            await notificationService.notifyUserAlternativeSchedule(
+              user.phone,
+              professionalName,
+              categoryName,
+              new Date(proposedAt),
+            );
           }
         } catch (err) {
           console.error('[RequestsController.confirmSchedule] Failed to notify user:', err);
