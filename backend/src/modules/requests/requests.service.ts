@@ -1607,7 +1607,8 @@ Criterios:
 
     if (
       request.coordinationStatus !== 'AWAITING_CONFIRMATION' &&
-      request.coordinationStatus !== 'AWAITING_USER_CONFIRMATION'
+      request.coordinationStatus !== 'AWAITING_USER_CONFIRMATION' &&
+      request.coordinationStatus !== 'AWAITING_AVAILABILITY'
     ) {
       throw new AppError(
         `Cannot confirm schedule when coordination is ${request.coordinationStatus || 'not active'}`,
