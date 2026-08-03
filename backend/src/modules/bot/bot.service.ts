@@ -529,17 +529,17 @@ export class BotService {
             };
           } else {
             session = await this.botRepository.upsert(input.phone, {
-              role,
-              currentFlow: 'USER_REQUEST',
-              currentStep: 'POST_CANCEL',
-              tempData: { ...freshTempData } as Prisma.InputJsonValue,
-            });
-            await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
-            return {
-              text: 'Entendido, cancelé el pedido.\n1. Iniciar un nuevo pedido\n2. Por ahora no, gracias',
-              flow: 'USER_REQUEST',
-              step: 'POST_CANCEL',
-            };
+	      role,
+	      currentFlow: null,
+	      currentStep: null,
+	      tempData: {} as Prisma.InputJsonValue,
+	    });
+	    await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
+	    return {
+	      text: 'No tenés pedidos activos para cancelar. Si necesitás algo, escribime.',
+	      flow: undefined,
+	      step: undefined,
+	    };
           }
         } else if (role === 'PROFESSIONAL') {
           const professional = await this.professionalsRepository.findByPhone(input.phone);
