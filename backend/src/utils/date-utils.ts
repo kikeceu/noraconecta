@@ -38,6 +38,7 @@ export function parseExactDate(input: string): Date | null {
 export async function parseDateTimeNatural(
   input: string,
   referenceDate: Date,
+  promptTemplate: string,
 ): Promise<ParseDateTimeResult> {
   const exact = parseExactDate(input);
   if (exact) {
@@ -65,22 +66,13 @@ export async function parseDateTimeNatural(
     return `${dayName} ${day}/${month}`;
   }).join(', ');
 
-  const prompt = `Hoy es ${now}, zona horaria Argentina (UTC-3).
-Los próximos 8 días son: ${nextDays}.
-El usuario escribió: "${input}"
-Interpretá la fecha y hora mencionada. Usá la lista de días para calcular correctamente cuándo es "el sábado", "el próximo viernes", etc. — nunca uses una fecha pasada.
-Devolvé SOLO un JSON válido sin markdown:
-{"date": "YYYY-MM-DDTHH:MM:00-03:00"}
-Si es ambiguo o no se puede determinar, devolvé:
-{"error": "ambiguo"}`;
-
-console.log('[parseDateTimeNatural] now:', now);
-console.log('[parseDateTimeNatural] nextDays:', nextDays);
-console.log('[parseDateTimeNatural] input:', input);
+  const prompt = promptTemplate
+    .replaceAll('{{now}}', now)
+    .replaceAll('{{nextDays}}', nextDays)
+    .replaceAll('{{input}}', input);
 
   try {
     const response = await callLLM(prompt);
-    console.log('[parseDateTimeNatural] response:', response);
     const parsed = JSON.parse(response.trim());
     if (parsed.error) return { success: false, reason: 'ambiguous' };
     if (parsed.date) {

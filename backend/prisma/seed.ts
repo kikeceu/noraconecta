@@ -498,6 +498,37 @@ Ejemplos válidos de entrada:
 - "mañana y tarde" → {"error": "ambiguo"}
 - "8 a 6 de la tarde" → {"from": "08:00", "to": "18:00"}`,
     },
+    {
+      key: 'parse_datetime_natural',
+      description: 'Interpreta una fecha y hora en lenguaje natural expresada por el usuario',
+      variables: ['now', 'nextDays', 'input'],
+      isEditable: true,
+      defaultContent: `Hoy es {{now}}, zona horaria Argentina (UTC-3).
+Los próximos 8 días son: {{nextDays}}.
+El usuario escribió: "{{input}}"
+Interpretá la fecha y hora mencionada. Usá la lista de días para calcular correctamente cuándo es "el sábado", "el próximo viernes", etc. — nunca uses una fecha pasada.
+Devolvé SOLO un JSON válido sin markdown:
+{"date": "YYYY-MM-DDTHH:MM:00-03:00"}
+Si es ambiguo o no se puede determinar, devolvé:
+{"error": "ambiguo"}`,
+    },
+    {
+      key: 'classify_description',
+      description: 'Clasifica la descripción de un pedido extrayendo tipo de problema, urgencia y fecha mencionada',
+      variables: ['categoryName', 'description'],
+      isEditable: true,
+      defaultContent: `Descripción de un pedido de {{categoryName}}: "{{description}}"
+Devolvé SOLO un JSON con este formato exacto:
+{
+  "problemType": "clasificación en snake_case inglés, máximo 3 palabras",
+  "isUrgent": true o false,
+  "mentionedDate": "descripción de la fecha/día mencionado o null si no hay"
+}
+Criterios:
+- problemType: clasificación breve. Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
+- isUrgent: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
+- mentionedDate: extraer si el usuario menciona un día o fecha. Ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio". Si no menciona fecha, null.`,
+    },
   ];
 
   for (const tpl of templates) {

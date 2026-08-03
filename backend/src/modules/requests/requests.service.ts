@@ -14,6 +14,7 @@ import { CoordinationService } from '../bot/coordination.service';
 import { AppError } from '../../middleware/error-handler';
 import prisma from '../../lib/prisma';
 import { callLLM } from '../../lib/llm-client';
+import { promptService } from '../prompts/prompt.service';
 import { parseExactDate, formatDateTimeArgentina } from '../../utils/date-utils';
 import { Request, Feedback } from '@prisma/client';
 
@@ -138,20 +139,10 @@ export class RequestsService {
       });
       const categoryName = category?.name ?? 'desconocido';
 
-      const prompt = `Descripción de un pedido de ${categoryName}: "${input.description.trim()}"
-
-Devolvé SOLO un JSON con este formato exacto:
-{
-  "problemType": "clasificación en snake_case inglés, máximo 3 palabras",
-  "isUrgent": true o false,
-  "mentionedDate": "descripción de la fecha/día mencionado o null si no hay"
-}
-
-Criterios:
-- problemType: clasificación breve. Ejemplos: water_leak, pipe_repair, clog, electrical_short, switch_installation, wall_painting
-- isUrgent: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
-- mentionedDate: extraer si el usuario menciona un día o fecha. Ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio". Si no menciona fecha, null.`;
-
+      const prompt = await promptService.getPrompt('classify_description', {
+        categoryName,
+        description: input.description.trim(),
+      });
       const rawResponse = await callLLM(prompt);
       const trimmed = rawResponse.trim();
 
