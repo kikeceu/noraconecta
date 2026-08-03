@@ -1325,6 +1325,7 @@ export class BotService {
       text: result.response.text,
       mediaUrls: result.response.mediaUrls,
       audioUrl: result.response.audioUrl,
+      mediaFirst: result.response.mediaFirst,
       options: result.response.options,
       requestId: result.response.requestId,
       flow: updatedSession.currentFlow || undefined,
