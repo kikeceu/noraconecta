@@ -438,7 +438,8 @@ export class CoordinationFlow implements FlowHandler {
 
       const availability = message.text.trim();
       const now = new Date();
-      const result = await parseDateTimeNatural(availability, now);
+      const promptTemplate = await promptService.getPrompt('parse_datetime_natural');
+      const result = await parseDateTimeNatural(availability, now, promptTemplate);
 
       if (!result.success) {
         const errorText = result.reason === 'past'
@@ -727,7 +728,8 @@ export class CoordinationFlow implements FlowHandler {
 
       if (tempData._proposingAlternative) {
         const now = new Date();
-        const result = await parseDateTimeNatural(scheduleText, now);
+        const promptTemplate = await promptService.getPrompt('parse_datetime_natural');
+        const result = await parseDateTimeNatural(scheduleText, now, promptTemplate);
 
         if (!result.success) {
           const errorText = result.reason === 'past'
@@ -909,7 +911,8 @@ export class CoordinationFlow implements FlowHandler {
       }
 
       const now = new Date();
-      const result = await parseDateTimeNatural(scheduleText, now);
+      const promptTemplate = await promptService.getPrompt('parse_datetime_natural');
+      const result = await parseDateTimeNatural(scheduleText, now, promptTemplate);
 
       if (!result.success) {
         const errorText = result.reason === 'past'
