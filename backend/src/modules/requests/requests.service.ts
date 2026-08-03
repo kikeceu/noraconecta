@@ -594,6 +594,15 @@ Criterios:
       professionalPhone = pro?.phone ?? null;
     }
 
+    if (request.status === 'ACCEPTED' && request.assignedProfessionalId) {
+      const hasMembership = await this.requestsRepository.professionalHasActiveMembership(
+        request.assignedProfessionalId,
+      );
+      if (!hasMembership) {
+        await this.requestsRepository.decrementTrialRequestsUsed(request.assignedProfessionalId);
+      }
+    }
+
     return {
       request: updated,
       shouldNotifyProfessional,
@@ -1466,6 +1475,11 @@ Criterios:
         currentStep: null,
         tempData: {},
       });
+    }
+
+    const hasMembership = await this.requestsRepository.professionalHasActiveMembership(professionalId);
+    if (!hasMembership) {
+      await this.requestsRepository.decrementTrialRequestsUsed(professionalId);
     }
 
     return {

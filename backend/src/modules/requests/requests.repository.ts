@@ -219,6 +219,16 @@ export class RequestsRepository {
     });
   }
 
+  async decrementTrialRequestsUsed(professionalId: string): Promise<void> {
+    await prisma.professional.updateMany({
+      where: {
+        id: professionalId,
+        trialRequestsUsed: { gt: 0 },
+      },
+      data: { trialRequestsUsed: { decrement: 1 } },
+    });
+  }
+
   async updateLastAssignedAt(professionalId: string, date: Date): Promise<void> {
     await prisma.professional.update({
       where: { id: professionalId },
