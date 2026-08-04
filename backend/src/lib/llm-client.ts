@@ -253,6 +253,8 @@ export async function extractName(
   try {
     const response = await callLLM(prompt);
     const clean = response.trim();
+    console.log('[extractName llm-client] input:', text, 'response:', clean); // ← acá
+
     if (clean === 'null' || clean.length > 40 || clean.includes('.')) return null;
     return clean;
   } catch {
