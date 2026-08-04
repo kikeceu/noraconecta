@@ -296,6 +296,18 @@ export class BotService {
           '¡Acá estoy! Escribime qué servicio necesitás y en qué zona.';
       } else if (isNewUser) {
         greetingText = `¡Hola! Soy ${process.env.APP_NAME ?? 'NORA'} 👋 Te conecto con profesionales del hogar cerca tuyo. ¿Cómo te llamás?`;
+        
+        await this.botRepository.upsert(input.phone, {
+	  role,
+  	  currentFlow: 'USER_REQUEST',
+  	  currentStep: 'ASK_NAME',
+	  tempData: {
+	    ...existingTempData,
+	    lastUserGreetingAt: new Date().toISOString(),
+	    userId: userIdentity.userId,
+	    phone: userIdentity.phone,
+	  } as Prisma.InputJsonValue,
+	});
       } else {
         greetingText = userName
           ? `¡Hola ${userName}! 👋 Cuando necesites un profesional del hogar, escribime qué servicio buscás y en qué zona.`
