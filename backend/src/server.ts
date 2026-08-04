@@ -176,25 +176,33 @@ const llmRepository = new LLMRepository();
 const llmService = new LLMService(llmRepository);
 
 void (async (): Promise<void> => {
-  const inputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_INPUT');
-  const outputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_OUTPUT');
-  llmService.registerHandlers({
-    'gpt-4o-mini': {
-      input: parseFloat(inputPrice?.value ?? '0.00015'),
-      output: parseFloat(outputPrice?.value ?? '0.0006'),
-    },
-    'default': {
-      input: parseFloat(inputPrice?.value ?? '0.00015'),
-      output: parseFloat(outputPrice?.value ?? '0.0006'),
-    },
-  });
-
-  const whatsAppRepository = new WhatsAppRepository();
-  const whatsAppUsageService = new WhatsAppUsageService(whatsAppRepository);
-  const serviceConvCost = await configRepository.findByKey('WHATSAPP_SERVICE_CONVERSATION_COST_USD');
-  await whatsAppUsageService.registerHandlers(
-    parseFloat(serviceConvCost?.value ?? '0'),
-  );
+  console.log('[startup] iniciando registro de handlers...');
+  try {
+    const inputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_INPUT');
+    const outputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_OUTPUT');
+    console.log('[startup] precios LLM:', inputPrice?.value, outputPrice?.value);
+    llmService.registerHandlers({
+      'gpt-4o-mini': {
+        input: parseFloat(inputPrice?.value ?? '0.00015'),
+        output: parseFloat(outputPrice?.value ?? '0.0006'),
+      },
+      'default': {
+        input: parseFloat(inputPrice?.value ?? '0.00015'),
+        output: parseFloat(outputPrice?.value ?? '0.0006'),
+      },
+    });
+    console.log('[startup] LLM handlers registrados');
+    const whatsAppRepository = new WhatsAppRepository();
+    const whatsAppUsageService = new WhatsAppUsageService(whatsAppRepository);
+    const serviceConvCost = await configRepository.findByKey('WHATSAPP_SERVICE_CONVERSATION_COST_USD');
+    console.log('[startup] costo servicio WhatsApp:', serviceConvCost?.value);
+    await whatsAppUsageService.registerHandlers(
+      parseFloat(serviceConvCost?.value ?? '0'),
+    );
+    console.log('[startup] WhatsApp handlers registrados');
+  } catch (err) {
+    console.error('[startup] ERROR al registrar handlers:', err);
+  }
 })();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
