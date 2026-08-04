@@ -297,6 +297,28 @@ export interface PromptTemplate {
   updatedAt: string;
 }
 
+export interface AggregatedLLMUsage {
+  key: string;
+  totalCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCostUsd: number;
+  avgDurationMs: number | null;
+}
+
+export interface LLMCosts {
+  totalCost: number;
+  avgCostPerRequest: number;
+  byModel: AggregatedLLMUsage[];
+  byPromptKey: AggregatedLLMUsage[];
+  byProvider: AggregatedLLMUsage[];
+  costsByDay: { date: string; totalCalls: number; totalCostUsd: number }[];
+  associationBreakdown: {
+    associated: { totalCalls: number; totalCostUsd: number };
+    general: { totalCalls: number; totalCostUsd: number };
+  };
+}
+
 export interface ListResponse<T> {
   data: T[];
   pagination: Pagination;
