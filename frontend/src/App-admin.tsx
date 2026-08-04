@@ -17,6 +17,7 @@ import { PlansPage } from './pages/admin/PlansPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { PromotionsPage } from './pages/admin/PromotionsPage';
 import { PromptsPage } from './pages/admin/PromptsPage';
+import { LLMCostsPage } from './pages/admin/LLMCostsPage';
 
 export function AppAdmin() {
   return (
@@ -49,6 +50,7 @@ export function AppAdmin() {
                 <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/prompts" element={<PromptsPage />} />
+                <Route path="/llm-costs" element={<LLMCostsPage />} />
               </Route>
             </Route>
           </Route>

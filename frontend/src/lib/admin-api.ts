@@ -6,6 +6,7 @@ import type {
   LoginResponse,
   DashboardMetrics,
   DemandInsights,
+  LLMCosts,
   Category,
   CountryResponse,
   GeoNode,
@@ -569,4 +570,14 @@ export function resetPrompt(key: string): Promise<SingleResponse<{ ok: boolean }
   return request<SingleResponse<{ ok: boolean }>>(`/admin/prompts/${key}/reset`, {
     method: 'POST',
   });
+}
+
+// LLM Costs
+export function getLLMCosts(params?: {
+  from?: string;
+  to?: string;
+}): Promise<SingleResponse<LLMCosts>> {
+  return request<SingleResponse<LLMCosts>>(
+    `/admin/llm-costs${buildQuery(params || {})}`,
+  );
 }
