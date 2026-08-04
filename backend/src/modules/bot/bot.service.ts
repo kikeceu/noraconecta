@@ -1233,7 +1233,7 @@ export class BotService {
 
       updatedSession = await this.botRepository.upsert(input.phone, {
         role,
-        currentFlow: result.nextStep ? session.currentFlow : null,
+        currentFlow: result.nextStep ? (session.currentFlow || resolveFlowHandler(role).flowName) : null,
         currentStep: result.nextStep || null,
         tempData: result.nextStep ? (finalTempData as Prisma.InputJsonValue) : ({} as Prisma.InputJsonValue),
       });
