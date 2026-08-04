@@ -514,3 +514,35 @@ model LLMUsage {
   @@index([requestId])
   @@index([userId])
 }
+
+model WhatsAppTemplate {
+  name      String   @id
+  category  String   @default("utility")
+  costUsd   Float    @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model WhatsAppTemplateUsage {
+  id           String   @id @default(cuid())
+  phone        String
+  role         String
+  templateName String
+  category     String
+  costUsd      Float
+  requestId    String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt, templateName])
+  @@index([requestId])
+}
+
+model WhatsAppServiceConversation {
+  id        String   @id @default(cuid())
+  phone     String
+  role      String
+  requestId String?
+  costUsd   Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt, requestId])
+}

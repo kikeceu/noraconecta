@@ -2,6 +2,9 @@ import { AdminRepository } from './admin.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { LLMService } from '../llm/llm.service';
 import { LLMCostsResponse } from '../llm/llm.service';
+import { WhatsAppUsageService } from '../whatsapp/whatsapp.service';
+import { WhatsAppCostsResponse } from '../whatsapp/whatsapp.service';
+import { WhatsAppTemplate } from '@prisma/client';
 import { AppError } from '../../middleware/error-handler';
 
 export interface MembershipDiscount {
@@ -53,6 +56,7 @@ export class AdminService {
     private readonly adminRepository: AdminRepository,
     private readonly configRepository: ConfigRepository,
     private readonly llmService: LLMService,
+    private readonly whatsAppUsageService?: WhatsAppUsageService,
   ) {}
 
   async getMembershipDiscount(): Promise<MembershipDiscount> {
@@ -224,5 +228,20 @@ export class AdminService {
 
   async getLLMCosts(from?: Date, to?: Date): Promise<LLMCostsResponse> {
     return this.llmService.getCosts(from, to);
+  }
+
+  async getWhatsAppCosts(from?: Date, to?: Date): Promise<WhatsAppCostsResponse | null> {
+    if (!this.whatsAppUsageService) return null;
+    return this.whatsAppUsageService.getCosts(from, to);
+  }
+
+  async getWhatsAppTemplates(): Promise<WhatsAppTemplate[]> {
+    if (!this.whatsAppUsageService) return [];
+    return this.whatsAppUsageService.getTemplateCatalog();
+  }
+
+  async updateWhatsAppTemplate(name: string, data: { category?: string; costUsd?: number }): Promise<void> {
+    if (!this.whatsAppUsageService) throw new AppError('WhatsApp service not available', 500);
+    await this.whatsAppUsageService.updateTemplate(name, data);
   }
 }

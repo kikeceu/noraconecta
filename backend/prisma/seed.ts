@@ -171,6 +171,7 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'MATCHING_AVAILABILITY_BONUS_URGENT', value: '25' },
     { key: 'LLM_COST_GPT4O_MINI_INPUT', value: '0.00015' },
     { key: 'LLM_COST_GPT4O_MINI_OUTPUT', value: '0.0006' },
+    { key: 'WHATSAPP_SERVICE_CONVERSATION_COST_USD', value: '0' },
   ];
 
   for (const cfg of configs) {
@@ -579,6 +580,61 @@ Criterios:
   }
 }
 
+async function seedWhatsAppTemplateCatalog(): Promise<void> {
+  const existing = await prisma.whatsAppTemplate.findFirst();
+  if (existing) {
+    // eslint-disable-next-line no-console
+    console.log('WhatsApp template catalog already exists. Skipping.');
+    return;
+  }
+
+  const templateNames = [
+    'nora_notification',
+    'nora_pro_nuevo_pedido',
+    'nora_pro_recordatorio_pedido',
+    'nora_pro_visita_recordatorio',
+    'nora_pro_membresia_activada_con_pedido',
+    'nora_pro_membresia_activada',
+    'nora_pro_membresia_renovada',
+    'nora_pro_upgrade_membresia',
+    'nora_pro_visita_confirmada_ubicacion',
+    'nora_pro_cliente_acepto_horario',
+    'nora_pro_check_finalizacion',
+    'nora_pro_check_finalizacion_ultimo',
+    'nora_pro_pedir_calificacion_usuario',
+    'nora_pro_usuario_cancelo_pedido',
+    'nora_pro_usuario_cancelo_visita',
+    'nora_pro_visita_confirmada',
+    'nora_user_pedido_aceptado',
+    'nora_user_sin_profesional',
+    'nora_user_visita_recordatorio',
+    'nora_user_trabajo_finalizado',
+    'nora_user_horario_alternativo',
+    'nora_user_visita_confirmada',
+    'nora_user_reasignando_por_negociacion',
+    'nora_user_pro_cancelo_pedido',
+    'nora_user_pro_cancelo_visita',
+    'nora_user_descripcion_no_relacionada',
+    'nora_user_confirmar_servicio',
+    'nora_user_cancelar_pedido',
+    'nora_pro_nuevo_pedido_sin_media',
+    'nora_pro_membresia_por_vencer',
+    'nora_pro_credencial_rechazada',
+    'nora_pro_felicitacion_calificacion',
+  ];
+
+  for (const name of templateNames) {
+    await prisma.whatsAppTemplate.create({
+      data: { name, category: 'utility', costUsd: 0 },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`WhatsApp template "${name}" seeded.`);
+  }
+
+  // eslint-disable-next-line no-console
+  console.log('WhatsApp template catalog seeded successfully.');
+}
+
 async function main(): Promise<void> {
   await seedAdmin();
   await seedArgentinaGeoHierarchy();
@@ -587,6 +643,7 @@ async function main(): Promise<void> {
   await seedPlans();
   await seedCategories();
   await seedPromptTemplates();
+  await seedWhatsAppTemplateCatalog();
 }
 
 main()
