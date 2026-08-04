@@ -2,6 +2,7 @@ import { MatchingRepository } from './matching.repository';
 import { ConfigRepository } from '../config/config.repository';
 import { CategoriesRepository } from '../categories/categories.repository';
 import { userRequestsLicenseByLLM } from '../../lib/llm-client';
+import { promptService } from '../prompts/prompt.service';
 import { Membership } from '@prisma/client';
 
 export interface MatchResult {
@@ -191,7 +192,8 @@ export class MatchingService {
         requiresLicensedProfessional = true;
         console.log('[Matching] License required detected by keyword');
       } else {
-        requiresLicensedProfessional = await userRequestsLicenseByLLM(description ?? '');
+        const promptTemplate = await promptService.getPrompt('user_requests_license');
+        requiresLicensedProfessional = await userRequestsLicenseByLLM(description ?? '', promptTemplate);
         console.log(`[Matching] License required detected by LLM: ${requiresLicensedProfessional}`);
       }
 

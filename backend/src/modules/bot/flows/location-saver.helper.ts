@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { SavedLocation } from './types';
 import { UsersRepository } from '../../users/users.repository';
 import { compareAddresses } from '../../../lib/llm-client';
+import { promptService } from '../../prompts/prompt.service';
 
 export const DEFAULT_MAX_SAVED_LOCATIONS = 5;
 
@@ -28,7 +29,8 @@ export async function upsertSavedLocationByAddress(
   const sameZoneEntries = currentLocations.filter((loc) => loc.geoNodeId === candidate.geoNodeId);
 
   for (const existing of sameZoneEntries) {
-    const isMatch = await compareAddresses(existing.address, candidate.address);
+    const promptTemplate = await promptService.getPrompt('compare_addresses');
+    const isMatch = await compareAddresses(existing.address, candidate.address, promptTemplate);
     if (isMatch) {
       const merged: SavedLocation = {
         ...existing,

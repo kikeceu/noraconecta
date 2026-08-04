@@ -531,6 +531,27 @@ Criterios:
 - isUrgent: true si hay palabras como "urgente", "emergencia", "ahora", "ya", "se inunda", "sin agua", "sin luz"
 - mentionedDate: extraer si el usuario menciona un día o fecha. Ej: "el sábado" → "sábado", "mañana" → "mañana", "el 15 de junio" → "15 de junio". Si no menciona fecha, null.`,
     },
+    {
+      key: 'compare_addresses',
+      description: 'Valida si dos direcciones corresponden al mismo domicilio',
+      variables: ['addressA', 'addressB'],
+      isEditable: true,
+      defaultContent: `Sos un validador de direcciones en Argentina.\n\nDirección A: "{{addressA}}"\nDirección B: "{{addressB}}"\n\n¿Ambas direcciones corresponden al mismo domicilio (mismo lugar físico), considerando que pueden estar escritas con distinto formato, abreviaciones, mayúsculas, o con/sin referencias adicionales?\n\nResponde SOLO con una palabra: SI o NO`,
+    },
+    {
+      key: 'extract_service_and_zone',
+      description: 'Extrae el servicio y zona de Mendoza de un mensaje de usuario',
+      variables: ['message'],
+      isEditable: true,
+      defaultContent: `Analizá el siguiente mensaje de un usuario que está buscando un servicio del hogar en Mendoza, Argentina.\n\nMensaje: "{{message}}"\n\nExtraé:\n1. El tipo de servicio que menciona (plomero, electricista, gasista, pintor, albañil, cerrajero, técnico de aire acondicionado, etc.). Si no menciona ninguno, devolvé null.\n2. El departamento o zona de Mendoza que menciona (Godoy Cruz, Las Heras, Maipú, Guaymallén, Capital, Luján de Cuyo, etc.). Si no menciona ninguno, devolvé null.\n\nRespondé SOLO con un JSON válido, sin texto adicional, sin backticks:\n{"serviceName": "plomero", "zoneName": "Godoy Cruz"}`,
+    },
+    {
+      key: 'user_requests_license',
+      description: 'Detecta si el usuario requiere un profesional con matrícula o habilitación',
+      variables: ['description'],
+      isEditable: true,
+      defaultContent: `El usuario hizo un pedido de servicio. Esta es su descripción:\n"{{description}}"\n\n¿El usuario está pidiendo explícitamente que el profesional tenga matrícula, habilitación oficial, certificado o credencial para realizar el trabajo?\n\nRespondé SOLO con: SI o NO`,
+    },
   ];
 
   for (const tpl of templates) {
