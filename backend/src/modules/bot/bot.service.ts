@@ -12,6 +12,7 @@ import { BOT_PAYLOADS } from './constants/bot-payloads';
 import { isAckMessage } from './flows/ack-detector.helper';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
+import { promptService } from '../prompts/prompt.service';
 import { BotSession, Prisma, BotRole, ProfessionalStatus } from '@prisma/client';
 import type { User } from '@prisma/client';
 
@@ -358,10 +359,14 @@ export class BotService {
         const initialTempData: Record<string, unknown> = { ...userIdentity };
 
         if (role === 'USER' && input.text?.trim() && hasActionableContent(input.text.trim())) {
+          const [extractServiceTemplate, extractNameTemplate] = await Promise.all([
+            promptService.getPrompt('extract_service_and_zone'),
+            promptService.getPrompt('extract_name'),
+          ]);
           const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
           const [extracted, extractedName] = await Promise.all([
-            extractServiceAndZone(input.text.trim()),
-            extractName(input.text.trim()),
+            extractServiceAndZone(input.text.trim(), extractServiceTemplate),
+            extractName(input.text.trim(), extractNameTemplate),
           ]);
 
           if (extracted.serviceName || extracted.zoneName) {
@@ -398,10 +403,14 @@ export class BotService {
         input.text?.trim() &&
         hasActionableContent(input.text.trim())
       ) {
+        const [extractServiceTemplate, extractNameTemplate] = await Promise.all([
+          promptService.getPrompt('extract_service_and_zone'),
+          promptService.getPrompt('extract_name'),
+        ]);
         const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
         const [extracted, extractedName] = await Promise.all([
-          extractServiceAndZone(input.text.trim()),
-          extractName(input.text.trim()),
+          extractServiceAndZone(input.text.trim(), extractServiceTemplate),
+          extractName(input.text.trim(), extractNameTemplate),
         ]);
         if (extracted.serviceName || extracted.zoneName) {
           sessionTempData._extractedServiceName = extracted.serviceName;
@@ -876,10 +885,14 @@ export class BotService {
         }
 
         if (!session.currentFlow) {
+          const [extractServiceTemplate, extractNameTemplate] = await Promise.all([
+            promptService.getPrompt('extract_service_and_zone'),
+            promptService.getPrompt('extract_name'),
+          ]);
           const { extractServiceAndZone, extractName } = await import('../../lib/llm-client');
           const [extracted, extractedName] = await Promise.all([
-            extractServiceAndZone(input.text.trim()),
-            extractName(input.text.trim()),
+            extractServiceAndZone(input.text.trim(), extractServiceTemplate),
+            extractName(input.text.trim(), extractNameTemplate),
           ]);
           const sessionTempData = (session.tempData as Record<string, unknown>) || {};
           if (extracted.serviceName || extracted.zoneName) {

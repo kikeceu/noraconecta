@@ -203,15 +203,14 @@ export async function callLLMWithImages(input: LLMImageInput): Promise<string> {
   }
 }
 
-export async function compareAddresses(addressA: string, addressB: string): Promise<boolean> {
-  const prompt = `Sos un validador de direcciones en Argentina.
-
-Dirección A: "${addressA}"
-Dirección B: "${addressB}"
-
-¿Ambas direcciones corresponden al mismo domicilio (mismo lugar físico), considerando que pueden estar escritas con distinto formato, abreviaciones, mayúsculas, o con/sin referencias adicionales?
-
-Responde SOLO con una palabra: SI o NO`;
+export async function compareAddresses(
+  addressA: string,
+  addressB: string,
+  promptTemplate: string,
+): Promise<boolean> {
+  const prompt = promptTemplate
+    .replaceAll('{{addressA}}', addressA)
+    .replaceAll('{{addressB}}', addressB);
 
   try {
     const response = await callLLM(prompt);
@@ -226,17 +225,11 @@ export interface ExtractedServiceZone {
   zoneName: string | null;
 }
 
-export async function extractServiceAndZone(message: string): Promise<ExtractedServiceZone> {
-  const prompt = `Analizá el siguiente mensaje de un usuario que está buscando un servicio del hogar en Mendoza, Argentina.
-
-Mensaje: "${message}"
-
-Extraé:
-1. El tipo de servicio que menciona (plomero, electricista, gasista, pintor, albañil, cerrajero, técnico de aire acondicionado, etc.). Si no menciona ninguno, devolvé null.
-2. El departamento o zona de Mendoza que menciona (Godoy Cruz, Las Heras, Maipú, Guaymallén, Capital, Luján de Cuyo, etc.). Si no menciona ninguno, devolvé null.
-
-Respondé SOLO con un JSON válido, sin texto adicional, sin backticks:
-{"serviceName": "plomero", "zoneName": "Godoy Cruz"}`;
+export async function extractServiceAndZone(
+  message: string,
+  promptTemplate: string,
+): Promise<ExtractedServiceZone> {
+  const prompt = promptTemplate.replaceAll('{{message}}', message);
 
   try {
     const response = await callLLM(prompt);
@@ -251,20 +244,11 @@ Respondé SOLO con un JSON válido, sin texto adicional, sin backticks:
   }
 }
 
-export async function extractName(text: string): Promise<string | null> {
-  const prompt = `Extraé el nombre completo de la persona del siguiente mensaje. Incluí apellido si está presente.
-Si no hay ningún nombre de persona, respondé exactamente: null
-Respondé SOLO el nombre, sin explicaciones ni puntuación.
-
-Ejemplos:
-- "Hola nora, soy Enrique Quipuzcoa" → "Enrique Quipuzcoa"
-- "Me llamo María López Torres" → "María López Torres"
-- "mi nombre es carlos" → "carlos"
-- "Hola nora" → null
-- "Hola soy Juan" → "Juan"
-- "buenos dias" → null
-
-Mensaje: "${text}"`;
+export async function extractName(
+  text: string,
+  promptTemplate: string,
+): Promise<string | null> {
+  const prompt = promptTemplate.replaceAll('{{input}}', text);
 
   try {
     const response = await callLLM(prompt);
@@ -308,14 +292,11 @@ export async function transcribeAudio(audioUrl: string): Promise<string> {
   return data.text?.trim() || '';
 }
 
-export async function userRequestsLicenseByLLM(description: string): Promise<boolean> {
-  const prompt = `El usuario hizo un pedido de servicio. Esta es su descripción:
-
-"${description}"
-
-¿El usuario está pidiendo explícitamente que el profesional tenga matrícula, habilitación oficial, certificado o credencial para realizar el trabajo?
-
-Respondé SOLO con: SI o NO`;
+export async function userRequestsLicenseByLLM(
+  description: string,
+  promptTemplate: string,
+): Promise<boolean> {
+  const prompt = promptTemplate.replaceAll('{{description}}', description);
 
   try {
     const response = await callLLM(prompt);
