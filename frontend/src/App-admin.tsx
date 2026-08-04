@@ -18,6 +18,7 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { PromotionsPage } from './pages/admin/PromotionsPage';
 import { PromptsPage } from './pages/admin/PromptsPage';
 import { LLMCostsPage } from './pages/admin/LLMCostsPage';
+import { WhatsAppCostsPage } from './pages/admin/WhatsAppCostsPage';
 
 export function AppAdmin() {
   return (
@@ -50,8 +51,9 @@ export function AppAdmin() {
                 <Route path="/promotions" element={<PromotionsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/prompts" element={<PromptsPage />} />
-                <Route path="/llm-costs" element={<LLMCostsPage />} />
-              </Route>
+                    <Route path="/llm-costs" element={<LLMCostsPage />} />
+                    <Route path="/whatsapp-costs" element={<WhatsAppCostsPage />} />
+                  </Route>
             </Route>
           </Route>
         </Routes>

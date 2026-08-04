@@ -14,6 +14,7 @@ import {
   Sparkles,
   TrendingUp,
   Zap,
+  MessageCircle,
   LogOut,
   Menu,
   X,
@@ -60,6 +61,7 @@ export function AdminLayout() {
   const superAdminItems = [
     { to: `${basePath}/prompts`, label: 'Prompts IA', icon: Sparkles },
     { to: `${basePath}/llm-costs`, label: 'Costos LLM', icon: Zap },
+    { to: `${basePath}/whatsapp-costs`, label: 'Costos WhatsApp', icon: MessageCircle },
     { to: `${basePath}/promotions`, label: 'Promociones', icon: Percent },
     { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
   ];
