@@ -47,6 +47,7 @@ async function extractName(input: string, context?: LLMCallContext): Promise<str
   const prompt = await promptService.getPrompt('extract_name', { input });
   try {
     const response = await callLLM(prompt, context);
+    console.log('[extractName] input:', input, 'response:', response.trim());
     return response.trim() || input.trim();
   } catch {
     return input.trim();
