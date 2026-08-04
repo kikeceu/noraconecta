@@ -36,6 +36,8 @@ import { PlansRepository } from './modules/plans/plans.repository';
 import { ConfigRepository } from './modules/config/config.repository';
 import { WhatsAppAdapter } from './lib/whatsapp-adapter';
 import { R2Client } from './lib/r2-client';
+import { LLMRepository } from './modules/llm/llm.repository';
+import { LLMService } from './modules/llm/llm.service';
 
 const app = express();
 
@@ -167,6 +169,24 @@ const membershipsService = new MembershipsService(
 cron.schedule('0 10 * * *', () => {
   void membershipsService.sendExpirationReminders();
 });
+
+const llmRepository = new LLMRepository();
+const llmService = new LLMService(llmRepository);
+
+void (async (): Promise<void> => {
+  const inputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_INPUT');
+  const outputPrice = await configRepository.findByKey('LLM_COST_GPT4O_MINI_OUTPUT');
+  llmService.registerHandlers({
+    'gpt-4o-mini': {
+      input: parseFloat(inputPrice?.value ?? '0.00015'),
+      output: parseFloat(outputPrice?.value ?? '0.0006'),
+    },
+    'default': {
+      input: parseFloat(inputPrice?.value ?? '0.00015'),
+      output: parseFloat(outputPrice?.value ?? '0.0006'),
+    },
+  });
+})();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 

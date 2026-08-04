@@ -9,10 +9,14 @@ import { UsersRepository } from '../users/users.repository';
 import { BotRepository } from '../bot/bot.repository';
 import { promptRepository } from '../prompts/prompt.repository';
 import { promptService } from '../prompts/prompt.service';
+import { LLMRepository } from '../llm/llm.repository';
+import { LLMService } from '../llm/llm.service';
 
 const adminRepository = new AdminRepository();
 const configRepository = new ConfigRepository();
-const adminService = new AdminService(adminRepository, configRepository);
+const llmRepository = new LLMRepository();
+const llmService = new LLMService(llmRepository);
+const adminService = new AdminService(adminRepository, configRepository, llmService);
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -152,6 +156,19 @@ export class AdminController {
       const { key } = req.params as { key: string };
       promptService.invalidate(key);
       res.status(200).json({ data: { ok: true } });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getLLMCosts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { from, to } = req.query as { from?: string; to?: string };
+      const costs = await adminService.getLLMCosts(
+        from ? new Date(from) : undefined,
+        to ? new Date(to) : undefined,
+      );
+      res.status(200).json({ data: costs });
     } catch (err) {
       next(err);
     }

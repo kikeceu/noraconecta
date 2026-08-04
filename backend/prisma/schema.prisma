@@ -164,6 +164,7 @@ model User {
 
   requests    Request[]
   escalations Escalation[]
+  llmUsages   LLMUsage[]
 }
 
 model Professional {
@@ -345,6 +346,8 @@ model Request {
   escalation Escalation?
   pricing    RequestPricing?
 
+  llmUsages  LLMUsage[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -488,4 +491,26 @@ model UserRequestSession {
   updatedAt   DateTime @updatedAt
 
   @@index([phone])
+}
+
+model LLMUsage {
+  id           String   @id @default(cuid())
+  requestId    String?
+  request      Request? @relation(fields: [requestId], references: [id])
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  promptKey    String?
+  provider     String
+  model        String
+  inputTokens  Int
+  outputTokens Int
+  costUsd      Float
+  durationMs   Int?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([promptKey])
+  @@index([model])
+  @@index([requestId])
+  @@index([userId])
 }

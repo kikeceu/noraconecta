@@ -1,8 +1,46 @@
+export interface LLMUsageData {
+  requestId?: string;
+  userId?: string;
+  promptKey?: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs?: number;
+}
+
+type UsageHandler = (usage: LLMUsageData) => void;
+
+let _usageHandler: UsageHandler | null = null;
+const _modelPrices: Record<string, { input: number; output: number }> = {};
+
+export function registerLLMUsageHandler(handler: UsageHandler): void {
+  _usageHandler = handler;
+}
+
+export function registerModelPrices(prices: Record<string, { input: number; output: number }>): void {
+  Object.assign(_modelPrices, prices);
+}
+
+function calculateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const prices = _modelPrices[model] ?? _modelPrices['default'] ?? { input: 0.00015, output: 0.0006 };
+  return (inputTokens / 1_000_000 * prices.input) + (outputTokens / 1_000_000 * prices.output);
+}
+
+export interface LLMCallContext {
+  requestId?: string;
+  userId?: string;
+  promptKey?: string;
+}
+
 interface LLMResponse {
   text: string;
 }
 
-async function callOpenAI(prompt: string): Promise<LLMResponse> {
+async function callOpenAI(prompt: string, context?: LLMCallContext): Promise<LLMResponse> {
+  const start = Date.now();
+
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -22,12 +60,31 @@ async function callOpenAI(prompt: string): Promise<LLMResponse> {
 
   const data = (await response.json()) as {
     choices: Array<{ message: { content: string } }>;
+    usage?: { prompt_tokens: number; completion_tokens: number };
+    model?: string;
   };
+
+  const durationMs = Date.now() - start;
+
+  if (_usageHandler && data.usage) {
+    const model = data.model || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+    _usageHandler({
+      ...context,
+      provider: 'openai',
+      model,
+      inputTokens: data.usage.prompt_tokens,
+      outputTokens: data.usage.completion_tokens,
+      costUsd: calculateCostUsd(model, data.usage.prompt_tokens, data.usage.completion_tokens),
+      durationMs,
+    });
+  }
 
   return { text: data.choices[0]?.message?.content?.trim() || '' };
 }
 
-async function callAnthropic(prompt: string): Promise<LLMResponse> {
+async function callAnthropic(prompt: string, context?: LLMCallContext): Promise<LLMResponse> {
+  const start = Date.now();
+
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -48,22 +105,39 @@ async function callAnthropic(prompt: string): Promise<LLMResponse> {
 
   const data = (await response.json()) as {
     content: Array<{ text: string }>;
+    usage?: { input_tokens: number; output_tokens: number };
+    model?: string;
   };
+
+  const durationMs = Date.now() - start;
+
+  if (_usageHandler && data.usage) {
+    const model = data.model || process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+    _usageHandler({
+      ...context,
+      provider: 'anthropic',
+      model,
+      inputTokens: data.usage.input_tokens,
+      outputTokens: data.usage.output_tokens,
+      costUsd: calculateCostUsd(model, data.usage.input_tokens, data.usage.output_tokens),
+      durationMs,
+    });
+  }
 
   return { text: data.content[0]?.text?.trim() || '' };
 }
 
-export async function callLLM(prompt: string): Promise<string> {
+export async function callLLM(prompt: string, context?: LLMCallContext): Promise<string> {
   const provider = process.env.LLM_PROVIDER || 'openai';
 
   try {
     if (provider === 'openai') {
-      const result = await callOpenAI(prompt);
+      const result = await callOpenAI(prompt, context);
       return result.text;
     }
 
     if (provider === 'anthropic') {
-      const result = await callAnthropic(prompt);
+      const result = await callAnthropic(prompt, context);
       return result.text;
     }
 

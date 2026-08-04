@@ -169,6 +169,8 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'MATCHING_WEIGHT_SPECIALIZATION', value: '0.08' },
     { key: 'MATCHING_AVAILABILITY_BONUS_DATE', value: '15' },
     { key: 'MATCHING_AVAILABILITY_BONUS_URGENT', value: '25' },
+    { key: 'LLM_COST_GPT4O_MINI_INPUT', value: '0.00015' },
+    { key: 'LLM_COST_GPT4O_MINI_OUTPUT', value: '0.0006' },
   ];
 
   for (const cfg of configs) {

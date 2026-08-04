@@ -24,7 +24,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343) + captura de usage/tokens/costo/durationMs con handler fire-and-forget vía registerLLMUsageHandler + calculateCostUsd + registerModelPrices (AUT-495)
 │   │   │   └── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con validación de 1 template por 24hs (AUT-134, AUT-226, AUT-272). Modo simulador automático cuando tokens vacíos (AUT-267). Encola en simulatorQueue cuando modo simulador activo (AUT-268). Extrae msg.id como messageId para deduplicación (AUT-394). Soporta msg.type === 'button' para Quick Reply de templates (AUT-413). parseWebhook ya no descarga media: setea mediaId/mediaType en IncomingMessage; la descarga queda diferida a processWebhookAsync con control de contexto (AUT-429)
 │   │   │   └── simulator-queue.ts     # Cola en memoria para mensajes enviados en modo simulador: SimulatorQueue con enqueue/dequeue por phone+role, máx 100 mensajes (AUT-268)
 │   │   ├── middleware/
@@ -65,9 +65,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │       ├── professionals.service.ts    # Register, verify, approve (con window-check), reject, suspend, session, panel. adminCreate: alta directa de profesional en ACTIVE con zonas y disponibilidad opcional (availability + availabilityStructured) — AUT-351, AUT-354. adminUpdate: edición completa de profesional con zonas, disponibilidad y archivos, compara valores reales contra DB y registra previousValues/newValues solo en campos con cambio real — AUT-355, AUT-359. Welcome message con estructura clara, bullet points y ranking system — AUT-300. getEarnings: endpoint dedicado de ganancias por rango de días — AUT-327. getMembershipDiscount: consulta de descuento de membresía desde SystemConfig con validación de expiración — AUT-329. updateLicenseStatus: aprobación/rechazo de credencial por admin; notifica al profesional vía WhatsApp cuando se rechaza con nuevo token y CTA de re-subida — AUT-324, AUT-335. submitLicenseResubmission: re-subida de credencial vía token con ?mode=license — AUT-335. sendWithWindowCheck: helper de envío con template/text según ventana 24hs — AUT-335. getVerificationTokenStatus extendido con requiresLicense, licenseLabel, declaredHasLicense; submitVerification acepta licenseUrl — AUT-323. getPanelData incluye userComments anónimos en reputación — AUT-345, trialRequestsLimit leído desde SystemConfig en vez de hardcodeado — AUT-349, dniNumber, licenseUrl, declaredHasLicense, availabilityStructured, photoUrl (desde ProfessionalProfile) — AUT-356, AUT-447. getCurrentPlan: devuelve el plan activo del profesional vía MembershipsService — AUT-348. uploadProfilePhoto: upsert de photoUrl en ProfessionalProfile — AUT-447. getProfilePhoto: consulta de photoUrl desde ProfessionalProfile — AUT-447. getPublicProfile: devuelve datos públicos del profesional ACTIVE (nombre, categoría, badges, foto) sin auth — AUT-449
 │   │   │       └── professionals.repository.ts # Prisma queries for Professional/ProfessionalZone (includes category, zones with geoNode), panel data, orders. findEarnings: aggregate de RequestPricing.amountPaid — AUT-327. updateLicenseStatus: persiste estado de credencial — AUT-324. findByVerificationToken incluye category para requiresLicense/licenseLabel — AUT-323. findById ahora incluye category en el tipo de retorno — AUT-335. createDataChangeRequest: acepta previousValues y newValues — AUT-358, AUT-359. findPendingDataChangeRequests: incluye previousValues y newValues en el retorno — AUT-359. getProfessionalsWithPendingChanges: IDs de profesionales con cambios PENDING — AUT-359
    │   │   │   ├── admin/
-   │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, GET /admin/demand (demanda insatisfecha detallada, filtro por ?geoNodeId — AUT-482), POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount, GET /admin/prompts, PATCH /admin/prompts/:key, POST /admin/prompts/:key/reset, POST /admin/prompts/:key/invalidate-cache — AUT-334, AUT-399
-   │   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount, listPrompts, updatePrompt, resetPrompt, invalidatePromptCache — AUT-334, AUT-399. getDemandInsights: endpoint de demanda insatisfecha detallada — AUT-482
-    │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334. getMetrics incluye unfulfilledDemand (demanda insatisfecha NOT_FULFILLED por categoría/zona, últimos 30 días) — AUT-481. getDemandInsights: orquesta AdminRepository.getDemandInsights y calcula total y totalCategories (demanda insatisfecha completa, sin límite de días) — AUT-482
+   │   │   │   │   ├── admin.routes.ts     # GET /admin/metrics (filtro por ?geoNodeId), GET /admin/geo-tree, GET /admin/demand (demanda insatisfecha detallada, filtro por ?geoNodeId — AUT-482), POST /admin/requests/auto-close, GET /admin/membership-discount, POST /admin/membership-discount, GET /admin/prompts, PATCH /admin/prompts/:key, POST /admin/prompts/:key/reset, POST /admin/prompts/:key/invalidate-cache — AUT-334, AUT-399, GET /admin/llm-costs (costos LLM agregados, requiere SUPERADMIN) — AUT-495
+   │   │   │   │   ├── admin.controller.ts # Request handling + query params. getMembershipDiscount, setMembershipDiscount, listPrompts, updatePrompt, resetPrompt, invalidatePromptCache — AUT-334, AUT-399. getDemandInsights: endpoint de demanda insatisfecha detallada — AUT-482. getLLMCosts: endpoint de costos LLM con filtro por ?from y ?to — AUT-495
+    │   │   │   │   ├── admin.service.ts    # Aggregates metrics from multiple entities, supports geoNodeId filtering. getMembershipDiscount, setMembershipDiscount con ConfigRepository — AUT-334. getMetrics incluye unfulfilledDemand (demanda insatisfecha NOT_FULFILLED por categoría/zona, últimos 30 días) — AUT-481. getDemandInsights: orquesta AdminRepository.getDemandInsights y calcula total y totalCategories (demanda insatisfecha completa, sin límite de días) — AUT-482. getLLMCosts: delega en LLMService.getCosts con filtro opcional por rango de fechas — AUT-495
    │   │   │   │   └── admin.repository.ts # Prisma aggregate queries with optional geoNodeId filter. getUnfulfilledDemand: groupBy NOT_FULFILLED por categoryId/geoNodeId (últimos 30 días, orden desc) + resolución de nombres — AUT-481. getDemandInsights: groupBy NOT_FULFILLED por categoryId/geoNodeId con _max.createdAt (lastDate), sin ventana de 30 días, orden desc + resolución de nombres — AUT-482
 │   │   │   ├── plans/
 │   │   │   │   ├── plans.routes.ts     # 4 endpoints under /plans (GET, POST, PATCH, DELETE)
@@ -83,8 +83,11 @@ noraconecta/                   # Monorepo root (npm workspaces)
    │   │   │   │   ├── config.routes.ts     # 2 endpoints under /config
    │   │   │   │   ├── config.controller.ts # Request validation, response formatting
    │   │   │   │   ├── config.service.ts    # Key-value config get/update
-   │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
-    │   │   │   ├── prompts/                        # (AUT-399, AUT-494)
+    │   │   │   │   └── config.repository.ts # Prisma queries for SystemConfig model
+    │   │   │   ├── llm/                              # (AUT-495)
+    │   │   │   │   ├── llm.service.ts        # LLM usage handler registration (fire-and-forget via registerLLMUsageHandler), getCosts: aggregated costs by model/provider/promptKey/day + association breakdown + avg cost per request
+    │   │   │   │   └── llm.repository.ts     # Prisma queries for LLMUsage model: create, groupBy model/provider/promptKey, raw SQL for DATE_TRUNC daily aggregation, $queryRaw for association breakdown
+     │   │   │   ├── prompts/                        # (AUT-399, AUT-494)
     │   │   │   │   ├── prompt.service.ts    # In-memory cache (Map<string,string>), getPrompt(key, vars): loads from DB on cache miss, replaces {{varName}} placeholders, throws if key not found
     │   │   │   │   └── prompt.repository.ts # Prisma queries for PromptTemplate model: findByKey, findAll, update, resetToDefault
     │   │   │   │   # PromptTemplates: parse_datetime_natural (vars: now, nextDays, input) y classify_description (vars: categoryName, description) — AUT-494
@@ -142,7 +145,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   ├── prisma.ts              # Prisma client singleton
 │   │   │   ├── r2-client.ts           # Cloudflare R2 client (presigned URLs + direct upload)
 │   │   │   ├── llm.ts                 # LLM client: parseScheduledAt (obsoleto para coordinación desde AUT-166, conservado para otros usos potenciales)
-│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343)
+│   │   │   ├── llm-client.ts          # LLM Client unificado: callLLM multi-proveedor (OpenAI / Anthropic, AUT-242) + callLLMWithImages multimodal (gpt-4o-mini vision, AUT-274) + transcribeAudio (Whisper/GPT, AUT-302) + compareAddresses (validación de direcciones vía LLM, AUT-306) + extractServiceAndZone (extracción servicio/zona vía LLM, AUT-308) + extractName (extracción de nombre vía LLM, AUT-309) + userRequestsLicenseByLLM (detección LLM de intención de usuario de pedir matriculado, AUT-343) + captura de usage/tokens/costo/durationMs con handler fire-and-forget vía registerLLMUsageHandler + calculateCostUsd + registerModelPrices (AUT-495)
 │   │   │   ├── nominatim-client.ts     # Nominatim reverse geocoding: resolve GPS coordinates to department name, neighborhood and postal code (AUT-306, AUT-307)
 │   │   │   ├── whatsapp-adapter.ts    # WhatsApp Business API adapter: parseo de webhooks, envío de mensajes, templates con botón URL (AUT-134, AUT-226), quick reply buttons (AUT-229), quick reply buttons (AUT-229), messageId extraction (AUT-394). parseWebhook ya no descarga media: setea mediaId/mediaType en IncomingMessage; la descarga queda diferida a processWebhookAsync con control de contexto (AUT-429)
 │   │   │   └── mercadopago-client.ts  # MercadoPago SDK wrapper: createPaymentLink, fetchPayment (AUT-188)
@@ -514,6 +517,36 @@ Perfil profesional extendido con relación 1:1 opcional con `Professional`. Alma
 | `securityCode`| String?  | Código de seguridad para uso en coordinación de visitas (uso futuro) |
 
 **Archivos:** `backend/prisma/schema.prisma` (campo en modelo `Request`), `backend/prisma/migrations/20260721144929_add_professional_profile_and_security_code/migration.sql`
+
+### LLMUsage (AUT-495)
+
+Registro del uso y costo de cada llamada LLM para cálculo de costo operativo por pedido y proyecciones de negocio.
+
+**Modelo `LLMUsage`:**
+
+| Campo          | Tipo      | Descripción                                                    |
+|---------------|----------|----------------------------------------------------------------|
+| `id`           | String   | PK (cuid)                                                      |
+| `requestId`    | String?  | FK → Request (nullable)                                        |
+| `userId`       | String?  | FK → User (nullable)                                           |
+| `promptKey`    | String?  | Identificador del prompt (ej: `classify_description`)          |
+| `provider`     | String   | Proveedor LLM: `openai` o `anthropic`                         |
+| `model`        | String   | Modelo utilizado (ej: `gpt-4o-mini`, `claude-haiku-4-5-20251001`) |
+| `inputTokens`  | Int      | Tokens de entrada consumidos                                   |
+| `outputTokens` | Int      | Tokens de salida generados                                     |
+| `costUsd`      | Float    | Costo estimado en USD                                          |
+| `durationMs`   | Int?     | Duración de la llamada en milisegundos                         |
+| `createdAt`    | DateTime | Fecha de creación                                              |
+
+**Índices:** `@@index([createdAt])`, `@@index([promptKey])`, `@@index([model])`, `@@index([requestId])`, `@@index([userId])`
+
+**Relaciones inversas:** `Request.llmUsages[]`, `User.llmUsages[]`
+
+**Endpoint:** `GET /admin/llm-costs?from=&to=` devuelve costos agregados por modelo, promptKey, provider, costo total, promedio por pedido, tendencia diaria y breakdown asociadas vs generales.
+
+**Precios configurables:** `LLM_COST_GPT4O_MINI_INPUT` y `LLM_COST_GPT4O_MINI_OUTPUT` en `SystemConfig` (editables desde seed y admin).
+
+**Archivos:** `backend/prisma/schema.prisma` (modelo + relaciones en `Request` y `User`), `backend/prisma/migrations/20260804094946_add_llm_usage/migration.sql`
 
 ## Build Targets (Frontend Subdomain Configuration)
 

@@ -8,7 +8,7 @@ import { NotificationService } from '../../notifications/notification.service';
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOption, resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
-import { callLLM, transcribeAudio } from '../../../lib/llm-client';
+import { callLLM, transcribeAudio, LLMCallContext } from '../../../lib/llm-client';
 import { reverseGeocode } from '../../../lib/nominatim-client';
 import prisma from '../../../lib/prisma';
 import { promptService } from '../../prompts/prompt.service';
@@ -19,10 +19,11 @@ const nlpService = new NlpService();
 async function generateClarificationQuestions(
   description: string,
   categoryName: string,
+  context?: LLMCallContext,
 ): Promise<string | null> {
   const prompt = await promptService.getPrompt('clarification_questions', { categoryName, description });
 
-  const response = await callLLM(prompt);
+  const response = await callLLM(prompt, context);
   const trimmed = response.trim();
   return trimmed === 'NO_QUESTIONS' ? null : trimmed;
 }
@@ -31,6 +32,7 @@ async function generateTechnicalBrief(
   description: string,
   categoryName: string,
   clarificationAnswer: string | null,
+  context?: LLMCallContext,
 ): Promise<string> {
   const prompt = await promptService.getPrompt('technical_brief', {
     categoryName,
@@ -38,13 +40,13 @@ async function generateTechnicalBrief(
     clarificationAnswer: clarificationAnswer ? `Respuesta adicional del usuario: "${clarificationAnswer}"` : '',
   });
 
-  return callLLM(prompt);
+  return callLLM(prompt, context);
 }
 
-async function extractName(input: string): Promise<string> {
+async function extractName(input: string, context?: LLMCallContext): Promise<string> {
   const prompt = await promptService.getPrompt('extract_name', { input });
   try {
-    const response = await callLLM(prompt);
+    const response = await callLLM(prompt, context);
     return response.trim() || input.trim();
   } catch {
     return input.trim();
@@ -53,11 +55,11 @@ async function extractName(input: string): Promise<string> {
 
 type DescriptionValidation = 'VALID' | 'INVALID' | 'UNCERTAIN';
 
-async function validateDescription(description: string, categoryName: string): Promise<DescriptionValidation> {
+async function validateDescription(description: string, categoryName: string, context?: LLMCallContext): Promise<DescriptionValidation> {
   const prompt = await promptService.getPrompt('validate_description_match', { categoryName, description });
 
   try {
-    const response = await callLLM(prompt);
+    const response = await callLLM(prompt, context);
     const trimmed = response.trim().toUpperCase();
     if (trimmed.includes('INVALIDO')) return 'INVALID';
     if (trimmed.includes('INCIERTO')) return 'UNCERTAIN';
@@ -338,7 +340,7 @@ export class UserRequestFlow implements FlowHandler {
       };
     }
 
-    const extractedName = await extractName(inputName);
+    const extractedName = await extractName(inputName, { requestId: tempData.requestId as string | undefined, userId: tempData.userId as string | undefined, promptKey: 'extract_name' });
 
     if (!extractedName || extractedName.length > 40 || extractedName.includes('.')) {
       return {
@@ -1127,7 +1129,7 @@ export class UserRequestFlow implements FlowHandler {
 
     tempData.description = description;
 
-    const validation = await validateDescription(description, categoryName);
+    const validation = await validateDescription(description, categoryName, { requestId: tempData.requestId as string | undefined, userId: tempData.userId as string | undefined, promptKey: 'validate_description_match' });
 
     if (validation === 'INVALID') {
       return {
@@ -1289,6 +1291,7 @@ export class UserRequestFlow implements FlowHandler {
         const question = await generateClarificationQuestions(
           description,
           categoryName,
+          { requestId: tempData.requestId as string | undefined, userId: tempData.userId as string | undefined, promptKey: 'clarification_questions' },
         );
 
         if (question) {
@@ -1327,6 +1330,7 @@ export class UserRequestFlow implements FlowHandler {
         description,
         categoryName,
         clarificationAnswer,
+        { requestId: tempData.requestId as string | undefined, userId: tempData.userId as string | undefined, promptKey: 'technical_brief' },
       );
 
       tempData.technicalBrief = technicalBrief;

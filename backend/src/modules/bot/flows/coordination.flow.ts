@@ -12,7 +12,7 @@ import { ProfessionalsService } from '../../professionals/professionals.service'
 import { handleCancelConfirmation } from './cancel-flow.helper';
 import { resolveOptionWithFallback, generateOffTopicResponse } from './option-resolver.helper';
 import { BOT_PAYLOADS } from '../constants/bot-payloads';
-import { callLLM } from '../../../lib/llm-client';
+import { callLLM, LLMCallContext } from '../../../lib/llm-client';
 import { upsertSavedLocationByAddress, findLocationsByGeoNode, touchSavedLocation, DEFAULT_MAX_SAVED_LOCATIONS } from './location-saver.helper';
 import { promptService } from '../../prompts/prompt.service';
 
@@ -24,11 +24,11 @@ function generateSecurityCode(): string {
   return Math.floor(SECURITY_CODE_MIN + Math.random() * SECURITY_CODE_RANGE).toString();
 }
 
-async function extractCleanAddress(rawText: string): Promise<string> {
+async function extractCleanAddress(rawText: string, context?: LLMCallContext): Promise<string> {
   const prompt = await promptService.getPrompt('clean_address', { rawText });
 
   try {
-    const response = await callLLM(prompt);
+    const response = await callLLM(prompt, context);
     const cleaned = response.trim();
     return cleaned.length > 0 ? cleaned : rawText;
   } catch {
@@ -1511,7 +1511,7 @@ export class CoordinationFlow implements FlowHandler {
     }
 
     const rawAddress = message.text?.trim();
-    const address = rawAddress ? await extractCleanAddress(rawAddress) : rawAddress;
+    const address = rawAddress ? await extractCleanAddress(rawAddress, { requestId, userId: tempData.userId as string | undefined, promptKey: 'clean_address' }) : rawAddress;
 
     // --- Caso: ya viene con clientAddress pre-llenado (reutilizó savedLocation) ---
     const request = await prisma.request.findUnique({
