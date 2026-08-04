@@ -64,7 +64,6 @@ async function callOpenAI(prompt: string, context?: LLMCallContext): Promise<LLM
     model?: string;
   };
 
-  console.log('[LLM] usage:', data.usage, 'model:', data.model);
   const durationMs = Date.now() - start;
 
   if (_usageHandler && data.usage) {
@@ -109,6 +108,7 @@ async function callAnthropic(prompt: string, context?: LLMCallContext): Promise<
     usage?: { input_tokens: number; output_tokens: number };
     model?: string;
   };
+
   const durationMs = Date.now() - start;
 
   if (_usageHandler && data.usage) {

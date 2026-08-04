@@ -50,7 +50,7 @@ export function LLMCostsPage() {
   useEffect(() => {
     setError(null);
     setData(null);
-    getLLMCosts({ from, to })
+    getLLMCosts({ from, to: `${to}T23:59:59` })
       .then((res) => setData(res.data))
       .catch((err: Error) => setError(err.message));
   }, [from, to]);

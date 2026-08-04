@@ -57,7 +57,7 @@ export function WhatsAppCostsPage() {
   const fetchCosts = () => {
     setError(null);
     setData(null);
-    getWhatsAppCosts({ from, to })
+    getWhatsAppCosts({ from, to: `${to}T23:59:59` })
       .then((res) => setData(res.data))
       .catch((err: Error) => setError(err.message));
   };
