@@ -7,6 +7,8 @@ import type {
   DashboardMetrics,
   DemandInsights,
   LLMCosts,
+  WhatsAppCosts,
+  WhatsAppTemplate,
   Category,
   CountryResponse,
   GeoNode,
@@ -580,4 +582,28 @@ export function getLLMCosts(params?: {
   return request<SingleResponse<LLMCosts>>(
     `/admin/llm-costs${buildQuery(params || {})}`,
   );
+}
+
+// WhatsApp Costs
+export function getWhatsAppCosts(params?: {
+  from?: string;
+  to?: string;
+}): Promise<SingleResponse<WhatsAppCosts>> {
+  return request<SingleResponse<WhatsAppCosts>>(
+    `/admin/whatsapp-costs${buildQuery(params || {})}`,
+  );
+}
+
+export function getWhatsAppTemplates(): Promise<ListResponse<WhatsAppTemplate>> {
+  return request<ListResponse<WhatsAppTemplate>>('/admin/whatsapp-templates');
+}
+
+export function updateWhatsAppTemplate(
+  name: string,
+  data: { category?: string; costUsd?: number },
+): Promise<SingleResponse<{ ok: boolean }>> {
+  return request<SingleResponse<{ ok: boolean }>>(`/admin/whatsapp-templates/${encodeURIComponent(name)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 }

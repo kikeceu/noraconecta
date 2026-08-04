@@ -24,6 +24,7 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { PromotionsPage } from './pages/admin/PromotionsPage';
 import { PromptsPage } from './pages/admin/PromptsPage';
 import { LLMCostsPage } from './pages/admin/LLMCostsPage';
+import { WhatsAppCostsPage } from './pages/admin/WhatsAppCostsPage';
 import { resolveHostContext, type HostContext } from './lib/host';
 import type { ReactNode } from 'react';
 
@@ -56,8 +57,6 @@ function renderAdminRoutes(context: HostContext): ReactNode {
           <Route path="zones" element={<ZonesPage />} />
           <Route path="categories" element={<CategoriesPage />} />
           <Route path="plans" element={<PlansPage />} />
-          <Route path="prompts" element={<PromptsPage />} />
-          <Route path="llm-costs" element={<LLMCostsPage />} />
           <Route
             element={
               <ProtectedRoute
@@ -70,6 +69,9 @@ function renderAdminRoutes(context: HostContext): ReactNode {
             <Route path="professionals/:id/edit" element={<ProfessionalEditPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="prompts" element={<PromptsPage />} />
+            <Route path="llm-costs" element={<LLMCostsPage />} />
+            <Route path="whatsapp-costs" element={<WhatsAppCostsPage />} />
           </Route>
         </Route>
       </Route>

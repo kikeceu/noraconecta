@@ -319,6 +319,33 @@ export interface LLMCosts {
   };
 }
 
+export interface WhatsAppTemplateUsage {
+  templateName: string;
+  category: string;
+  totalSent: number;
+  totalCostUsd: number;
+}
+
+export interface WhatsAppCosts {
+  templateUsage: WhatsAppTemplateUsage[];
+  serviceConversations: {
+    totalConversations: number;
+    totalCostUsd: number;
+  };
+  avgCostPerRequest: number;
+  costsByDay: {
+    date: string;
+    templateCostUsd: number;
+    serviceCostUsd: number;
+  }[];
+}
+
+export interface WhatsAppTemplate {
+  name: string;
+  category: string;
+  costUsd: number;
+}
+
 export interface ListResponse<T> {
   data: T[];
   pagination: Pagination;
