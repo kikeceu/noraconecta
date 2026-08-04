@@ -45,4 +45,8 @@ router.post('/prompts/:key/invalidate-cache', requireSuperAdmin, (req, res, next
   adminController.invalidatePromptCache(req, res, next);
 });
 
+router.get('/llm-costs', requireSuperAdmin, (req, res, next) => {
+  void adminController.getLLMCosts(req, res, next);
+});
+
 export default router;

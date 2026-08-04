@@ -1,5 +1,7 @@
 import { AdminRepository } from './admin.repository';
 import { ConfigRepository } from '../config/config.repository';
+import { LLMService } from '../llm/llm.service';
+import { LLMCostsResponse } from '../llm/llm.service';
 import { AppError } from '../../middleware/error-handler';
 
 export interface MembershipDiscount {
@@ -50,6 +52,7 @@ export class AdminService {
   constructor(
     private readonly adminRepository: AdminRepository,
     private readonly configRepository: ConfigRepository,
+    private readonly llmService: LLMService,
   ) {}
 
   async getMembershipDiscount(): Promise<MembershipDiscount> {
@@ -217,5 +220,9 @@ export class AdminService {
       total: byCategory.reduce((acc, item) => acc + item.count, 0),
       totalCategories: new Set(byCategory.map((item) => item.categoryName)).size,
     };
+  }
+
+  async getLLMCosts(from?: Date, to?: Date): Promise<LLMCostsResponse> {
+    return this.llmService.getCosts(from, to);
   }
 }

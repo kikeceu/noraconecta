@@ -143,7 +143,7 @@ export class RequestsService {
         categoryName,
         description: input.description.trim(),
       });
-      const rawResponse = await callLLM(prompt);
+      const rawResponse = await callLLM(prompt, { requestId: request.id, userId: user.id, promptKey: 'classify_description' });
       const trimmed = rawResponse.trim();
 
       let parsed: { problemType?: string; isUrgent?: boolean; mentionedDate?: string | null } | null = null;

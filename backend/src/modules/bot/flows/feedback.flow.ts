@@ -592,7 +592,7 @@ export class FeedbackFlow implements FlowHandler {
     const prompt = await promptService.getPrompt('analyze_feedback', { comment });
 
     try {
-      const text = await callLLM(prompt);
+      const text = await callLLM(prompt, { requestId, promptKey: 'analyze_feedback' });
       const analysis = JSON.parse(text) as Record<string, number | boolean | null>;
       await prisma.feedback.update({
         where: { requestId },
