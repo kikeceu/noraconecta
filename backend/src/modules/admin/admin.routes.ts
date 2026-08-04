@@ -49,4 +49,16 @@ router.get('/llm-costs', requireSuperAdmin, (req, res, next) => {
   void adminController.getLLMCosts(req, res, next);
 });
 
+router.get('/whatsapp-costs', requireSuperAdmin, (req, res, next) => {
+  void adminController.getWhatsAppCosts(req, res, next);
+});
+
+router.get('/whatsapp-templates', requireSuperAdmin, (req, res, next) => {
+  void adminController.getWhatsAppTemplates(req, res, next);
+});
+
+router.patch('/whatsapp-templates/:name', requireSuperAdmin, (req, res, next) => {
+  void adminController.updateWhatsAppTemplate(req, res, next);
+});
+
 export default router;

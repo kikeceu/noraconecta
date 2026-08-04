@@ -13,6 +13,36 @@ export interface ParsedIncoming {
   role: WhatsAppRole;
 }
 
+export interface WhatsAppTemplateUsageData {
+  phone: string;
+  role: string;
+  templateName: string;
+  category: string;
+  costUsd: number;
+  requestId?: string;
+}
+
+export interface WhatsAppServiceConversationData {
+  phone: string;
+  role: string;
+  requestId?: string;
+  costUsd: number;
+}
+
+type TemplateUsageHandler = (data: WhatsAppTemplateUsageData) => void;
+type ServiceConversationHandler = (data: WhatsAppServiceConversationData) => void;
+
+let _templateUsageHandler: TemplateUsageHandler | null = null;
+let _serviceConversationHandler: ServiceConversationHandler | null = null;
+
+export function registerTemplateUsageHandler(handler: TemplateUsageHandler): void {
+  _templateUsageHandler = handler;
+}
+
+export function registerServiceConversationHandler(handler: ServiceConversationHandler): void {
+  _serviceConversationHandler = handler;
+}
+
 interface WhatsAppMetadata {
   display_phone_number: string;
   phone_number_id: string;
@@ -244,6 +274,8 @@ export class WhatsAppAdapter {
       const body = await res.text();
       // eslint-disable-next-line no-console
       console.error(`[WhatsAppAdapter] sendText failed: ${res.status} ${body}`);
+    } else if (_serviceConversationHandler) {
+      _serviceConversationHandler({ phone, role, costUsd: 0 });
     }
   }
 
@@ -393,6 +425,10 @@ export class WhatsAppAdapter {
     }
 
     await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
+
+    if (_templateUsageHandler) {
+      _templateUsageHandler({ phone, role, templateName, category: 'utility', costUsd: 0 });
+    }
   }
 
   async sendTemplateWithButton(
@@ -466,6 +502,10 @@ export class WhatsAppAdapter {
     }
 
     await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
+
+    if (_templateUsageHandler) {
+      _templateUsageHandler({ phone, role, templateName, category: 'utility', costUsd: 0 });
+    }
   }
 
   async sendTemplateWithQuickReplies(
@@ -540,6 +580,10 @@ export class WhatsAppAdapter {
     }
 
     await this.botRepository.setLastTemplateSentAt(phone, role as BotRole, new Date());
+
+    if (_templateUsageHandler) {
+      _templateUsageHandler({ phone, role, templateName, category: 'utility', costUsd: 0 });
+    }
   }
   async downloadAndUploadToR2(
     mediaId: string,

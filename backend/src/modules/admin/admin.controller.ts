@@ -11,12 +11,16 @@ import { promptRepository } from '../prompts/prompt.repository';
 import { promptService } from '../prompts/prompt.service';
 import { LLMRepository } from '../llm/llm.repository';
 import { LLMService } from '../llm/llm.service';
+import { WhatsAppRepository } from '../whatsapp/whatsapp.repository';
+import { WhatsAppUsageService } from '../whatsapp/whatsapp.service';
 
 const adminRepository = new AdminRepository();
 const configRepository = new ConfigRepository();
 const llmRepository = new LLMRepository();
 const llmService = new LLMService(llmRepository);
-const adminService = new AdminService(adminRepository, configRepository, llmService);
+const whatsAppRepository = new WhatsAppRepository();
+const whatsAppUsageService = new WhatsAppUsageService(whatsAppRepository);
+const adminService = new AdminService(adminRepository, configRepository, llmService, whatsAppUsageService);
 
 const requestsRepository = new RequestsRepository();
 const usersRepository = new UsersRepository();
@@ -169,6 +173,39 @@ export class AdminController {
         to ? new Date(to) : undefined,
       );
       res.status(200).json({ data: costs });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getWhatsAppCosts(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { from, to } = req.query as { from?: string; to?: string };
+      const costs = await adminService.getWhatsAppCosts(
+        from ? new Date(from) : undefined,
+        to ? new Date(to) : undefined,
+      );
+      res.status(200).json({ data: costs });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getWhatsAppTemplates(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const templates = await adminService.getWhatsAppTemplates();
+      res.status(200).json({ data: templates });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateWhatsAppTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { name } = req.params as { name: string };
+      const { category, costUsd } = req.body as { category?: string; costUsd?: number };
+      await adminService.updateWhatsAppTemplate(name, { category, costUsd });
+      res.status(200).json({ data: { ok: true } });
     } catch (err) {
       next(err);
     }

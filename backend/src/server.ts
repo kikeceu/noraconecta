@@ -38,6 +38,8 @@ import { WhatsAppAdapter } from './lib/whatsapp-adapter';
 import { R2Client } from './lib/r2-client';
 import { LLMRepository } from './modules/llm/llm.repository';
 import { LLMService } from './modules/llm/llm.service';
+import { WhatsAppUsageService } from './modules/whatsapp/whatsapp.service';
+import { WhatsAppRepository } from './modules/whatsapp/whatsapp.repository';
 
 const app = express();
 
@@ -186,6 +188,13 @@ void (async (): Promise<void> => {
       output: parseFloat(outputPrice?.value ?? '0.0006'),
     },
   });
+
+  const whatsAppRepository = new WhatsAppRepository();
+  const whatsAppUsageService = new WhatsAppUsageService(whatsAppRepository);
+  const serviceConvCost = await configRepository.findByKey('WHATSAPP_SERVICE_CONVERSATION_COST_USD');
+  await whatsAppUsageService.registerHandlers(
+    parseFloat(serviceConvCost?.value ?? '0'),
+  );
 })();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
