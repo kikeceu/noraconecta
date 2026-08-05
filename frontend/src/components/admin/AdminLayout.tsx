@@ -96,7 +96,7 @@ export function AdminLayout() {
       items: [
         { to: `${basePath}/promotions`, label: 'Promociones', icon: Percent },
         { to: `${basePath}/prompts`, label: 'Prompts IA', icon: Sparkles },
-        { to: `${basePath}/settings`, label: 'Configuración', icon: Settings },
+        { to: `${basePath}/settings`, label: 'Sistema', icon: Settings },
       ],
     },
   ];
