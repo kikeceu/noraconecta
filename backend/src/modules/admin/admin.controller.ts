@@ -203,8 +203,8 @@ export class AdminController {
   async updateWhatsAppTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const { name } = req.params as { name: string };
-      const { category, costUsd } = req.body as { category?: string; costUsd?: number };
-      await adminService.updateWhatsAppTemplate(name, { category, costUsd });
+      const { category } = req.body as { category?: string };
+      await adminService.updateWhatsAppTemplate(name, { category });
       res.status(200).json({ data: { ok: true } });
     } catch (err) {
       next(err);

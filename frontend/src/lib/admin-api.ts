@@ -600,7 +600,7 @@ export function getWhatsAppTemplates(): Promise<ListResponse<WhatsAppTemplate>> 
 
 export function updateWhatsAppTemplate(
   name: string,
-  data: { category?: string; costUsd?: number },
+  data: { category?: string },
 ): Promise<SingleResponse<{ ok: boolean }>> {
   return request<SingleResponse<{ ok: boolean }>>(`/admin/whatsapp-templates/${encodeURIComponent(name)}`, {
     method: 'PATCH',

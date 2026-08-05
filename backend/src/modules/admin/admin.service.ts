@@ -240,7 +240,7 @@ export class AdminService {
     return this.whatsAppUsageService.getTemplateCatalog();
   }
 
-  async updateWhatsAppTemplate(name: string, data: { category?: string; costUsd?: number }): Promise<void> {
+  async updateWhatsAppTemplate(name: string, data: { category?: string }): Promise<void> {
     if (!this.whatsAppUsageService) throw new AppError('WhatsApp service not available', 500);
     await this.whatsAppUsageService.updateTemplate(name, data);
   }

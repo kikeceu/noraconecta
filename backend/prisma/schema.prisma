@@ -518,7 +518,6 @@ model LLMUsage {
 model WhatsAppTemplate {
   name      String   @id
   category  String   @default("utility")
-  costUsd   Float    @default(0)
   updatedAt DateTime @updatedAt
 }
 

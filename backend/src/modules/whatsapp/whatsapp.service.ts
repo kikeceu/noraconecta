@@ -22,32 +22,33 @@ export interface WhatsAppCostsResponse {
 }
 
 export class WhatsAppUsageService {
-  private _templateCatalogCache: Map<string, { category: string; costUsd: number }> = new Map();
-  private _serviceConversationCostUsd = 0;
+  private _templateCatalogCache: Map<string, { category: string }> = new Map();
+  private _categoryPrices: Record<string, number> = {};
 
   constructor(private readonly whatsAppRepository: WhatsAppRepository) {}
 
-  async registerHandlers(serviceConversationCostUsd: number): Promise<void> {
-    this._serviceConversationCostUsd = serviceConversationCostUsd;
+  async registerHandlers(categoryPrices: Record<string, number>): Promise<void> {
+    this._categoryPrices = categoryPrices;
 
     const templates = await this.whatsAppRepository.findTemplateCatalog();
     for (const t of templates) {
-      this._templateCatalogCache.set(t.name, { category: t.category, costUsd: t.costUsd });
+      this._templateCatalogCache.set(t.name, { category: t.category });
     }
 
     registerTemplateUsageHandler((data) => {
-      const catalog = this._templateCatalogCache.get(data.templateName) ?? { category: 'utility', costUsd: 0 };
+      const catalog = this._templateCatalogCache.get(data.templateName) ?? { category: 'utility' };
+      const costUsd = this._categoryPrices[catalog.category] ?? 0;
       void this.whatsAppRepository.createTemplateUsage({
         ...data,
         category: catalog.category,
-        costUsd: catalog.costUsd,
+        costUsd,
       }).catch(err => { console.error('[WhatsAppUsageService] Failed to log template usage:', err); });
     });
 
     registerServiceConversationHandler((data) => {
       void this.whatsAppRepository.createServiceConversation({
         ...data,
-        costUsd: this._serviceConversationCostUsd,
+        costUsd: this._categoryPrices['service'] ?? 0,
       }).catch(err => { console.error('[WhatsAppUsageService] Failed to log service conversation:', err); });
     });
   }
@@ -66,9 +67,9 @@ export class WhatsAppUsageService {
     return this.whatsAppRepository.findTemplateCatalog();
   }
 
-  async updateTemplate(name: string, data: { category?: string; costUsd?: number }): Promise<void> {
+  async updateTemplate(name: string, data: { category?: string }): Promise<void> {
     await this.whatsAppRepository.updateTemplate(name, data);
-    const existing = this._templateCatalogCache.get(name) ?? { category: 'utility', costUsd: 0 };
+    const existing = this._templateCatalogCache.get(name) ?? { category: 'utility' };
     this._templateCatalogCache.set(name, { ...existing, ...data });
   }
 }
