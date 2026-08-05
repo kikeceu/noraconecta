@@ -25,6 +25,7 @@ import { PromotionsPage } from './pages/admin/PromotionsPage';
 import { PromptsPage } from './pages/admin/PromptsPage';
 import { LLMCostsPage } from './pages/admin/LLMCostsPage';
 import { WhatsAppCostsPage } from './pages/admin/WhatsAppCostsPage';
+import { WhatsAppPricingPage } from './pages/admin/WhatsAppPricingPage';
 import { resolveHostContext, type HostContext } from './lib/host';
 import type { ReactNode } from 'react';
 
@@ -72,6 +73,7 @@ function renderAdminRoutes(context: HostContext): ReactNode {
             <Route path="prompts" element={<PromptsPage />} />
             <Route path="llm-costs" element={<LLMCostsPage />} />
             <Route path="whatsapp-costs" element={<WhatsAppCostsPage />} />
+            <Route path="whatsapp-pricing" element={<WhatsAppPricingPage />} />
           </Route>
         </Route>
       </Route>
