@@ -712,6 +712,7 @@ export class CoordinationFlow implements FlowHandler {
       tempData: {
         ...tempData,
         parsedScheduledAt: undefined,
+        _proposingAlternative: true,        
       },
     };
   }
@@ -1026,6 +1027,7 @@ export class CoordinationFlow implements FlowHandler {
         tempData: {
           ...tempData,
           parsedAlternativeScheduledAt: undefined,
+          _proposingAlternative: true,
         },
       };
     }
