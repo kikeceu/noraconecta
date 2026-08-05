@@ -1503,7 +1503,7 @@ export class UserRequestFlow implements FlowHandler {
 
         return {
           response: {
-            text: 'Por el momento no tenemos profesionales disponibles para este servicio en tu zona. Cuando haya uno disponible, podés volver a pedirlo cuando quieras.',
+            text: 'Por el momento no contamos con profesionales para este servicio en tu zona. Si necesitás ayuda, escribinos cuando quieras y lo intentamos de nuevo.',
             requestId: request.id,
           },
           nextStep: null,
