@@ -166,9 +166,9 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   ├── main-landing.tsx            # Entry point: landing build (noraconecta.com.ar)
 │   │   ├── main-admin.tsx              # Entry point: admin build (admin.noraconecta.com.ar)
 │   │   ├── main-app.tsx                # Entry point: app build (app.noraconecta.com.ar)
-│   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains. Rutas /admin/prompts, /admin/llm-costs, /admin/whatsapp-costs agregadas — AUT-400, AUT-496, AUT-498
+│   │   ├── App.tsx                     # Root component (dev): host-based routing — all routes on localhost, context-aware on subdomains. Rutas /admin/prompts, /admin/llm-costs, /admin/whatsapp-costs, /admin/whatsapp-pricing agregadas — AUT-400, AUT-496, AUT-498, AUT-500
 │   │   ├── App-landing.tsx             # Root component (landing): /simulator only
-│   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build). Ruta /admin/llm-costs agregada (SUPERADMIN) — AUT-496. Ruta /admin/whatsapp-costs agregada (SUPERADMIN) — AUT-498
+│   │   ├── App-admin.tsx               # Root component (admin): /admin/* only (production build). Ruta /admin/llm-costs agregada (SUPERADMIN) — AUT-496. Ruta /admin/whatsapp-costs agregada (SUPERADMIN) — AUT-498. Ruta /admin/whatsapp-pricing agregada (SUPERADMIN) — AUT-500
 │   │   ├── App-app.tsx                 # Root component (app): /verify/:token, /panel/:sessionToken, /planes (production build)
 │   │   ├── index.css                   # Tailwind CSS directives + design tokens
 │   │   ├── vite-env.d.ts               # Vite client type reference
@@ -200,7 +200,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   └── AuthContext.tsx         # JWT in-memory auth provider (login, logout, role checks) (NEW)
 │   │   ├── components/
 │   │   │       ├── admin/
-│   │   │       │   ├── AdminLayout.tsx     # Sidebar (collapsible mobile) + main content wrapper; logo SVG en desktop/mobile header y header mobile dark (#111110); link "Prompts IA" en superAdminItems — AUT-400; link "Demanda" (ícono TrendingUp) en navItems — AUT-482; link "Costos LLM" (ícono Zap) en superAdminItems — AUT-496; link "Costos WhatsApp" (ícono MessageCircle) en superAdminItems — AUT-498 (AUT-210)
+│   │   │       │   ├── AdminLayout.tsx     # Sidebar con grupos colapsables (Gestión, Comunidad, Catálogo, Costos operativos, Configuración) + main content wrapper; logo SVG en desktop/mobile header y header mobile dark (#111110); badge de cambios pendientes en Profesionales; grupo "Gestión" abierto por defecto — AUT-500 (AUT-210, AUT-400, AUT-482, AUT-496, AUT-498)
 │   │   │       │   ├── ProtectedRoute.tsx  # Auth guard + optional role guard; context-aware redirect paths (NEW)
 │   │   │       │   └── ConfirmDialog.tsx   # Reusable confirm modal for destructive actions (NEW)
 │   │   ├── pages/
@@ -222,6 +222,7 @@ noraconecta/                   # Monorepo root (npm workspaces)
 │   │   │   │   ├── PromptsPage.tsx              # Gestión de prompts LLM: tabla con key/descripción/variables/isEditable/updatedAt, modal de edición con textarea, botón restaurar default con confirmación; solo superadmin edita — AUT-400
 │   │   │   │   ├── LLMCostsPage.tsx              # Página admin de costos LLM (ruta /admin/llm-costs, SUPERADMIN): filtro de fechas, 4 cards resumen (costo total, promedio por pedido, total llamadas, proyección mensual), gráfico de tendencia diaria (LineChart con doble eje Y: costo USD + llamadas), breakdown asociadas vs generales con porcentajes, tabla por prompt key ordenada por costo descendente con badges de color, tabla por modelo con % del total — AUT-496
 │   │   │   │   └── WhatsAppCostsPage.tsx          # Página admin de costos WhatsApp (ruta /admin/whatsapp-costs, SUPERADMIN): filtro de fechas (default 30d), 5 cards resumen (templates enviados, costo templates, conversaciones servicio, costo servicio, costo promedio por pedido), gráfico de tendencia diaria (LineChart templates vs servicio), resumen por categoría (utility vs marketing), tabla de templates con edición inline de categoría y costo unitario — AUT-498
+│   │   │   │   └── WhatsAppPricingPage.tsx        # Página admin de precios WhatsApp (ruta /admin/whatsapp-pricing, SUPERADMIN): card de costo de conversación de servicio editable, tabla de templates con edición inline de categoría (select utility/marketing/authentication) y costo unitario (USD), badges de color por categoría — AUT-500
 │   │   │   │   └── SettingsPage.tsx             # Config form (12 matching weights, penalties, limits, system params) — AUT-334, AUT-337
 │   │   │   │   └── PromotionsPage.tsx            # Membership discount management: activate/deactivate promo with percentage and duration, shows active/inactive state — AUT-336
 │   │   │   └── onboarding/
