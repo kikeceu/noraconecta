@@ -191,10 +191,18 @@ void (async (): Promise<void> => {
 
   const whatsAppRepository = new WhatsAppRepository();
   const whatsAppUsageService = new WhatsAppUsageService(whatsAppRepository);
-  const serviceConvCost = await configRepository.findByKey('WHATSAPP_SERVICE_CONVERSATION_COST_USD');
-  await whatsAppUsageService.registerHandlers(
-    parseFloat(serviceConvCost?.value ?? '0'),
-  );
+  const [utility, marketing, authentication, service] = await Promise.all([
+    configRepository.findByKey('WHATSAPP_UTILITY_CONVERSATION_COST_USD'),
+    configRepository.findByKey('WHATSAPP_MARKETING_CONVERSATION_COST_USD'),
+    configRepository.findByKey('WHATSAPP_AUTHENTICATION_CONVERSATION_COST_USD'),
+    configRepository.findByKey('WHATSAPP_SERVICE_CONVERSATION_COST_USD'),
+  ]);
+  await whatsAppUsageService.registerHandlers({
+    utility: parseFloat(utility?.value ?? '0'),
+    marketing: parseFloat(marketing?.value ?? '0'),
+    authentication: parseFloat(authentication?.value ?? '0'),
+    service: parseFloat(service?.value ?? '0'),
+  });
 })();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;

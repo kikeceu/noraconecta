@@ -26,7 +26,7 @@ export class WhatsAppRepository {
     return prisma.whatsAppTemplate.findUnique({ where: { name } });
   }
 
-  async updateTemplate(name: string, data: { category?: string; costUsd?: number }): Promise<void> {
+  async updateTemplate(name: string, data: { category?: string }): Promise<void> {
     await prisma.whatsAppTemplate.update({ where: { name }, data });
   }
 

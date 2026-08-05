@@ -12,12 +12,10 @@ import {
 import { Loader2, Check } from 'lucide-react';
 import {
   getWhatsAppCosts,
-  getWhatsAppTemplates,
   updateWhatsAppTemplate,
 } from '../../lib/admin-api';
 import type {
   WhatsAppCosts,
-  WhatsAppTemplate,
 } from '../../types/admin';
 
 type TemplateRow = {
@@ -25,7 +23,6 @@ type TemplateRow = {
   category: string;
   totalSent: number;
   totalCostUsd: number;
-  unitCostUsd: number;
 };
 
 type SaveState = 'idle' | 'saving' | 'saved';
@@ -49,9 +46,7 @@ export function WhatsAppCostsPage() {
   const [error, setError] = useState<string | null>(null);
   const [from, setFrom] = useState<string>(() => daysAgoStr(30));
   const [to, setTo] = useState<string>(() => todayStr());
-  const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
-  const [editingCost, setEditingCost] = useState<string | null>(null);
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>({});
 
   const fetchCosts = () => {
@@ -66,25 +61,13 @@ export function WhatsAppCostsPage() {
     fetchCosts();
   }, [from, to]);
 
-  useEffect(() => {
-    getWhatsAppTemplates()
-      .then((res) => setTemplates(res.data))
-      .catch(() => setTemplates([]));
-  }, []);
-
-  const templateCatalog = new Map(
-    templates.map((t) => [t.name, t]),
-  );
-
   const rows: TemplateRow[] = (data?.templateUsage ?? [])
     .map((u) => {
-      const catalogEntry = templateCatalog.get(u.templateName);
       return {
         templateName: u.templateName,
         category: u.category,
         totalSent: u.totalSent,
         totalCostUsd: u.totalCostUsd,
-        unitCostUsd: catalogEntry?.costUsd ?? 0,
       };
     })
     .sort((a, b) => b.totalCostUsd - a.totalCostUsd);
@@ -126,46 +109,7 @@ export function WhatsAppCostsPage() {
         setTimeout(() => {
           setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
         }, 2000);
-        getWhatsAppTemplates()
-          .then((res) => {
-            setTemplates(res.data);
-            fetchCosts();
-          })
-          .catch(() => {
-            setSaveStates((prev) => ({ ...prev, [templateName]: 'saved' }));
-            setTimeout(() => {
-              setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
-            }, 2000);
-          });
-      })
-      .catch(() => {
-        setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
-      });
-  };
-
-  const handleCostChange = (
-    templateName: string,
-    costUsd: number,
-  ) => {
-    setSaveStates((prev) => ({ ...prev, [templateName]: 'saving' }));
-    setEditingCost(null);
-    updateWhatsAppTemplate(templateName, { costUsd })
-      .then(() => {
-        setSaveStates((prev) => ({ ...prev, [templateName]: 'saved' }));
-        setTimeout(() => {
-          setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
-        }, 2000);
-        getWhatsAppTemplates()
-          .then((res) => {
-            setTemplates(res.data);
-            fetchCosts();
-          })
-          .catch(() => {
-            setSaveStates((prev) => ({ ...prev, [templateName]: 'saved' }));
-            setTimeout(() => {
-              setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
-            }, 2000);
-          });
+        fetchCosts();
       })
       .catch(() => {
         setSaveStates((prev) => ({ ...prev, [templateName]: 'idle' }));
@@ -382,9 +326,6 @@ export function WhatsAppCostsPage() {
                     Envíos
                   </th>
                   <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Costo unitario
-                  </th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Costo total
                   </th>
                   <th className="w-8 px-3 py-3" />
@@ -431,42 +372,6 @@ export function WhatsAppCostsPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-600">
                       {row.totalSent.toLocaleString('es-AR')}
-                    </td>
-                    <td className="px-6 py-4">
-                      {editingCost === row.templateName ? (
-                        <input
-                          type="number"
-                          step="0.0001"
-                          min="0"
-                          defaultValue={row.unitCostUsd}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleCostChange(
-                                row.templateName,
-                                Number(e.currentTarget.value),
-                              );
-                            }
-                            if (e.key === 'Escape') {
-                              setEditingCost(null);
-                            }
-                          }}
-                          onBlur={(e) => {
-                            handleCostChange(
-                              row.templateName,
-                              Number(e.target.value),
-                            );
-                          }}
-                          autoFocus
-                          className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
-                        />
-                      ) : (
-                        <button
-                          onClick={() => setEditingCost(row.templateName)}
-                          className="text-gray-600 cursor-pointer hover:text-gray-900"
-                        >
-                          {formatCostUsd(row.unitCostUsd)}
-                        </button>
-                      )}
                     </td>
                     <td className="px-6 py-4 text-gray-600">
                       {formatCostUsd(row.totalCostUsd)}

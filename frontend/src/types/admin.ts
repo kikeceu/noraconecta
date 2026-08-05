@@ -343,7 +343,6 @@ export interface WhatsAppCosts {
 export interface WhatsAppTemplate {
   name: string;
   category: string;
-  costUsd: number;
 }
 
 export interface ListResponse<T> {

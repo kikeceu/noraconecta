@@ -22,18 +22,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   authentication: 'Autenticación',
 };
 
-const SERVICE_CONVERSATION_KEY = 'WHATSAPP_SERVICE_CONVERSATION_COST_USD';
+const PRICING_CATEGORIES = [
+  { key: 'WHATSAPP_SERVICE_CONVERSATION_COST_USD', label: 'Conversación de servicio', description: 'Mensajes de servicio (no templates)' },
+  { key: 'WHATSAPP_UTILITY_CONVERSATION_COST_USD', label: 'Utilidad', description: 'Confirmaciones, actualizaciones de cuenta, etc.' },
+  { key: 'WHATSAPP_MARKETING_CONVERSATION_COST_USD', label: 'Marketing', description: 'Promociones, ofertas, etc.' },
+  { key: 'WHATSAPP_AUTHENTICATION_CONVERSATION_COST_USD', label: 'Autenticación', description: 'OTPs, verificación de identidad, etc.' },
+];
 
 export function WhatsAppPricingPage() {
   const [templates, setTemplates] = useState<WhatsAppTemplate[]>([]);
-  const [serviceCost, setServiceCost] = useState('');
-  const [serviceCostLoading, setServiceCostLoading] = useState(false);
+  const [categoryPrices, setCategoryPrices] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [editingTemplate, setEditingTemplate] = useState<string | null>(null);
   const [editCategory, setEditCategory] = useState('');
-  const [editCost, setEditCost] = useState('');
   const [savingTemplate, setSavingTemplate] = useState<string | null>(null);
 
   const fetchData = () => {
@@ -43,12 +47,14 @@ export function WhatsAppPricingPage() {
     Promise.all([getWhatsAppTemplates(), getConfig()])
       .then(([tRes, cRes]) => {
         setTemplates(tRes.data);
-        const serviceConfig = cRes.data.find(
-          (c: SystemConfig) => c.key === SERVICE_CONVERSATION_KEY,
-        );
-        if (serviceConfig) {
-          setServiceCost(serviceConfig.value);
+        const prices: Record<string, string> = {};
+        for (const cat of PRICING_CATEGORIES) {
+          const config = cRes.data.find(
+            (c: SystemConfig) => c.key === cat.key,
+          );
+          prices[cat.key] = config?.value ?? '0';
         }
+        setCategoryPrices(prices);
       })
       .catch((err) =>
         setError(err instanceof Error ? err.message : 'Error al cargar datos'),
@@ -65,32 +71,31 @@ export function WhatsAppPricingPage() {
     setTimeout(() => setSuccessMsg(''), 3000);
   };
 
-  const handleSaveServiceCost = async () => {
-    if (!serviceCost.trim()) return;
-    setServiceCostLoading(true);
+  const handleSaveCategoryPrice = async (key: string) => {
+    const value = categoryPrices[key];
+    if (!value.trim()) return;
+    setSavingKey(key);
     setError('');
     try {
-      await updateConfig(SERVICE_CONVERSATION_KEY, serviceCost);
-      showSuccess('Costo de conversación de servicio actualizado');
+      await updateConfig(key, value);
+      showSuccess('Precio de categoría actualizado');
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Error al guardar costo de servicio',
+        err instanceof Error ? err.message : 'Error al guardar precio',
       );
     } finally {
-      setServiceCostLoading(false);
+      setSavingKey(null);
     }
   };
 
   const startEdit = (template: WhatsAppTemplate) => {
     setEditingTemplate(template.name);
     setEditCategory(template.category);
-    setEditCost(String(template.costUsd));
   };
 
   const cancelEdit = () => {
     setEditingTemplate(null);
     setEditCategory('');
-    setEditCost('');
   };
 
   const handleSaveTemplate = async (name: string) => {
@@ -99,12 +104,11 @@ export function WhatsAppPricingPage() {
     try {
       await updateWhatsAppTemplate(name, {
         category: editCategory,
-        costUsd: parseFloat(editCost),
       });
       setTemplates((prev) =>
         prev.map((t) =>
           t.name === name
-            ? { ...t, category: editCategory, costUsd: parseFloat(editCost) }
+            ? { ...t, category: editCategory }
             : t,
         ),
       );
@@ -126,7 +130,7 @@ export function WhatsAppPricingPage() {
           Precios WhatsApp
         </h1>
         <p className="text-sm text-gray-500 mt-1">
-          Configuración de costos por template y conversación de servicio
+          Configuración de costos por categoría de conversación (Meta factura por categoría, no por template)
         </p>
       </div>
 
@@ -142,41 +146,54 @@ export function WhatsAppPricingPage() {
         </div>
       )}
 
-      {/* Service conversation card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">
-          Conversación de servicio
-        </h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Desde octubre 2026 Meta cobra por conversación de servicio
-        </p>
-
-        {loading ? (
-          <div className="h-10 bg-gray-100 rounded-lg w-48 animate-pulse" />
-        ) : (
-          <div className="flex items-center gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Costo unitario (USD)
-              </label>
-              <input
-                type="number"
-                step="0.0001"
-                min="0"
-                value={serviceCost}
-                onChange={(e) => setServiceCost(e.target.value)}
-                className="w-40 px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-              />
-            </div>
-            <button
-              onClick={handleSaveServiceCost}
-              disabled={serviceCostLoading || !serviceCost.trim()}
-              className="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
-            >
-              {serviceCostLoading ? 'Guardando...' : 'Guardar'}
-            </button>
-          </div>
-        )}
+      {/* Category pricing cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {loading
+          ? PRICING_CATEGORIES.map((cat) => (
+              <div key={cat.key} className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                <div className="h-5 bg-gray-100 rounded w-1/2 mb-2" />
+                <div className="h-4 bg-gray-100 rounded w-3/4 mb-4" />
+                <div className="h-10 bg-gray-100 rounded-lg w-48" />
+              </div>
+            ))
+          : PRICING_CATEGORIES.map((cat) => {
+              const isSaving = savingKey === cat.key;
+              return (
+                <div key={cat.key} className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                    {cat.label}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">{cat.description}</p>
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">
+                        Costo unitario (USD)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        value={categoryPrices[cat.key] ?? '0'}
+                        onChange={(e) =>
+                          setCategoryPrices((prev) => ({
+                            ...prev,
+                            [cat.key]: e.target.value,
+                          }))
+                        }
+                        className="w-40 px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
+                      />
+                    </div>
+                    <button
+                      onClick={() => handleSaveCategoryPrice(cat.key)}
+                      disabled={isSaving || !(categoryPrices[cat.key] ?? '').trim()}
+                      className="mt-5 px-4 py-2 text-sm font-medium rounded-lg bg-green-700 text-white hover:bg-green-800 disabled:opacity-50 cursor-pointer"
+                    >
+                      {isSaving ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
       </div>
 
       {/* Templates table */}
@@ -198,9 +215,6 @@ export function WhatsAppPricingPage() {
                   Categoría
                 </th>
                 <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
-                  Costo unitario (USD)
-                </th>
-                <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-4 py-3">
                   Acciones
                 </th>
               </tr>
@@ -209,7 +223,7 @@ export function WhatsAppPricingPage() {
               {loading
                 ? [...Array(5)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
-                      {[...Array(4)].map((_, j) => (
+                      {[...Array(3)].map((_, j) => (
                         <td key={j} className="px-4 py-3">
                           <div className="h-4 bg-gray-100 rounded w-3/4" />
                         </td>
@@ -257,27 +271,10 @@ export function WhatsAppPricingPage() {
 
                         <td className="px-4 py-3">
                           {isEditing ? (
-                            <input
-                              type="number"
-                              step="0.0001"
-                              min="0"
-                              value={editCost}
-                              onChange={(e) => setEditCost(e.target.value)}
-                              className="w-28 text-sm rounded-lg border border-gray-200 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-                            />
-                          ) : (
-                            <span className="text-sm text-gray-700 font-mono">
-                              ${template.costUsd.toFixed(4)}
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {isEditing ? (
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleSaveTemplate(template.name)}
-                                disabled={isSaving || !editCost.trim()}
+                                disabled={isSaving}
                                 className="text-sm text-green-700 hover:text-green-800 font-medium disabled:opacity-50 cursor-pointer"
                               >
                                 {isSaving ? 'Guardando...' : 'Guardar'}
@@ -305,7 +302,7 @@ export function WhatsAppPricingPage() {
               {!loading && templates.length === 0 && (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="px-4 py-12 text-center text-sm text-gray-500"
                   >
                     No hay templates configurados
@@ -326,7 +323,6 @@ export function WhatsAppPricingPage() {
                 >
                   <div className="h-4 bg-gray-100 rounded w-1/2" />
                   <div className="h-3 bg-gray-100 rounded w-3/4" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3" />
                 </div>
               ))
             : templates.map((template) => {
@@ -367,32 +363,12 @@ export function WhatsAppPricingPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">
-                        Costo unitario:
-                      </span>
-                      {isEditing ? (
-                        <input
-                          type="number"
-                          step="0.0001"
-                          min="0"
-                          value={editCost}
-                          onChange={(e) => setEditCost(e.target.value)}
-                          className="w-28 text-sm rounded-lg border border-gray-200 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-green-700/40 focus:border-green-700"
-                        />
-                      ) : (
-                        <span className="text-sm text-gray-700 font-mono">
-                          ${template.costUsd.toFixed(4)}
-                        </span>
-                      )}
-                    </div>
-
                     <div>
                       {isEditing ? (
                         <div className="flex items-center gap-3">
                           <button
                             onClick={() => handleSaveTemplate(template.name)}
-                            disabled={isSaving || !editCost.trim()}
+                            disabled={isSaving}
                             className="text-sm text-green-700 hover:text-green-800 font-medium disabled:opacity-50 cursor-pointer"
                           >
                             {isSaving ? 'Guardando...' : 'Guardar'}

@@ -172,6 +172,9 @@ async function seedSystemConfig(): Promise<void> {
     { key: 'LLM_COST_GPT4O_MINI_INPUT', value: '0.00015' },
     { key: 'LLM_COST_GPT4O_MINI_OUTPUT', value: '0.0006' },
     { key: 'WHATSAPP_SERVICE_CONVERSATION_COST_USD', value: '0' },
+    { key: 'WHATSAPP_UTILITY_CONVERSATION_COST_USD', value: '0' },
+    { key: 'WHATSAPP_MARKETING_CONVERSATION_COST_USD', value: '0' },
+    { key: 'WHATSAPP_AUTHENTICATION_CONVERSATION_COST_USD', value: '0' },
   ];
 
   for (const cfg of configs) {
@@ -625,7 +628,7 @@ async function seedWhatsAppTemplateCatalog(): Promise<void> {
 
   for (const name of templateNames) {
     await prisma.whatsAppTemplate.create({
-      data: { name, category: 'utility', costUsd: 0 },
+      data: { name, category: 'utility' },
     });
     // eslint-disable-next-line no-console
     console.log(`WhatsApp template "${name}" seeded.`);
