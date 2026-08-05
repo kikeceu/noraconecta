@@ -9,7 +9,7 @@ import { ProfessionalsRepository } from '../professionals/professionals.reposito
 import { ProfessionalsService } from '../professionals/professionals.service';
 import { SecurityService } from './security.service';
 import { BOT_PAYLOADS } from './constants/bot-payloads';
-import { isAckMessage } from './flows/ack-detector.helper';
+import { isAckMessage, stepIsInformational } from './flows/ack-detector.helper';
 import { formatDateTimeArgentina } from '../../utils/date-utils';
 import prisma from '../../lib/prisma';
 import { promptService } from '../prompts/prompt.service';
@@ -22,30 +22,6 @@ const EMPTY_WORDS = new Set([
   'esta', 'que', 'tal', 'ahi', 'aca', 'por', 'favor', 'gracias',
   'ok', 'dale', 'okey', 'bien', 'bueno', 'holis', 'holaa', 'holiii',
 ]);
-
-const STEPS_EXPECTING_RESPONSE = [
-  'CONFIRM',
-  'AWAITING_CONFIRMATION',
-  'AWAITING_USER_CONFIRMATION',
-  'AWAITING_ACCEPTANCE',
-  'AWAITING_VISIT_CONFIRMATION',
-  'CANCEL_CONFIRMATION',
-  'WAITING_CONSENT',
-  'FEEDBACK_RECOMMEND',
-  'FEEDBACK_PRO_RECOMMEND',
-  'AWAITING_WORK_COMPLETION',
-  'POST_CANCEL',
-  'CONFIRM_SERVICE',
-  'DESCRIPTION_MISMATCH',
-  'ASK_SAVED_LOCATION_SINGLE',
-  'CONFIRM_AVAILABILITY',
-  'CONFIRM_PRO_AVAILABILITY',
-  'AWAITING_VISIT',
-  'AWAITING_AVAILABILITY',
-  'SELECT_NEW_REQUEST_CONFIRM',
-  'SELECT_ACTIVE_REQUEST',
-  'SELECT_REQUEST_ACTION',
-];
 
 function hasActionableContent(text: string): boolean {
   const words = text.trim().split(/\s+/);
@@ -134,8 +110,7 @@ export class BotService {
     }
 
     if (role === 'USER' && input.text?.trim() && isAckMessage(input.text.trim())) {
-      const currentStep = session?.currentStep;
-      if (!currentStep || !STEPS_EXPECTING_RESPONSE.includes(currentStep)) {
+      if (stepIsInformational(session?.currentStep, role)) {
         await this.botRepository.updateLastInboundAt(input.phone, role, new Date());
         return { text: '', flow: undefined, step: undefined };
       }
