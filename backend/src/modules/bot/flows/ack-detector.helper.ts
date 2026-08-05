@@ -26,11 +26,29 @@ const ACK_KEYWORDS = [
   '👍', '👍👍', '🙌', '✅', '💪', '🤙', '❤️', '😊', '🙏',
 ];
 
+// Steps where Nora only notifies — she asks no questions and presents no options.
+// Safe default: any step NOT listed here IS CONSIDERED to expect user input.
+// Only add steps where Nora confirms something without asking anything in return.
+const INFORMATIONAL_STEPS: Record<string, 'USER' | 'PROFESSIONAL' | 'BOTH'> = {
+  'AWAITING_VISIT': 'BOTH',      // visit coordinated — Nora informs, asks nothing
+  'AWAITING_ACCEPTANCE': 'PROFESSIONAL', // professional is waiting for acceptance — Nora only informs the pro
+};
+
+export function stepIsInformational(
+  step: string | null | undefined,
+  role: 'USER' | 'PROFESSIONAL',
+): boolean {
+  if (!step) return true; // no active step = no conversational context = silence ack
+  const entry = INFORMATIONAL_STEPS[step];
+  if (!entry) return false;
+  return entry === 'BOTH' || entry === role;
+}
+
 export function isAckMessage(text: string): boolean {
   const normalized = text
     .trim()
     .toLowerCase()
     .replace(/!+$/, '')
-    .replace(/(.)\1+/g, '$1'); // colapsa letras repetidas: "daale" → "dale", "okk" → "ok"
+    .replace(/(.)\1+/g, '$1'); // collapse repeated letters: "daale" → "dale", "okk" → "ok"
   return ACK_KEYWORDS.some((kw) => normalized === kw);
 }
